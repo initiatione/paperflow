@@ -105,6 +105,22 @@ plugins/engineering-paper-intelligence/
 
 The plugin directory contains distributable logic and templates only. Runtime paper data lives in the configured paper wiki and run directories.
 
+## Mature MCP Wrapping Strategy
+
+The plugin should wrap `openags/paper-search-mcp` as a pinned, attributed dependency rather than copying its source into the plugin by default.
+
+Required behavior:
+
+- Pin the compatible upstream version or commit in plugin docs/config.
+- Provide an install/probe path that verifies the MCP is available before discovery.
+- Start or invoke the MCP through a plugin-owned wrapper so downstream scripts see a stable adapter contract.
+- Normalize upstream tool responses into this plugin's `search-record.json` and `normalized.json` schemas.
+- Record upstream version, command, query, endpoint, and source names in every discovery run.
+- Fail closed when the MCP is unavailable: report the missing dependency and stop before fabricating search results.
+- Keep a future `vendor` mode possible, but require license attribution and an explicit sync policy before vendoring upstream code.
+
+The wrapper boundary prevents the rest of the pipeline from depending on upstream response quirks. Only `paper_search_adapter.py` should know the exact `paper-search-mcp` invocation details.
+
 ## Dedicated Paper Wiki
 
 Default vault:
@@ -325,6 +341,16 @@ Reader outputs:
 
 Reader should borrow the spirit of figure-aware and source-grounded reading from Nature-style paper reader workflows, while staying adapted to engineering papers.
 
+Reader claims must be evidence-addressable. Important claims in `reader.md`, `figures.md`, and `reproducibility.md` should cite at least one of:
+
+- MinerU Markdown section or heading.
+- Figure/table identifier and image path.
+- PDF page number when available.
+- Metadata field and source.
+- Explicitly marked inference.
+
+Unsupported guesses must be marked as inferred or moved into `implementation-ideas.md`. They must not be promoted as paper facts.
+
 ### critic
 
 Runs quality gates before formal wiki write. It produces critic reports.
@@ -334,6 +360,8 @@ Sub-critics:
 - `paper-quality-critic`: checks paper quality and collection worthiness.
 - `parse-quality-critic`: checks PDF parsing completeness, missing images, broken formulas, and layout issues.
 - `reader-quality-critic`: checks summary fidelity, hallucination risk, missed contributions, overstated claims, and unsupported inferences.
+
+The critic must sample claim-level evidence, not just judge writing quality. It should verify that core claims in the reader can be traced back to raw artifacts or parser output. If a reader claim cannot be traced, the critic should choose `revise-reader`, `human-review`, or `quarantine` instead of `pass`.
 
 Possible outcomes:
 
@@ -374,6 +402,20 @@ Promotion must:
 - Refresh `index.md` and `hot.md` if the wiki tooling supports it.
 - Preserve provenance in frontmatter.
 - Mark inferred or ambiguous content.
+
+Promotion is transactional at the page-set level. Before writing compiled pages, the plugin must snapshot every page it may overwrite plus the relevant manifest/index/log state needed for rollback. If any write fails, the promotion should either complete recovery automatically or leave the run in a `promotion_failed` state with enough records to roll back.
+
+`promotion-record.json` must include:
+
+- Run ID and paper slug.
+- Input artifact hashes.
+- Staged draft paths.
+- Promoted page paths.
+- Previous page snapshot paths.
+- Manifest/index/log update summary.
+- Critic report references.
+- Human gate decision, if any.
+- Rollback command or script arguments.
 
 ### zotero
 
@@ -516,6 +558,23 @@ The state machine may choose a non-linear route when it better satisfies user in
 
 Every route deviation must be logged.
 
+### State Safety
+
+The orchestrator must be idempotent and crash-recoverable.
+
+Required safeguards:
+
+- Use per-run and per-paper locks before writing artifacts.
+- Treat each stage as a pure transition from declared inputs to declared outputs where possible.
+- Record input file hashes, output file hashes, stage start/end timestamps, tool versions, and exit status.
+- Never overwrite raw PDFs or source JSON unless the user explicitly runs a redo mode.
+- Write stage outputs to a temporary path and then atomically move them into place.
+- On restart, read `run-state.json` and artifact presence before deciding the next route.
+- Mark partial failures explicitly, such as `parse_failed`, `reader_failed`, `critic_failed`, or `promotion_failed`.
+- Prefer reusing verified artifacts over recomputing them when input hashes match.
+
+These rules are what make full automation safe enough for unattended runs.
+
 ## Controls
 
 ### dry-run
@@ -566,6 +625,15 @@ Required commands or script modes:
 
 Rollback must use `promotion-record.json` and backups rather than guessing.
 
+Rollback scope must be explicit:
+
+- Restore overwritten compiled wiki pages from snapshots.
+- Remove newly created compiled pages listed in `promotion-record.json`.
+- Restore or compensate `.manifest.json` changes.
+- Append a rollback entry to `log.md` instead of deleting history.
+- Mark the run and paper as `rolled_back`.
+- Leave `_raw` artifacts intact unless the user explicitly deletes them.
+
 ## Wiki Page Rules
 
 Reference pages should be concise compiled knowledge pages, not full reader dumps.
@@ -613,18 +681,41 @@ User-editable config files:
 
 ## First-Version Scope
 
-MVP should implement:
+Implementation should be split so the first useful version is small and testable.
 
-- Plugin scaffold for `engineering-paper-intelligence`.
-- MCP wrapping or invocation path for `openags/paper-search-mcp`.
-- `configure -> discover -> normalize -> filter -> rank` dry-run.
-- MinerU parser integration migrated from current plugin.
-- Dedicated paper wiki initialization template.
-- `parse -> read -> critic -> staging` for selected papers.
-- Manual-gated `promote-to-wiki`.
-- Run-state routing and report.
+### Phase 0: Foundation
 
-Post-MVP:
+- Rename or scaffold the target plugin shape for `engineering-paper-intelligence`.
+- Preserve the existing MinerU parser capability as an internal stage.
+- Add config templates for interests, ranking, filters, critic, routing, and paper wiki paths.
+- Add paper wiki initialization templates for `D:\paper-research-wiki`.
+- Add attribution docs for wrapped dependencies.
+
+### Phase 1: Discovery Dry Run
+
+- Implement MCP probe/wrapper for `openags/paper-search-mcp`.
+- Implement `configure -> discover -> normalize -> filter -> rank`.
+- Produce `search-record.json`, `normalized.json`, `filter-report.json`, and `rank.json`.
+- Support dry-run and budget controls.
+- Produce a run report without downloading, parsing, or writing the wiki.
+
+### Phase 2: One-Paper Ingest
+
+- Acquire one selected paper.
+- Parse it with MinerU.
+- Generate reader outputs with claim-level evidence requirements.
+- Run the three critic layers.
+- Write staged wiki drafts only after critic pass.
+- Keep manual gate before compiled wiki promotion.
+
+### Phase 3: Safe Promotion
+
+- Implement transactional `promote-to-wiki`.
+- Update `.manifest.json`, `index.md`, `hot.md`, and `log.md`.
+- Implement rollback, redo, and recritic for promoted papers.
+- Validate that no compiled wiki write happens without critic pass.
+
+### Phase 4: Optional Integrations
 
 - Zotero sync.
 - Automatic recurring digest.
@@ -644,10 +735,10 @@ Post-MVP:
 
 ## Open Implementation Questions
 
-- Exact mechanism for invoking `openags/paper-search-mcp` from an installed Codex plugin.
+- Exact command and environment mechanism for invoking `openags/paper-search-mcp` from an installed Codex plugin.
 - Whether the paper wiki initializer should be a skill, script, or both.
 - Exact MinerU LaTeX output availability and naming contract.
 - First-pass reader model and prompt format.
 - Whether Zotero sync is included in MVP or deferred.
 
-These are implementation questions, not design blockers.
+These are implementation questions, not design blockers, except that the `paper-search-mcp` wrapper contract must be settled before Phase 1 is considered complete.
