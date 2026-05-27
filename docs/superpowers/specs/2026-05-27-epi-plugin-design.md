@@ -30,6 +30,10 @@ This is not a single skill and not a local script bundle. It is a plugin that pa
 - The workflow supports `dry-run`, budget controls, human gates, rollback, redo, and recritic.
 - Self-evolution is skill-aware, evidence-backed, staged, and reversible.
 - `skill-aware-evolve` never edits plugin code directly. It first proposes changes to controlled assets.
+- The official Plugin Eval plugin is part of the EPI development and release workflow.
+- Plugin Eval is not part of the paper runtime chain and does not replace `paper-quality-critic`, `parse-quality-critic`, or `reader-quality-critic`.
+- Plugin Eval findings feed the `feedback -> skill-aware-evolve` loop as development-quality evidence.
+- The first custom Plugin Eval metric pack for EPI must check the presence of `run-state.json`, the existence of a critic gate, the hard rule that no critic pass means no compiled wiki write, and retention of raw PDF plus metadata.
 
 ## Product Boundary
 
@@ -105,6 +109,11 @@ plugins/epi/
     config.md
     recovery.md
     attribution.md
+    evaluation.md
+  metric-packs/
+    epi-quality-gates/
+      manifest.json
+      emit-epi-quality-gates.js
   vendor-notices/
 ```
 
@@ -457,8 +466,69 @@ Captures user feedback:
 - Papers the user manually promotes or demotes.
 - Reader quality corrections.
 - Wiki correction requests.
+- Plugin Eval reports, benchmark results, and improvement briefs from EPI development.
 
 Feedback updates run records and may generate evolution proposals.
+
+### Plugin Eval Development Quality Layer
+
+Plugin Eval is a development, release, and self-improvement quality layer for EPI itself. It evaluates the plugin and skills as software artifacts; it does not judge whether a paper is scientifically good, whether MinerU parsed a PDF correctly, or whether a reader summary is faithful.
+
+Local confirmed Plugin Eval root:
+
+```text
+C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval
+```
+
+Current local versioned path observed during design work:
+
+```text
+C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\603a6e80
+```
+
+Available Plugin Eval capabilities:
+
+- `evaluate-plugin`
+- `evaluate-skill`
+- `improve-skill`
+- `metric-pack-designer`
+- `plugin-eval` CLI
+
+Development loop:
+
+```text
+develop or modify EPI
+  -> Plugin Eval analyze
+  -> EPI custom metric pack
+  -> benchmark typical tasks
+  -> compare before/after
+  -> generate improvement brief
+  -> skill-aware-evolve proposal
+  -> human review and validation
+  -> activate approved asset changes
+```
+
+Known baseline from the existing `mineru-paper-parser` plugin:
+
+```text
+node C:\Users\liuchf\.codex\.tmp\plugins\plugins\plugin-eval\scripts\plugin-eval.js analyze D:\paper-search\plugins\mineru-paper-parser --format markdown
+```
+
+Observed result:
+
+- Score: 40/100
+- Grade: F
+- Risk: high
+- Main issues: missing `websiteURL`, `privacyPolicyURL`, and `termsOfServiceURL` in `plugin.json`; skill trigger description not explicit enough; Python script complexity is high; tests are missing.
+
+EPI-specific metric pack initial checks:
+
+- `run-state.json` exists for workflow runs that claim to be routed or completed.
+- A critic gate is represented in routing, state, docs, and tests before compiled wiki promotion exists.
+- The invariant `No critic pass, no compiled wiki write` is explicitly encoded and testable.
+- Raw PDF and metadata retention is required by artifact contracts.
+
+Metric-pack results are advisory development evidence. They may block a release if the user configures that policy, but they must not be used as a substitute for paper runtime critics.
 
 ### skill-aware-evolve
 
@@ -474,6 +544,7 @@ It may propose changes to:
 - Wiki promotion rules.
 - Routing rules.
 - Common failure memory.
+- Plugin and skill development rules derived from Plugin Eval reports, benchmarks, and custom metric packs.
 
 It must not directly edit plugin code.
 
@@ -697,6 +768,7 @@ Implementation should be split so the first useful version is small and testable
 - Add config templates for interests, ranking, filters, critic, routing, and paper wiki paths.
 - Add paper wiki initialization templates for `D:\paper-research-wiki`.
 - Add attribution docs for wrapped dependencies.
+- Add Plugin Eval documentation and an EPI-specific metric pack skeleton.
 
 ### Phase 1: Discovery Dry Run
 
@@ -705,6 +777,7 @@ Implementation should be split so the first useful version is small and testable
 - Produce `search-record.json`, `normalized.json`, `filter-report.json`, and `rank.json`.
 - Support dry-run and budget controls.
 - Produce a run report without downloading, parsing, or writing the wiki.
+- Run Plugin Eval with the EPI metric pack during development validation.
 
 ### Phase 2: One-Paper Ingest
 
@@ -749,6 +822,7 @@ Phase 5 must preserve the same artifact contracts and critic gate. It expands wh
 - Rule drift: skill-aware evolution is staged and reversible.
 - Overgrown plugin scope: keep search, ranking, parsing, reading, critic, wiki, Zotero, and evolution as separate skills/scripts with explicit contracts.
 - Agent-platform scope creep: MVP stays single-agent and defers multi-agent reviewers, parallel critics, and specialized readers to Phase 5.
+- Evaluation-role confusion: keep Plugin Eval as a plugin-development quality layer and keep runtime paper critics as the only gate for paper/wiki truth.
 
 ## Open Implementation Questions
 
