@@ -1,22 +1,21 @@
 ---
 name: zotero-sync
-description: "Use when recording or explicitly running the EPI Zotero synchronization stage for a paper. The default path writes an auditable local zotero-record.json and skips external Zotero writes unless enabled."
+description: "Use when recording or running optional EPI Zotero sync; default is local record only."
 ---
 
 # Zotero Sync
 
-Zotero sync is optional and explicit.
+Zotero sync is optional and explicit. Check config first:
 
-Record a skipped Zotero stage:
+```powershell
+python scripts\orchestrator.py config-status --vault D:\paper-research-wiki --json
+```
+
+If config is missing, stop before Zotero sync and follow `docs\config.md` 的 `## 聊天式初始化脚本`. 不要自由发挥成技术字段问卷. The user must confirm the plain-language summary before any config write or Zotero action.
 
 ```powershell
 python scripts\orchestrator.py zotero-sync --paper-root D:\paper-research-wiki\_raw\papers\<paper-slug> --collection EPI
-```
-
-Record an enabled fixture sync:
-
-```powershell
 python scripts\orchestrator.py zotero-sync --paper-root D:\paper-research-wiki\_raw\papers\<paper-slug> --collection EPI --enabled --item-key <zotero-item-key>
 ```
 
-The output is `zotero-record.json` under the paper raw artifact directory.
+Never delete existing Zotero records during config reset/update.

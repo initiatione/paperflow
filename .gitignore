@@ -2,8 +2,12 @@
 parsed/
 .pytest_cache/
 .pytest_tmp/
+.pytest_tmp*/
 __pycache__/
 *.py[cod]
+.coverage
+coverage.xml
+coverage/
 paper-research-wiki/
 plugins/epi/.runtime/
 plugins/epi/.plugin-eval/

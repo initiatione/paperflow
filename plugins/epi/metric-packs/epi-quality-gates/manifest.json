@@ -7,6 +7,6 @@
   ],
   "command": [
     "node",
-    "./emit-epi-quality-gates.js"
+    "../../build/metric-packs/epi-quality-gates/emit-epi-quality-gates.js"
   ]
 }

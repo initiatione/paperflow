@@ -14,7 +14,7 @@ from epi.artifacts import file_sha256, utc_now, write_json_atomic, write_text_at
 
 
 def _plugin_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[3]
 
 
 def _command_tokens(command: str | Sequence[str] | None, plugin_root: Path) -> list[str]:

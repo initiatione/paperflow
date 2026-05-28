@@ -1,7 +1,7 @@
 {
   "name": "epi",
   "version": "0.1.0+codex.20260528043040",
-  "description": "Search, rank, preserve, and prepare engineering papers for a dedicated LLM Wiki workflow.",
+  "description": "Search and rank engineering papers for an EPI wiki.",
   "author": {
     "name": "liuchf"
   },
@@ -31,9 +31,9 @@
     "privacyPolicyURL": "https://github.com/initiatione/paper-search/blob/main/plugins/epi/docs/privacy.md",
     "termsOfServiceURL": "https://github.com/initiatione/paper-search/blob/main/plugins/epi/docs/terms.md",
     "defaultPrompt": [
-      "Search high-quality robotics and AI papers in dry-run mode.",
-      "Initialize my dedicated paper research wiki.",
-      "Rank engineering papers for embodied intelligence and control."
+      "Dry-run paper search.",
+      "Initialize paper wiki.",
+      "Rank EPI candidates."
     ]
   }
 }

@@ -1,32 +1,26 @@
 ---
 name: paper-discovery
-description: "Use when searching, normalizing, filtering, and ranking engineering papers for robotics, AI, embodied intelligence, control, navigation, or motion-control research. Phase 1 defaults to dry-run mode and does not download PDFs, parse with MinerU, write compiled wiki pages, or write Zotero."
+description: "Use when running EPI paper search/ranking dry-runs without acquisition, parsing, promotion, or Zotero."
 ---
 
 # Engineering Paper Discovery
 
-Use this skill for Phase 1 paper discovery dry-runs.
+Use this for search, normalize, filter, and rank dry-runs. Check config first:
 
-Default command from the plugin root:
+```powershell
+python scripts\orchestrator.py config-status --vault D:\paper-research-wiki --json
+```
+
+If config is missing, stop before discovery and follow `docs\config.md` 的 `## 聊天式初始化脚本`. 不要自由发挥成技术字段问卷, and do not run search, dry-run, ingest, MinerU, or Zotero before the user confirms the summary. After confirmation, write answers JSON and run:
+
+```powershell
+python scripts\orchestrator.py init-config --vault D:\paper-research-wiki --answers-json <answers.json>
+```
+
+Run discovery:
 
 ```powershell
 python scripts\orchestrator.py dry-run --query "robotics embodied intelligence control" --max-results 20 --vault D:\paper-research-wiki
 ```
 
-Outputs are written to:
-
-`D:\paper-research-wiki\_runs\<run-id>\`
-
-Expected dry-run artifacts:
-
-- `run-state.json`
-- `search-record.json`
-- `normalized.json`
-- `filter-report.json`
-- `rank.json`
-- `report.md`
-- `report.json`
-
-Live runs also retain the upstream CLI JSON at `paper-search-raw.json` and point to it from `search-record.json`.
-
-Dry-run mode must stop before acquisition, MinerU parsing, reader generation, critic, wiki promotion, and Zotero.
+Dry-run writes only `_runs/<run-id>/`. Use `doctor` first when installation or dependency state is unclear.

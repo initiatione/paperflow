@@ -1,22 +1,9 @@
 # paper-search-mcp Notice
 
-Upstream project: `openags/paper-search-mcp`
+Upstream project: `openags/paper-search-mcp`.
 
-Phase 1 uses this project as an external search dependency. The plugin does not vendor upstream source code by default.
+EPI uses this as an external discovery dependency and does not vendor upstream source.
 
-Verified upstream boundary on 2026-05-27:
+Verified on 2026-05-27: PyPI `paper-search-mcp==0.1.3` exposes the MCP server through `python -m paper_search_mcp.server` but no console scripts. Live EPI discovery expects a `paper-search` CLI from upstream `main` or an `EPI_PAPER_SEARCH_COMMAND` wrapper.
 
-- PyPI package: `paper-search-mcp`
-- Verified PyPI version: `0.1.3`
-- PyPI `0.1.3` does not provide console-script executables.
-- GitHub `main` declares `paper-search-mcp = paper_search_mcp.server:main` and `paper-search = paper_search_mcp.cli:main` for an unreleased `0.1.4` package line.
-- MCP server entry from an installed package: `python -m paper_search_mcp.server`
-- Live search CLI contract: `paper-search search "<query>" -n <max-results> -s <comma-separated-sources>`
-
-Compatibility policy:
-
-- Probe the configured `paper-search` CLI command before discovery.
-- Record the discovered version or probe output in each run.
-- Preserve upstream query, source names, source result counts, upstream errors, and raw JSON response path.
-- Keep all upstream-specific response handling inside `scripts/epi/paper_search_adapter.py`.
-- Add license text and a sync record before any future vendored copy is introduced.
+Policy: probe before discovery, fail closed when unavailable, preserve raw response provenance, and keep adaptation in `scripts/build/epi/paper_search_adapter.py`.

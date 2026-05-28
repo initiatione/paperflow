@@ -101,7 +101,9 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     index_payload = json.loads((run_dir.parent / "index.json").read_text(encoding="utf-8"))
     dashboard_text = (run_dir.parent / "dashboard.md").read_text(encoding="utf-8")
     assert state["run_id"] == run_dir.name
+    assert state["workflow_type"] == "paper-discovery-dry-run"
     assert state["state"] == "reported"
+    assert state["status"] == "success"
     assert state["dry_run"] is True
     assert state["started_at"]
     assert state["finished_at"]
@@ -131,7 +133,7 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert "## Budget Usage" in report_md
     assert "## Next Actions" in report_md
     assert index_payload["runs"][0]["run_id"] == run_dir.name
-    assert index_payload["runs"][0]["workflow_type"] == "unknown"
+    assert index_payload["runs"][0]["workflow_type"] == "paper-discovery-dry-run"
     assert run_dir.name in dashboard_text
 
 

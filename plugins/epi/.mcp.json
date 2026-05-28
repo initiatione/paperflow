@@ -14,10 +14,7 @@
     }
   },
   "notes": [
-    "This plugin wraps openags/paper-search-mcp as an external dependency.",
-    "The MCP server can run from an installed Python package with python -m paper_search_mcp.server.",
-    "The Phase 1 discovery adapter invokes the upstream paper-search CLI, not the stdio MCP server.",
-    "As of the verified PyPI 0.1.3 package, paper-search-mcp does not publish console-script executables; use a PATH paper-search command from upstream main or configure EPI_PAPER_SEARCH_COMMAND to a wrapper script.",
-    "The adapter probes availability, fails closed when the command is unavailable, records upstream provenance, and normalizes runtime search responses before downstream stages consume them."
+    "EPI wraps openags/paper-search-mcp as an external dependency.",
+    "Phase 1 discovery invokes a paper-search CLI wrapper; the stdio MCP server remains documented for future use."
   ]
 }

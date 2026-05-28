@@ -1,23 +1,12 @@
 # MinerU Precise Batch API Notes
 
-Use the standard precise API for local batches:
+Use the precise batch API for local PDFs:
 
-- Request upload URLs: `POST https://mineru.net/api/v4/file-urls/batch`
-- Upload each local file with `PUT` to its signed URL. Do not set `Content-Type` on the upload request.
-- Poll batch results: `GET https://mineru.net/api/v4/extract-results/batch/{batch_id}`
-- Completed results expose `full_zip_url`; extract the `full.md` member and the `images/` members from the zip. The Markdown uses relative links such as `![](images/<hash>.jpg)`, so save `full.md` as `<paper>.md` beside that paper's own `images/` directory.
+- `POST /api/v4/file-urls/batch` to request upload URLs.
+- `PUT` each PDF to its signed URL without a `Content-Type` header.
+- `GET /api/v4/extract-results/batch/{batch_id}` until complete.
+- Extract `full.md` and `images/` from `full_zip_url`.
 
-Important request defaults for engineering papers:
+Defaults: `model_version=vlm`, `language=en`, formulas and tables enabled, OCR disabled unless the paper is scanned.
 
-- `model_version`: `vlm` unless the user asks for faster/lower-cost `pipeline`
-- `language`: `en` for English papers
-- `enable_formula`: `true`
-- `enable_table`: `true`
-- `is_ocr`: `false` unless the input is scanned or image-heavy
-
-Limits from the API docs:
-
-- One upload URL request accepts at most 50 files.
-- Each file must be at most 200 MB and 200 pages.
-- `Authorization` must be `Bearer <token>`.
-- Common token failures: `A0202` token error, `A0211` token expired.
+Limits: up to 50 files per batch; each file must be <=200 MB and <=200 pages. Auth uses `Bearer <token>`; common token failures are `A0202` and `A0211`.
