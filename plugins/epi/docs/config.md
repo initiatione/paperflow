@@ -6,7 +6,7 @@
 python scripts\orchestrator.py doctor --json
 ```
 
-如果本机还没配置 `paper-search` CLI 或 `MINERU_TOKEN`，`doctor` 会把它们标记为 warning，并给出首次配置链接和 PowerShell 示例。默认检查不会打开浏览器；只有用户明确要求时才打开当前缺失项的配置页面：
+如果本机还没配置 `paper-search` CLI 或 `MINERU_TOKEN`，`doctor` 会把它们标记为 warning，并给出首次配置链接和 PowerShell 示例。如果所选 vault 还没有 `_meta\epi-config.yaml`，`doctor` 也会报告 `epi_config: warning`，提示先完成本页的聊天式初始化。默认检查不会打开浏览器；只有用户明确要求时才打开当前缺失项的配置页面：
 
 ```powershell
 python scripts\orchestrator.py doctor --open-setup

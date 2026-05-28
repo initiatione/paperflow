@@ -40,7 +40,7 @@ def write_report(
     removed_paths = removed_paths or []
     changed_artifacts = changed_artifacts or []
 
-    if workflow_type == "dry-run":
+    if workflow_type in {"dry-run", "paper-discovery-dry-run"}:
         report = ["# EPI Dry Run", ""]
         if run_id:
             report.append(f"Run ID: {run_id}")

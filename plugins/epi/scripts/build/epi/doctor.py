@@ -5,6 +5,7 @@ import os
 import webbrowser
 from pathlib import Path
 
+from epi.config import config_status
 from epi.paper_search_adapter import probe_paper_search_mcp
 from epi.run_mineru_parse import _command_tokens
 
@@ -167,6 +168,21 @@ def _check_mineru_token() -> dict:
     )
 
 
+def _check_epi_config(vault_path: Path) -> dict:
+    status = config_status(vault_path)
+    configured = bool(status["configured"])
+    return {
+        "name": "epi_config",
+        "status": "ok" if configured else "warning",
+        "message": "initialized" if configured else "not initialized; run config-status and init-config before paper workflows",
+        "configured": configured,
+        "needs_onboarding": bool(status["needs_onboarding"]),
+        "config_path": status["config_path"],
+        "state_path": status["state_path"],
+        "history_dir": status["history_dir"],
+    }
+
+
 def setup_links_for_report(report: dict) -> list[dict]:
     links = []
     seen_urls = set()
@@ -203,6 +219,7 @@ def collect_doctor_report(
     plugin_metadata, manifest_check = _load_plugin_metadata(plugin_root)
     checks = [manifest_check]
     checks.extend(_check_path(plugin_root, relative_path) for relative_path in REQUIRED_PATHS if relative_path != ".codex-plugin/plugin.json")
+    checks.append(_check_epi_config(vault_path))
     checks.append(_check_paper_search(paper_search_command))
     checks.append(_check_mineru_command(plugin_root, mineru_command))
     checks.append(_check_mineru_token())

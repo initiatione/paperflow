@@ -501,6 +501,7 @@ def run_dry_run(
         run_dir,
         ranked,
         errors,
+        workflow_type=state["workflow_type"],
         run_id=run_id,
         rejected=rejected,
         quarantined=[],

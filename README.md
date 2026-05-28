@@ -30,7 +30,7 @@ python scripts\orchestrator.py doctor
 python scripts\orchestrator.py doctor --json
 ```
 
-`doctor` returns non-zero only when the plugin structure itself is broken. Missing live dependencies such as `paper-search`, `MINERU_TOKEN`, or a MinerU command are reported as warnings so offline dry-runs remain usable.
+`doctor` returns non-zero only when the plugin structure itself is broken. Missing live dependencies such as `paper-search`, `MINERU_TOKEN`, a MinerU command, or an uninitialized EPI vault config are reported as warnings so offline checks remain usable.
 
 When `paper-search` or `MINERU_TOKEN` is missing, `doctor` prints first-use setup links and PowerShell examples. It does not open a browser unless you explicitly ask it to:
 
@@ -39,6 +39,8 @@ python scripts\orchestrator.py doctor --open-setup
 ```
 
 Use `--open-setup` when you want EPI to open the paper-search and MinerU setup pages for the currently missing items.
+
+If `doctor` reports `epi_config: warning`, run `config-status` and complete the chat-style initialization in `plugins\epi\docs\config.md` before starting paper discovery.
 
 ## Plugins
 
