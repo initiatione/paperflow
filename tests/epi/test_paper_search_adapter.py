@@ -1,7 +1,9 @@
 import json
+import subprocess
 
 from epi.paper_search_adapter import COMMAND_UNAVAILABLE
 from epi.paper_search_adapter import discover
+from epi.paper_search_adapter import probe_paper_search_mcp
 
 
 def _write_fake_paper_search(tmp_path, payload: dict, version: str = "paper-search 0.1.4") -> str:
@@ -119,3 +121,18 @@ def test_live_cli_discovery_fails_closed_when_command_is_missing(tmp_path):
     assert result["mcp_probe"]["available"] is False
     assert result["mcp_probe"]["error"] == "command_not_found"
     assert result["error"] == COMMAND_UNAVAILABLE
+
+
+def test_probe_paper_search_fails_closed_on_timeout(monkeypatch):
+    monkeypatch.setattr("epi.paper_search_adapter._resolve_command", lambda command: command)
+
+    def _timeout(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=["paper-search", "--version"], timeout=15)
+
+    monkeypatch.setattr("epi.paper_search_adapter._run_command", _timeout)
+
+    result = probe_paper_search_mcp("paper-search")
+
+    assert result["available"] is False
+    assert result["command"] == "paper-search"
+    assert result["error"] == "probe_timeout"

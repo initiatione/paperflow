@@ -10,6 +10,7 @@ from pathlib import Path
 
 DEFAULT_SOURCES = ["arxiv", "semantic", "openalex", "crossref", "dblp"]
 COMMAND_UNAVAILABLE = "paper-search command unavailable; install paper-search-mcp or configure EPI_PAPER_SEARCH_COMMAND"
+PROBE_TIMEOUT_SECONDS = 60
 
 
 def _resolve_command(command: str) -> str | None:
@@ -38,7 +39,10 @@ def probe_paper_search_mcp(command: str = "paper-search") -> dict:
     resolved = _resolve_command(command)
     if not resolved:
         return {"available": False, "command": command, "error": "command_not_found"}
-    version_probe = _run_command(resolved, ["--version"], timeout_seconds=15)
+    try:
+        version_probe = _run_command(resolved, ["--version"], timeout_seconds=PROBE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        return {"available": False, "command": resolved, "error": "probe_timeout"}
     if version_probe.returncode == 0:
         return {
             "available": True,
@@ -47,7 +51,17 @@ def probe_paper_search_mcp(command: str = "paper-search") -> dict:
             "stdout": version_probe.stdout.strip(),
             "stderr": version_probe.stderr.strip(),
         }
-    sources_probe = _run_command(resolved, ["sources"], timeout_seconds=15)
+    try:
+        sources_probe = _run_command(resolved, ["sources"], timeout_seconds=PROBE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        return {
+            "available": False,
+            "command": resolved,
+            "returncode": version_probe.returncode,
+            "stdout": version_probe.stdout.strip(),
+            "stderr": version_probe.stderr.strip(),
+            "error": "probe_timeout",
+        }
     return {
         "available": sources_probe.returncode == 0,
         "command": resolved,
