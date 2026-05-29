@@ -12,7 +12,9 @@ EPI 当前聚焦“高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉
 - 安装诊断：`doctor` 支持只读健康检查，区分插件结构错误和外部依赖 warning，并能给 `paper-search` 与 MinerU 配置链接。
 - 配置引导：`config-status`、`init-config`、`propose-config-update`、`apply-config-update` 已形成配置生命周期；当前新增 `config-setup` skill，把首次配置和修改配置改成聊天式逐步引导。
 - 论文发现：`dry-run` 支持候选标准化、过滤、ranking、报告、run index 和 research queue，且只写 `_runs`。
+- 1-3 快路：`prepare-ranked` 支持从 dry-run 的 `rank.json` 直接完成 selected ranked paper acquire + MinerU parse，并停在 raw artifact，不误入 reader/critic/staging。
 - 推进采集：`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one` 支持从候选论文进入 raw artifact、MinerU 解析、reader、critic 和 staging。
+- MinerU 产物整理：成功解析后最终产物只保留在 `mineru/`，大型 `mineru-command/paper` 与 `mineru-command/parsed` 工作副本会清理；若 MinerU 没有原生 TeX，生成非空 Markdown-derived LaTeX fallback 并记录 `tex_source`。
 - Reader v2：已拆出三角色阅读输出、evidence map、证据地址校验和轻阅读报告所需摘要。
 - Critic 质量门：`paper-quality-critic` 已从文件存在检查升级为工程论文可靠性检查，覆盖身份、claim support、benchmark integrity、复现信息 warning、scope overclaim 和 parse-vs-paper failure。
 - Role critic quorum：Nature/Sci editor、peer reviewer、senior domain researcher 的角色审查已经进入 critic quorum 和后续 decision。
@@ -25,23 +27,35 @@ EPI 当前聚焦“高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉
 
 ## 当前未提交工作
 
-当前源码树本轮新增修复集中在完整链路实测暴露的问题：
+当前源码树本轮新增修复集中在完整链路实测和 1-3 raw preparation 暴露的问题：
 
-- `plugins/epi/scripts/build/epi/paper_quality.py`
+- `plugins/epi/scripts/build/epi/cli.py`
 - `plugins/epi/scripts/build/epi/orchestrator.py`
+- `plugins/epi/scripts/build/epi/run_mineru_parse.py`
 - `plugins/epi/docs/epi-linkage.md`
 - `plugins/epi/docs/progress.md`
 - `plugins/epi/.codex-plugin/plugin.json`
-- `tests/epi/test_paper_quality_critic_protocol.py`
-- `tests/epi/test_redo_recritic.py`
+- `plugins/epi/skills/paper-discovery/SKILL.md`
+- `plugins/epi/skills/paper-ingest/SKILL.md`
+- `plugins/epi/skills/mineru-paper-parser/SKILL.md`
+- `tests/epi/test_batch_advance_router.py`
+- `tests/epi/test_cli_parser.py`
+- `tests/epi/test_config_onboarding_docs.py`
+- `tests/epi/test_mineru_parse_adapter.py`
 
-这些改动的目标是：用仓库源插件 `D:\paper-search\plugins\epi` 跑通发现、下载、MinerU 解析、reader、critic、staging、paper-gate、wiki-ingest-handoff 的原链路。修复点包括：综述论文正文里的 `improve/better` 词汇不能在 reader 未写出性能断言时误触发 `benchmark_integrity` 阻断；`recritic`/`redo-read-recritic` 成功后必须同步论文自身 `run-state.json`，避免 dashboard 和 research queue 继续显示旧的 `critic_failed`。
+这些改动的目标是：用仓库源插件 `D:\paper-search\plugins\epi` 把 1-3 路径固定成 `dry-run -> prepare-ranked`，完成发现、下载、MinerU 解析后精确停止，不再手工复制 candidate JSON，也不误触发 reader/critic/staging。修复点包括：`prepare-ranked` 识别 0 KB TeX 等不完整 parse 并重新解析；MinerU 成功后清理重复工作目录；MinerU 无原生 TeX 时生成非空 LaTeX fallback。
 
 ## 最近验证
 
 本轮已验证：
 
 ```powershell
+python -m pytest tests\epi\test_mineru_parse_adapter.py tests\epi\test_cli_parser.py tests\epi\test_batch_advance_router.py tests\epi\test_config_onboarding_docs.py -q --basetemp=.pytest_tmp_one_to_three_related2
+python -m pytest tests\epi -q --basetemp=.pytest_tmp_one_to_three_full
+python C:\Users\liuchf\.codex\skills\.system\skill-creator\scripts\quick_validate.py plugins\epi\skills\paper-discovery
+python C:\Users\liuchf\.codex\skills\.system\skill-creator\scripts\quick_validate.py plugins\epi\skills\paper-ingest
+python C:\Users\liuchf\.codex\skills\.system\skill-creator\scripts\quick_validate.py plugins\epi\skills\mineru-paper-parser
+python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\epi
 python -m pytest tests\epi\test_paper_quality_critic_protocol.py -q --basetemp=.pytest_tmp_green_paper_quality
 python -m pytest tests\epi\test_redo_recritic.py::test_recritic_cli_writes_routed_report_with_changed_artifacts tests\epi\test_paper_quality_critic_protocol.py -q --basetemp=.pytest_tmp_green_recritic_and_quality
 python -m pytest tests\epi -q --basetemp=.pytest_tmp_full_chain_fix
@@ -53,7 +67,16 @@ python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plu
 node C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\719ed655\scripts\plugin-eval.js analyze D:\paper-search\plugins\epi --format markdown
 ```
 
-结果：目标回归测试通过；发布前全量 `tests\epi` 为 `202 passed in 23.51s`，coverage run 为 `202 passed in 25.00s`，`plugins\epi\coverage\coverage.xml` 已刷新。EPI 与 MinerU 两个 plugin validation 均 passed。Plugin Eval 结果为 `87/100`、`0 fail, 3 warn`、coverage `93.76%`；三个 warning 为已知 token budget 和 Windows 路径下 `py-tests-missing` 识别限制。
+结果：1-3 相关回归测试 `30 passed in 5.50s`；发布前全量 `tests\epi` 当前为 `207 passed in 21.21s`，上一轮 full-chain 修复为 `202 passed in 23.51s`，coverage run 为 `202 passed in 25.00s`，`plugins\epi\coverage\coverage.xml` 已刷新。三个 EPI skill quick validation 均 passed，EPI plugin validation passed。Plugin Eval 结果为 `87/100`、`0 fail, 3 warn`、coverage `93.76%`；三个 warning 为已知 token budget 和 Windows 路径下 `py-tests-missing` 识别限制。
+
+1-3 真实目录整理结果：
+
+- 论文 raw root：`D:\paper-research-wiki\_raw\papers\a-survey-learning-embodied-intelligence-from-physical-simulators-and-world-models`。
+- `mineru\paper.md`：`330048` bytes。
+- `mineru\paper.tex`：`336909` bytes，`tex_source=markdown-fallback`。
+- `mineru\images`：`68` files。
+- `work_dir_retention=logs-only`。
+- `mineru-command\paper` 与 `mineru-command\parsed` 已清理，只保留 stdout/stderr 日志。
 
 真实链路实测结果：
 
@@ -86,7 +109,7 @@ node C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\719ed655\sc
 
 ## 下一步计划
 
-1. 发布本轮修复 commit，并从 GitHub/marketplace 重新安装 EPI，确认安装 cache 版本变为 `0.1.0+codex.20260530034504`。
+1. 发布本轮修复 commit，并从 GitHub/marketplace 重新安装 EPI，确认安装 cache 版本变为 `0.1.0+codex.20260530042108`。
 2. 升级安装副本后，从新 Codex thread 用 `@epi` 运行 `doctor --json`、`config-status --json`、dry-run fixture smoke 和 `research-queue` 验证安装体验。
 3. 对 `D:\paper-research-wiki` 补齐目标 vault contract 文件（例如 `AGENTS.md` 和 `_meta/*.md`），这样 wiki-ingest agent 能按本 vault 的最终规则落页，而不是只依赖 EPI suggested routes。
 4. 记录 human approval 后，交给 wiki-ingest agent 消费 `_staging\papers\a-survey-on-robotics-with-foundation-models-toward-embodied-ai\wiki-ingest-brief.json` 和 reading report。

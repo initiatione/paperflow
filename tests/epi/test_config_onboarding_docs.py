@@ -70,3 +70,18 @@ def test_epi_skills_delegate_onboarding_wording_to_config_doc():
         assert "config-setup" in text
         assert "不要自由发挥成技术字段问卷" in text
         assert "不要一次性输出完整默认配置" in text
+
+
+def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
+    discovery = _read(SKILL_DIR / "paper-discovery" / "SKILL.md")
+    ingest = _read(SKILL_DIR / "paper-ingest" / "SKILL.md")
+    mineru = _read(SKILL_DIR / "mineru-paper-parser" / "SKILL.md")
+
+    assert "prepare-ranked" in discovery
+    assert "stops after" in discovery
+    assert "acquire-record.json" in discovery
+    assert "parse-record.json" in discovery
+    assert "Do not use `advance-paper`, `advance-ranked`, or `advance-batch`" in ingest
+    assert "tex_source=markdown-fallback" in mineru
+    assert "mineru-command\\paper" in mineru
+    assert "mineru-command\\parsed" in mineru

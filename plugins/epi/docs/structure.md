@@ -109,9 +109,9 @@ skills/
 ```
 
 - `config-setup`：首次使用或修改配置时的唯一交互入口。一次只问一个问题；最终确认前不运行 `init-config` 或 `apply-config-update`。
-- `paper-discovery`：只读搜索、排序和 dry-run。不得下载 PDF、不得调用 MinerU、不得写 raw/staging/wiki。
-- `paper-ingest`：推进已选论文进入 raw、reader、critic、staging 和 handoff。必须尊重 critic gate。
-- `mineru-paper-parser`：低层 PDF -> Markdown/TeX/images/manifest 解析能力。
+- `paper-discovery`：搜索、排序和 dry-run；当用户要求“1-3”时，指向 `prepare-ranked` 快路，只写 raw 采集和 MinerU 解析产物。
+- `paper-ingest`：推进已选论文进入 raw、reader、critic、staging 和 handoff。只需 1-3 时使用 `prepare-ranked`，不要误入完整 reader/critic/staging 链。
+- `mineru-paper-parser`：低层 PDF -> Markdown/TeX/images/manifest 解析能力；成功后最终产物只放在 `mineru/`，`paper.tex` 必须非空，必要时使用 Markdown fallback。
 - `skill-aware-evolve`：根据 evidence 和验证结果提出受控变更；配置问题必须走配置 proposal。
 - `zotero-sync`：Zotero 记录和可选同步，默认安全边界是本地记录优先。
 

@@ -42,11 +42,11 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "config-setup" in text
     assert "paper-quality-critic" in text
     assert "wiki-ingest-handoff" in text
-    assert "202 passed in 23.51s" in text
+    assert "207 passed in 21.21s" in text
     assert "87/100" in text
     assert "waiting_for_human_gate" in text
     assert "ready_for_agent=true" in text
-    assert "0.1.0+codex.20260530034504" in text
+    assert "0.1.0+codex.20260530042108" in text
     assert "发布前必须重跑" in text
     assert "Plugin Eval" in text
     assert "MINERU_TOKEN" in text

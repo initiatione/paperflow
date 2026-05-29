@@ -56,6 +56,49 @@ print("batch_id: fake-batch-001")
     return script
 
 
+def _write_markdown_only_success_command(tmp_path):
+    script = tmp_path / "fake_mineru_markdown_only.py"
+    script.write_text(
+        """
+import argparse
+import json
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--project-root", required=True)
+parser.add_argument("--input-dir", required=True)
+parser.add_argument("--output-dir", required=True)
+parser.add_argument("--layout", default="document-dir")
+args = parser.parse_args()
+
+project_root = Path(args.project_root)
+output_root = project_root / args.output_dir
+document_dir = output_root / "paper"
+images_dir = document_dir / "images"
+images_dir.mkdir(parents=True, exist_ok=True)
+(document_dir / "paper.md").write_text("# Parsed Paper\\n\\nEvidence from Markdown-only MinerU.\\n", encoding="utf-8")
+(images_dir / "figure-1.png").write_bytes(b"PNG")
+manifest = {
+    "batch_id": "fake-batch-md-only",
+    "outputs": [
+        {
+            "file_name": "paper.pdf",
+            "state": "done",
+            "document_dir": "parsed/paper",
+            "markdown_path": "parsed/paper/paper.md",
+            "image_count": 1,
+            "image_dir": "parsed/paper/images",
+        }
+    ],
+}
+(output_root / "mineru_batch_fake-batch-md-only.json").write_text(json.dumps(manifest), encoding="utf-8")
+print("batch_id: fake-batch-md-only")
+""".strip(),
+        encoding="utf-8",
+    )
+    return script
+
+
 def _write_failure_command(tmp_path):
     script = tmp_path / "fake_mineru_failure.py"
     script.write_text(
@@ -88,6 +131,7 @@ def test_mineru_command_imports_markdown_images_manifest_and_records_job(tmp_pat
     assert record["output_artifact_hashes"]["paper.md"]
     assert record["output_artifact_hashes"]["paper.tex"]
     assert record["output_artifact_hashes"]["mineru-manifest.json"]
+    assert record["tex_source"] == "mineru-native"
     assert record["markdown_path"] == str(paper_root / "mineru" / "paper.md")
     assert record["tex_path"] == str(paper_root / "mineru" / "paper.tex")
     assert record["image_count"] == 1
@@ -99,6 +143,27 @@ def test_mineru_command_imports_markdown_images_manifest_and_records_job(tmp_pat
     )
     assert "batch_id: fake-batch-001" in (paper_root / "mineru-command" / "stdout.txt").read_text(encoding="utf-8")
     assert json.loads((paper_root / "parse-record.json").read_text(encoding="utf-8")) == record
+
+
+def test_mineru_command_generates_tex_fallback_and_removes_success_work_copies(tmp_path):
+    paper_root = _seed_paper_root(tmp_path)
+    command = [sys.executable, str(_write_markdown_only_success_command(tmp_path))]
+
+    record = run_mineru_command(paper_root, command=command)
+
+    tex_path = paper_root / "mineru" / "paper.tex"
+    tex_text = tex_path.read_text(encoding="utf-8")
+    assert record["status"] == "success"
+    assert record["tex_source"] == "markdown-fallback"
+    assert record["work_dir_retention"] == "logs-only"
+    assert "\\section{Parsed Paper}" in tex_text
+    assert "Evidence from Markdown-only MinerU" in tex_text
+    assert tex_path.stat().st_size > 0
+    assert not (paper_root / "mineru-command" / "paper").exists()
+    assert not (paper_root / "mineru-command" / "parsed").exists()
+    assert (paper_root / "mineru-command" / "stdout.txt").is_file()
+    assert (paper_root / "mineru-command" / "stderr.txt").is_file()
+    assert (paper_root / "mineru" / "images" / "figure-1.png").read_bytes() == b"PNG"
 
 
 def test_mineru_command_accepts_windows_command_string(tmp_path):

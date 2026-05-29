@@ -1,11 +1,19 @@
 ---
 name: paper-ingest
-description: "Use when ingesting selected papers into EPI raw artifacts, readers, critics, and staging drafts."
+description: "Use when ingesting selected papers into EPI raw artifacts, or continuing beyond MinerU parse into readers, critics, and staging drafts."
 ---
 
 # Paper Ingest
 
 Use after dry-run ranking selects candidate papers. Keep the chain aligned with `docs\epi-linkage.md`: high-quality paper collection -> LLM Wiki deposition -> low-burden reading report. If config is missing, stop ingest and use `config-setup`; config onboarding lives in `docs\config.md` 的 `## 聊天式初始化脚本`，不要自由发挥成技术字段问卷，不要一次性输出完整默认配置.
+
+For steps 1-3 only, prefer the precise raw-prep command:
+
+```powershell
+python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 1 --vault D:\paper-research-wiki
+```
+
+This path performs acquire + MinerU parse and stops after `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Do not use `advance-paper`, `advance-ranked`, or `advance-batch` when the user only asked for 1-3, because those commands continue into reader/critic/staging on later invocations.
 
 ```powershell
 python scripts\orchestrator.py advance-ranked --run-id <dry-run-id> --max-papers 3 --vault D:\paper-research-wiki

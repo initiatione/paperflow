@@ -16,6 +16,21 @@ def test_advance_ranked_parser_accepts_include_review_candidates():
     assert args.include_review_candidates is True
 
 
+def test_prepare_ranked_parser_defaults_to_one_paper_and_stops_after_parse():
+    args = build_parser().parse_args(
+        [
+            "prepare-ranked",
+            "--run-id",
+            "run-001",
+        ]
+    )
+
+    assert args.command == "prepare-ranked"
+    assert args.run_id == "run-001"
+    assert args.max_papers == 1
+    assert args.include_review_candidates is False
+
+
 def test_wiki_query_parser_accepts_research_decision_filters():
     args = build_parser().parse_args(
         [

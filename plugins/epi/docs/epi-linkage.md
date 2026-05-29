@@ -66,7 +66,7 @@ ranking 必须同时给机器信号和低阅读负担解释：
 
 ### 3. 采集、解析与 raw 留痕
 
-入口：`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`parse-paper`。
+入口：`prepare-ranked` 用于只走搜索后采集 + MinerU 解析并停止；`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`parse-paper` 用于继续完整 ingest 或单步修复。
 
 关键产物：
 
@@ -75,9 +75,11 @@ ranking 必须同时给机器信号和低阅读负担解释：
 - `_raw/papers/<slug>/acquire-record.json`
 - `_raw/papers/<slug>/mineru/paper.md`
 - `_raw/papers/<slug>/mineru/paper.tex`
+- `_raw/papers/<slug>/mineru/images/...`
+- `_raw/papers/<slug>/mineru/mineru-manifest.json`
 - `_raw/papers/<slug>/run-state.json`
 
-解析失败时保留错误和 run-state，不进入 staging 或 compiled wiki。
+成功解析时只保留最终 `mineru/` 产物和 `mineru-command/stdout.txt`、`mineru-command/stderr.txt` 日志，不保留重复的 `mineru-command/paper` 或 `mineru-command/parsed` 大型工作副本。若 MinerU 没有返回原生 `.tex`，EPI 从 `paper.md` 生成非空 LaTeX fallback，并在 `parse-record.json` 记录 `tex_source=markdown-fallback`；原生 TeX 记录 `tex_source=mineru-native`。解析失败时保留错误和 run-state，不进入 staging 或 compiled wiki。
 
 ### 4. Reader 生成
 

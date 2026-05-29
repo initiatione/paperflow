@@ -100,6 +100,13 @@ def build_parser() -> argparse.ArgumentParser:
     advance_ranked.add_argument("--mineru-command", default=None)
     advance_ranked.add_argument("--include-review-candidates", action="store_true")
 
+    prepare_ranked = subparsers.add_parser("prepare-ranked")
+    prepare_ranked.add_argument("--run-id", required=True)
+    _add_common_vault(prepare_ranked)
+    prepare_ranked.add_argument("--max-papers", type=int, default=1)
+    prepare_ranked.add_argument("--mineru-command", default=None)
+    prepare_ranked.add_argument("--include-review-candidates", action="store_true")
+
     parse_paper = subparsers.add_parser("parse-paper")
     _add_common_vault(parse_paper)
     parse_paper.add_argument("--slug", required=True)
@@ -360,6 +367,21 @@ def _handle_advance_ranked(args: argparse.Namespace) -> int:
     print(f"batch_state={batch['state']}")
     print(f"processed_count={batch['processed_count']}")
     return 0 if batch["state"] != "batch_failed" else 1
+
+
+def _handle_prepare_ranked(args: argparse.Namespace) -> int:
+    batch = workflows.prepare_ranked_papers_from_run(
+        args.vault,
+        args.run_id,
+        mineru_command=args.mineru_command,
+        max_papers=args.max_papers,
+        include_review_candidates=args.include_review_candidates,
+    )
+    print(f"run_dir={args.vault.resolve() / '_runs' / batch['run_id']}")
+    print(f"batch_state={batch['state']}")
+    print(f"processed_count={batch['processed_count']}")
+    print("stops_after=parse")
+    return 0 if batch["state"] != "prepare_failed" else 1
 
 
 def _handle_parse_paper(args: argparse.Namespace) -> int:
@@ -676,6 +698,7 @@ HANDLERS: dict[str, Handler] = {
     "advance-paper": _handle_advance_paper,
     "advance-batch": _handle_advance_batch,
     "advance-ranked": _handle_advance_ranked,
+    "prepare-ranked": _handle_prepare_ranked,
     "parse-paper": _handle_parse_paper,
     "promote-to-wiki": _handle_promote_to_wiki,
     "rollback-promotion": _handle_rollback_promotion,

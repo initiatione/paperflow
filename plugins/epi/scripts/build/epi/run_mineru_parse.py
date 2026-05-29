@@ -117,6 +117,103 @@ def _copy_tree_contents(source_dir: Path, target_dir: Path) -> int:
     return count
 
 
+def _escape_latex_text(value: str) -> str:
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    }
+    return "".join(replacements.get(char, char) for char in value)
+
+
+def _markdown_image_to_latex(line: str) -> str | None:
+    match = re.match(r"!\[[^\]]*\]\(([^)]+)\)", line.strip())
+    if not match:
+        return None
+    image_path = match.group(1).strip()
+    return "\n".join(
+        [
+            r"\begin{figure}[htbp]",
+            r"\centering",
+            rf"\includegraphics[width=\linewidth]{{{_escape_latex_text(image_path)}}}",
+            r"\end{figure}",
+        ]
+    )
+
+
+def _markdown_to_latex(markdown: str) -> str:
+    lines = [
+        r"\documentclass{article}",
+        r"\usepackage[utf8]{inputenc}",
+        r"\usepackage{graphicx}",
+        r"\usepackage{hyperref}",
+        r"\usepackage{amsmath}",
+        r"\begin{document}",
+        "",
+    ]
+    in_itemize = False
+    heading_commands = {
+        1: "section",
+        2: "subsection",
+        3: "subsubsection",
+    }
+    for raw_line in markdown.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            if in_itemize:
+                lines.append(r"\end{itemize}")
+                in_itemize = False
+            lines.append("")
+            continue
+
+        image_latex = _markdown_image_to_latex(line)
+        if image_latex:
+            if in_itemize:
+                lines.append(r"\end{itemize}")
+                in_itemize = False
+            lines.append(image_latex)
+            continue
+
+        heading = re.match(r"^(#{1,6})\s+(.+)$", line)
+        if heading:
+            if in_itemize:
+                lines.append(r"\end{itemize}")
+                in_itemize = False
+            level = len(heading.group(1))
+            title = _escape_latex_text(heading.group(2).strip())
+            command = heading_commands.get(level)
+            if command:
+                lines.append(rf"\{command}{{{title}}}")
+            else:
+                lines.append(rf"\paragraph{{{title}}}")
+            continue
+
+        bullet = re.match(r"^\s*[-*]\s+(.+)$", line)
+        if bullet:
+            if not in_itemize:
+                lines.append(r"\begin{itemize}")
+                in_itemize = True
+            lines.append(rf"\item {_escape_latex_text(bullet.group(1).strip())}")
+            continue
+
+        if in_itemize:
+            lines.append(r"\end{itemize}")
+            in_itemize = False
+        lines.append(_escape_latex_text(line))
+
+    if in_itemize:
+        lines.append(r"\end{itemize}")
+    lines.extend(["", r"\end{document}", ""])
+    return "\n".join(lines)
+
+
 def run_mineru_command(
     paper_root: Path,
     *,
@@ -219,15 +316,24 @@ def run_mineru_command(
     mineru_dir = paper_root / "mineru"
     mineru_dir.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(markdown_path, mineru_dir / "paper.md")
-    tex_candidates = sorted(markdown_path.parent.glob("*.tex"))
+    tex_candidates = sorted(path for path in markdown_path.parent.glob("*.tex") if path.stat().st_size > 0)
     if tex_candidates:
         shutil.copyfile(tex_candidates[0], mineru_dir / "paper.tex")
+        tex_source = "mineru-native"
     else:
-        write_text_atomic(mineru_dir / "paper.tex", "")
+        tex_source = "markdown-fallback"
+        write_text_atomic(
+            mineru_dir / "paper.tex",
+            _markdown_to_latex((mineru_dir / "paper.md").read_text(encoding="utf-8")),
+        )
     image_dir = markdown_path.parent / "images"
     image_count = _copy_tree_contents(image_dir, mineru_dir / "images")
     if manifest_path:
         shutil.copyfile(manifest_path, mineru_dir / "mineru-manifest.json")
+    if input_dir.exists():
+        shutil.rmtree(input_dir)
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
 
     record = {
         "stage": "parse",
@@ -243,8 +349,10 @@ def run_mineru_command(
         "stderr_path": str(stderr_path),
         "markdown_path": str(mineru_dir / "paper.md"),
         "tex_path": str(mineru_dir / "paper.tex"),
+        "tex_source": tex_source,
         "manifest_path": str(mineru_dir / "mineru-manifest.json") if manifest_path else None,
         "image_count": image_count,
+        "work_dir_retention": "logs-only",
     }
     record["input_artifact_hashes"] = {
         "paper.pdf": file_sha256(source_pdf),

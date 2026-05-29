@@ -1202,6 +1202,209 @@ def advance_paper_batch_from_run(
     )
 
 
+def _prepare_candidate_until_parsed(
+    vault_path: Path,
+    candidate: dict,
+    *,
+    mineru_command: str | list[str] | None = None,
+) -> dict:
+    slug = candidate["slug"]
+    paper_root = raw_paper_root(vault_path, slug)
+    paper_pdf = paper_root / "paper.pdf"
+    mineru_dir = paper_root / "mineru"
+    mineru_md = mineru_dir / "paper.md"
+    mineru_tex = mineru_dir / "paper.tex"
+    mineru_manifest = mineru_dir / "mineru-manifest.json"
+    mineru_images = mineru_dir / "images"
+
+    if not paper_pdf.exists():
+        acquire_record = acquire_paper_from_candidate(vault_path, candidate)
+        if acquire_record["status"] != "success":
+            return _write_paper_run_state(
+                paper_root,
+                _paper_run_state(
+                    paper_root=paper_root,
+                    slug=slug,
+                    state="acquire_failed",
+                    last_action="acquire",
+                    next_action=None,
+                    stage_record=acquire_record,
+                ),
+            )
+
+    parse_complete = (
+        mineru_md.exists()
+        and mineru_md.stat().st_size > 0
+        and mineru_tex.exists()
+        and mineru_tex.stat().st_size > 0
+        and mineru_manifest.exists()
+        and mineru_images.is_dir()
+    )
+    if not parse_complete:
+        parse_record = parse_paper_with_mineru(vault_path, slug, mineru_command=mineru_command)
+        state = "parsed" if parse_record["status"] == "success" else "parse_failed"
+        next_action = "read" if parse_record["status"] == "success" else None
+        return _write_paper_run_state(
+            paper_root,
+            _paper_run_state(
+                paper_root=paper_root,
+                slug=slug,
+                state=state,
+                last_action="parse",
+                next_action=next_action,
+                stage_record=parse_record,
+            ),
+        )
+
+    return _write_paper_run_state(
+        paper_root,
+        _paper_run_state(
+            paper_root=paper_root,
+            slug=slug,
+            state="parsed",
+            last_action="already-parsed",
+            next_action="read",
+            human_gate_required=False,
+        ),
+    )
+
+
+def prepare_ranked_papers_from_run(
+    vault_path: Path,
+    run_id: str,
+    mineru_command: str | list[str] | None = None,
+    max_papers: int | None = 1,
+    include_review_candidates: bool = False,
+) -> dict:
+    vault_path = vault_path.resolve()
+    initialize_paper_wiki(vault_path)
+    rank_path = vault_path / "_runs" / run_id / "rank.json"
+    if not rank_path.exists():
+        raise FileNotFoundError(f"missing ranked candidates: {rank_path}")
+    candidates = json.loads(rank_path.read_text(encoding="utf-8"))
+    selected_candidates, skipped_ranked_candidates, rank_decision_filter = _select_ranked_candidates(
+        candidates,
+        include_review_candidates=include_review_candidates,
+    )
+    source_candidate_count = len(candidates)
+    selected_candidates = selected_candidates[:max_papers] if max_papers is not None else selected_candidates
+    batch_run_id, batch_run_dir = _new_run_dir(vault_path, "prepare-ranked")
+    started_at = utc_now()
+    results = [
+        _prepare_candidate_until_parsed(vault_path, candidate, mineru_command=mineru_command)
+        for candidate in selected_candidates
+    ]
+    failed = any(result["state"].endswith("_failed") for result in results)
+    titles_by_slug = {
+        candidate["slug"]: candidate.get("title", candidate["slug"])
+        for candidate in selected_candidates
+        if candidate.get("slug")
+    }
+    paper_states = [
+        {
+            "paper_slug": result["paper_slug"],
+            "state": result["state"],
+            "next_action": result.get("next_action"),
+        }
+        for result in results
+    ]
+    report_paper_states = [
+        {
+            "slug": result["paper_slug"],
+            "paper_slug": result["paper_slug"],
+            "title": titles_by_slug.get(result["paper_slug"], result["paper_slug"]),
+            "state": result["state"],
+            "last_action": result.get("last_action"),
+            "next_action": result.get("next_action"),
+            "human_gate_required": False,
+        }
+        for result in results
+    ]
+    failed_papers = [state for state in paper_states if state["state"].endswith("_failed")]
+    report_failed_papers = [state for state in report_paper_states if state["state"].endswith("_failed")]
+    accepted = [
+        {
+            "slug": state["slug"],
+            "title": state["title"],
+            "state": state["state"],
+        }
+        for state in report_paper_states
+        if not state["state"].endswith("_failed")
+    ]
+    next_actions = list(dict.fromkeys(result["next_action"] for result in results if result.get("next_action")))
+    batch = {
+        "stage": "prepare-ranked",
+        "run_id": batch_run_id,
+        "workflow_type": "prepare-ranked",
+        "state": "prepared" if not failed else "prepare_failed",
+        "status": "success" if not failed else "failed",
+        "vault_path": str(vault_path),
+        "candidate_count": source_candidate_count,
+        "processed_count": len(results),
+        "skipped_count": source_candidate_count - len(results),
+        "max_papers": max_papers,
+        "source_run_id": run_id,
+        "candidate_source": str(rank_path),
+        "skipped_ranked_candidates": skipped_ranked_candidates,
+        "rank_decision_filter": rank_decision_filter,
+        "compiled_wiki_write": False,
+        "human_gate_required": False,
+        "stops_after": "parse",
+        "started_at": started_at,
+        "finished_at": utc_now(),
+        "exit_status": 1 if failed else 0,
+        "tool_versions": _tool_versions("orchestrator", "prepare_ranked_papers_from_run", "run_mineru_parse"),
+        "results": results,
+        "next_actions": next_actions,
+        "input_artifact_hashes": {
+            "candidates": json_sha256(selected_candidates),
+            "candidate_source": file_sha256(rank_path),
+        },
+        "output_artifact_hashes": {
+            f"paper:{result['paper_slug']}:run-state.json": file_sha256(
+                raw_paper_root(vault_path, result["paper_slug"]) / "run-state.json"
+            )
+            for result in results
+        },
+    }
+    _write_json(batch_run_dir / "batch-advance-record.json", batch)
+    _write_json(batch_run_dir / "run-state.json", batch)
+    write_report(
+        batch_run_dir,
+        accepted,
+        [],
+        workflow_type="prepare-ranked",
+        run_id=batch_run_id,
+        paper_states=report_paper_states,
+        failed_papers=report_failed_papers,
+        budget_usage={
+            "candidate_count": source_candidate_count,
+            "processed_count": len(results),
+            "skipped_count": source_candidate_count - len(results),
+            "max_papers": max_papers,
+            "stops_after": "parse",
+        },
+        wiki_pages_written=[],
+        zotero_results={"status": "not_run", "records": []},
+        next_actions=next_actions,
+    )
+    report_json_path = batch_run_dir / "report.json"
+    report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
+    report_payload["processed_count"] = batch["processed_count"]
+    report_payload["skipped_count"] = batch["skipped_count"]
+    report_payload["skipped_ranked_candidates"] = skipped_ranked_candidates
+    report_payload["rank_decision_filter"] = rank_decision_filter
+    report_payload["paper_states"] = paper_states
+    report_payload["failed_papers"] = failed_papers
+    report_payload["next_actions"] = next_actions
+    report_payload["wiki_pages_written"] = []
+    report_payload["source_run_id"] = run_id
+    report_payload["stops_after"] = "parse"
+    _write_json(report_json_path, report_payload)
+    _refresh_run_index(vault_path)
+    return batch
+
+
 def main() -> int:
     from epi.cli import main as cli_main
 

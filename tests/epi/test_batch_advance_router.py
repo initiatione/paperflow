@@ -9,7 +9,7 @@ import pytest
 
 from epi.artifacts import file_sha256, json_sha256
 from epi.generate_reader import generate_reader_outputs
-from epi.orchestrator import advance_paper_batch, advance_paper_batch_from_run
+from epi.orchestrator import advance_paper_batch, advance_paper_batch_from_run, prepare_ranked_papers_from_run
 
 
 class _QuietHandler(SimpleHTTPRequestHandler):
@@ -312,6 +312,66 @@ def test_advance_paper_batch_from_run_uses_ranked_candidates_without_manual_copy
     assert batch["source_run_id"] == run_id
     assert json.loads((batch_run_dir / "batch-advance-record.json").read_text(encoding="utf-8"))["source_run_id"] == run_id
     assert (vault / "_raw" / "papers" / "ranked-alpha" / "paper.pdf").is_file()
+
+
+def test_prepare_ranked_papers_from_run_acquires_and_parses_then_stops(tmp_path):
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+    (server_root / "ranked.pdf").write_bytes(b"%PDF-1.4\nranked fixture\n")
+    vault = tmp_path / "vault"
+    run_id = "20260527T121500Z"
+    run_dir = vault / "_runs" / run_id
+    run_dir.mkdir(parents=True)
+    mineru_command = _write_success_mineru_command(tmp_path)
+
+    with _LocalServer(server_root) as base_url:
+        ranked_candidate = _candidate("prepared-alpha", "Prepared Alpha", f"{base_url}/ranked.pdf")
+        ranked_candidate["ranking_protocol"] = {"decision": "advance-candidate"}
+        (run_dir / "rank.json").write_text(json.dumps([ranked_candidate]), encoding="utf-8")
+
+        batch = prepare_ranked_papers_from_run(vault, run_id, mineru_command=mineru_command)
+
+    assert batch["workflow_type"] == "prepare-ranked"
+    assert batch["processed_count"] == 1
+    assert batch["results"][0]["paper_slug"] == "prepared-alpha"
+    assert batch["results"][0]["state"] == "parsed"
+    assert batch["results"][0]["last_action"] == "parse"
+    assert batch["results"][0]["next_action"] == "read"
+    assert batch["next_actions"] == ["read"]
+    paper_root = vault / "_raw" / "papers" / "prepared-alpha"
+    assert (paper_root / "paper.pdf").is_file()
+    assert (paper_root / "mineru" / "paper.md").is_file()
+    assert not (paper_root / "reader" / "reader.md").exists()
+    assert not (paper_root / "critic" / "critic-report.json").exists()
+    assert json.loads((vault / "_runs" / batch["run_id"] / "batch-advance-record.json").read_text(encoding="utf-8"))[
+        "workflow_type"
+    ] == "prepare-ranked"
+
+
+def test_prepare_ranked_papers_repairs_incomplete_existing_parse_outputs(tmp_path):
+    vault = tmp_path / "vault"
+    run_id = "20260527T122000Z"
+    run_dir = vault / "_runs" / run_id
+    run_dir.mkdir(parents=True)
+    candidate = _candidate("incomplete-parse", "Incomplete Parse", "https://example.org/incomplete.pdf")
+    candidate["ranking_protocol"] = {"decision": "advance-candidate"}
+    (run_dir / "rank.json").write_text(json.dumps([candidate]), encoding="utf-8")
+    paper_root = vault / "_raw" / "papers" / "incomplete-parse"
+    mineru_dir = paper_root / "mineru"
+    mineru_dir.mkdir(parents=True)
+    (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nexisting fixture\n")
+    (mineru_dir / "paper.md").write_text("# Old Parse\n\nExisting markdown.\n", encoding="utf-8")
+    (mineru_dir / "paper.tex").write_text("", encoding="utf-8")
+    mineru_command = _write_success_mineru_command(tmp_path)
+
+    batch = prepare_ranked_papers_from_run(vault, run_id, mineru_command=mineru_command)
+
+    result = batch["results"][0]
+    assert result["state"] == "parsed"
+    assert result["last_action"] == "parse"
+    assert result["stage_record"]["status"] == "success"
+    assert (mineru_dir / "paper.tex").stat().st_size > 0
+    assert not (paper_root / "reader" / "reader.md").exists()
 
 
 def test_advance_paper_batch_from_run_skips_review_candidates_by_default(tmp_path):
