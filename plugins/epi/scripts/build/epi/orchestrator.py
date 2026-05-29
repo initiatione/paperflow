@@ -9,7 +9,7 @@ from epi.acquire_papers import acquire_paper, acquire_paper_from_url
 from epi.artifacts import file_sha256, json_sha256, raw_paper_root, utc_now, write_json_atomic, write_text_atomic
 from epi.config import load_config
 from epi.feedback import record_feedback
-from epi.filter_candidates import filter_candidates, filter_candidates_with_report
+from epi.filter_candidates import exclusion_terms_from_query, filter_candidates, filter_candidates_with_report
 from epi.generate_reader import generate_reader_outputs
 from epi.normalize_candidates import normalize_candidates
 from epi.paper_gate import build_paper_gate, render_paper_gate
@@ -571,7 +571,13 @@ def run_dry_run(
     state["state"] = "normalized"
     _write_json(run_dir / "run-state.json", state)
 
-    filter_report = filter_candidates_with_report(normalized, domains=config.domains, require_pdf=True)
+    query_exclude_terms = exclusion_terms_from_query(query)
+    filter_report = filter_candidates_with_report(
+        normalized,
+        domains=config.domains,
+        require_pdf=True,
+        exclude_terms=query_exclude_terms,
+    )
     filtered = filter_report["kept"]
     rejected = filter_report["rejected"]
     _write_json(run_dir / "filter-report.json", filter_report)

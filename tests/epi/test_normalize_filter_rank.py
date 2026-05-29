@@ -1,4 +1,4 @@
-from epi.filter_candidates import filter_candidates
+from epi.filter_candidates import exclusion_terms_from_query, filter_candidates, filter_candidates_with_report
 from epi.normalize_candidates import normalize_candidates
 from epi.rank_papers import rank_candidates
 
@@ -38,3 +38,36 @@ def test_normalize_filter_rank_keeps_relevant_pdf_candidate():
     assert filtered[0]["filter_status"] == "kept"
     assert ranked[0]["score"] > 0.75
     assert ranked[0]["sources"] == ["openalex", "semantic_scholar"]
+
+
+def test_filter_candidates_can_hard_exclude_reviews_when_requested():
+    candidates = [
+        {
+            "title": "AUV Trajectory Tracking: A Systematic Review",
+            "abstract": "This review summarizes autonomous underwater vehicle controllers.",
+            "pdf_url": "https://example.org/review.pdf",
+        },
+        {
+            "title": "Safety-Critical RL Control for an AUV",
+            "abstract": "A method paper with simulation experiments for trajectory tracking.",
+            "pdf_url": "https://example.org/method.pdf",
+        },
+    ]
+
+    exclude_terms = exclusion_terms_from_query("AUV reinforcement learning control -review -survey")
+    report = filter_candidates_with_report(
+        candidates,
+        domains=["control"],
+        require_pdf=True,
+        exclude_terms=exclude_terms,
+    )
+
+    assert [item["title"] for item in report["kept"]] == ["Safety-Critical RL Control for an AUV"]
+    assert report["rejected"][0]["filter_reasons"] == ["excluded_terms:review,systematic review"]
+
+
+def test_exclusion_terms_from_query_accepts_chinese_review_request():
+    terms = exclusion_terms_from_query("AUV 结合 RL AI 控制方向论文，这次不找综述类型论文")
+
+    assert "review" in terms
+    assert "systematic review" in terms

@@ -66,6 +66,10 @@ ranking 必须同时给机器信号和低阅读负担解释：
 - `ranking_protocol`：advance/review 决策、正负关键词、reasons/cautions、editorial/peer-review/domain/reproducibility lens。
 - `ranking_rationale`：一句话推荐、用户兴趣匹配、Nature/Sci editor、peer reviewer、senior domain researcher 三角色短评，以及建议进入 wiki 的页面类型。
 
+当用户是在对话中要求“找最新/高质量论文”时，`paper-discovery` skill 不应只转述 `report.md` 或 `rank.json`。它需要先运行并留存 EPI dry-run 证据，再在对话框中给出人工可扫读的“推荐优先看”清单。该清单必须包含本轮找到且保留下来的全部候选论文，按阅读优先级排序，而不是只列 top 几篇；低优先级项可以缩短说明但不能直接省略。每篇用编号标题、venue/year、DOI、引用数、影响因子/分区或 `未核实`、PDF/代码可用性和 2-3 句中文说明，说明方法主线、控制任务、证据强度、优先级和 caveat。影响因子、JCR 分区、CiteScore 等质量指标必须实时核实或来自可信元数据；不能核实时明确写 `影响因子/分区：未核实`，不得凭印象补数字。随后再给“EPI 实测证据”，包含 run 路径、`source_mode`、accepted/rejected 数量，以及 setup 检查时的 `MINERU_TOKEN set/missing` 状态。不得输出 raw JSON、长摘要或任何 secret。
+
+当用户明确说“不要综述/非综述/not review/research papers only”时，查询应带上 `-review -survey`，并且 filter 阶段把 review、survey、systematic review、literature review、meta-analysis 等文档类型作为 hard exclusion 写入 `filter_reasons`，例如 `excluded_terms:review,survey`。默认偏综述沉淀的画像不受影响；只有本次查询显式要求排除综述时才硬过滤。
+
 ### 3. 采集、解析与 raw 留痕
 
 入口：`prepare-ranked` 用于只走搜索后采集 + MinerU 解析并停止；`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`parse-paper` 用于继续完整 ingest 或单步修复。

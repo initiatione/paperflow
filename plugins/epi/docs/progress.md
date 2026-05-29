@@ -14,6 +14,7 @@ EPI 当前聚焦“高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉
 - Marketplace polish：`defaultPrompt` 已压到 3 条，避免 Codex 只使用前三条时丢失后续提示。
 - 配置引导：`config-status`、`init-config`、`propose-config-update`、`apply-config-update` 已形成配置生命周期；当前新增 `config-setup` skill，把首次配置和修改配置改成聊天式逐步引导。
 - 论文发现：`dry-run` 支持候选标准化、过滤、ranking、报告、run index 和 research queue，且只写 `_runs`。
+- 发现输出：`paper-discovery` skill 已要求对话中先给“推荐优先看”清单，再给 EPI 实测证据；清单要包含本轮找到且保留下来的全部候选论文，并按阅读优先级排序。每篇推荐包含 venue/year、DOI、引用数、影响因子/分区或未核实、PDF/代码可用性、方法场景、验证证据和 caveat。用户明确不要综述时，查询和 filter 会硬排除 review/survey 类结果。
 - 1-3 快路：`prepare-ranked` 支持从 dry-run 的 `rank.json` 直接完成 selected ranked paper acquire + MinerU parse，并停在 raw artifact，不误入 reader/critic/staging。
 - 推进采集：`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one` 支持从候选论文进入 raw artifact、MinerU 解析、reader、critic 和 staging。
 - MinerU 产物整理：成功解析后最终产物只保留在 `mineru/`，大型 `mineru-command/paper` 与 `mineru-command/parsed` 工作副本会清理；若 MinerU 没有原生 TeX，生成非空 Markdown-derived LaTeX fallback 并记录 `tex_source`。
@@ -45,6 +46,7 @@ EPI 当前聚焦“高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉
 - `plugins/epi/skills/paper-discovery/SKILL.md`
 - `plugins/epi/skills/paper-ingest/SKILL.md`
 - `plugins/epi/skills/mineru-paper-parser/SKILL.md`
+- `tests/epi/test_normalize_filter_rank.py`
 - `tests/epi/test_batch_advance_router.py`
 - `tests/epi/test_cli_parser.py`
 - `tests/epi/test_config_onboarding_docs.py`

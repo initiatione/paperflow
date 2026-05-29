@@ -90,3 +90,17 @@ def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
     assert "tex_source=markdown-fallback" in mineru
     assert "mineru-command\\paper" in mineru
     assert "mineru-command\\parsed" in mineru
+
+
+def test_paper_discovery_skill_documents_quality_first_chat_recommendations():
+    discovery = _read(SKILL_DIR / "paper-discovery" / "SKILL.md")
+
+    assert "推荐优先看" in discovery
+    assert "EPI 实测证据" in discovery
+    assert "引用数" in discovery
+    assert "影响因子/分区" in discovery
+    assert "未核实" in discovery
+    assert "every paper found and kept" in discovery
+    assert "not only the top few" in discovery
+    assert "-review -survey" in discovery
+    assert "source_mode=paper_search_mcp" in discovery
