@@ -6,6 +6,13 @@
 
 每次修改或优化 EPI 插件，都必须同步更新本文档。需要更新的变化包括：CLI 命令、dry-run/ingest/critic/staging/promotion/rollback/redo/wiki-query/evolution 链路、生成物路径、JSON 字段、Markdown 报告结构、Wiki 页面类型、安全边界、人类确认门、配置流程、技能说明、模板、ranking/critic 规则和阅读报告侧重点。若一次改动确实不影响链路，提交说明应写明无需更新本文档的原因。
 
+配套文档：
+
+- `docs/structure.md`：当前插件目录、CLI 模块、技能、模板、vault artifact 和测试边界。
+- `docs/progress.md`：当前开发进度、已验证信号、未完成工作和下一步发布前检查。
+- `docs/config.md`：首次使用和修改配置时的聊天式引导话术，是 `config-setup` skill 的话术来源。
+- `docs/workflow.md`：给用户和安装副本看的短流程入口，避免把完整链路文档塞进日常提示。
+
 ## 目标边界
 
 EPI 服务论文知识摄取，而不是替用户完成完整科研闭环。
