@@ -9,6 +9,7 @@ from epi.config import config_status
 from epi.paper_search_adapter import probe_paper_search_mcp
 from epi.paper_search_adapter import probe_paper_search_mcp_server
 from epi.run_mineru_parse import _command_tokens
+from epi.runtime_config import apply_runtime_config
 
 
 REQUIRED_PATHS = [
@@ -248,6 +249,7 @@ def collect_doctor_report(
 ) -> dict:
     plugin_root = plugin_root.resolve()
     vault_path = vault_path.resolve()
+    runtime_status = apply_runtime_config()
     plugin_metadata, manifest_check = _load_plugin_metadata(plugin_root)
     checks = [manifest_check]
     checks.extend(_check_path(plugin_root, relative_path) for relative_path in REQUIRED_PATHS if relative_path != ".codex-plugin/plugin.json")
@@ -262,6 +264,7 @@ def collect_doctor_report(
         "plugin_root": str(plugin_root),
         "plugin": plugin_metadata,
         "default_vault": str(vault_path),
+        "runtime_config": runtime_status,
         "checks": checks,
     }
     setup_links = setup_links_for_report(report)

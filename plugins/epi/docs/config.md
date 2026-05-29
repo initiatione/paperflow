@@ -9,6 +9,12 @@ python scripts\orchestrator.py doctor --open-setup
 
 缺 `paper-search-mcp`、CLI fallback、`MINERU_TOKEN` 或 `_meta\epi-config.yaml` 只报 warning。配置链接：`paper-search-mcp` -> `https://github.com/openags/paper-search-mcp`；`MINERU_TOKEN` -> `https://mineru.net/apiManage/docs?openApplyModal=true`。不保存、不打印 token。
 
+EPI 有两层配置，边界不要混：
+
+- 研究画像、关键词、预算、Zotero 和人工确认门写入目标论文库：`D:\paper-research-wiki\_meta\epi-config.yaml`。
+- 本机 runtime 依赖写入 Codex 用户级插件区：`C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json`。这里记录 `paper-search` MCP server 命令、CLI fallback、MinerU 命令和 `mineru.env` 路径；runtime.json 不保存 token 明文。`MINERU_TOKEN` 只从进程环境或 `mineru.env` 载入，报告时只能说 set/missing。
+- 显式进程环境变量优先，runtime.json 只补缺失项；插件升级 cache 时不会覆盖用户级 runtime.json。
+
 配置缺失时，不要直接运行论文流程、`dry-run`、MinerU 或 Zotero。初始化只写确认过的 `_meta\epi-config.yaml`；更新配置不得改动 `_raw`、`_runs`、`_staging`、`references` 或 Zotero 记录。
 
 ## 聊天式初始化脚本

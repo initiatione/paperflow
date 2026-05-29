@@ -11,6 +11,8 @@ import threading
 import time
 from pathlib import Path
 
+from epi.runtime_config import apply_runtime_config
+
 
 DEFAULT_SOURCES = ["arxiv", "semantic", "openalex", "crossref", "dblp"]
 COMMAND_UNAVAILABLE = "paper-search command unavailable; install paper-search-mcp or configure EPI_PAPER_SEARCH_COMMAND"
@@ -347,6 +349,7 @@ def _call_mcp_tool(tool_name: str, arguments: dict, timeout_seconds: int) -> dic
 
 
 def probe_paper_search_mcp_server(timeout_seconds: int = PROBE_TIMEOUT_SECONDS) -> dict:
+    apply_runtime_config()
     if _paper_search_mcp_disabled():
         return {"available": False, "transport": "stdio", "error": "disabled"}
     command_args, probe = _mcp_command_args()
@@ -577,6 +580,7 @@ def discover(
     raw_response_path: Path | None = None,
     timeout_seconds: int = SEARCH_TIMEOUT_SECONDS,
 ) -> dict:
+    apply_runtime_config()
     if fixture_path:
         records = json.loads(fixture_path.read_text(encoding="utf-8"))
         return {
@@ -763,6 +767,7 @@ def download_paper_pdf(
     command: str | None = None,
     timeout_seconds: int = 120,
 ) -> dict:
+    apply_runtime_config()
     output_dir.mkdir(parents=True, exist_ok=True)
     tool_name = f"download_{source.strip().lower()}"
     mcp_failure: dict | None = None

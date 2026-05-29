@@ -1,6 +1,6 @@
 {
   "name": "epi",
-  "version": "0.1.0+codex.20260530042108",
+  "version": "0.1.0+codex.20260530050337",
   "description": "Search and rank engineering papers for an EPI wiki.",
   "author": {
     "name": "liuchf"
@@ -33,8 +33,7 @@
     "defaultPrompt": [
       "Set up EPI configuration.",
       "Search and rank high-quality papers.",
-      "Prepare ranked papers through MinerU parse.",
-      "Check paper gate and prepare wiki ingest handoff."
+      "Prepare ranked papers through MinerU parse and check the paper gate."
     ]
   }
 }

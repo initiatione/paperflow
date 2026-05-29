@@ -31,6 +31,8 @@ def test_structure_doc_covers_current_plugin_boundaries():
     assert "wiki-ingest-handoff" in text
     assert "agent-mediated" in text
     assert "不要把安装 cache 当成开发源" in text
+    assert "runtime_config.py" in text
+    assert r"C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json" in text
 
 
 def test_progress_doc_records_status_verification_and_next_steps():
@@ -42,11 +44,12 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "config-setup" in text
     assert "paper-quality-critic" in text
     assert "wiki-ingest-handoff" in text
-    assert "207 passed in 21.21s" in text
-    assert "87/100" in text
+    assert "211 passed in 18.16s" in text
+    assert "82/100" in text
     assert "waiting_for_human_gate" in text
     assert "ready_for_agent=true" in text
-    assert "0.1.0+codex.20260530042108" in text
+    assert "0.1.0+codex.20260530050337" in text
+    assert "runtime.json" in text
     assert "发布前必须重跑" in text
     assert "Plugin Eval" in text
     assert "MINERU_TOKEN" in text

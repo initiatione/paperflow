@@ -55,6 +55,7 @@ scripts/build/epi/
   orchestrator.py
   config.py
   doctor.py
+  runtime_config.py
   paper_search_adapter.py
   normalize_candidates.py
   filter_candidates.py
@@ -82,6 +83,7 @@ scripts/build/epi/
 - `orchestrator.py` 是兼容入口和流程编排层，负责 dry-run、one-paper ingest、batch advance、redo/recritic 等阶段串联。
 - `config.py` 负责 `_meta/epi-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。
 - `doctor.py` 负责只读健康检查；外部依赖缺失是 warning，插件结构缺失才 error。
+- `runtime_config.py` 负责从 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json` 加载本机依赖配置，只补缺失的进程环境变量，不覆盖显式 env，不保存 token 明文。
 - `paper_search_adapter.py` 优先调用外部 `paper-search-mcp` stdio server，并在失败、超时或空结果时回退到 `paper-search` CLI，把上游输出标准化为 EPI 候选记录。
 - `rank_papers.py` 负责 ranking signals、ranking protocol 和三角色排序解释。
 - `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization。
@@ -173,3 +175,5 @@ node C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\719ed655\sc
 ```
 
 安装副本在 `C:\Users\liuchf\.codex\plugins\cache\paper-search\epi\<version>`。源码改动必须先提交并通过 GitHub/marketplace 升级流程进入安装副本；不要把安装 cache 当成开发源。
+
+用户级 runtime 配置不放在安装 cache 版本目录，而放在 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json`，用于保存 MCP/CLI/MinerU 命令路径和 `mineru.env` 路径；插件升级 cache 不应覆盖它。

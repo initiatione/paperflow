@@ -21,6 +21,8 @@ python scripts\orchestrator.py config-status --json
 - 最终确认前不得运行 `apply-config-update`.
 - 不运行 `dry-run`, MinerU, Zotero, promotion, 或 wiki 写入.
 - 不打印 token 或 secret; 只报告 token is set/missing.
+- 本机依赖配置写入 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json`: paper-search MCP command/args, CLI fallback, MinerU command, and `mineru.env` path. 不保存 token 明文; `MINERU_TOKEN` 只能来自进程环境或 `mineru.env`.
+- 显式进程环境变量优先; runtime.json 只补缺失项, and it survives plugin cache upgrades.
 
 ## Initialization Flow
 

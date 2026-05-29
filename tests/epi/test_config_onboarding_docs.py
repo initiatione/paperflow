@@ -36,6 +36,9 @@ def test_config_doc_defines_plain_chinese_eight_step_onboarding_script():
     assert "技术预览" in text
     assert "YAML" in text
     assert "等用户明确确认后" in text
+    assert r"C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json" in text
+    assert "runtime.json 不保存 token 明文" in text
+    assert "mineru.env" in text
 
 
 def test_config_setup_skill_owns_initialization_and_update_onboarding():
@@ -54,6 +57,8 @@ def test_config_setup_skill_owns_initialization_and_update_onboarding():
     assert "最终确认前不得运行 `apply-config-update`" in text
     assert "不要一次性输出完整默认配置" in text
     assert "你刚刚选了什么" in text
+    assert "runtime.json" in text
+    assert "不保存 token 明文" in text
 
 
 def test_epi_skills_delegate_onboarding_wording_to_config_doc():

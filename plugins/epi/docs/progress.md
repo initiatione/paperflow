@@ -10,6 +10,8 @@ EPI 当前聚焦“高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉
 
 - Marketplace 包装：`plugin.json` 已声明 EPI 展示信息、GitHub marketplace 链接、技能目录和默认提示。
 - 安装诊断：`doctor` 支持只读健康检查，区分插件结构错误和外部依赖 warning，并能给 `paper-search` 与 MinerU 配置链接。
+- Runtime 配置：新增 `runtime_config.py`，从 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json` 自动加载 `paper-search` MCP、CLI fallback 和 MinerU env-file 路径；显式 env 优先，runtime.json 不保存 token 明文。
+- Marketplace polish：`defaultPrompt` 已压到 3 条，避免 Codex 只使用前三条时丢失后续提示。
 - 配置引导：`config-status`、`init-config`、`propose-config-update`、`apply-config-update` 已形成配置生命周期；当前新增 `config-setup` skill，把首次配置和修改配置改成聊天式逐步引导。
 - 论文发现：`dry-run` 支持候选标准化、过滤、ranking、报告、run index 和 research queue，且只写 `_runs`。
 - 1-3 快路：`prepare-ranked` 支持从 dry-run 的 `rank.json` 直接完成 selected ranked paper acquire + MinerU parse，并停在 raw artifact，不误入 reader/critic/staging。
@@ -25,13 +27,18 @@ EPI 当前聚焦“高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉
 - Self-evolution：`propose-evolution`、`activate-evolution`、`evolution-query` 已采用 proposal-based、human approval、validation gate 和 metric comparison。
 - 查询与维护：`runs-query`、`research-queue`、`wiki-query` 支持状态查询；redo/recritic 支持阶段性修复但不绕过 critic gate。
 
-## 当前未提交工作
+## 本轮相关变更范围
 
-当前源码树本轮新增修复集中在完整链路实测和 1-3 raw preparation 暴露的问题：
+本轮新增修复集中在插件 cache 环境不继承手工 `.env`、完整链路实测和 1-3 raw preparation 暴露的问题：
 
 - `plugins/epi/scripts/build/epi/cli.py`
 - `plugins/epi/scripts/build/epi/orchestrator.py`
 - `plugins/epi/scripts/build/epi/run_mineru_parse.py`
+- `plugins/epi/scripts/build/epi/runtime_config.py`
+- `plugins/epi/scripts/build/epi/doctor.py`
+- `plugins/epi/scripts/build/epi/paper_search_adapter.py`
+- `plugins/epi/docs/config.md`
+- `plugins/epi/docs/workflow.md`
 - `plugins/epi/docs/epi-linkage.md`
 - `plugins/epi/docs/progress.md`
 - `plugins/epi/.codex-plugin/plugin.json`
@@ -43,13 +50,14 @@ EPI 当前聚焦“高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉
 - `tests/epi/test_config_onboarding_docs.py`
 - `tests/epi/test_mineru_parse_adapter.py`
 
-这些改动的目标是：用仓库源插件 `D:\paper-search\plugins\epi` 把 1-3 路径固定成 `dry-run -> prepare-ranked`，完成发现、下载、MinerU 解析后精确停止，不再手工复制 candidate JSON，也不误触发 reader/critic/staging。修复点包括：`prepare-ranked` 识别 0 KB TeX 等不完整 parse 并重新解析；MinerU 成功后清理重复工作目录；MinerU 无原生 TeX 时生成非空 LaTeX fallback。
+这些改动的目标是：用仓库源插件 `D:\paper-search\plugins\epi` 把 1-3 路径固定成 `dry-run -> prepare-ranked`，完成发现、下载、MinerU 解析后精确停止，不再手工复制 candidate JSON，也不误触发 reader/critic/staging；同时让安装后的插件线程能自动读取用户级 runtime.json，不再依赖手工 source `D:\paper-search\.env\epi-test-env.ps1`。修复点包括：`prepare-ranked` 识别 0 KB TeX 等不完整 parse 并重新解析；MinerU 成功后清理重复工作目录；MinerU 无原生 TeX 时生成非空 LaTeX fallback；doctor/discovery/download/parse 前自动加载 MCP/CLI/MinerU runtime 配置。
 
 ## 最近验证
 
 本轮已验证：
 
 ```powershell
+python -m pytest tests\epi\test_runtime_config.py tests\epi\test_doctor_cli.py tests\epi\test_config_onboarding_docs.py -q
 python -m pytest tests\epi\test_mineru_parse_adapter.py tests\epi\test_cli_parser.py tests\epi\test_batch_advance_router.py tests\epi\test_config_onboarding_docs.py -q --basetemp=.pytest_tmp_one_to_three_related2
 python -m pytest tests\epi -q --basetemp=.pytest_tmp_one_to_three_full
 python C:\Users\liuchf\.codex\skills\.system\skill-creator\scripts\quick_validate.py plugins\epi\skills\paper-discovery
@@ -61,13 +69,14 @@ python -m pytest tests\epi\test_redo_recritic.py::test_recritic_cli_writes_route
 python -m pytest tests\epi -q --basetemp=.pytest_tmp_full_chain_fix
 python -m pytest tests\epi -q --basetemp=.pytest_tmp_release_full_chain_fix2
 python -m coverage run -m pytest tests\epi -q --basetemp=.pytest_tmp_release_cov_full_chain_fix
+python -m coverage run -m pytest tests\epi -q --basetemp=.pytest_tmp_epi_runtime_cov
 python -m coverage xml -o plugins\epi\coverage\coverage.xml
 python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\epi
 python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\mineru-paper-parser
 node C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\719ed655\scripts\plugin-eval.js analyze D:\paper-search\plugins\epi --format markdown
 ```
 
-结果：1-3 相关回归测试 `30 passed in 5.50s`；发布前全量 `tests\epi` 当前为 `207 passed in 21.21s`，上一轮 full-chain 修复为 `202 passed in 23.51s`，coverage run 为 `202 passed in 25.00s`，`plugins\epi\coverage\coverage.xml` 已刷新。三个 EPI skill quick validation 均 passed，EPI plugin validation passed。Plugin Eval 结果为 `87/100`、`0 fail, 3 warn`、coverage `93.76%`；三个 warning 为已知 token budget 和 Windows 路径下 `py-tests-missing` 识别限制。
+结果：runtime/doctor/config/current-docs 相关回归测试 `17 passed in 2.53s`；全量 `tests\epi` 当前为 `211 passed in 18.16s`；coverage run 为 `211 passed in 19.92s`，`plugins\epi\coverage\coverage.xml` 已刷新。六个 EPI skills quick validation 均 passed，EPI 与 MinerU parser plugin validation passed。Plugin Eval 结果为 `82/100`、`0 fail, 4 warn`、coverage `93.49%`；remaining warnings 为 token budget 和 Windows 路径下 `py-tests-missing` 识别限制。
 
 1-3 真实目录整理结果：
 
@@ -109,7 +118,7 @@ node C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\719ed655\sc
 
 ## 下一步计划
 
-1. 发布本轮修复 commit，并从 GitHub/marketplace 重新安装 EPI，确认安装 cache 版本变为 `0.1.0+codex.20260530042108`。
+1. 发布本轮修复 commit，并从 GitHub/marketplace 重新安装 EPI，确认安装 cache 版本变为 `0.1.0+codex.20260530050337`。
 2. 升级安装副本后，从新 Codex thread 用 `@epi` 运行 `doctor --json`、`config-status --json`、dry-run fixture smoke 和 `research-queue` 验证安装体验。
 3. 对 `D:\paper-research-wiki` 补齐目标 vault contract 文件（例如 `AGENTS.md` 和 `_meta/*.md`），这样 wiki-ingest agent 能按本 vault 的最终规则落页，而不是只依赖 EPI suggested routes。
 4. 记录 human approval 后，交给 wiki-ingest agent 消费 `_staging\papers\a-survey-on-robotics-with-foundation-models-toward-embodied-ai\wiki-ingest-brief.json` 和 reading report。
@@ -119,5 +128,5 @@ node C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\719ed655\sc
 - `docs/epi-linkage.md`、`docs/structure.md`、`docs/progress.md` 会增加 Plugin Eval 的 deferred token 估算，但这些文档是当前用户要求的维护材料，不应为了静态分数移出插件 docs。
 - `paper-search` CLI、MinerU、Zotero 都是外部能力。缺失时应 warning 和引导，不应让只读诊断失败。
 - `MINERU_TOKEN` 不得写入文档、日志、报告或配置预览，只能显示 set/missing。
-- 当前安装 cache 不是开发源；源码提交并经 marketplace 升级后，安装副本才会变化。
+- 当前安装 cache 不是开发源；源码提交并经 marketplace 升级后，安装副本才会变化。用户级 runtime.json 位于 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json`，不随 cache 版本目录替换。
 - 最终 Obsidian/LLM Wiki 写入依赖目标 vault contract。EPI 只能提供 handoff 和 suggested routes，不能把固定脚本当成最终沉淀机制。

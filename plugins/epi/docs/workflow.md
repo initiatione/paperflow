@@ -4,6 +4,8 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 
 中文主链路和维护契约见 `docs\epi-linkage.md`。每次修改或优化 EPI 插件，都必须检查并同步更新该文档。
 
+本机依赖由 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json` 自动加载：优先 paper-search MCP server，CLI 作为 fallback，MinerU token 从环境或 `mineru.env` 读取。不要把 token 写入 runtime.json，也不要在报告里打印 token 值。
+
 ```powershell
 python scripts\orchestrator.py dry-run --query "robotics embodied intelligence control" --max-results 20 --vault D:\paper-research-wiki
 python scripts\orchestrator.py advance-ranked --run-id <run-id> --max-papers 3 --vault D:\paper-research-wiki

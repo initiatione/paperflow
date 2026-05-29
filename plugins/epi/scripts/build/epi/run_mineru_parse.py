@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from epi.artifacts import file_sha256, utc_now, write_json_atomic, write_text_atomic
+from epi.runtime_config import apply_runtime_config
 
 
 def _plugin_root() -> Path:
@@ -221,6 +222,7 @@ def run_mineru_command(
     plugin_root: Path | None = None,
     timeout_seconds: int = 7200,
 ) -> dict:
+    apply_runtime_config()
     paper_root = paper_root.resolve()
     source_pdf = paper_root / "paper.pdf"
     if not source_pdf.exists():
