@@ -82,9 +82,11 @@ def test_doctor_text_reports_ok_with_external_dependency_warnings(tmp_path, monk
     assert "default_vault=" in output
     assert "epi_config: warning" in output
     assert "init-config" in output
+    assert "paper_search_mcp: warning" in output
     assert "paper_search_cli: warning" in output
     assert "mineru_token: warning" in output
     assert "First-use setup:" in output
+    assert "paper_search_mcp: Configure paper-search MCP server" in output
     assert "paper_search_cli: Configure paper-search CLI" in output
     assert "mineru_token: Configure MINERU_TOKEN" in output
     assert "doctor --open-setup" in output
@@ -115,6 +117,7 @@ def test_doctor_json_reports_structured_checks(tmp_path, monkeypatch, capsys):
     assert payload["plugin"]["name"] == "epi"
     assert payload["plugin"]["version"] == "0.1.0-test"
     assert payload["default_vault"] == str((tmp_path / "vault").resolve())
+    assert {check["name"]: check["status"] for check in payload["checks"]}["paper_search_mcp"] == "warning"
     assert {check["name"]: check["status"] for check in payload["checks"]}["paper_search_cli"] == "warning"
     config_check = {check["name"]: check for check in payload["checks"]}["epi_config"]
     assert config_check["status"] == "warning"
@@ -124,6 +127,8 @@ def test_doctor_json_reports_structured_checks(tmp_path, monkeypatch, capsys):
     assert "init-config" in config_check["message"]
     assert payload["setup_required"] is True
     setup_by_check = {check["name"]: check.get("setup") for check in payload["checks"]}
+    assert setup_by_check["paper_search_mcp"]["summary"] == "Configure paper-search MCP server"
+    assert setup_by_check["paper_search_mcp"]["url"] == "https://github.com/openags/paper-search-mcp"
     assert setup_by_check["paper_search_cli"]["summary"] == "Configure paper-search CLI"
     assert setup_by_check["paper_search_cli"]["url"] == "https://github.com/openags/paper-search-mcp"
     assert setup_by_check["mineru_token"]["summary"] == "Configure MINERU_TOKEN"

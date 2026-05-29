@@ -15,6 +15,7 @@
   },
   "notes": [
     "EPI wraps openags/paper-search-mcp as an external dependency.",
-    "Phase 1 discovery invokes a paper-search CLI wrapper; the stdio MCP server remains documented for future use."
+    "EPI discovery and acquisition prefer the paper-search-mcp stdio server, then fall back to the paper-search CLI when MCP is unavailable, fails, or returns no discoverable papers.",
+    "Use EPI_PAPER_SEARCH_MCP_COMMAND and EPI_PAPER_SEARCH_MCP_ARGS to override the stdio server command; use EPI_PAPER_SEARCH_COMMAND for the CLI fallback."
   ]
 }

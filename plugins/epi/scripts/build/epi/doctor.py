@@ -7,6 +7,7 @@ from pathlib import Path
 
 from epi.config import config_status
 from epi.paper_search_adapter import probe_paper_search_mcp
+from epi.paper_search_adapter import probe_paper_search_mcp_server
 from epi.run_mineru_parse import _command_tokens
 
 
@@ -29,10 +30,20 @@ PAPER_SEARCH_SETUP_URL = "https://github.com/openags/paper-search-mcp"
 MINERU_TOKEN_SETUP_URL = "https://mineru.net/apiManage/docs?openApplyModal=true"
 
 SETUP_GUIDES = {
+    "paper_search_mcp": {
+        "summary": "Configure paper-search MCP server",
+        "url": PAPER_SEARCH_SETUP_URL,
+        "description": "Install the upstream MCP server or point EPI_PAPER_SEARCH_MCP_COMMAND at a local wrapper.",
+        "commands": [
+            "python -m paper_search_mcp.server",
+            "$env:EPI_PAPER_SEARCH_MCP_COMMAND='python'",
+            "$env:EPI_PAPER_SEARCH_MCP_ARGS='-m paper_search_mcp.server'",
+        ],
+    },
     "paper_search_cli": {
         "summary": "Configure paper-search CLI",
         "url": PAPER_SEARCH_SETUP_URL,
-        "description": "Install the upstream CLI or point EPI_PAPER_SEARCH_COMMAND at a local wrapper.",
+        "description": "Install the upstream CLI or point EPI_PAPER_SEARCH_COMMAND at a local wrapper for fallback.",
         "commands": [
             "uvx --from git+https://github.com/openags/paper-search-mcp.git paper-search --help",
             "$env:EPI_PAPER_SEARCH_COMMAND='D:\\paper-search\\.env\\paper-search-live.ps1'",
@@ -116,6 +127,27 @@ def _with_setup(check: dict) -> dict:
     if guide and check["status"] == "warning":
         return {**check, "setup": guide}
     return check
+
+
+def _check_paper_search_mcp_server() -> dict:
+    probe = probe_paper_search_mcp_server(timeout_seconds=5)
+    if probe.get("available"):
+        return {
+            "name": "paper_search_mcp",
+            "status": "ok",
+            "command": [probe.get("command"), *probe.get("args", [])],
+            "message": "stdio server available",
+            "probe": probe,
+        }
+    return _with_setup(
+        {
+            "name": "paper_search_mcp",
+            "status": "warning",
+            "command": [probe.get("command"), *probe.get("args", [])],
+            "message": probe.get("error", "unavailable"),
+            "probe": probe,
+        }
+    )
 
 
 def _check_paper_search(command: str | None) -> dict:
@@ -220,6 +252,7 @@ def collect_doctor_report(
     checks = [manifest_check]
     checks.extend(_check_path(plugin_root, relative_path) for relative_path in REQUIRED_PATHS if relative_path != ".codex-plugin/plugin.json")
     checks.append(_check_epi_config(vault_path))
+    checks.append(_check_paper_search_mcp_server())
     checks.append(_check_paper_search(paper_search_command))
     checks.append(_check_mineru_command(plugin_root, mineru_command))
     checks.append(_check_mineru_token())

@@ -165,6 +165,7 @@ def acquire_paper_from_url(
                 timeout_seconds=timeout_seconds,
             )
             if download_record["status"] == "success":
+                download_mode = download_record.get("mode", "paper_search_cli_download")
                 downloaded_pdf = Path(download_record["downloaded_pdf"])
                 shutil.copyfile(downloaded_pdf, temp_pdf)
                 size_bytes = temp_pdf.stat().st_size
@@ -173,7 +174,7 @@ def acquire_paper_from_url(
                     return _write_failed_acquire_record(
                         paper_root,
                         candidate,
-                        mode="paper_search_cli_download",
+                        mode=download_mode,
                         error=f"downloaded PDF is empty: {source}:{paper_id}",
                         started_at=started_at,
                         candidate_metadata_hash=candidate_metadata_hash,
@@ -181,7 +182,7 @@ def acquire_paper_from_url(
                 os.replace(temp_pdf, target_pdf)
                 record = {
                     "stage": "acquire",
-                    "mode": "paper_search_cli_download",
+                    "mode": download_mode,
                     "status": "success",
                     "started_at": started_at,
                     "finished_at": utc_now(),

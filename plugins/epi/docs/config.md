@@ -7,7 +7,7 @@ python scripts\orchestrator.py doctor --json
 python scripts\orchestrator.py doctor --open-setup
 ```
 
-缺 `paper-search`、`MINERU_TOKEN` 或 `_meta\epi-config.yaml` 只报 warning。配置链接：`paper-search` -> `https://github.com/openags/paper-search-mcp`；`MINERU_TOKEN` -> `https://mineru.net/apiManage/docs?openApplyModal=true`。不保存、不打印 token。
+缺 `paper-search-mcp`、CLI fallback、`MINERU_TOKEN` 或 `_meta\epi-config.yaml` 只报 warning。配置链接：`paper-search-mcp` -> `https://github.com/openags/paper-search-mcp`；`MINERU_TOKEN` -> `https://mineru.net/apiManage/docs?openApplyModal=true`。不保存、不打印 token。
 
 配置缺失时，不要直接运行论文流程、`dry-run`、MinerU 或 Zotero。初始化只写确认过的 `_meta\epi-config.yaml`；更新配置不得改动 `_raw`、`_runs`、`_staging`、`references` 或 Zotero 记录。
 

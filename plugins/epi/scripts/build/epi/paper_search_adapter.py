@@ -3,8 +3,12 @@ from __future__ import annotations
 import ast
 import json
 import os
+import queue
+import shlex
 import shutil
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 
@@ -12,6 +16,23 @@ DEFAULT_SOURCES = ["arxiv", "semantic", "openalex", "crossref", "dblp"]
 COMMAND_UNAVAILABLE = "paper-search command unavailable; install paper-search-mcp or configure EPI_PAPER_SEARCH_COMMAND"
 PROBE_TIMEOUT_SECONDS = 60
 SEARCH_TIMEOUT_SECONDS = 180
+MCP_PROTOCOL_VERSION = "2025-11-25"
+DEFAULT_MCP_COMMAND_ARGS = ["python", "-m", "paper_search_mcp.server"]
+
+
+class MCPToolError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        probe: dict | None = None,
+        raw_response: dict | None = None,
+        stderr: str = "",
+    ) -> None:
+        super().__init__(message)
+        self.probe = probe or {}
+        self.raw_response = raw_response or {}
+        self.stderr = stderr
 
 
 def _resolve_command(command: str) -> str | None:
@@ -34,6 +55,369 @@ def _run_command(resolved_command: str, args: list[str], timeout_seconds: int) -
         text=True,
         timeout=timeout_seconds,
     )
+
+
+def _split_command_line(command_line: str) -> list[str]:
+    return [token.strip("\"'") for token in shlex.split(command_line, posix=False)]
+
+
+def _paper_search_mcp_disabled() -> bool:
+    return os.environ.get("EPI_PAPER_SEARCH_MCP_DISABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _mcp_empty_fallback_enabled() -> bool:
+    return os.environ.get("EPI_PAPER_SEARCH_MCP_EMPTY_FALLBACK", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
+
+
+def _mcp_command_tokens(command: str | None = None) -> list[str]:
+    selected_command = command or os.environ.get("EPI_PAPER_SEARCH_MCP_COMMAND")
+    tokens = _split_command_line(selected_command) if selected_command else list(DEFAULT_MCP_COMMAND_ARGS)
+    extra_args = os.environ.get("EPI_PAPER_SEARCH_MCP_ARGS")
+    if extra_args:
+        tokens.extend(_split_command_line(extra_args))
+    return tokens
+
+
+def _mcp_command_args(command: str | None = None) -> tuple[list[str] | None, dict]:
+    tokens = _mcp_command_tokens(command)
+    if not tokens:
+        return None, {
+            "available": False,
+            "command": "",
+            "args": [],
+            "transport": "stdio",
+            "error": "command_not_configured",
+        }
+    resolved = _resolve_command(tokens[0])
+    if not resolved:
+        return None, {
+            "available": False,
+            "command": tokens[0],
+            "args": tokens[1:],
+            "transport": "stdio",
+            "error": "command_not_found",
+        }
+    command_args = _command_args(resolved, tokens[1:])
+    return command_args, {
+        "available": True,
+        "command": resolved,
+        "args": tokens[1:],
+        "transport": "stdio",
+    }
+
+
+def _enqueue_stream_lines(stream, output: queue.Queue[str]) -> None:
+    try:
+        for line in iter(stream.readline, ""):
+            output.put(line)
+    finally:
+        stream.close()
+
+
+def _drain_queue(lines: queue.Queue[str]) -> list[str]:
+    drained: list[str] = []
+    while True:
+        try:
+            drained.append(lines.get_nowait())
+        except queue.Empty:
+            return drained
+
+
+def _write_jsonrpc(process: subprocess.Popen[str], payload: dict) -> None:
+    if process.stdin is None:
+        raise MCPToolError("paper-search MCP stdin is unavailable")
+    process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    process.stdin.flush()
+
+
+def _close_process_stdin(process: subprocess.Popen[str]) -> None:
+    if process.stdin is None:
+        return
+    try:
+        process.stdin.close()
+    except OSError:
+        pass
+
+
+def _read_jsonrpc_response(
+    *,
+    process: subprocess.Popen[str],
+    stdout_lines: queue.Queue[str],
+    stderr_lines: queue.Queue[str],
+    expected_id: int,
+    deadline: float,
+    probe: dict,
+) -> dict:
+    ignored_stdout: list[str] = []
+    while time.monotonic() < deadline:
+        remaining = max(0.05, min(0.25, deadline - time.monotonic()))
+        try:
+            line = stdout_lines.get(timeout=remaining)
+        except queue.Empty:
+            if process.poll() is not None:
+                stderr = "".join(_drain_queue(stderr_lines)).strip()
+                stdout = "".join(ignored_stdout + _drain_queue(stdout_lines)).strip()
+                raise MCPToolError(
+                    "paper-search MCP server exited before response",
+                    probe={**probe, "available": False, "error": "server_exited"},
+                    raw_response={"stdout": stdout, "stderr": stderr, "returncode": process.returncode},
+                    stderr=stderr,
+                )
+            continue
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            message = json.loads(stripped)
+        except json.JSONDecodeError:
+            ignored_stdout.append(line)
+            continue
+        if message.get("id") == expected_id:
+            if "error" in message:
+                error = message.get("error") or {}
+                message_text = error.get("message") if isinstance(error, dict) else str(error)
+                raise MCPToolError(
+                    message_text or "paper-search MCP tool call failed",
+                    probe={**probe, "available": False, "error": "jsonrpc_error"},
+                    raw_response=message,
+                    stderr="".join(_drain_queue(stderr_lines)).strip(),
+                )
+            return message
+    stderr = "".join(_drain_queue(stderr_lines)).strip()
+    raise MCPToolError(
+        "paper-search MCP tool call timed out",
+        probe={**probe, "available": False, "error": "timeout"},
+        raw_response={"stderr": stderr, "timeout_seconds": max(0, deadline - time.monotonic())},
+        stderr=stderr,
+    )
+
+
+def _extract_mcp_text_content(result: dict) -> str:
+    content = result.get("content") if isinstance(result, dict) else None
+    if not isinstance(content, list):
+        return ""
+    text_parts = []
+    for item in content:
+        if isinstance(item, dict) and item.get("type") == "text":
+            text_parts.append(str(item.get("text") or ""))
+    return "\n".join(part for part in text_parts if part)
+
+
+def _extract_mcp_tool_payload(result: dict) -> dict:
+    structured = result.get("structuredContent")
+    if isinstance(structured, dict):
+        return structured
+    text = _extract_mcp_text_content(result)
+    if text:
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return {"text": text}
+        if isinstance(parsed, dict):
+            return parsed
+        return {"value": parsed}
+    return {}
+
+
+def _unwrap_mcp_payload(payload: dict) -> dict:
+    if isinstance(payload.get("result"), dict):
+        return payload["result"]
+    return payload
+
+
+def _call_mcp_tool(tool_name: str, arguments: dict, timeout_seconds: int) -> dict:
+    if _paper_search_mcp_disabled():
+        raise MCPToolError(
+            "paper-search MCP server disabled",
+            probe={"available": False, "transport": "stdio", "error": "disabled"},
+        )
+    command_args, probe = _mcp_command_args()
+    if command_args is None:
+        raise MCPToolError("paper-search MCP command unavailable", probe=probe)
+    process = subprocess.Popen(
+        command_args,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+    )
+    stdout_lines: queue.Queue[str] = queue.Queue()
+    stderr_lines: queue.Queue[str] = queue.Queue()
+    stdout_thread = threading.Thread(
+        target=_enqueue_stream_lines,
+        args=(process.stdout, stdout_lines),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=_enqueue_stream_lines,
+        args=(process.stderr, stderr_lines),
+        daemon=True,
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+    try:
+        deadline = time.monotonic() + timeout_seconds
+        _write_jsonrpc(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": MCP_PROTOCOL_VERSION,
+                    "capabilities": {},
+                    "clientInfo": {"name": "epi", "version": "0.1"},
+                },
+            },
+        )
+        initialize_response = _read_jsonrpc_response(
+            process=process,
+            stdout_lines=stdout_lines,
+            stderr_lines=stderr_lines,
+            expected_id=1,
+            deadline=deadline,
+            probe=probe,
+        )
+        initialize_result = initialize_response.get("result") or {}
+        probe = {
+            **probe,
+            "available": True,
+            "protocol_version": initialize_result.get("protocolVersion"),
+            "server_info": initialize_result.get("serverInfo", {}),
+        }
+        _write_jsonrpc(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "notifications/initialized",
+                "params": {},
+            },
+        )
+        _write_jsonrpc(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": tool_name, "arguments": arguments},
+            },
+        )
+        tool_response = _read_jsonrpc_response(
+            process=process,
+            stdout_lines=stdout_lines,
+            stderr_lines=stderr_lines,
+            expected_id=2,
+            deadline=deadline,
+            probe=probe,
+        )
+        result = tool_response.get("result") or {}
+        if result.get("isError"):
+            text = _extract_mcp_text_content(result)
+            raise MCPToolError(
+                text or "paper-search MCP tool returned an error",
+                probe={**probe, "available": False, "error": "tool_error"},
+                raw_response=tool_response,
+                stderr="".join(_drain_queue(stderr_lines)).strip(),
+            )
+        payload = _extract_mcp_tool_payload(result)
+        return {
+            "payload": _unwrap_mcp_payload(payload),
+            "probe": probe,
+            "raw_response": tool_response,
+        }
+    except OSError as exc:
+        raise MCPToolError(str(exc), probe={**probe, "available": False, "error": "spawn_failed"}) from exc
+    finally:
+        _close_process_stdin(process)
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+
+
+def probe_paper_search_mcp_server(timeout_seconds: int = PROBE_TIMEOUT_SECONDS) -> dict:
+    if _paper_search_mcp_disabled():
+        return {"available": False, "transport": "stdio", "error": "disabled"}
+    command_args, probe = _mcp_command_args()
+    if command_args is None:
+        return probe
+    process = subprocess.Popen(
+        command_args,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+    )
+    stdout_lines: queue.Queue[str] = queue.Queue()
+    stderr_lines: queue.Queue[str] = queue.Queue()
+    stdout_thread = threading.Thread(
+        target=_enqueue_stream_lines,
+        args=(process.stdout, stdout_lines),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=_enqueue_stream_lines,
+        args=(process.stderr, stderr_lines),
+        daemon=True,
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+    try:
+        _write_jsonrpc(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": MCP_PROTOCOL_VERSION,
+                    "capabilities": {},
+                    "clientInfo": {"name": "epi-doctor", "version": "0.1"},
+                },
+            },
+        )
+        initialize_response = _read_jsonrpc_response(
+            process=process,
+            stdout_lines=stdout_lines,
+            stderr_lines=stderr_lines,
+            expected_id=1,
+            deadline=time.monotonic() + timeout_seconds,
+            probe=probe,
+        )
+        initialize_result = initialize_response.get("result") or {}
+        return {
+            **probe,
+            "available": True,
+            "protocol_version": initialize_result.get("protocolVersion"),
+            "server_info": initialize_result.get("serverInfo", {}),
+        }
+    except MCPToolError as exc:
+        return _mcp_failure_payload(exc)
+    except OSError as exc:
+        return {**probe, "available": False, "error": str(exc)}
+    finally:
+        _close_process_stdin(process)
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
 
 
 def probe_paper_search_mcp(command: str = "paper-search") -> dict:
@@ -158,6 +542,24 @@ def _write_raw_response(raw_response_path: Path | None, payload: dict) -> str | 
     return str(raw_response_path)
 
 
+def _mcp_failure_payload(exc: MCPToolError) -> dict:
+    return {
+        "available": False,
+        **(exc.probe or {}),
+        "error": str(exc),
+    }
+
+
+def _fallback_fields(mcp_failure: dict | None) -> dict:
+    if not mcp_failure:
+        return {}
+    return {
+        "fallback_from": "paper_search_mcp",
+        "fallback_error": mcp_failure.get("error", "unavailable"),
+        "mcp_server_probe": mcp_failure,
+    }
+
+
 def _timeout_text(value: object) -> str:
     if value is None:
         return ""
@@ -184,8 +586,55 @@ def discover(
             "mcp_probe": {"available": True, "command": "fixture"},
             "records": records[:max_results],
         }
-    selected_command = command or os.environ.get("EPI_PAPER_SEARCH_COMMAND") or "paper-search"
     selected_sources = sources or DEFAULT_SOURCES
+    mcp_failure: dict | None = None
+    try:
+        mcp_result = _call_mcp_tool(
+            "search_papers",
+            {
+                "query": query,
+                "max_results_per_source": max_results,
+                "sources": ",".join(selected_sources),
+            },
+            timeout_seconds=timeout_seconds,
+        )
+    except MCPToolError as exc:
+        mcp_failure = _mcp_failure_payload(exc)
+    else:
+        payload = _unwrap_mcp_payload(mcp_result["payload"])
+        if not payload.get("papers") and _mcp_empty_fallback_enabled():
+            mcp_failure = {
+                **mcp_result["probe"],
+                "available": False,
+                "error": "paper-search MCP search returned no papers",
+                "raw_response": mcp_result.get("raw_response", {}),
+                "source_results": payload.get("source_results", {}),
+                "total": payload.get("total"),
+            }
+        else:
+            raw_path = _write_raw_response(raw_response_path, payload)
+            return {
+                "query": query,
+                "max_results": max_results,
+                "source_mode": "paper_search_mcp",
+                "mcp_probe": mcp_result["probe"],
+                "raw_response_path": raw_path,
+                "records": [_normalize_paper_search_record(record) for record in payload.get("papers", [])][:max_results],
+                "upstream": {
+                    "package": "paper-search-mcp",
+                    "transport": "stdio",
+                    "tool": "search_papers",
+                    "version_probe": mcp_result["probe"],
+                    "query": payload.get("query", query),
+                    "sources_requested": selected_sources,
+                    "sources_used": payload.get("sources_used", []),
+                    "source_results": payload.get("source_results", {}),
+                    "errors": payload.get("errors", {}),
+                    "total": payload.get("total"),
+                    "raw_response": mcp_result.get("raw_response", {}),
+                },
+            }
+    selected_command = command or os.environ.get("EPI_PAPER_SEARCH_COMMAND") or "paper-search"
     probe = probe_paper_search_mcp(selected_command)
     if not probe["available"]:
         return {
@@ -193,6 +642,7 @@ def discover(
             "max_results": max_results,
             "source_mode": "paper_search_cli",
             "mcp_probe": probe,
+            "mcp_server_probe": mcp_failure,
             "records": [],
             "error": COMMAND_UNAVAILABLE,
         }
@@ -217,6 +667,7 @@ def discover(
             "max_results": max_results,
             "source_mode": "paper_search_cli",
             "mcp_probe": probe,
+            "mcp_server_probe": mcp_failure,
             "raw_response_path": raw_path,
             "records": [],
             "error": "paper-search search timed out",
@@ -228,6 +679,7 @@ def discover(
                 "returncode": None,
                 "stderr": stderr.strip(),
                 "timeout_seconds": timeout_seconds,
+                **_fallback_fields(mcp_failure),
             },
         }
     if result.returncode != 0 or not result.stdout.strip():
@@ -244,6 +696,7 @@ def discover(
             "max_results": max_results,
             "source_mode": "paper_search_cli",
             "mcp_probe": probe,
+            "mcp_server_probe": mcp_failure,
             "raw_response_path": raw_path,
             "records": [],
             "error": "paper-search search failed",
@@ -254,6 +707,7 @@ def discover(
                 "sources_requested": selected_sources,
                 "returncode": result.returncode,
                 "stderr": result.stderr.strip(),
+                **_fallback_fields(mcp_failure),
             },
         }
     try:
@@ -272,6 +726,7 @@ def discover(
             "max_results": max_results,
             "source_mode": "paper_search_cli",
             "mcp_probe": probe,
+            "mcp_server_probe": mcp_failure,
             "raw_response_path": raw_path,
             "records": [],
             "error": f"paper-search search returned invalid JSON: {exc}",
@@ -282,6 +737,7 @@ def discover(
         "max_results": max_results,
         "source_mode": "paper_search_cli",
         "mcp_probe": probe,
+        "mcp_server_probe": mcp_failure,
         "raw_response_path": raw_path,
         "records": [_normalize_paper_search_record(record) for record in payload.get("papers", [])][:max_results],
         "upstream": {
@@ -294,6 +750,7 @@ def discover(
             "source_results": payload.get("source_results", {}),
             "errors": payload.get("errors", {}),
             "total": payload.get("total"),
+            **_fallback_fields(mcp_failure),
         },
     }
 
@@ -306,6 +763,45 @@ def download_paper_pdf(
     command: str | None = None,
     timeout_seconds: int = 120,
 ) -> dict:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    tool_name = f"download_{source.strip().lower()}"
+    mcp_failure: dict | None = None
+    try:
+        mcp_result = _call_mcp_tool(
+            tool_name,
+            {"paper_id": paper_id, "save_path": str(output_dir)},
+            timeout_seconds=timeout_seconds,
+        )
+    except MCPToolError as exc:
+        mcp_failure = _mcp_failure_payload(exc)
+    else:
+        pdf_paths = sorted(
+            path
+            for path in output_dir.rglob("*")
+            if path.is_file() and path.suffix.lower() == ".pdf" and path.stat().st_size > 0
+        )
+        if pdf_paths:
+            return {
+                "status": "success",
+                "mode": "paper_search_mcp_download",
+                "source": source,
+                "paper_id": paper_id,
+                "mcp_probe": mcp_result["probe"],
+                "downloaded_pdf": str(pdf_paths[0]),
+                "upstream": {
+                    "package": "paper-search-mcp",
+                    "transport": "stdio",
+                    "tool": tool_name,
+                    "returncode": 0,
+                    "raw_response": mcp_result.get("raw_response", {}),
+                },
+            }
+        mcp_failure = {
+            **mcp_result["probe"],
+            "available": False,
+            "error": "paper-search MCP download produced no PDF",
+            "raw_response": mcp_result.get("raw_response", {}),
+        }
     selected_command = command or os.environ.get("EPI_PAPER_SEARCH_COMMAND") or "paper-search"
     probe = probe_paper_search_mcp(selected_command)
     if not probe["available"]:
@@ -315,9 +811,9 @@ def download_paper_pdf(
             "source": source,
             "paper_id": paper_id,
             "mcp_probe": probe,
+            "mcp_server_probe": mcp_failure,
             "error": COMMAND_UNAVAILABLE,
         }
-    output_dir.mkdir(parents=True, exist_ok=True)
     resolved_command = probe["command"]
     args = ["download", source, paper_id, "--save-path", str(output_dir)]
     result = _run_command(resolved_command, args, timeout_seconds=timeout_seconds)
@@ -333,12 +829,14 @@ def download_paper_pdf(
             "source": source,
             "paper_id": paper_id,
             "mcp_probe": probe,
+            "mcp_server_probe": mcp_failure,
             "upstream": {
                 "package": "paper-search-mcp",
                 "cli_command": resolved_command,
                 "returncode": result.returncode,
                 "stdout": result.stdout.strip(),
                 "stderr": result.stderr.strip(),
+                **_fallback_fields(mcp_failure),
             },
             "error": "paper-search download failed",
         }
@@ -349,12 +847,14 @@ def download_paper_pdf(
             "source": source,
             "paper_id": paper_id,
             "mcp_probe": probe,
+            "mcp_server_probe": mcp_failure,
             "upstream": {
                 "package": "paper-search-mcp",
                 "cli_command": resolved_command,
                 "returncode": result.returncode,
                 "stdout": result.stdout.strip(),
                 "stderr": result.stderr.strip(),
+                **_fallback_fields(mcp_failure),
             },
             "error": "paper-search download produced no PDF",
         }
@@ -364,6 +864,7 @@ def download_paper_pdf(
         "source": source,
         "paper_id": paper_id,
         "mcp_probe": probe,
+        "mcp_server_probe": mcp_failure,
         "downloaded_pdf": str(pdf_paths[0]),
         "upstream": {
             "package": "paper-search-mcp",
@@ -371,5 +872,6 @@ def download_paper_pdf(
             "returncode": result.returncode,
             "stdout": result.stdout.strip(),
             "stderr": result.stderr.strip(),
+            **_fallback_fields(mcp_failure),
         },
     }

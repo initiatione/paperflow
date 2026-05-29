@@ -82,7 +82,7 @@ scripts/build/epi/
 - `orchestrator.py` 是兼容入口和流程编排层，负责 dry-run、one-paper ingest、batch advance、redo/recritic 等阶段串联。
 - `config.py` 负责 `_meta/epi-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。
 - `doctor.py` 负责只读健康检查；外部依赖缺失是 warning，插件结构缺失才 error。
-- `paper_search_adapter.py` 把外部 `paper-search` CLI 输出标准化为 EPI 候选记录。
+- `paper_search_adapter.py` 优先调用外部 `paper-search-mcp` stdio server，并在失败、超时或空结果时回退到 `paper-search` CLI，把上游输出标准化为 EPI 候选记录。
 - `rank_papers.py` 负责 ranking signals、ranking protocol 和三角色排序解释。
 - `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization。
 - `generate_reader.py`、`reader_outputs.py`、`reader_evidence.py`、`reader_protocol.py` 负责多角色 reader、evidence map 和证据地址校验。
@@ -173,4 +173,3 @@ node C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\719ed655\sc
 ```
 
 安装副本在 `C:\Users\liuchf\.codex\plugins\cache\paper-search\epi\<version>`。源码改动必须先提交并通过 GitHub/marketplace 升级流程进入安装副本；不要把安装 cache 当成开发源。
-

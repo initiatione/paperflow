@@ -102,6 +102,7 @@ def test_acquire_paper_from_url_records_http_failure_without_pdf(tmp_path):
 
 
 def test_acquire_paper_from_candidate_prefers_paper_search_cli_download(tmp_path, monkeypatch):
+    monkeypatch.setenv("EPI_PAPER_SEARCH_MCP_DISABLED", "1")
     fake_command = tmp_path / "paper-search-download.ps1"
     args_path = tmp_path / "download-args.json"
     fake_command.write_text(
@@ -143,6 +144,42 @@ def test_acquire_paper_from_candidate_prefers_paper_search_cli_download(tmp_path
     assert "--save-path" in invoked_args
     assert (paper_root / "paper.pdf").read_bytes().startswith(b"%PDF-1.4")
     assert json.loads((paper_root / "acquire-record.json").read_text(encoding="utf-8")) == record
+
+
+def test_acquire_paper_from_candidate_records_paper_search_mcp_download_mode(tmp_path, monkeypatch):
+    def _fake_download_paper_pdf(*, source, paper_id, output_dir, command=None, timeout_seconds=120):
+        output_dir.mkdir(parents=True, exist_ok=True)
+        pdf_path = output_dir / "mcp.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 mcp acquire fixture")
+        return {
+            "status": "success",
+            "mode": "paper_search_mcp_download",
+            "source": source,
+            "paper_id": paper_id,
+            "mcp_probe": {"available": True, "transport": "stdio"},
+            "downloaded_pdf": str(pdf_path),
+            "upstream": {"package": "paper-search-mcp", "transport": "stdio", "tool": "download_arxiv"},
+        }
+
+    monkeypatch.setattr("epi.acquire_papers.download_paper_pdf", _fake_download_paper_pdf)
+    candidate = _candidate("https://example.org/fallback.pdf", slug="paper-search-mcp-paper")
+    candidate["sources"] = ["arxiv"]
+    candidate["raw_records"] = [
+        {
+            "source": "arxiv",
+            "arxiv_id": "2401.12345",
+            "raw_record": {"paper_id": "2401.12345", "source": "arxiv"},
+        }
+    ]
+    vault = tmp_path / "vault"
+
+    record = acquire_paper_from_candidate(vault, candidate)
+
+    paper_root = vault / "_raw" / "papers" / "paper-search-mcp-paper"
+    assert record["status"] == "success"
+    assert record["mode"] == "paper_search_mcp_download"
+    assert record["upstream"]["tool"] == "download_arxiv"
+    assert (paper_root / "paper.pdf").read_bytes().startswith(b"%PDF-1.4")
 
 
 def test_acquire_paper_from_candidate_uses_vault_slug_boundary(tmp_path):
