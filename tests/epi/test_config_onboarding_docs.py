@@ -81,6 +81,11 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "config-status --vault <vault> --json --include-values --include-runtime" in text
     assert "确认重置 EPI wiki" in text
     assert "确认同时重置 EPI config" in text
+    assert "wiki-reset --vault <vault>" in text
+    assert "--reset-config-confirmed-by" in text
+    assert "config-recover --vault <vault> --json" in text
+    assert "config-restore --vault <vault>" in text
+    assert "确认恢复 EPI config" in text
     assert "不需要备份" in text
     assert "do not back up wiki content" in text
     assert "Misdelete Recovery" in text

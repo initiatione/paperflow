@@ -46,6 +46,18 @@ After initialization, summarize the created paths and tell the user that existin
 
 Reset is destructive. Do not reset immediately from a single user sentence.
 
+Prefer the CLI reset executor after the inventory and confirmation steps, because it preserves config by default and writes a reset manifest:
+
+```powershell
+python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 EPI wiki" --json
+```
+
+If the user explicitly declines a content backup, use `--no-backup`; this still preserves EPI config unless the separate config reset confirmation is also present:
+
+```powershell
+python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 EPI wiki" --no-backup --json
+```
+
 Before reset:
 
 1. Run a read-only inventory of the vault root and important EPI directories.
@@ -63,6 +75,12 @@ To also delete or reset EPI config, require a separate explicit confirmation phr
 ```
 
 Do not infer config reset from "reset wiki", "clean everything", "no backup", or "重新初始化". Without that extra phrase, protect config files and runtime.json.
+
+Only when both confirmations are present, pass the config reset gate:
+
+```powershell
+python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 EPI wiki" --reset-config-confirmed-by "确认同时重置 EPI config" --json
+```
 
 After reset:
 
@@ -86,6 +104,13 @@ If you detect an accidental deletion, mistaken reset, missing config after a sup
    - `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` for runtime command paths and env-file location
 5. If a plausible backup config is found, show its path, timestamp, and non-secret summary, then ask for confirmation before restoring it.
 6. If no backup exists, help reinitialize config with the `config-setup` skill and explicitly say which settings could not be recovered.
+
+Use the recovery commands for this path:
+
+```powershell
+python scripts\orchestrator.py config-recover --vault <vault> --json
+python scripts\orchestrator.py config-restore --vault <vault> --from <backup-config-yaml> --confirmed-by "确认恢复 EPI config" --json
+```
 
 Never reset or delete:
 

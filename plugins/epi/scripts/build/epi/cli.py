@@ -14,10 +14,13 @@ from epi.config import (
     init_config,
     load_wiki_config,
     propose_config_update,
+    recover_config_candidates,
+    restore_config_from_file,
 )
 from epi.doctor import collect_doctor_report, open_setup_links, render_doctor_report
 from epi.runtime_config import apply_runtime_config
 from epi.run_index import RESEARCH_QUEUE_BUCKETS
+from epi.wiki_reset import reset_wiki_vault
 
 
 Handler = Callable[[argparse.Namespace], int]
@@ -73,6 +76,25 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_vault(apply_config)
     apply_config.add_argument("--proposal-json", type=Path, required=True)
     apply_config.add_argument("--confirmed-by", required=True)
+
+    config_recover = subparsers.add_parser("config-recover")
+    _add_common_vault(config_recover)
+    config_recover.add_argument("--backup-root", type=Path, default=None)
+    config_recover.add_argument("--json", action="store_true")
+
+    config_restore = subparsers.add_parser("config-restore")
+    _add_common_vault(config_restore)
+    config_restore.add_argument("--from", dest="source_path", type=Path, required=True)
+    config_restore.add_argument("--confirmed-by", required=True)
+    config_restore.add_argument("--json", action="store_true")
+
+    wiki_reset = subparsers.add_parser("wiki-reset")
+    _add_common_vault(wiki_reset)
+    wiki_reset.add_argument("--confirmed-by", required=True)
+    wiki_reset.add_argument("--reset-config-confirmed-by", default=None)
+    wiki_reset.add_argument("--backup-root", type=Path, default=None)
+    wiki_reset.add_argument("--no-backup", action="store_true")
+    wiki_reset.add_argument("--json", action="store_true")
 
     dry_run = subparsers.add_parser("dry-run")
     dry_run.add_argument("--query", required=True)
@@ -667,6 +689,48 @@ def _handle_runs_query(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_config_recover(args: argparse.Namespace) -> int:
+    result = recover_config_candidates(args.vault, backup_root=args.backup_root)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"candidate_count={result['candidate_count']}")
+        print(f"config_path={result['config_path']}")
+        for candidate in result["candidates"]:
+            print(f"- {candidate['path']}")
+    return 0
+
+
+def _handle_config_restore(args: argparse.Namespace) -> int:
+    result = restore_config_from_file(args.vault, args.source_path, confirmed_by=args.confirmed_by)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print("config_restore_status=restored")
+        print(f"config_path={result['config_path']}")
+        print(f"restored_from={result['restored_from']}")
+    return 0
+
+
+def _handle_wiki_reset(args: argparse.Namespace) -> int:
+    result = reset_wiki_vault(
+        args.vault,
+        confirmed_by=args.confirmed_by,
+        reset_config_confirmed_by=args.reset_config_confirmed_by,
+        backup_root=args.backup_root,
+        no_backup=args.no_backup,
+    )
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print("wiki_reset_status=reset")
+        print(f"vault_path={result['vault_path']}")
+        print(f"backup_root={result['backup_root']}")
+        print(f"preserved_config={str(result['preserved_config']).lower()}")
+        print(f"manifest_path={result['manifest_path']}")
+    return 0
+
+
 def _handle_run_lifecycle(args: argparse.Namespace) -> int:
     result = workflows.prune_run_lifecycle(
         args.vault.resolve(),
@@ -737,6 +801,9 @@ HANDLERS: dict[str, Handler] = {
     "init-config": _handle_init_config,
     "propose-config-update": _handle_propose_config_update,
     "apply-config-update": _handle_apply_config_update,
+    "config-recover": _handle_config_recover,
+    "config-restore": _handle_config_restore,
+    "wiki-reset": _handle_wiki_reset,
     "dry-run": _handle_dry_run,
     "ingest-one": _handle_ingest_one,
     "acquire-paper": _handle_acquire_paper,

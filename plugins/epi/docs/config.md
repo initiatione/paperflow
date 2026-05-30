@@ -17,6 +17,18 @@ EPI 有两层配置，边界不要混：
 
 配置缺失时，不要直接运行论文流程、`dry-run`、MinerU 或 Zotero。初始化只写确认过的 `_meta\epi-config.yaml`；更新配置不得改动 `_raw`、`_runs`、`_staging`、`references` 或 Zotero 记录。
 
+误删或 reset 后配置缺失时，先恢复再继续论文流程。使用只读恢复扫描列出候选配置，不打印 token 或 secret：
+
+```powershell
+python scripts\orchestrator.py config-recover --vault <vault> --json
+```
+
+找到候选后，必须经用户确认再恢复：
+
+```powershell
+python scripts\orchestrator.py config-restore --vault <vault> --from <backup-config-yaml> --confirmed-by "确认恢复 EPI config" --json
+```
+
 ## 聊天式初始化脚本
 
 唯一话术来源。不要自由发挥成技术字段问卷，不要用字段名当问题标题。一次只问一个问题。每步说明影响和推荐值，给出 2-3 个参考方向，并告诉用户：不懂可以直接回复：默认。不要一次性输出完整默认配置。

@@ -39,7 +39,7 @@ python scripts\orchestrator.py <command>
 当前命令分组：
 
 - 安装与配置：`doctor`、`config-status`、`init-config`、`propose-config-update`、`apply-config-update`。
-- Wiki 库初始化/重置：`wiki-setup` skill 负责初始化和重置流程；初始化只补缺失结构，重置必须先盘点、备份计划并要求用户二次确认 `确认重置 EPI wiki`。Wiki 结构重置和 EPI config 重置是两个操作；默认重置必须保留 `_meta\epi-config.yaml`、`_meta\epi-config-state.json`、config history 目录，并且不得触碰用户级 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。如需同时重置配置，必须另行确认 `确认同时重置 EPI config`。若出现误删或误操作，先停止后续论文流程，主动询问是否从备份/历史恢复重要设置。
+- Wiki 库初始化/重置：`wiki-setup` skill 负责初始化和重置流程；初始化只补缺失结构，重置必须先盘点、备份计划并要求用户二次确认 `确认重置 EPI wiki`。`wiki-reset` CLI 是执行器，默认备份内容并保留 `_meta\epi-config.yaml`、`_meta\epi-config-state.json`、config history 目录，且不得触碰用户级 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。如需同时重置配置，必须另行确认 `确认同时重置 EPI config` 并显式传入 `--reset-config-confirmed-by`。若出现误删或误操作，先停止后续论文流程，用 `config-recover` 查找候选配置，再用 `config-restore` 在确认后恢复。
 - 发现与推进：`dry-run`、`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`acquire-paper`。
 - 解析与修复：`parse-paper`、`redo-acquire`、`redo-parse`、`redo-read`、`recritic`。
 - Reader/Critic/Gate：推进命令内部生成 reader 和 critic；只读检查用 `paper-gate`。
@@ -83,6 +83,7 @@ scripts/build/epi/
 - `cli.py` 只负责参数解析、JSON/Markdown 输出和调度到内部模块。
 - `orchestrator.py` 是兼容入口和流程编排层，负责 dry-run、one-paper ingest、batch advance、redo/recritic 等阶段串联。
 - `config.py` 负责 `_meta/epi-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。
+- `wiki_reset.py` 负责 wiki reset 执行器：确认口令、备份/删除、config 默认保护、初始化和 reset manifest。
 - `doctor.py` 负责只读健康检查；外部依赖缺失是 warning，插件结构缺失才 error。
 - `runtime_config.py` 负责从 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` 加载本机依赖配置，只补缺失的进程环境变量，不覆盖显式 env，不保存 token 明文。
 - `paper_search_adapter.py` 优先调用外部 `paper-search-mcp` stdio server，并在失败、超时或空结果时回退到 `paper-search` CLI，把上游输出标准化为 EPI 候选记录。

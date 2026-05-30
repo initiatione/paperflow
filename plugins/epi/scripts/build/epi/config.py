@@ -439,6 +439,110 @@ def apply_config_update(vault_path: Path, proposal: dict[str, Any], *, confirmed
     }
 
 
+def _config_candidate_summary(path: Path) -> dict[str, Any]:
+    try:
+        config = _parse_simple_yaml(path)
+    except Exception as exc:
+        return {
+            "path": str(path),
+            "status": "unreadable",
+            "error": str(exc),
+        }
+    stat = path.stat()
+    return {
+        "path": str(path),
+        "status": "readable",
+        "updated_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+        "profile": config.get("profile"),
+        "domains": config.get("domains", []),
+        "max_results": config.get("budget", {}).get("max_results") if isinstance(config.get("budget"), dict) else None,
+        "paper_search_sources": config.get("paper_search", {}).get("sources")
+        if isinstance(config.get("paper_search"), dict)
+        else None,
+    }
+
+
+def recover_config_candidates(vault_path: Path, *, backup_root: Path | None = None) -> dict[str, Any]:
+    paths = config_paths(vault_path)
+    search_roots = [
+        paths.config_path,
+        paths.history_dir,
+        paths.meta_dir / "epi-config-history",
+    ]
+    if backup_root is not None:
+        search_roots.append(backup_root)
+    else:
+        search_roots.append(paths.vault_path.parent / "paper-research-wiki-reset-backups")
+
+    seen: set[Path] = set()
+    candidates: list[dict[str, Any]] = []
+    for root in search_roots:
+        root = root.resolve()
+        if not root.exists():
+            continue
+        paths_to_check = [root] if root.is_file() else sorted(root.rglob("*.yaml"))
+        for candidate_path in paths_to_check:
+            resolved = candidate_path.resolve()
+            if resolved in seen or resolved.name != "epi-config.yaml" and not resolved.name.endswith(".yaml"):
+                continue
+            seen.add(resolved)
+            summary = _config_candidate_summary(resolved)
+            if summary["status"] == "readable":
+                candidates.append(summary)
+
+    candidates.sort(key=lambda item: str(item.get("updated_at", "")), reverse=True)
+    return {
+        "status": "ok",
+        "configured": paths.config_path.exists(),
+        "config_path": str(paths.config_path),
+        "candidate_count": len(candidates),
+        "candidates": candidates,
+    }
+
+
+def restore_config_from_file(vault_path: Path, source_path: Path, *, confirmed_by: str) -> dict[str, Any]:
+    if confirmed_by != "确认恢复 EPI config":
+        raise ValueError("config restore requires confirmed_by='确认恢复 EPI config'")
+    paths = config_paths(vault_path)
+    source_path = source_path.resolve()
+    if not source_path.exists() or not source_path.is_file():
+        raise FileNotFoundError(f"missing config restore source: {source_path}")
+    restored_config = _parse_simple_yaml(source_path)
+    content = _dump_simple_yaml(_normalize_payload_to_config(restored_config))
+
+    paths.meta_dir.mkdir(parents=True, exist_ok=True)
+    previous_history_path = None
+    if paths.config_path.exists():
+        previous_history_path = _write_history_snapshot(
+            paths,
+            paths.config_path.read_text(encoding="utf-8"),
+            action="pre-config-restore",
+        )
+    write_text_atomic(paths.config_path, content)
+    restored_history_path = _write_history_snapshot(paths, content, action="config-restore")
+    state = {
+        "configured": True,
+        "config_path": str(paths.config_path),
+        "last_action": "config-restore",
+        "configured_by": confirmed_by,
+        "updated_at": utc_now(),
+        "history_path": str(restored_history_path),
+        "restored_from": str(source_path),
+    }
+    if previous_history_path is not None:
+        state["previous_history_path"] = str(previous_history_path)
+    write_json_atomic(paths.state_path, state)
+    return {
+        "status": "restored",
+        "config_path": str(paths.config_path),
+        "state_path": str(paths.state_path),
+        "history_path": str(restored_history_path),
+        "restored_from": str(source_path),
+        "previous_history_path": str(previous_history_path) if previous_history_path else None,
+        "config": _parse_simple_yaml_text(content),
+    }
+
+
 def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) -> PipelineConfig:
     plugin_root = plugin_root.resolve()
     vault_path = vault_path.resolve()
