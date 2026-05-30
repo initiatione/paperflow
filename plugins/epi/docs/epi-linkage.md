@@ -68,7 +68,9 @@ ranking 必须同时给机器信号和低阅读负担解释：
 
 当用户是在对话中要求“找最新/高质量论文”时，`paper-discovery` skill 不应只转述 `report.md` 或 `rank.json`。它需要先运行并留存 EPI dry-run 证据，再在对话框中给出人工可扫读的“推荐优先看”清单。该清单必须包含本轮找到且保留下来的全部候选论文，按阅读优先级排序，而不是只列 top 几篇；低优先级项可以缩短说明但不能直接省略。每篇用编号标题、venue/year、DOI、引用数、影响因子/分区或 `未核实`、PDF/代码可用性和 2-3 句中文说明，说明方法主线、控制任务、证据强度、优先级和 caveat。影响因子、JCR 分区、CiteScore 等质量指标必须实时核实或来自可信元数据；不能核实时明确写 `影响因子/分区：未核实`，不得凭印象补数字。随后再给“EPI 实测证据”，包含 run 路径、`source_mode`、accepted/rejected 数量，以及 setup 检查时的 `MINERU_TOKEN set/missing` 状态。不得输出 raw JSON、长摘要或任何 secret。
 
-高质量论文检索不能把 `paper_search_mcp` 返回结果本身当成质量定义。`paper-discovery` 的具体检索协议、质量门控和输出格式分别放在 `references/search-protocol.md`、`references/quality-gate.md`、`references/output-format.md`，这样后续优化可以只改一个分层文件，而不是重写整个 skill。
+高质量论文检索不能把 `paper_search_mcp` 返回结果本身当成质量定义。`paper-discovery` 采用类似 `nature-academic-search` 的 bundle 结构：`SKILL.md` 只保留入口和边界，具体检索协议、source tier、去重、venue prior、质量门控、多源 workflow 和输出格式分别放在 `README.md`、`references/search-protocol.md`、`references/source-tiers.md`、`references/dedup-engine.md`、`references/venue-prior.md`、`references/workflows/multi-source-discovery.md`、`references/quality-gate.md`、`references/output-format.md`。后续优化 source routing、质量筛选、去重或输出格式时只改对应分层文件，不把所有规则塞回一个大 skill。
+
+期刊/会议分层可用于提高高质量论文筛选能力，但只能作为 `venue_prior`。RoboWiki 这类机器人会议/期刊整理页可作为 curated robotics venue prior 和 recall gap 检查来源；知乎、论坛或博客排名只能作为弱召回线索和社区主观背景，不能直接当作影响因子、JCR 分区、引用数、录用率或最终质量标签。推荐结果必须把 `venue_prior` 和 `verified_metrics` 分开展示；若影响因子、分区、CiteScore、引用数没有在本轮核实，就写 `未核实`。AUV/RL/control 这类任务还要把 Ocean Engineering、IEEE Journal of Oceanic Engineering、Applied Ocean Research、Control Engineering Practice、OCEANS 等海洋/控制场所纳入召回检查，避免只搜通用机器人和 AI 场所。
 
 当用户明确说“不要综述/非综述/not review/research papers only”时，查询应带上 `-review -survey`，并且 filter 阶段把 review、survey、systematic review、literature review、meta-analysis 等文档类型作为 hard exclusion 写入 `filter_reasons`，例如 `excluded_terms:review,survey`。默认偏综述沉淀的画像不受影响；只有本次查询显式要求排除综述时才硬过滤。
 

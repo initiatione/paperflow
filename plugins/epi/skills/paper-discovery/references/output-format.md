@@ -11,6 +11,7 @@ Each item should have:
 - DOI
 - citation count
 - impact factor/quartile or `未核实`
+- venue prior, if it affected ordering
 - PDF/code availability
 - 2-3 compact Chinese sentences explaining method, task, evidence, and caveat
 
@@ -21,6 +22,7 @@ Then add `EPI 实测证据` with:
 - accepted/rejected counts
 - review exclusion evidence and already-downloaded exclusions such as `already_in_library:<slug>`
 - query variants and whether a sharper rerun was needed
+- venue prior sources used, such as RoboWiki, and weak community hints such as Zhihu when applicable
 - recall gaps if any
 - `MINERU_TOKEN` set/missing only if setup was checked
 

@@ -51,9 +51,26 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "ready_for_agent=true" in text
     assert "当前 `plugin.json` 中的版本" in text
     assert "runtime.json" in text
+    assert "venue prior" in text
+    assert "RoboWiki" in text
     assert "发布前必须重跑" in text
     assert "Plugin Eval" in text
     assert "MINERU_TOKEN" in text
+
+
+def test_linkage_doc_records_paper_discovery_bundle_and_venue_prior():
+    text = _read("epi-linkage.md")
+
+    assert "nature-academic-search" in text
+    assert "references/source-tiers.md" in text
+    assert "references/dedup-engine.md" in text
+    assert "references/venue-prior.md" in text
+    assert "references/workflows/multi-source-discovery.md" in text
+    assert "venue_prior" in text
+    assert "verified_metrics" in text
+    assert "RoboWiki" in text
+    assert "知乎" in text
+    assert "Ocean Engineering" in text
 
 
 def test_plugin_project_does_not_embed_local_machine_paths():

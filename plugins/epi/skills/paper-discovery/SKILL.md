@@ -7,7 +7,12 @@ description: "Use when running EPI paper search/ranking dry-runs, finding high-q
 
 Use this skill for search/rank dry-runs and the narrow steps 1-3 path. Keep the main file thin and load the references below for the actual policy:
 
+- `README.md`
 - `references/search-protocol.md`
+- `references/source-tiers.md`
+- `references/dedup-engine.md`
+- `references/venue-prior.md`
+- `references/workflows/multi-source-discovery.md`
 - `references/quality-gate.md`
 - `references/output-format.md`
 
