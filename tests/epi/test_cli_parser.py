@@ -147,6 +147,7 @@ def test_wiki_reset_parser_requires_confirmation_and_supports_config_reset_gate(
             "--reset-config-confirmed-by",
             "确认同时重置 EPI config",
             "--no-backup",
+            "--preview",
             "--json",
         ]
     )
@@ -155,6 +156,7 @@ def test_wiki_reset_parser_requires_confirmation_and_supports_config_reset_gate(
     assert args.confirmed_by == "确认重置 EPI wiki"
     assert args.reset_config_confirmed_by == "确认同时重置 EPI config"
     assert args.no_backup is True
+    assert args.preview is True
     assert args.json is True
 
 
@@ -175,6 +177,26 @@ def test_config_recover_and_restore_parsers_accept_paths():
     assert recover_args.backup_root.name == "backups"
     assert restore_args.command == "config-restore"
     assert restore_args.source_path.name == "epi-config.yaml"
+
+
+def test_wiki_repair_parser_accepts_optional_restore_source():
+    args = build_parser().parse_args(
+        [
+            "wiki-repair",
+            "--backup-root",
+            "backups",
+            "--restore-from",
+            "backups/epi-config.yaml",
+            "--confirmed-by",
+            "确认恢复 EPI config",
+            "--json",
+        ]
+    )
+
+    assert args.command == "wiki-repair"
+    assert args.backup_root.name == "backups"
+    assert args.restore_from.name == "epi-config.yaml"
+    assert args.confirmed_by == "确认恢复 EPI config"
 
 
 def test_research_agenda_command_is_not_registered():

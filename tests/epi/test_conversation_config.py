@@ -291,6 +291,34 @@ def test_wiki_reset_preserves_config_by_default_and_backs_up_content(tmp_path, m
     assert (vault / "_meta" / "wiki-reset").is_dir()
 
 
+def test_wiki_reset_preview_lists_actions_without_mutating(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    answers_path = tmp_path / "answers.json"
+    _write_json(answers_path, _answers(profile="preview_profile"))
+    _run_orchestrator_cli(monkeypatch, capsys, "init-config", "--vault", str(vault), "--answers-json", str(answers_path))
+    raw_paper = vault / "_raw" / "papers" / "paper-a" / "paper.pdf"
+    raw_paper.parent.mkdir(parents=True)
+    raw_paper.write_text("paper", encoding="utf-8")
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "wiki-reset",
+        "--vault",
+        str(vault),
+        "--preview",
+        "--json",
+    )
+    payload = json.loads(output)
+
+    assert exit_code == 0
+    assert payload["status"] == "preview"
+    assert payload["preserve_config"] is True
+    assert any(action["action"] == "would_backup" for action in payload["actions"])
+    assert raw_paper.exists()
+    assert "profile: preview_profile" in (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
+
+
 def test_wiki_reset_requires_separate_config_confirmation(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
     answers_path = tmp_path / "answers.json"
@@ -362,3 +390,80 @@ def test_config_recover_lists_backup_candidates_and_restore_requires_confirmatio
     assert "profile: recovered_profile" in (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
     state = json.loads((vault / "_meta" / "epi-config-state.json").read_text(encoding="utf-8"))
     assert state["last_action"] == "config-restore"
+
+
+def test_config_recover_prioritizes_current_and_history_before_backups(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    current = vault / "_meta" / "epi-config.yaml"
+    history = vault / "_meta" / "config-history" / "old.yaml"
+    backup = tmp_path / "reset-backups" / "old-run" / "_meta" / "epi-config.yaml"
+    current.parent.mkdir(parents=True)
+    history.parent.mkdir(parents=True)
+    backup.parent.mkdir(parents=True)
+    current.write_text("profile: current_profile\n", encoding="utf-8")
+    history.write_text("profile: history_profile\n", encoding="utf-8")
+    backup.write_text("profile: backup_profile\n", encoding="utf-8")
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "config-recover",
+        "--vault",
+        str(vault),
+        "--backup-root",
+        str(tmp_path / "reset-backups"),
+        "--json",
+    )
+    payload = json.loads(output)
+
+    assert exit_code == 0
+    assert [candidate["source_type"] for candidate in payload["candidates"][:3]] == [
+        "current",
+        "config-history",
+        "provided-backup-root",
+    ]
+
+
+def test_wiki_repair_can_restore_missing_config_from_backup(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    backup_root = tmp_path / "reset-backups"
+    backup_config = backup_root / "old-run" / "_meta" / "epi-config.yaml"
+    backup_config.parent.mkdir(parents=True)
+    backup_config.write_text("profile: repair_profile\nbudget:\n  max_results: 13\n", encoding="utf-8")
+
+    inspect_exit, inspect_output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "wiki-repair",
+        "--vault",
+        str(vault),
+        "--backup-root",
+        str(backup_root),
+        "--json",
+    )
+    inspect_payload = json.loads(inspect_output)
+
+    assert inspect_exit == 1
+    assert inspect_payload["status"] == "inspected"
+    assert inspect_payload["recovery"]["candidate_count"] == 1
+
+    repair_exit, repair_output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "wiki-repair",
+        "--vault",
+        str(vault),
+        "--backup-root",
+        str(backup_root),
+        "--restore-from",
+        str(backup_config),
+        "--confirmed-by",
+        "确认恢复 EPI config",
+        "--json",
+    )
+    repair_payload = json.loads(repair_output)
+
+    assert repair_exit == 0
+    assert repair_payload["status"] == "repaired"
+    assert repair_payload["after_config"]["configured"] is True
+    assert "profile: repair_profile" in (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")

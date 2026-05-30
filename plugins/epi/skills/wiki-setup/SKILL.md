@@ -49,6 +49,7 @@ Reset is destructive. Do not reset immediately from a single user sentence.
 Prefer the CLI reset executor after the inventory and confirmation steps, because it preserves config by default and writes a reset manifest:
 
 ```powershell
+python scripts\orchestrator.py wiki-reset --vault <vault> --preview --json
 python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 EPI wiki" --json
 ```
 
@@ -108,8 +109,10 @@ If you detect an accidental deletion, mistaken reset, missing config after a sup
 Use the recovery commands for this path:
 
 ```powershell
+python scripts\orchestrator.py wiki-repair --vault <vault> --json
 python scripts\orchestrator.py config-recover --vault <vault> --json
 python scripts\orchestrator.py config-restore --vault <vault> --from <backup-config-yaml> --confirmed-by "确认恢复 EPI config" --json
+python scripts\orchestrator.py wiki-repair --vault <vault> --restore-from <backup-config-yaml> --confirmed-by "确认恢复 EPI config" --json
 ```
 
 Never reset or delete:

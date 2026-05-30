@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from epi.artifacts import utc_now, write_json_atomic, write_text_atomic
+from epi.config_protection import CONFIG_RESTORE_CONFIRMATION
 
 
 @dataclass(frozen=True)
@@ -439,19 +440,23 @@ def apply_config_update(vault_path: Path, proposal: dict[str, Any], *, confirmed
     }
 
 
-def _config_candidate_summary(path: Path) -> dict[str, Any]:
+def _config_candidate_summary(path: Path, *, source_type: str, priority: int) -> dict[str, Any]:
     try:
         config = _parse_simple_yaml(path)
     except Exception as exc:
         return {
             "path": str(path),
             "status": "unreadable",
+            "source_type": source_type,
+            "priority": priority,
             "error": str(exc),
         }
     stat = path.stat()
     return {
         "path": str(path),
         "status": "readable",
+        "source_type": source_type,
+        "priority": priority,
         "updated_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
         "profile": config.get("profile"),
         "domains": config.get("domains", []),
@@ -465,18 +470,18 @@ def _config_candidate_summary(path: Path) -> dict[str, Any]:
 def recover_config_candidates(vault_path: Path, *, backup_root: Path | None = None) -> dict[str, Any]:
     paths = config_paths(vault_path)
     search_roots = [
-        paths.config_path,
-        paths.history_dir,
-        paths.meta_dir / "epi-config-history",
+        ("current", 0, paths.config_path),
+        ("config-history", 10, paths.history_dir),
+        ("legacy-config-history", 20, paths.meta_dir / "epi-config-history"),
     ]
     if backup_root is not None:
-        search_roots.append(backup_root)
+        search_roots.append(("provided-backup-root", 30, backup_root))
     else:
-        search_roots.append(paths.vault_path.parent / "paper-research-wiki-reset-backups")
+        search_roots.append(("reset-backups", 30, paths.vault_path.parent / "paper-research-wiki-reset-backups"))
 
     seen: set[Path] = set()
     candidates: list[dict[str, Any]] = []
-    for root in search_roots:
+    for source_type, priority, root in search_roots:
         root = root.resolve()
         if not root.exists():
             continue
@@ -486,11 +491,12 @@ def recover_config_candidates(vault_path: Path, *, backup_root: Path | None = No
             if resolved in seen or resolved.name != "epi-config.yaml" and not resolved.name.endswith(".yaml"):
                 continue
             seen.add(resolved)
-            summary = _config_candidate_summary(resolved)
+            summary = _config_candidate_summary(resolved, source_type=source_type, priority=priority)
             if summary["status"] == "readable":
                 candidates.append(summary)
 
-    candidates.sort(key=lambda item: str(item.get("updated_at", "")), reverse=True)
+    candidates.sort(key=lambda item: (int(item["priority"]), str(item.get("updated_at", ""))), reverse=True)
+    candidates.sort(key=lambda item: int(item["priority"]))
     return {
         "status": "ok",
         "configured": paths.config_path.exists(),
@@ -501,8 +507,8 @@ def recover_config_candidates(vault_path: Path, *, backup_root: Path | None = No
 
 
 def restore_config_from_file(vault_path: Path, source_path: Path, *, confirmed_by: str) -> dict[str, Any]:
-    if confirmed_by != "确认恢复 EPI config":
-        raise ValueError("config restore requires confirmed_by='确认恢复 EPI config'")
+    if confirmed_by != CONFIG_RESTORE_CONFIRMATION:
+        raise ValueError(f"config restore requires confirmed_by='{CONFIG_RESTORE_CONFIRMATION}'")
     paths = config_paths(vault_path)
     source_path = source_path.resolve()
     if not source_path.exists() or not source_path.is_file():

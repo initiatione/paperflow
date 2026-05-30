@@ -20,6 +20,7 @@ EPI 有两层配置，边界不要混：
 误删或 reset 后配置缺失时，先恢复再继续论文流程。使用只读恢复扫描列出候选配置，不打印 token 或 secret：
 
 ```powershell
+python scripts\orchestrator.py wiki-repair --vault <vault> --json
 python scripts\orchestrator.py config-recover --vault <vault> --json
 ```
 
@@ -27,6 +28,7 @@ python scripts\orchestrator.py config-recover --vault <vault> --json
 
 ```powershell
 python scripts\orchestrator.py config-restore --vault <vault> --from <backup-config-yaml> --confirmed-by "确认恢复 EPI config" --json
+python scripts\orchestrator.py wiki-repair --vault <vault> --restore-from <backup-config-yaml> --confirmed-by "确认恢复 EPI config" --json
 ```
 
 ## 聊天式初始化脚本

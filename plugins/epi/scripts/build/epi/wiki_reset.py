@@ -6,18 +6,8 @@ from typing import Any
 
 from epi.artifacts import utc_now, write_json_atomic
 from epi.config import config_status
+from epi.config_protection import CONFIG_RESET_CONFIRMATION, PROTECTED_META_NAMES, WIKI_RESET_CONFIRMATION
 from epi.wiki_init import initialize_paper_wiki
-
-
-WIKI_RESET_CONFIRMATION = "确认重置 EPI wiki"
-CONFIG_RESET_CONFIRMATION = "确认同时重置 EPI config"
-
-PROTECTED_META_NAMES = {
-    "epi-config.yaml",
-    "epi-config-state.json",
-    "config-history",
-    "epi-config-history",
-}
 
 
 def _unique_target(parent: Path, name: str) -> Path:
@@ -55,6 +45,13 @@ def _move_path(path: Path, backup_root: Path) -> Path:
     return target
 
 
+def _action_record(action: str, path: Path, backup_path: Path | None = None) -> dict[str, Any]:
+    record = {"action": action, "path": str(path)}
+    if backup_path is not None:
+        record["backup_path"] = str(backup_path)
+    return record
+
+
 def _reset_meta_dir(meta_dir: Path, backup_root: Path | None, *, preserve_config: bool) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
     if not meta_dir.exists():
@@ -62,25 +59,74 @@ def _reset_meta_dir(meta_dir: Path, backup_root: Path | None, *, preserve_config
     for child in sorted(meta_dir.iterdir(), key=lambda item: item.name):
         protected = preserve_config and child.name in PROTECTED_META_NAMES
         if protected:
-            actions.append({"action": "preserve", "path": str(child)})
+            actions.append(_action_record("preserve", child))
             continue
         if backup_root is None:
             _remove_path(child)
-            actions.append({"action": "remove", "path": str(child)})
+            actions.append(_action_record("remove", child))
         else:
             moved_to = _move_path(child, backup_root / "_meta")
-            actions.append({"action": "backup", "path": str(child), "backup_path": str(moved_to)})
+            actions.append(_action_record("backup", child, moved_to))
     return actions
+
+
+def preview_wiki_reset(
+    vault_path: Path,
+    *,
+    reset_config_confirmed_by: str | None = None,
+    backup_root: Path | None = None,
+    no_backup: bool = False,
+) -> dict[str, Any]:
+    preserve_config = reset_config_confirmed_by != CONFIG_RESET_CONFIRMATION
+    vault_path = vault_path.resolve()
+    effective_backup_root = None
+    if backup_root is not None:
+        effective_backup_root = backup_root.resolve()
+    elif not no_backup:
+        effective_backup_root = vault_path.parent / "paper-research-wiki-reset-backups" / "<timestamp>"
+    actions: list[dict[str, Any]] = []
+    if vault_path.exists() and vault_path.is_dir():
+        for child in sorted(vault_path.iterdir(), key=lambda item: item.name):
+            if child.name == "_meta":
+                for meta_child in sorted(child.iterdir(), key=lambda item: item.name) if child.exists() else []:
+                    if preserve_config and meta_child.name in PROTECTED_META_NAMES:
+                        actions.append(_action_record("would_preserve", meta_child))
+                    elif effective_backup_root is None:
+                        actions.append(_action_record("would_remove", meta_child))
+                    else:
+                        actions.append(_action_record("would_backup", meta_child, effective_backup_root / "_meta" / meta_child.name))
+                continue
+            if effective_backup_root is None:
+                actions.append(_action_record("would_remove", child))
+            else:
+                actions.append(_action_record("would_backup", child, effective_backup_root / child.name))
+    return {
+        "status": "preview",
+        "vault_path": str(vault_path),
+        "backup_root": str(effective_backup_root) if effective_backup_root else None,
+        "no_backup": no_backup,
+        "preserve_config": preserve_config,
+        "config_status": config_status(vault_path),
+        "actions": actions,
+    }
 
 
 def reset_wiki_vault(
     vault_path: Path,
     *,
-    confirmed_by: str,
+    confirmed_by: str | None,
     reset_config_confirmed_by: str | None = None,
     backup_root: Path | None = None,
     no_backup: bool = False,
+    preview: bool = False,
 ) -> dict[str, Any]:
+    if preview:
+        return preview_wiki_reset(
+            vault_path,
+            reset_config_confirmed_by=reset_config_confirmed_by,
+            backup_root=backup_root,
+            no_backup=no_backup,
+        )
     if confirmed_by != WIKI_RESET_CONFIRMATION:
         raise ValueError(f"wiki reset requires confirmed_by='{WIKI_RESET_CONFIRMATION}'")
     preserve_config = reset_config_confirmed_by != CONFIG_RESET_CONFIRMATION
@@ -107,10 +153,10 @@ def reset_wiki_vault(
             continue
         if backup_root is None:
             _remove_path(child)
-            actions.append({"action": "remove", "path": str(child)})
+            actions.append(_action_record("remove", child))
         else:
             moved_to = _move_path(child, backup_root)
-            actions.append({"action": "backup", "path": str(child), "backup_path": str(moved_to)})
+            actions.append(_action_record("backup", child, moved_to))
 
     created = initialize_paper_wiki(vault_path)
     after_config = config_status(vault_path)

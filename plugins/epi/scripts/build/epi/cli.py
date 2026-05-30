@@ -90,11 +90,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     wiki_reset = subparsers.add_parser("wiki-reset")
     _add_common_vault(wiki_reset)
-    wiki_reset.add_argument("--confirmed-by", required=True)
+    wiki_reset.add_argument("--confirmed-by", default=None)
     wiki_reset.add_argument("--reset-config-confirmed-by", default=None)
     wiki_reset.add_argument("--backup-root", type=Path, default=None)
     wiki_reset.add_argument("--no-backup", action="store_true")
+    wiki_reset.add_argument("--preview", action="store_true")
     wiki_reset.add_argument("--json", action="store_true")
+
+    wiki_repair = subparsers.add_parser("wiki-repair")
+    _add_common_vault(wiki_repair)
+    wiki_repair.add_argument("--backup-root", type=Path, default=None)
+    wiki_repair.add_argument("--restore-from", type=Path, default=None)
+    wiki_repair.add_argument("--confirmed-by", default=None)
+    wiki_repair.add_argument("--json", action="store_true")
 
     dry_run = subparsers.add_parser("dry-run")
     dry_run.add_argument("--query", required=True)
@@ -719,16 +727,47 @@ def _handle_wiki_reset(args: argparse.Namespace) -> int:
         reset_config_confirmed_by=args.reset_config_confirmed_by,
         backup_root=args.backup_root,
         no_backup=args.no_backup,
+        preview=args.preview,
     )
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
-        print("wiki_reset_status=reset")
+        print(f"wiki_reset_status={result['status']}")
         print(f"vault_path={result['vault_path']}")
         print(f"backup_root={result['backup_root']}")
-        print(f"preserved_config={str(result['preserved_config']).lower()}")
-        print(f"manifest_path={result['manifest_path']}")
+        if result["status"] == "preview":
+            print(f"preserve_config={str(result['preserve_config']).lower()}")
+            print(f"planned_actions={len(result['actions'])}")
+        else:
+            print(f"preserved_config={str(result['preserved_config']).lower()}")
+            print(f"manifest_path={result['manifest_path']}")
     return 0
+
+
+def _handle_wiki_repair(args: argparse.Namespace) -> int:
+    before = get_config_status(args.vault)
+    recovery = recover_config_candidates(args.vault, backup_root=args.backup_root)
+    result = {
+        "status": "inspected",
+        "before_config": before,
+        "recovery": recovery,
+        "restored": None,
+        "after_config": before,
+    }
+    if args.restore_from is not None:
+        restored = restore_config_from_file(args.vault, args.restore_from, confirmed_by=args.confirmed_by or "")
+        result["status"] = "repaired"
+        result["restored"] = restored
+        result["after_config"] = get_config_status(args.vault)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"wiki_repair_status={result['status']}")
+        print(f"configured_before={str(before['configured']).lower()}")
+        print(f"candidate_count={recovery['candidate_count']}")
+        if result["restored"]:
+            print(f"restored_from={result['restored']['restored_from']}")
+    return 0 if result["after_config"]["configured"] else 1
 
 
 def _handle_run_lifecycle(args: argparse.Namespace) -> int:
@@ -804,6 +843,7 @@ HANDLERS: dict[str, Handler] = {
     "config-recover": _handle_config_recover,
     "config-restore": _handle_config_restore,
     "wiki-reset": _handle_wiki_reset,
+    "wiki-repair": _handle_wiki_repair,
     "dry-run": _handle_dry_run,
     "ingest-one": _handle_ingest_one,
     "acquire-paper": _handle_acquire_paper,
