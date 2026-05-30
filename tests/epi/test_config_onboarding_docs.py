@@ -66,6 +66,18 @@ def test_config_setup_skill_owns_initialization_and_update_onboarding():
     assert "不保存 token 明文" in text
 
 
+def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
+    text = _read(SKILL_DIR / "wiki-setup" / "SKILL.md")
+
+    assert "name: wiki-setup" in text
+    assert "scripts\\init_paper_wiki.py" in text
+    assert "Initialization is idempotent" in text
+    assert "Reset is destructive" in text
+    assert "确认重置 EPI wiki" in text
+    assert "backup outside the active vault" in text
+    assert "without the exact second confirmation" in text
+
+
 def test_epi_skills_delegate_onboarding_wording_to_config_doc():
     for skill_name in [
         "paper-discovery",

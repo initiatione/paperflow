@@ -13,6 +13,7 @@ EPI 当前聚焦“高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉
 - Runtime 配置：新增 `runtime_config.py`，从 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json` 自动加载 `paper-search` MCP、CLI fallback 和 MinerU env-file 路径；显式 env 优先，runtime.json 不保存 token 明文。
 - Marketplace polish：`defaultPrompt` 已压到 3 条，避免 Codex 只使用前三条时丢失后续提示。
 - 配置引导：`config-status`、`init-config`、`propose-config-update`、`apply-config-update` 已形成配置生命周期；当前新增 `config-setup` skill，把首次配置和修改配置改成聊天式逐步引导。
+- Wiki 初始化：新增 `wiki-setup` skill，专门负责 paper research wiki vault 初始化和重置；初始化幂等补结构，重置必须盘点、备份计划和二次确认。
 - 论文发现：`dry-run` 支持候选标准化、过滤、ranking、报告、run index 和 research queue，且只写 `_runs`。
 - 发现输出：`paper-discovery` skill 已要求对话中先给“推荐优先看”清单，再给 EPI 实测证据；清单要包含本轮找到且保留下来的全部候选论文，并按阅读优先级排序。每篇推荐包含 venue/year、DOI、引用数、影响因子/分区或未核实、PDF/代码可用性、方法场景、验证证据和 caveat。用户明确不要综述时，查询和 filter 会硬排除 review/survey 类结果。高质量检索新增 topic blocks、3-5 个 focused query variants、source routing、DOI/title 去重、Tier A/B/C 质量门控和 recall gap 记录，避免把 MCP 返回结果本身当成质量定义。
 - 1-3 快路：`prepare-ranked` 支持从 dry-run 的 `rank.json` 直接完成 selected ranked paper acquire + MinerU parse，并停在 raw artifact，不误入 reader/critic/staging。
