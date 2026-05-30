@@ -1,4 +1,0 @@
-interface:
-  display_name: "MinerU Precision Batch"
-  short_description: "Parse papers into per-paper Markdown and image folders."
-  default_prompt: "Parse these local papers with MinerU precise batch API and save each paper as its own folder containing the Markdown file and images."

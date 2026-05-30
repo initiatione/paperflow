@@ -537,10 +537,10 @@ develop or modify EPI
   -> activate approved asset changes
 ```
 
-Known baseline from the existing `mineru-paper-parser` plugin:
+Historical baseline from the former standalone `mineru-paper-parser` plugin, before MinerU parsing was absorbed as an internal EPI helper:
 
 ```text
-node C:\Users\liuchf\.codex\.tmp\plugins\plugins\plugin-eval\scripts\plugin-eval.js analyze D:\paper-search\plugins\mineru-paper-parser --format markdown
+node <plugin-eval.js> analyze <former-mineru-parser-plugin-root> --format markdown
 ```
 
 Observed result:
