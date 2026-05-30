@@ -12,13 +12,13 @@ When subagents are available, delegate lifecycle maintenance to a small/cost-eff
 Default to dry-run first:
 
 ```powershell
-python scripts\orchestrator.py run-lifecycle --vault D:\paper-research-wiki --keep-latest 30 --keep-per-workflow 2 --json
+python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 30 --keep-per-workflow 2 --json
 ```
 
 Apply only after the user agrees:
 
 ```powershell
-python scripts\orchestrator.py run-lifecycle --vault D:\paper-research-wiki --keep-latest 30 --keep-per-workflow 2 --apply --json
+python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 30 --keep-per-workflow 2 --apply --json
 ```
 
 Rules:

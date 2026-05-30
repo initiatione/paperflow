@@ -47,7 +47,7 @@ SETUP_GUIDES = {
         "description": "Install the upstream CLI or point EPI_PAPER_SEARCH_COMMAND at a local wrapper for fallback.",
         "commands": [
             "uvx --from git+https://github.com/openags/paper-search-mcp.git paper-search --help",
-            "$env:EPI_PAPER_SEARCH_COMMAND='D:\\paper-search\\.env\\paper-search-live.ps1'",
+            "$env:EPI_PAPER_SEARCH_COMMAND='<path-to-paper-search-wrapper>'",
         ],
     },
     "mineru_token": {

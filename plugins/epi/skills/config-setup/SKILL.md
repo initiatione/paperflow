@@ -8,7 +8,7 @@ description: "Use when EPI config is missing or the user wants to view, initiali
 Use this skill before any EPI paper workflow when config is missing, or when the user asks to view or change EPI settings. 这是 EPI 配置查看、初始化和修改的唯一交互入口. Prefer the fast read-only path for display tasks:
 
 ```powershell
-python scripts\orchestrator.py config-status --vault D:\paper-research-wiki --json --include-values --include-runtime
+python scripts\orchestrator.py config-status --vault <vault> --json --include-values --include-runtime
 ```
 
 Only run `doctor` when the user asks for dependency health, plugin diagnosis, MCP/CLI/MinerU availability, or a setup failure. Do not run `doctor` just to output current configuration.
@@ -23,14 +23,14 @@ Only run `doctor` when the user asks for dependency health, plugin diagnosis, MC
 - 不运行 `dry-run`, MinerU, Zotero, promotion, 或 wiki 写入.
 - 不打印 token 或 secret; 只报告 token is set/missing.
 - 用户要求“输出当前配置/展示配置/现在配置是什么”时，直接用 fast read-only path，总结 `_meta\epi-config.yaml` 和 user-level runtime status；不要探测 MCP，不要下载论文，不要调用 MinerU.
-- 本机依赖配置写入 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json`: paper-search MCP command/args, CLI fallback, MinerU command, and `mineru.env` path. 不保存 token 明文; `MINERU_TOKEN` 只能来自进程环境或 `mineru.env`.
+- 本机依赖配置写入 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`: paper-search MCP command/args, CLI fallback, MinerU command, and `mineru.env` path. 不保存 token 明文; `MINERU_TOKEN` 只能来自进程环境或 `mineru.env`.
 - 显式进程环境变量优先; runtime.json 只补缺失项, and it survives plugin cache upgrades.
 
 ## Initialization Flow
 
 Collect answers step by step:
 
-1. 论文库位置. 推荐 `D:\paper-research-wiki`.
+1. 论文库位置. 推荐一个专用本地论文库目录，例如 `<vault>`.
 2. 主要研究方向和使用目的, such as 前沿跟踪, 项目实现, 方法论文, 系统论文, or 长期 wiki 沉淀.
 3. 用户画像 and paper preference: method, system, dataset, benchmark, real experiment, sim-to-real, reproducible code. 默认不是综述论文; 只有用户明确要求综述时才加入 survey/review 偏好.
 4. Positive and negative keywords.
@@ -42,7 +42,7 @@ Collect answers step by step:
 After all answers are collected, summarize in plain Chinese under “你刚刚选了什么”, then show a compact technical preview. Only after explicit user confirmation, write an answers JSON and run:
 
 ```powershell
-python scripts\orchestrator.py init-config --vault D:\paper-research-wiki --answers-json <answers.json>
+python scripts\orchestrator.py init-config --vault <vault> --answers-json <answers.json>
 ```
 
 ## Update Flow

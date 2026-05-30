@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 
@@ -66,7 +67,7 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="Initialize a dedicated engineering paper research wiki.")
-    parser.add_argument("--vault", type=Path, default=Path(r"D:\paper-research-wiki"))
+    parser.add_argument("--vault", type=Path, default=Path(os.environ.get("EPI_VAULT", Path.cwd() / "paper-research-wiki")))
     args = parser.parse_args()
     created = initialize_paper_wiki(args.vault)
     print(f"initialized={args.vault.resolve()}")

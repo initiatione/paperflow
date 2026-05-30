@@ -1,6 +1,6 @@
 {
   "name": "epi",
-  "version": "0.1.0+codex.20260530190000",
+  "version": "0.1.0+codex.20260530193000",
   "description": "Search and rank engineering papers for an EPI wiki.",
   "author": {
     "name": "liuchf"

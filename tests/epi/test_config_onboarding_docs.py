@@ -36,11 +36,11 @@ def test_config_doc_defines_plain_chinese_eight_step_onboarding_script():
     assert "技术预览" in text
     assert "YAML" in text
     assert "等用户明确确认后" in text
-    assert r"C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json" in text
+    assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
     assert "runtime.json 不保存 token 明文" in text
     assert "mineru.env" in text
     assert "默认看方法/系统/实验论文，不默认看综述" in text
-    assert "config-status --vault D:\\paper-research-wiki --json --include-values --include-runtime" in text
+    assert "config-status --vault <vault> --json --include-values --include-runtime" in text
 
 
 def test_config_setup_skill_owns_initialization_and_update_onboarding():
@@ -73,7 +73,20 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "scripts\\init_paper_wiki.py" in text
     assert "Initialization is idempotent" in text
     assert "Reset is destructive" in text
+    assert "wiki structure reset and EPI config reset are separate operations" in text
+    assert "_meta\\epi-config.yaml" in text
+    assert "_meta\\epi-config-state.json" in text
+    assert "_meta\\config-history\\" in text
+    assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
+    assert "config-status --vault <vault> --json --include-values --include-runtime" in text
     assert "确认重置 EPI wiki" in text
+    assert "确认同时重置 EPI config" in text
+    assert "不需要备份" in text
+    assert "do not back up wiki content" in text
+    assert "Misdelete Recovery" in text
+    assert "误删" in text
+    assert "Actively ask whether the user wants help restoring important settings" in text
+    assert "<vault-parent>\\paper-research-wiki-reset-backups\\" in text
     assert "backup outside the active vault" in text
     assert "without the exact second confirmation" in text
 

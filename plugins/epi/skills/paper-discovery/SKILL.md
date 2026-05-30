@@ -14,9 +14,9 @@ Use this skill for search/rank dry-runs and the narrow steps 1-3 path. Keep the 
 The full EPI chain stays documented in `docs\epi-linkage.md`. If setup is unclear, run `doctor` or `config-status`. If config is missing, stop discovery and use `config-setup`; config onboarding lives in `docs\config.md` 的 `## 聊天式初始化脚本`，不要自由发挥成技术字段问卷，不要一次性输出完整默认配置.
 
 ```powershell
-python scripts\orchestrator.py doctor --plugin-root D:\paper-search\plugins\epi --vault D:\paper-research-wiki --json
-python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex --plugin-root D:\paper-search\plugins\epi --vault D:\paper-research-wiki
-python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 1 --vault D:\paper-research-wiki
+python scripts\orchestrator.py doctor --plugin-root <plugin-root> --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex --plugin-root <plugin-root> --vault <vault>
+python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 1 --vault <vault>
 ```
 
 `prepare-ranked` downloads selected ranked papers and parses them with MinerU, then stops after `_raw\papers\<slug>\mineru\...`. It must not generate reader, critic, staging, Zotero, or final wiki outputs. Verify evidence with `search-record.json`, `acquire-record.json`, `parse-record.json`, `paper.pdf`, `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`.

@@ -46,7 +46,7 @@ EPI 不能把 Obsidian Wiki 写入规则简化成“调用本机 `llm-wiki` / `w
 
 职责：检查插件结构、模板、技能目录、默认 vault、`paper-search` CLI、MinerU 命令、`MINERU_TOKEN` 和 EPI vault 配置。外部依赖缺失只提示 warning，插件结构缺失才 error。用户初次使用或修改配置时必须走 `config-setup` skill：一次只问一个问题，每步说明影响、推荐值和参考方向，不把字段名直接丢给用户，不一次性输出完整默认配置；最终确认前不得运行 `init-config` 或 `apply-config-update`。skill-aware evolution 不直接改用户配置。
 
-配置分两层：研究画像、关键词、预算、Zotero 和人工确认门属于目标 vault 的 `_meta/epi-config.yaml`；本机 runtime 依赖属于 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json`。runtime.json 只记录 `paper-search` MCP command/args、CLI fallback、MinerU 命令和 `mineru.env` 路径，不保存 token 明文。`runtime_config.py` 在 doctor、paper-search discovery/download 和 MinerU parse 前自动加载它，并且只补缺失的环境变量；显式进程 env 永远优先。
+配置分两层：研究画像、关键词、预算、Zotero 和人工确认门属于目标 vault 的 `_meta/epi-config.yaml`；本机 runtime 依赖属于 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。runtime.json 只记录 `paper-search` MCP command/args、CLI fallback、MinerU 命令和 `mineru.env` 路径，不保存 token 明文。`runtime_config.py` 在 doctor、paper-search discovery/download 和 MinerU parse 前自动加载它，并且只补缺失的环境变量；显式进程 env 永远优先。
 
 ### 2. 论文发现与排序
 
@@ -195,7 +195,7 @@ python -m pytest tests\epi -q
 python -m pytest plugins\epi -q
 python -m coverage run -m pytest tests\epi
 python -m coverage xml -o plugins\epi\coverage\coverage.xml
-node C:\Users\liuchf\.codex\plugins\cache\openai-curated\plugin-eval\719ed655\scripts\plugin-eval.js analyze D:\paper-search\plugins\epi --format markdown
+node <plugin-eval.js> analyze <plugin-root> --format markdown
 ```
 
 `tests\epi` 是源码仓库主测试集；`tests\epi\test_wrapper_entrypoints.py` 覆盖 marketplace 可见 wrapper：`scripts\orchestrator.py`、`scripts\init_paper_wiki.py` 和 MinerU skill wrapper。当前 Windows 版 Plugin Eval 用反斜杠绝对路径传给 Python 测试识别正则，而该正则只匹配 `/tests/` 或 `/test_*.py`，所以源码测试通过时仍可能出现 `py-tests-missing`。coverage XML 放在 `plugins\epi\coverage\coverage.xml`，默认被 `coverage/` ignore；只有发布时明确刷新才需要 `git add -f`。

@@ -28,7 +28,10 @@ def _default_plugin_root() -> Path:
 
 
 def _default_vault() -> Path:
-    return Path(r"D:\paper-research-wiki")
+    configured = os.environ.get("EPI_VAULT")
+    if configured:
+        return Path(configured)
+    return Path.cwd() / "paper-research-wiki"
 
 
 def _load_json(path: Path) -> object:

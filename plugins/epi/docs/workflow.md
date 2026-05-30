@@ -4,14 +4,14 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 
 中文主链路和维护契约见 `docs\epi-linkage.md`。每次修改或优化 EPI 插件，都必须检查并同步更新该文档。
 
-本机依赖由 `C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json` 自动加载：优先 paper-search MCP server，CLI 作为 fallback，MinerU token 从环境或 `mineru.env` 读取。不要把 token 写入 runtime.json，也不要在报告里打印 token 值。
+本机依赖由 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` 自动加载：优先 paper-search MCP server，CLI 作为 fallback，MinerU token 从环境或 `mineru.env` 读取。不要把 token 写入 runtime.json，也不要在报告里打印 token 值。
 
 ```powershell
-python scripts\orchestrator.py dry-run --query "robotics embodied intelligence control" --max-results 20 --vault D:\paper-research-wiki
-python scripts\orchestrator.py advance-ranked --run-id <run-id> --max-papers 3 --vault D:\paper-research-wiki
-python scripts\orchestrator.py research-queue --vault D:\paper-research-wiki
-python scripts\orchestrator.py paper-gate --slug <paper-slug> --vault D:\paper-research-wiki
-python scripts\orchestrator.py wiki-ingest-handoff --slug <paper-slug> --vault D:\paper-research-wiki
+python scripts\orchestrator.py dry-run --query "robotics embodied intelligence control" --max-results 20 --vault <vault>
+python scripts\orchestrator.py advance-ranked --run-id <run-id> --max-papers 3 --vault <vault>
+python scripts\orchestrator.py research-queue --vault <vault>
+python scripts\orchestrator.py paper-gate --slug <paper-slug> --vault <vault>
+python scripts\orchestrator.py wiki-ingest-handoff --slug <paper-slug> --vault <vault>
 ```
 
 Dry-run writes only `_runs`. Ingest writes raw artifacts. Staging writes `_staging` only after critic pass. EPI prepares evidence drafts, a lightweight report, and `wiki-ingest-brief.json`; final Obsidian/LLM Wiki pages are written by the wiki ingest agent according to the target vault contract.
@@ -25,8 +25,8 @@ Reader v2 creates role notes plus `reader/evidence-map.json`:
 Critic quorum combines paper, parse, reader, editorial, peer-review, and domain-fit gates. Hard failures set `outcome=revise-reader`; warnings become caveats. Staging prepares evidence drafts plus `reports/<slug>-reading-report.md` as the low-burden entrypoint.
 
 ```powershell
-python scripts\orchestrator.py research-queue --bucket needs_reader_repair --vault D:\paper-research-wiki
-python scripts\orchestrator.py research-queue --bucket reproducibility_caveats --actions --json --vault D:\paper-research-wiki
+python scripts\orchestrator.py research-queue --bucket needs_reader_repair --vault <vault>
+python scripts\orchestrator.py research-queue --bucket reproducibility_caveats --actions --json --vault <vault>
 ```
 
 Queue buckets: `ready_to_promote`, `needs_reader_repair`, `warning_only`, `reproducibility_caveats`. `ready_to_promote --actions` must inspect current `paper-gate`; for current agent-mediated plans it suggests `run-wiki-ingest-agent` with a `wiki-ingest-handoff` command only when the remaining action is `human-approval`. Legacy compiled-draft plans may still expose `promote-to-wiki`.

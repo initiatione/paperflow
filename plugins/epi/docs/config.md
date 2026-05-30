@@ -11,8 +11,8 @@ python scripts\orchestrator.py doctor --open-setup
 
 EPI 有两层配置，边界不要混：
 
-- 研究画像、关键词、预算、Zotero 和人工确认门写入目标论文库：`D:\paper-research-wiki\_meta\epi-config.yaml`。
-- 本机 runtime 依赖写入 Codex 用户级插件区：`C:\Users\liuchf\.codex\plugins\paper-search\epi\runtime.json`。这里记录 `paper-search` MCP server 命令、CLI fallback、MinerU 命令和 `mineru.env` 路径；runtime.json 不保存 token 明文。`MINERU_TOKEN` 只从进程环境或 `mineru.env` 载入，报告时只能说 set/missing。
+- 研究画像、关键词、预算、Zotero 和人工确认门写入目标论文库：`<vault>\_meta\epi-config.yaml`。
+- 本机 runtime 依赖写入 Codex 用户级插件区：`%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。这里记录 `paper-search` MCP server 命令、CLI fallback、MinerU 命令和 `mineru.env` 路径；runtime.json 不保存 token 明文。`MINERU_TOKEN` 只从进程环境或 `mineru.env` 载入，报告时只能说 set/missing。
 - 显式进程环境变量优先，runtime.json 只补缺失项；插件升级 cache 时不会覆盖用户级 runtime.json。
 
 配置缺失时，不要直接运行论文流程、`dry-run`、MinerU 或 Zotero。初始化只写确认过的 `_meta\epi-config.yaml`；更新配置不得改动 `_raw`、`_runs`、`_staging`、`references` 或 Zotero 记录。
@@ -25,7 +25,7 @@ EPI 有两层配置，边界不要混：
 
 八步确认：
 
-1. 第一步，先定论文库放哪里。推荐 `D:\paper-research-wiki`。
+1. 第一步，先定论文库放哪里。推荐一个专用的本地论文库目录，例如 `<vault>`。
 2. 第二步，我需要知道你主要看哪类论文。推荐“机器人控制、具身智能、AI，默认看方法/系统/实验论文，不默认看综述”。
 3. 第三步，告诉我哪些词算有用，哪些词要避开。默认把 review / survey / systematic review / literature review / meta-analysis 作为避开词；只有用户明确要求综述时才加入综述偏好。
 4. 第四步，先定搜索从哪里来。推荐 `paper-search` + arxiv / semantic / openalex。
@@ -37,13 +37,13 @@ EPI 有两层配置，边界不要混：
 确认时先给用户版摘要，必须包含“你刚刚选了什么”；再给技术预览。YAML 只作为技术预览。等用户明确确认后，把 answers 写成 JSON 并运行。最终确认前不得运行 `init-config`：
 
 ```powershell
-python scripts\orchestrator.py init-config --vault D:\paper-research-wiki --answers-json <answers.json>
+python scripts\orchestrator.py init-config --vault <vault> --answers-json <answers.json>
 ```
 
 用户要求输出当前配置时，走快路径，不跑 `doctor`：
 
 ```powershell
-python scripts\orchestrator.py config-status --vault D:\paper-research-wiki --json --include-values --include-runtime
+python scripts\orchestrator.py config-status --vault <vault> --json --include-values --include-runtime
 ```
 
 用户要求重新配置时，先说明当前值、目标值和影响；一次只问一个修改目标；确认后才运行 `apply-config-update`。最终确认前不得运行 `apply-config-update`。
