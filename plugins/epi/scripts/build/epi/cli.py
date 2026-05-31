@@ -119,6 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["auto", "profile", "auv-control", "embodied-ai", "general-robotics"],
     )
     dry_run.add_argument("--query-plan-max-queries", type=int, default=6)
+    dry_run.add_argument("--json", action="store_true")
 
     ingest_one = subparsers.add_parser("ingest-one")
     ingest_one.add_argument("--candidate", type=Path, required=True)
@@ -374,7 +375,22 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
         query_plan_domain=args.query_plan_domain,
         query_plan_max_queries=args.query_plan_max_queries,
     )
-    print(f"run_dir={run_dir}")
+    if args.json:
+        payload = {
+            "run_dir": str(run_dir),
+            "run_id": run_dir.name,
+            "artifacts": {
+                "query_plan": str(run_dir / "query-plan.json") if (run_dir / "query-plan.json").exists() else None,
+                "search_record": str(run_dir / "search-record.json"),
+                "rank": str(run_dir / "rank.json"),
+                "report": str(run_dir / "report.md"),
+                "report_json": str(run_dir / "report.json"),
+                "run_state": str(run_dir / "run-state.json"),
+            },
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(f"run_dir={run_dir}")
     return 0
 
 

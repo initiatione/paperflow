@@ -46,7 +46,7 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "config-setup" in text
     assert "paper-quality-critic" in text
     assert "wiki-ingest-handoff" in text
-    assert "255 passed in 27.09s" in text
+    assert "259 passed in 27.60s" in text
     assert "82/100" in text
     assert "waiting_for_human_gate" in text
     assert "ready_for_agent=true" in text

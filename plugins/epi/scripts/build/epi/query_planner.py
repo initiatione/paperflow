@@ -163,6 +163,10 @@ def _topic_terms(topic: str, *, limit: int = 8) -> list[str]:
     return unique(terms)[:limit]
 
 
+def topic_focus_terms(topic: str, *, limit: int = 8) -> list[str]:
+    return _topic_terms(topic, limit=limit)
+
+
 def _profile_terms(profile: str, domains: list[str] | None, positive_keywords: list[str] | None) -> list[str]:
     profile_text = profile.replace("_", " ").replace("-", " ").strip()
     profile_items = [profile_text] if profile_text and profile_text != "general academic research" else []
@@ -189,6 +193,14 @@ def choose_domain(
         if any(marker in lowered for marker in pack["detect"]):
             return name
     return "topic-derived"
+
+
+def topic_hint_pack_name(topic: str) -> str | None:
+    lowered = topic.lower()
+    for name, pack in DOMAIN_HINT_PACKS.items():
+        if any(marker in lowered for marker in pack["detect"]):
+            return name
+    return None
 
 
 def quote(term: str) -> str:
@@ -247,16 +259,33 @@ def _term_blocks(
     topic_terms = _topic_terms(topic)
     profile_seed_terms = _profile_terms(profile, domains, positive_keywords)
     hint_pack = DOMAIN_HINT_PACKS.get(chosen_domain, {})
+    topic_hint_pack = DOMAIN_HINT_PACKS.get(topic_hint_pack_name(topic) or "", {})
 
-    domain_terms = unique(_as_terms(domains) + hint_pack.get("domain_terms", []))
+    configured_domains = _as_terms(domains)
+    topic_domain_terms = [
+        term
+        for term in configured_domains
+        if any(marker in term.lower() for marker in topic_hint_pack.get("detect", []))
+    ]
+    domain_terms = unique(
+        topic_domain_terms
+        + topic_hint_pack.get("domain_terms", [])
+        + configured_domains
+        + hint_pack.get("domain_terms", [])
+    )
     if not domain_terms:
         domain_terms = topic_terms[:3]
 
-    method_or_topic_terms = unique(_as_terms(positive_keywords) + hint_pack.get("method_terms", []) + topic_terms)
-    problem_terms = unique(hint_pack.get("problem_terms", []) + topic_terms)
-    context_terms = unique(hint_pack.get("context_terms", []) + GENERIC_CONTEXT_TERMS)
-    quality_signals = unique(hint_pack.get("quality_signals", []) + GENERIC_QUALITY_SIGNALS)
-    exclusions = unique(_as_terms(negative_keywords) + hint_pack.get("exclude", []))
+    method_or_topic_terms = unique(
+        topic_hint_pack.get("method_terms", [])
+        + _as_terms(positive_keywords)
+        + hint_pack.get("method_terms", [])
+        + topic_terms
+    )
+    problem_terms = unique(topic_hint_pack.get("problem_terms", []) + hint_pack.get("problem_terms", []) + topic_terms)
+    context_terms = unique(topic_hint_pack.get("context_terms", []) + hint_pack.get("context_terms", []) + GENERIC_CONTEXT_TERMS)
+    quality_signals = unique(topic_hint_pack.get("quality_signals", []) + hint_pack.get("quality_signals", []) + GENERIC_QUALITY_SIGNALS)
+    exclusions = unique(_as_terms(negative_keywords) + topic_hint_pack.get("exclude", []) + hint_pack.get("exclude", []))
 
     return {
         "profile_terms": profile_seed_terms,
@@ -295,8 +324,9 @@ def build_query_plan(
         blocks["exclusions"] = unique(blocks["exclusions"] + ["review", "survey"])
 
     hint_pack = DOMAIN_HINT_PACKS.get(chosen, {})
+    topic_hint_pack = DOMAIN_HINT_PACKS.get(topic_hint_pack_name(topic) or "", {})
     configured_venues = _as_terms(venue_prior)
-    venue_families = unique(configured_venues + hint_pack.get("venues", []))
+    venue_families = unique(configured_venues + topic_hint_pack.get("venues", []) + hint_pack.get("venues", []))
     if not venue_families:
         venue_families = ["profile-configured venue_prior", "field-specific top venues"]
 

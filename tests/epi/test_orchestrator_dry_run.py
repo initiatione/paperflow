@@ -314,6 +314,50 @@ def test_dry_run_with_generic_config_derives_filter_terms_from_query_plan(tmp_pa
     assert "outside_domain" in report["rejected"][0]["filter_reasons"]
 
 
+def test_dry_run_ranking_does_not_dilute_topic_fit_with_recall_expansion_terms(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Embodied Navigation Control Benchmark for Mobile Robots",
+                    "authors": ["E. Researcher"],
+                    "year": 2026,
+                    "venue": "RSS",
+                    "abstract": (
+                        "Robotics embodied navigation control with benchmark, baseline, "
+                        "ablation, reproducible code, dataset, simulator, and implementation details."
+                    ),
+                    "pdf_url": "https://example.org/nav.pdf",
+                    "doi": "10.1000/e2e-nav",
+                    "citation_count": 50,
+                    "code_url": "https://github.com/example/e2e-nav",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="robotics embodied navigation control benchmark",
+        max_results=5,
+        fixture_path=fixture,
+    )
+
+    query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
+    ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
+
+    assert "world model" in query_plan["concept_blocks"]["method_or_topic_terms"]
+    assert "world model" not in ranked[0]["ranking_protocol"]["matched_positive_keywords"]
+    assert ranked[0]["ranking_signals"]["topic_score"] >= 0.6
+    assert ranked[0]["ranking_protocol"]["decision"] == "advance-candidate"
+
+
 def test_dry_run_keeps_review_query_when_user_explicitly_requests_reviews(tmp_path):
     plugin_root = tmp_path / "plugin"
     _write_minimal_plugin_template(plugin_root)

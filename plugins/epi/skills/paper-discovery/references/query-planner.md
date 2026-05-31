@@ -34,3 +34,4 @@ Use it when the user gives a compact request. The helper output is a starting po
 4. Default discovery is non-review: append `-review -survey` to every query and still enforce review exclusion in filtering. Skip this only when the user explicitly asks for review or survey papers.
 5. If the plan produces fewer than 5 strong variants, expand from the user's configured field vocabulary before broadening into generic AI/science terms.
 6. Domain hint packs such as AUV/control or embodied AI are examples only. They must activate from explicit user request/config, never as global plugin defaults.
+7. Treat query-plan expansion terms as recall aids, not ranking requirements. Ranking/profile fit should use configured interests plus the current topic focus terms, so broad recall terms do not demote a precise, high-quality paper.

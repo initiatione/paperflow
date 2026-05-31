@@ -6,10 +6,11 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 
 本机依赖由 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` 自动加载：优先 paper-search MCP server，CLI 作为 fallback，MinerU token 从环境或 `mineru.env` 读取。不要把 token 写入 runtime.json，也不要在报告里打印 token 值。
 
-EPI 是通用论文插件，不默认任何学科方向。`dry-run` 会从 `<vault>\_meta\epi-config.yaml` 的 profile、domains、positive/negative keywords、venue prior 和当前请求生成 `query-plan.json`，再按 query variants 调用 MCP/CLI 搜索、去重、过滤和排序。AUV、机器人、医学等只能来自用户配置、当前请求或显式领域 hint。
+EPI 是通用论文插件，不默认任何学科方向。`dry-run` 会从 `<vault>\_meta\epi-config.yaml` 的 profile、domains、positive/negative keywords、venue prior 和当前请求生成 `query-plan.json`，再按 query variants 调用 MCP/CLI 搜索、去重、过滤和排序。Query plan 的扩展词用于扩大召回；ranking 的画像匹配词只来自用户 config 和当前请求核心词，避免宽召回词稀释窄主题相关性。AUV、机器人、医学等只能来自用户配置、当前请求或显式领域 hint。
 
 ```powershell
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault>
+python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault>
 python scripts\orchestrator.py advance-ranked --run-id <run-id> --max-papers 3 --vault <vault>
 python scripts\orchestrator.py research-queue --vault <vault>
@@ -17,7 +18,7 @@ python scripts\orchestrator.py paper-gate --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py wiki-ingest-handoff --slug <paper-slug> --vault <vault>
 ```
 
-Dry-run writes only `_runs`. `prepare-ranked` is the precise search -> acquire -> MinerU raw-parse path and stops before reader/critic/staging; use `--max-papers 10 --skip-existing` for real batches and `--max-papers 1` only for smoke tests. Full ingest writes raw artifacts, then staging writes `_staging` only after critic pass. EPI prepares evidence drafts, a lightweight report, and `wiki-ingest-brief.json`; final Obsidian/LLM Wiki pages are written by the wiki ingest agent according to the target vault contract.
+Dry-run writes only `_runs`; `--json` prints the run id and key artifact paths for agent/tool chaining. `prepare-ranked` is the precise search -> acquire -> MinerU raw-parse path and stops before reader/critic/staging; use `--max-papers 10 --skip-existing` for real batches and `--max-papers 1` only for smoke tests. Full ingest writes raw artifacts, then staging writes `_staging` only after critic pass. EPI prepares evidence drafts, a lightweight report, and `wiki-ingest-brief.json`; final Obsidian/LLM Wiki pages are written by the wiki ingest agent according to the target vault contract.
 
 Reader v2 creates role notes plus `reader/evidence-map.json`:
 

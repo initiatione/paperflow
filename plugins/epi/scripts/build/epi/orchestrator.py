@@ -16,7 +16,7 @@ from epi.paper_gate import build_paper_gate, render_paper_gate
 from epi.paper_library import load_existing_paper_index
 from epi.paper_search_adapter import discover
 from epi.promote_to_wiki import promote_paper, rollback_promotion
-from epi.query_planner import build_query_plan
+from epi.query_planner import build_query_plan, topic_focus_terms
 from epi.rank_papers import rank_candidates
 from epi.redo import redo_acquire, redo_parse, redo_read, redo_read_recritic, recritic
 from epi.report_run import write_report
@@ -88,12 +88,7 @@ def _ranking_keywords_from_profile(config, query: str, query_plan: dict | None) 
     keywords: list[str] = []
     keywords.extend(config.positive_keywords)
     keywords.extend(config.domains)
-    if query_plan:
-        blocks = query_plan.get("concept_blocks") or {}
-        for key in ("profile_terms", "domain_terms", "method_or_topic_terms", "problem_terms"):
-            values = blocks.get(key) or []
-            if isinstance(values, list):
-                keywords.extend(str(value) for value in values)
+    keywords.extend(topic_focus_terms(query))
     if not keywords:
         keywords.extend(
             word

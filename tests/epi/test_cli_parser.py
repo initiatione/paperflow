@@ -21,6 +21,62 @@ def test_dry_run_parser_defaults_to_query_plan_and_accepts_overrides():
     assert args.query_plan_max_queries == 8
 
 
+def test_dry_run_parser_accepts_json_output():
+    args = build_parser().parse_args(
+        [
+            "dry-run",
+            "--query",
+            "AUV reinforcement learning control",
+            "--json",
+        ]
+    )
+
+    assert args.command == "dry-run"
+    assert args.json is True
+
+
+def test_dry_run_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatch, capsys):
+    run_dir = tmp_path / "_runs" / "run-json-001"
+    run_dir.mkdir(parents=True)
+    for name in [
+        "query-plan.json",
+        "search-record.json",
+        "rank.json",
+        "report.md",
+        "report.json",
+        "run-state.json",
+    ]:
+        (run_dir / name).write_text("{}", encoding="utf-8")
+    captured = {}
+
+    def fake_run_dry_run(**kwargs):
+        captured.update(kwargs)
+        return run_dir
+
+    monkeypatch.setattr(cli.workflows, "run_dry_run", fake_run_dry_run)
+
+    exit_code = cli.main(
+        [
+            "dry-run",
+            "--query",
+            "AUV reinforcement learning control",
+            "--vault",
+            str(tmp_path),
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    payload = __import__("json").loads(output)
+    assert exit_code == 0
+    assert payload["run_id"] == "run-json-001"
+    assert payload["run_dir"] == str(run_dir)
+    assert payload["artifacts"]["query_plan"] == str(run_dir / "query-plan.json")
+    assert payload["artifacts"]["rank"] == str(run_dir / "rank.json")
+    assert captured["query"] == "AUV reinforcement learning control"
+    assert captured["use_query_plan"] is True
+
+
 def test_dry_run_parser_accepts_profile_derived_query_plan_domain():
     args = build_parser().parse_args(
         [
