@@ -10,6 +10,7 @@ from epi.artifacts import utc_now, write_json_atomic, write_text_atomic
 
 
 SCHEMA_VERSION = "epi-improvement-brief-v1"
+BENCHMARK_SCHEMA_VERSION = "epi-benchmark-v1"
 QUALITY_LOOP_STEPS = [
     "plugin-eval",
     "epi-quality-gates",
@@ -25,6 +26,7 @@ NON_REGRESSION_METRICS = [
     "epi-quality-gate-pass-rate",
     "benchmark_pass_rate",
 ]
+BENCHMARK_CASE_STATUSES = {"pass", "fail", "skip", "warning"}
 
 
 def _read_json(path: Path | None) -> dict[str, Any]:
@@ -160,11 +162,69 @@ def default_acceptance_gates(before_metrics: dict[str, float]) -> list[dict[str,
 
 def _source_record(path: Path | None, source_kind: str) -> dict[str, Any]:
     payload = _read_json(path)
-    return {
+    record = {
         "kind": source_kind,
         "path": str(path) if path else None,
         "present": bool(path and path.exists()),
         "metrics": extract_metrics(payload, source_kind=source_kind),
+    }
+    if source_kind == "benchmark":
+        record["benchmark_contract"] = validate_benchmark_contract(payload)
+    return record
+
+
+def validate_benchmark_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    issues: list[str] = []
+    if not payload:
+        return {
+            "schema_version": None,
+            "valid": False,
+            "case_count": 0,
+            "metric_count": 0,
+            "issues": ["benchmark JSON is missing or empty"],
+        }
+
+    schema_version = payload.get("schema_version")
+    if schema_version != BENCHMARK_SCHEMA_VERSION:
+        issues.append(f"schema_version must be {BENCHMARK_SCHEMA_VERSION}")
+    if not str(payload.get("benchmark_id") or "").strip():
+        issues.append("benchmark_id is required")
+
+    cases = payload.get("cases")
+    if cases is not None and not isinstance(cases, list):
+        issues.append("cases must be a list when present")
+        cases = []
+    case_count = len(cases or [])
+    for index, case in enumerate(cases or [], start=1):
+        if not isinstance(case, dict):
+            issues.append(f"cases[{index}] must be an object")
+            continue
+        if not str(case.get("id") or case.get("name") or "").strip():
+            issues.append(f"cases[{index}] must include id or name")
+        status = str(case.get("status") or "").strip().lower()
+        if status not in BENCHMARK_CASE_STATUSES:
+            issues.append(
+                f"cases[{index}] status must be one of {', '.join(sorted(BENCHMARK_CASE_STATUSES))}"
+            )
+
+    metric_count = 0
+    metrics = payload.get("metrics")
+    if isinstance(metrics, dict):
+        metric_count = len(metrics)
+    elif isinstance(metrics, list):
+        metric_count = len([item for item in metrics if isinstance(item, dict)])
+    elif metrics is not None:
+        issues.append("metrics must be an object or list when present")
+
+    if case_count == 0 and metric_count == 0:
+        issues.append("benchmark must include cases[] or metrics")
+
+    return {
+        "schema_version": schema_version,
+        "valid": not issues,
+        "case_count": case_count,
+        "metric_count": metric_count,
+        "issues": issues,
     }
 
 
@@ -174,6 +234,12 @@ def _source_completeness(sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
         for source_name in REQUIRED_QUALITY_SOURCES
         if not sources.get(source_name, {}).get("present")
     ]
+    invalid_sources = [
+        source_name
+        for source_name in REQUIRED_QUALITY_SOURCES
+        if sources.get(source_name, {}).get("present")
+        and sources.get(source_name, {}).get("benchmark_contract", {}).get("valid") is False
+    ]
     return {
         "required_sources": REQUIRED_QUALITY_SOURCES,
         "present_sources": [
@@ -182,7 +248,8 @@ def _source_completeness(sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
             if sources.get(source_name, {}).get("present")
         ],
         "missing_sources": missing_sources,
-        "complete": not missing_sources,
+        "invalid_sources": invalid_sources,
+        "complete": not missing_sources and not invalid_sources,
     }
 
 
@@ -230,6 +297,7 @@ def build_improvement_brief(
                 "required": True,
                 "status": "missing",
                 "missing_sources": source_completeness["missing_sources"],
+                "invalid_sources": source_completeness["invalid_sources"],
             }
         )
     comparisons = _metric_comparisons(before, after)
@@ -289,10 +357,15 @@ def render_improvement_brief(brief: dict[str, Any]) -> str:
     lines.extend(["", "## Source Completeness", ""])
     lines.append(f"- complete: {completeness.get('complete')}")
     missing_sources = completeness.get("missing_sources") or []
+    invalid_sources = completeness.get("invalid_sources") or []
     if missing_sources:
         lines.append(f"- missing_sources: {', '.join(missing_sources)}")
     else:
         lines.append("- missing_sources: none")
+    if invalid_sources:
+        lines.append(f"- invalid_sources: {', '.join(invalid_sources)}")
+    else:
+        lines.append("- invalid_sources: none")
     lines.extend(["", "## Metric Comparison", ""])
     comparisons = brief.get("metric_comparisons") or []
     if comparisons:

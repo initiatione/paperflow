@@ -11,6 +11,64 @@ def _read(name: str) -> str:
     return (DOCS / name).read_text(encoding="utf-8")
 
 
+def _section(text: str, heading: str) -> str:
+    marker = f"## {heading}"
+    start = text.index(marker) + len(marker)
+    next_heading = text.find("\n## ", start)
+    if next_heading == -1:
+        return text[start:]
+    return text[start:next_heading]
+
+
+def test_evaluation_doc_separates_runtime_checks_from_development_quality_loop():
+    text = _read("evaluation.md")
+    runtime = _section(text, "Runtime Checks")
+    dev_loop = _section(text, "Development Quality Loop")
+
+    for phrase in [
+        "python scripts\\orchestrator.py dry-run",
+        "python scripts\\orchestrator.py prepare-ranked",
+        "python scripts\\orchestrator.py report",
+        "paper-gate",
+        "wiki-ingest-handoff",
+        "record-wiki-ingest",
+        "zotero-sync",
+        "report.md",
+        "report.json",
+        "run-state.json",
+    ]:
+        assert phrase in runtime
+
+    for phrase in [
+        "Plugin Eval",
+        "epi-quality-gates",
+        "benchmark",
+        "before/after",
+        "improvement brief",
+        "evaluation-brief",
+        "skill-aware-evolve proposal",
+        "pytest",
+        "coverage",
+        "release_check_epi.ps1",
+    ]:
+        assert phrase not in runtime
+    assert (
+        "Plugin Eval -> epi-quality-gates -> benchmark -> compare before/after -> "
+        "improvement brief -> skill-aware-evolve proposal"
+    ) in dev_loop
+    for phrase in [
+        "Plugin Eval",
+        "epi-quality-gates",
+        "benchmark",
+        "before/after",
+        "improvement brief",
+        "evaluation-brief",
+        "skill-aware-evolve proposal",
+    ]:
+        assert phrase in dev_loop
+    assert "separate from the runtime chain" in dev_loop
+
+
 def test_linkage_doc_points_to_structure_progress_and_config_docs():
     text = _read("epi-linkage.md")
 
@@ -41,6 +99,8 @@ def test_structure_doc_covers_current_plugin_boundaries():
     assert "wiki_ingest_record.py" in text
     assert "agent-mediated" in text
     assert "claim-support" in text
+    assert "parse-quality-critic" in text
+    assert "MinerU Markdown、TeX、images、manifest" in text
     assert "不要把安装 cache 当成开发源" in text
     assert "runtime_config.py" in text
     assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
@@ -54,6 +114,8 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "高质量论文收集和整理" in text
     assert "config-setup" in text
     assert "paper-quality-critic" in text
+    assert "parse-quality-critic" in text
+    assert "mineru/mineru-manifest.json" in text
     assert "wiki-ingest-handoff" in text
     assert "record-wiki-ingest" in text
     assert "wiki_ingest_recorded" in text
@@ -109,6 +171,8 @@ def test_linkage_doc_records_paper_discovery_bundle_and_venue_prior():
     assert "quality_tier" in text
     assert "ranking_rubric" in text
     assert "reader/claim-support.json" in text
+    assert "parse-quality-critic" in text
+    assert "parse-record.json" in text
     assert "domain_focus_terms" in text
     assert "5-8 条 query variants" in text
     assert "two-stage retrieval" in text

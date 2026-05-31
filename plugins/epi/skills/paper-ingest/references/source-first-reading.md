@@ -15,6 +15,8 @@ Read or inspect source artifacts in this order:
 
 Reader and critic outputs are navigation aids; they never replace the source paper.
 
+Parse-quality review should treat `paper.md`, `paper.tex`, `images/*`, `mineru-manifest.json`, and `parse-record.json` as one evidence bundle when parse succeeded.
+
 ## Claim Cards
 
 For each important paper, preserve compact claim/evidence cards:

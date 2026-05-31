@@ -31,7 +31,7 @@ Reader v2 creates role notes plus `reader/evidence-map.json` and `reader/claim-s
 - `peer-reviewer`: method, benchmark, reproducibility.
 - `senior-domain-researcher`: theory insight, experiment ideas, domain fit.
 
-Critic quorum combines paper, parse, reader, editorial, peer-review, and domain-fit gates. Hard failures set `outcome=revise-reader`; warnings become caveats. Staging prepares evidence drafts plus `reports/<slug>-reading-report.md` as the low-burden entrypoint.
+Critic quorum combines paper, parse, reader, editorial, peer-review, and domain-fit gates. The parse critic checks source-first companions (`mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`, and `parse-record.json`) instead of treating Markdown alone as enough for a source-grounded paper read. Hard failures set `outcome=revise-reader`; warnings become caveats. Staging prepares evidence drafts plus `reports/<slug>-reading-report.md` as the low-burden entrypoint.
 
 ```powershell
 python scripts\orchestrator.py research-queue --bucket needs_reader_repair --vault <vault>

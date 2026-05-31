@@ -17,7 +17,9 @@ def test_epi_metric_pack_checks_core_workflow_contracts(tmp_path):
         "Plugin Eval runs with the epi-quality-gates metric pack, then evaluation-brief creates "
         "the improvement brief for propose-evolution. "
         "The brief records source_completeness, a quality_loop_sources_complete gate, "
-        "and collect-missing-quality-evidence when evidence is incomplete.",
+        "and collect-missing-quality-evidence when evidence is incomplete. "
+        "The benchmark evidence uses epi-benchmark-v1, benchmark_contract, and invalid_sources "
+        "to prevent a loose JSON blob from masquerading as a real benchmark.",
         encoding="utf-8",
     )
     script = (
@@ -44,4 +46,5 @@ def test_epi_metric_pack_checks_core_workflow_contracts(tmp_path):
     assert checks["epi-raw-artifact-retention"]["status"] == "pass"
     assert checks["epi-development-quality-loop"]["status"] == "pass"
     assert checks["epi-quality-loop-sources-complete"]["status"] == "pass"
+    assert checks["epi-benchmark-contract"]["status"] == "pass"
     assert payload["metrics"][0]["value"] == 1

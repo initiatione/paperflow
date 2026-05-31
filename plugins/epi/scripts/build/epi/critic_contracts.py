@@ -31,13 +31,21 @@ CORE_CRITIC_PROTOCOLS = {
         "consumes": [
             "paper.pdf",
             "mineru/paper.md",
+            "mineru/paper.tex",
             "mineru/images",
+            "mineru/mineru-manifest.json",
         ],
         "hard_fail_checks": [
             "mineru_paper_markdown_exists",
+            "mineru_paper_tex_ready",
+            "mineru_manifest_ready",
         ],
         "warning_checks": [
-            "parse_limitations_need_pdf_inspection",
+            "parse_record_missing",
+            "mineru_paper_tex_missing",
+            "mineru_manifest_missing",
+            "mineru_images_missing",
+            "mineru_images_empty",
         ],
         "decision_boundary": "Verify parsed material exists without treating parser omissions as proof that the original paper lacks content.",
     },

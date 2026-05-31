@@ -48,6 +48,83 @@ def _artifact_hashes(artifacts: dict[str, Path]) -> dict[str, str]:
     }
 
 
+def _load_json(path: Path) -> dict:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _image_count(images_dir: Path) -> int:
+    if not images_dir.exists():
+        return 0
+    return sum(1 for path in images_dir.rglob("*") if path.is_file())
+
+
+def _review_parse_materialization(paper_root: Path) -> dict:
+    mineru_dir = paper_root / "mineru"
+    markdown_path = mineru_dir / "paper.md"
+    tex_path = mineru_dir / "paper.tex"
+    manifest_path = mineru_dir / "mineru-manifest.json"
+    images_dir = mineru_dir / "images"
+    parse_record_path = paper_root / "parse-record.json"
+    parse_record = _load_json(parse_record_path)
+    strict_success = parse_record.get("status") == "success"
+    parse_record_present = bool(parse_record)
+
+    failures: list[str] = []
+    evidence: list[str] = []
+    warnings: list[str] = []
+
+    if markdown_path.exists() and markdown_path.stat().st_size > 0:
+        evidence.append("mineru/paper.md exists and is non-empty")
+    else:
+        failures.append("mineru_paper_markdown_exists: mineru/paper.md missing or empty")
+
+    if parse_record_present:
+        status = parse_record.get("status", "unknown")
+        evidence.append(f"parse-record.json status={status}")
+        if status != "success":
+            failures.append(f"parse_record_success: parse-record.json status={status}")
+
+    if tex_path.exists() and tex_path.stat().st_size > 0:
+        evidence.append("mineru/paper.tex exists and is non-empty for formula/notation review")
+    elif strict_success:
+        failures.append("mineru_paper_tex_ready: successful parse lacks non-empty mineru/paper.tex")
+    elif parse_record_present:
+        warnings.append("mineru_paper_tex_missing: formula/notation review may require PDF fallback")
+
+    if manifest_path.exists() and manifest_path.stat().st_size > 0:
+        evidence.append("mineru/mineru-manifest.json exists for parse provenance")
+    elif strict_success:
+        failures.append("mineru_manifest_ready: successful parse lacks mineru/mineru-manifest.json")
+    elif parse_record_present:
+        warnings.append("mineru_manifest_missing: parse provenance is incomplete")
+
+    images = _image_count(images_dir)
+    evidence.append(f"mineru/images file_count={images}")
+    if not images_dir.exists():
+        if parse_record_present:
+            warnings.append("mineru_images_missing: image review must use paper.pdf fallback if figures/tables are expected")
+    elif images == 0:
+        if parse_record_present:
+            warnings.append("mineru_images_empty: confirm the source paper has no extractable figures/tables/images")
+
+    return {
+        "passed": not failures,
+        "evidence": failures or evidence,
+        "warnings": warnings,
+        "checks": {
+            "mineru_paper_markdown_exists": markdown_path.exists() and markdown_path.stat().st_size > 0,
+            "parse_record_success": not parse_record or parse_record.get("status") == "success",
+            "mineru_paper_tex_ready": tex_path.exists() and tex_path.stat().st_size > 0,
+            "mineru_manifest_ready": manifest_path.exists() and manifest_path.stat().st_size > 0,
+            "mineru_image_file_count": images,
+        },
+    }
+
+
 def _write_reviewer_markdown(path: Path, reviewer: dict) -> None:
     lines = [
         f"# {reviewer['name']}",
@@ -121,6 +198,7 @@ def run_critics(paper_root: Path) -> dict:
         figures_text=figures_text,
         reproducibility_text=reproducibility_text,
     )
+    parse_quality_review = _review_parse_materialization(paper_root)
     reader_quality = False
     if reader_path.exists():
         text_reader_quality, text_reader_evidence = validate_reader_evidence(
@@ -145,7 +223,7 @@ def run_critics(paper_root: Path) -> dict:
     role_checks = {role_check_key(reviewer["name"]): reviewer["verdict"] == "pass" for reviewer in role_reviewers}
     checks = {
         "paper_quality": paper_quality_review["passed"],
-        "parse_quality": (paper_root / "mineru" / "paper.md").exists(),
+        "parse_quality": parse_quality_review["passed"],
         "reader_quality": reader_quality,
         **role_checks,
     }
@@ -161,9 +239,10 @@ def run_critics(paper_root: Path) -> dict:
         ),
         _reviewer_record(
             "parse-quality-critic",
-            "MinerU parse materialization",
+            "MinerU parse materialization and source-first companion artifacts",
             checks["parse_quality"],
-            ["mineru/paper.md exists"],
+            parse_quality_review["evidence"],
+            parse_quality_review["warnings"],
             review_protocol=critic_protocol("parse-quality-critic"),
         ),
         _reviewer_record(
@@ -209,6 +288,7 @@ def run_critics(paper_root: Path) -> dict:
         "final_outcome": outcome,
         "hard_rule": HARD_RULE,
         "paper_quality_checks": paper_quality_review["checks"],
+        "parse_quality_checks": parse_quality_review["checks"],
         "research_decision_path": str(critic_dir / "research-decision.json"),
         "research_decision": research_decision,
         "reader_revision_plan_path": str(critic_dir / "reader-revision-plan.json"),
@@ -229,6 +309,9 @@ def run_critics(paper_root: Path) -> dict:
             "paper.pdf": paper_root / "paper.pdf",
             "metadata.json": paper_root / "metadata.json",
             "mineru/paper.md": paper_root / "mineru" / "paper.md",
+            "mineru/paper.tex": paper_root / "mineru" / "paper.tex",
+            "mineru/mineru-manifest.json": paper_root / "mineru" / "mineru-manifest.json",
+            "parse-record.json": paper_root / "parse-record.json",
             "reader/reader.md": reader_path,
             "reader/editorial-summary.md": editorial_summary_path,
             "reader/technical-reading.md": technical_reading_path,
@@ -253,6 +336,7 @@ def run_critics(paper_root: Path) -> dict:
         "outcome": outcome,
         "checks": checks,
         "paper_quality_checks": paper_quality_review["checks"],
+        "parse_quality_checks": parse_quality_review["checks"],
         "hard_rule": HARD_RULE,
         "tool_versions": TOOL_VERSIONS,
         "reviewer_quorum_path": str(quorum_path),

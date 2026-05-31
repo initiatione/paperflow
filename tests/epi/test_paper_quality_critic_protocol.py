@@ -118,6 +118,11 @@ def _paper_reviewer(paper_root):
     return next(reviewer for reviewer in quorum["reviewers"] if reviewer["name"] == "paper-quality-critic")
 
 
+def _parse_reviewer(paper_root):
+    quorum = json.loads((paper_root / "critic" / "critic-quorum.json").read_text(encoding="utf-8"))
+    return next(reviewer for reviewer in quorum["reviewers"] if reviewer["name"] == "parse-quality-critic")
+
+
 def _stable_metadata(**overrides):
     metadata = {
         "slug": "paper",
@@ -150,6 +155,73 @@ def test_paper_quality_rejects_missing_stable_paper_identity(tmp_path):
     assert reviewer["verdict"] == "fail"
     assert any("paper_identity" in item and "missing stable identifier" in item for item in reviewer["evidence"])
     assert report["paper_quality_checks"]["paper_identity"]["status"] == "fail"
+
+
+def test_parse_quality_records_source_first_companion_artifacts_when_available(tmp_path):
+    paper_root = _write_protocol_fixture(
+        tmp_path,
+        metadata=_stable_metadata(),
+        mineru_text="# Abstract\n\nA grounded engineering claim.\n",
+        reader_text=(
+            "# Reader\n\n"
+            "- Claim 1: The paper proposes a grounded engineering system.\n"
+            "  Evidence: source=mineru/paper.md; heading=Abstract\n"
+        ),
+    )
+    mineru_dir = paper_root / "mineru"
+    images_dir = mineru_dir / "images"
+    images_dir.mkdir(exist_ok=True)
+    (mineru_dir / "paper.tex").write_text("\\section{Abstract}\n\\begin{equation}x=1\\end{equation}\n", encoding="utf-8")
+    (mineru_dir / "mineru-manifest.json").write_text(
+        json.dumps({"outputs": [{"file_name": "paper.pdf", "state": "done"}]}),
+        encoding="utf-8",
+    )
+    (images_dir / "figure-1.png").write_bytes(b"png")
+    (paper_root / "parse-record.json").write_text(
+        json.dumps({"status": "success", "image_count": 1, "tex_source": "mineru-native"}),
+        encoding="utf-8",
+    )
+
+    report = run_critics(paper_root)
+
+    assert report["outcome"] == "pass"
+    assert report["checks"]["parse_quality"] is True
+    assert report["parse_quality_checks"]["mineru_paper_tex_ready"] is True
+    assert report["parse_quality_checks"]["mineru_manifest_ready"] is True
+    assert report["parse_quality_checks"]["mineru_image_file_count"] == 1
+    reviewer = _parse_reviewer(paper_root)
+    assert reviewer["verdict"] == "pass"
+    assert any("mineru/paper.tex exists" in item for item in reviewer["evidence"])
+    assert any("mineru/mineru-manifest.json exists" in item for item in reviewer["evidence"])
+    assert any("mineru/images file_count=1" in item for item in reviewer["evidence"])
+
+
+def test_parse_quality_fails_successful_parse_without_tex_or_manifest(tmp_path):
+    paper_root = _write_protocol_fixture(
+        tmp_path,
+        metadata=_stable_metadata(),
+        mineru_text="# Abstract\n\nA grounded engineering claim.\n",
+        reader_text=(
+            "# Reader\n\n"
+            "- Claim 1: The paper proposes a grounded engineering system.\n"
+            "  Evidence: source=mineru/paper.md; heading=Abstract\n"
+        ),
+    )
+    (paper_root / "parse-record.json").write_text(
+        json.dumps({"status": "success", "image_count": 0}),
+        encoding="utf-8",
+    )
+
+    report = run_critics(paper_root)
+
+    assert report["outcome"] == "revise-reader"
+    assert report["checks"]["parse_quality"] is False
+    assert report["parse_quality_checks"]["mineru_paper_tex_ready"] is False
+    assert report["parse_quality_checks"]["mineru_manifest_ready"] is False
+    reviewer = _parse_reviewer(paper_root)
+    assert reviewer["verdict"] == "fail"
+    assert any("mineru_paper_tex_ready" in item for item in reviewer["evidence"])
+    assert any("mineru_manifest_ready" in item for item in reviewer["evidence"])
 
 
 def test_paper_quality_rejects_placeholder_url_as_stable_paper_identity(tmp_path):

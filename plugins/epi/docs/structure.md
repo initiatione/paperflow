@@ -95,7 +95,7 @@ scripts/build/epi/
 - `rank_papers.py` 负责 paper type classification、ranking signals、ranking rubric、ranking protocol 和三角色排序解释。
 - `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization。
 - `generate_reader.py`、`reader_outputs.py`、`reader_evidence.py`、`reader_protocol.py` 负责多角色 reader、evidence map 和证据地址校验；reader 会把 TeX、MinerU manifest 和 PDF fallback 作为 source-first 证据写入 evidence/claim-support，而不是只输出摘要。
-- `run_critic.py`、`paper_quality.py`、`role_critics.py` 负责 critic quorum、学术论文可靠性检查和三角色质量门。
+- `run_critic.py`、`paper_quality.py`、`role_critics.py` 负责 critic quorum、学术论文可靠性检查和三角色质量门；其中 `parse-quality-critic` 会检查 MinerU Markdown、TeX、images、manifest 和 `parse-record.json`，避免原文公式/图像证据在进入 reader/wiki 前被静默抹掉。
 - `report_run.py` 负责生成 `_runs/<run-id>/report.md` 和 `report.json`，并提供 `report --run-id` 的只读 loader；该 CLI 会展示 run report artifact 和 `run-state.json` payload，但不刷新 index、queue、raw、staging、Zotero 或 wiki。
 - `research_decision.py`、`reader_revision_plan.py`、`reader_revision_guidance.py`、`reproduction_plan.py` 把 critic 结果翻译成决策、修复建议和紧凑复现 caveat。
 - `stage_wiki.py` 负责 `_staging` 草稿、轻阅读报告、`wiki-ingest-brief.json`、`final_source_review_contract` 和 `promotion-plan.json`。

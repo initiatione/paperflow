@@ -396,8 +396,13 @@ def materialize_mineru_fixture(
     shutil.copyfile(markdown_path, mineru_dir / "paper.md")
     if tex_path:
         shutil.copyfile(tex_path, mineru_dir / "paper.tex")
+        tex_source = "fixture-native"
     else:
-        (mineru_dir / "paper.tex").write_text("", encoding="utf-8")
+        tex_source = "markdown-fallback"
+        write_text_atomic(
+            mineru_dir / "paper.tex",
+            _markdown_to_latex((mineru_dir / "paper.md").read_text(encoding="utf-8")),
+        )
     (mineru_dir / "images").mkdir(exist_ok=True)
     image_count = 0
     if images_dir and images_dir.exists():
@@ -405,6 +410,22 @@ def materialize_mineru_fixture(
             if image_path.is_file():
                 shutil.copyfile(image_path, mineru_dir / "images" / image_path.name)
                 image_count += 1
+    manifest_path = mineru_dir / "mineru-manifest.json"
+    write_json_atomic(
+        manifest_path,
+        {
+            "batch_id": "fixture",
+            "outputs": [
+                {
+                    "file_name": "paper.pdf",
+                    "state": "done",
+                    "markdown_path": "paper.md",
+                    "tex_path": "paper.tex",
+                    "image_count": image_count,
+                }
+            ],
+        },
+    )
     parse_record = {
         "stage": "parse",
         "mode": "fixture",
@@ -415,6 +436,8 @@ def materialize_mineru_fixture(
         "exit_status": 0,
         "markdown_path": str(mineru_dir / "paper.md"),
         "tex_path": str(mineru_dir / "paper.tex"),
+        "manifest_path": str(manifest_path),
+        "tex_source": tex_source,
         "image_count": image_count,
     }
     input_hashes = {
@@ -426,6 +449,7 @@ def materialize_mineru_fixture(
     parse_record["output_artifact_hashes"] = {
         "paper.md": file_sha256(mineru_dir / "paper.md"),
         "paper.tex": file_sha256(mineru_dir / "paper.tex"),
+        "mineru-manifest.json": file_sha256(manifest_path),
     }
     write_json_atomic(paper_root / "parse-record.json", parse_record)
     return parse_record

@@ -2,7 +2,7 @@ import json
 import sys
 from pathlib import Path
 
-from epi.evaluation_loop import build_improvement_brief, write_improvement_brief
+from epi.evaluation_loop import BENCHMARK_SCHEMA_VERSION, build_improvement_brief, write_improvement_brief
 from epi.orchestrator import main
 
 
@@ -23,7 +23,14 @@ def test_improvement_brief_links_quality_loop_metrics_and_evolution_payload(tmp_
     )
     benchmark = _write_json(
         tmp_path / "benchmark.json",
-        {"cases": [{"status": "pass"}, {"status": "pass"}]},
+        {
+            "schema_version": BENCHMARK_SCHEMA_VERSION,
+            "benchmark_id": "ranking-quality-fixture",
+            "cases": [
+                {"id": "case-1", "status": "pass"},
+                {"id": "case-2", "status": "pass"},
+            ],
+        },
     )
 
     brief = build_improvement_brief(
@@ -60,7 +67,15 @@ def test_improvement_brief_links_quality_loop_metrics_and_evolution_payload(tmp_
         "required_sources": ["plugin_eval", "epi_quality_gates", "benchmark"],
         "present_sources": ["plugin_eval", "epi_quality_gates", "benchmark"],
         "missing_sources": [],
+        "invalid_sources": [],
         "complete": True,
+    }
+    assert brief["sources"]["benchmark"]["benchmark_contract"] == {
+        "schema_version": BENCHMARK_SCHEMA_VERSION,
+        "valid": True,
+        "case_count": 2,
+        "metric_count": 0,
+        "issues": [],
     }
 
     comparisons = {item["metric"]: item for item in brief["metric_comparisons"]}
@@ -139,6 +154,7 @@ def test_improvement_brief_records_missing_quality_loop_sources_as_action_requir
         "epi_quality_gates",
         "benchmark",
     ]
+    assert brief["source_completeness"]["invalid_sources"] == []
     assert brief["improvement_summary"]["next_action"] == "collect-missing-quality-evidence"
     gates = {gate["id"]: gate for gate in brief["proposed_evolution"]["acceptance_gates"]}
     assert gates["quality_loop_sources_complete"]["required"] is True
@@ -147,4 +163,37 @@ def test_improvement_brief_records_missing_quality_loop_sources_as_action_requir
         "epi_quality_gates",
         "benchmark",
     ]
+    assert gates["quality_loop_sources_complete"]["invalid_sources"] == []
     assert str(missing_source) not in brief["proposed_evolution"]["evidence"]
+
+
+def test_improvement_brief_marks_invalid_benchmark_contract_as_incomplete(tmp_path):
+    plugin_eval = _write_json(tmp_path / "plugin-eval.json", {"score": 82})
+    metric_pack = _write_json(
+        tmp_path / "epi-quality-gates.json",
+        {"metrics": [{"id": "epi-quality-gate-pass-rate", "value": 1.0}]},
+    )
+    invalid_benchmark = _write_json(
+        tmp_path / "benchmark.json",
+        {"cases": [{"status": "pass"}]},
+    )
+
+    brief = build_improvement_brief(
+        brief_id="brief-invalid-benchmark",
+        target_asset="templates/ranking.example.yaml",
+        rationale="Do not promote changes from a benchmark without a schema and stable case ids.",
+        proposed_change={"weights": {"topic_relevance": 0.42}},
+        before_metrics={"benchmark_pass_rate": 0.5},
+        plugin_eval_path=plugin_eval,
+        metric_pack_path=metric_pack,
+        benchmark_path=invalid_benchmark,
+    )
+
+    contract = brief["sources"]["benchmark"]["benchmark_contract"]
+    assert contract["valid"] is False
+    assert "schema_version must be epi-benchmark-v1" in contract["issues"]
+    assert "cases[1] must include id or name" in contract["issues"]
+    assert brief["source_completeness"]["invalid_sources"] == ["benchmark"]
+    assert brief["improvement_summary"]["next_action"] == "collect-missing-quality-evidence"
+    gates = {gate["id"]: gate for gate in brief["proposed_evolution"]["acceptance_gates"]}
+    assert gates["quality_loop_sources_complete"]["invalid_sources"] == ["benchmark"]

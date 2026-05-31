@@ -2,8 +2,8 @@ paper_quality_critic:
   hard_fail_checks: ["paper_identity", "claim_support", "benchmark_integrity", "scope_overclaim"]
   warning_checks: ["engineering_reproducibility", "parse_vs_paper_failure"]
 parse_quality_critic:
-  hard_fail_checks: ["mineru_paper_markdown_exists"]
-  warning_checks: ["parse_limitations_need_pdf_inspection"]
+  hard_fail_checks: ["mineru_paper_markdown_exists", "mineru_paper_tex_ready", "mineru_manifest_ready"]
+  warning_checks: ["parse_record_missing", "mineru_paper_tex_missing", "mineru_manifest_missing", "mineru_images_missing", "mineru_images_empty"]
 reader_quality_critic:
   hard_fail_checks: ["structured_evidence_lines", "evidence_map_schema", "role_claim_coverage", "evidence_address_resolution"]
 role_critics:

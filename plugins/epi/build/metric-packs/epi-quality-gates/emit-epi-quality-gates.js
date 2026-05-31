@@ -63,6 +63,11 @@ const hasQualityLoopSourcesComplete = (
   corpus.includes("quality_loop_sources_complete") &&
   corpus.includes("collect-missing-quality-evidence")
 );
+const hasBenchmarkContract = (
+  corpus.includes("epi-benchmark-v1") &&
+  corpus.includes("benchmark_contract") &&
+  corpus.includes("invalid_sources")
+);
 
 const checks = [
   check(
@@ -106,6 +111,13 @@ const checks = [
     hasQualityLoopSourcesComplete,
     hasQualityLoopSourcesComplete ? ["Found source completeness contract text."] : ["Missing source completeness contract text."],
     ["Document source_completeness.complete, quality_loop_sources_complete, and collect-missing-quality-evidence in the evaluation-brief contract."]
+  ),
+  check(
+    "epi-benchmark-contract",
+    "EPI development benchmark evidence must use the epi-benchmark-v1 contract and mark invalid sources.",
+    hasBenchmarkContract,
+    hasBenchmarkContract ? ["Found benchmark schema and invalid source contract text."] : ["Missing benchmark schema or invalid source contract text."],
+    ["Document and implement epi-benchmark-v1, benchmark_contract, and invalid_sources handling before treating benchmarks as comparable evidence."]
   )
 ];
 
