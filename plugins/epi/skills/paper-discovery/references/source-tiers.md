@@ -1,4 +1,4 @@
-# Source Tiers For Engineering Paper Discovery
+# Source Tiers For Academic Paper Discovery
 
 EPI uses source tiers to avoid treating one search transport as the definition of quality. Prefer structured academic metadata first, then use publisher/web sources for verification and recall gaps.
 
@@ -10,18 +10,17 @@ EPI uses source tiers to avoid treating one search transport as the definition o
 | T2 | Domain venue or publisher pages with useful metadata | Verify venue, acceptance venue, PDF/code, recent online-first papers |
 | T3 | Web search, community lists, discussions, manual pages | Last resort for recall gaps; always mark as unverified until confirmed |
 
-## Robotics / Control / Embodied AI Mapping
+## Profile-Driven Mapping
 
 | Intent | T1 Sources | T2 Verification | T3 / Manual |
 | --- | --- | --- | --- |
-| Robotics and control papers | arXiv, Semantic Scholar, OpenAlex, CrossRef | IEEE Xplore, ACM DL, Springer, ScienceDirect, journal DOI pages | Google Scholar, lab pages |
-| AUV / marine robotics | Semantic Scholar, OpenAlex, CrossRef, arXiv | Ocean Engineering, IEEE/OES, ICRA/IROS/OCEANS pages, publisher DOI pages | project pages, code repos |
-| Embodied AI / robot learning | arXiv, Semantic Scholar, OpenAlex | CoRL, RSS, ICRA, IROS, NeurIPS/ICLR/ICML workshop or proceedings pages | OpenReview, lab pages |
-| Venue quality verification | OpenAlex/CrossRef venue metadata | official venue or publisher page, RoboWiki-style curated venue database | Zhihu/forum/community discussion only as weak context |
+| General academic discovery | arXiv, Semantic Scholar, OpenAlex, CrossRef | official venue or publisher pages, DOI pages, field indexes | lab/project pages, code repos, field community lists |
+| Configured domain papers | Sources listed in `paper_search.sources` | venues/databases listed in `venue_prior` | profile-specific curated lists or community hints |
+| Venue quality verification | OpenAlex/CrossRef venue metadata | official venue or publisher page, domain-curated venue database | forum/community discussion only as weak context |
 
 ## Venue Quality Prior
 
-For journal/conference quality priors, load `venue-prior.md`. Keep venue prior separate from verified metrics. RoboWiki-style pages are useful as curated robotics venue priors; Zhihu/forum discussions are weak recall hints only.
+For journal/conference quality priors, load `venue-prior.md`. Keep venue prior separate from verified metrics. Domain-curated venue pages can be useful priors; forum discussions are weak recall hints only.
 
 ## Escalation Rules
 

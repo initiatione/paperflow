@@ -138,7 +138,7 @@ def test_run_critics_writes_reader_revision_plan_with_role_worklist(tmp_path):
     assert any(
         item["reviewer"] == "paper-quality-critic"
         and item["check"] == "paper_identity"
-        and item["lens"] == "nature-sci-editor+senior-engineering-researcher"
+        and item["lens"] == "nature-sci-editor+senior-domain-researcher"
         and "metadata.json" in item["target_artifacts"]
         for item in plan["blocking_repairs"]
     )

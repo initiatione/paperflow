@@ -1,19 +1,7 @@
-profile: robotics_ai_control
-domains:
-  - robotics
-  - artificial intelligence
-  - embodied intelligence
-  - motion control
-  - navigation
-positive_keywords:
-  - robot learning
-  - humanoid
-  - embodied AI
-  - model predictive control
-  - reinforcement learning
-  - visual navigation
-negative_keywords:
-  - pure survey without engineering relevance
-  - unrelated biomedical trial
+profile: general_academic_research
+domains: []
+positive_keywords: []
+negative_keywords: []
+venue_prior: []
 budget:
   max_results: 20

@@ -18,13 +18,13 @@ def _manifest_path(vault_path: Path) -> Path:
 def _load_manifest(vault_path: Path) -> dict:
     path = _manifest_path(vault_path)
     if not path.exists():
-        return {"vault_type": "engineering-paper-research", "papers": []}
+        return {"vault_type": "academic-paper-research", "papers": []}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return {"vault_type": "engineering-paper-research", "papers": []}
+        return {"vault_type": "academic-paper-research", "papers": []}
     if not isinstance(payload, dict):
-        return {"vault_type": "engineering-paper-research", "papers": []}
+        return {"vault_type": "academic-paper-research", "papers": []}
     payload.setdefault("papers", [])
     return payload
 

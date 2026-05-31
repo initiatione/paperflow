@@ -9,7 +9,7 @@ Run multiple query variants across routed sources:
 - 5-8 query variants from `query-planner.md`.
 - T1 sources first: `arxiv`, `semantic`, `openalex`, CrossRef-style metadata when available.
 - T2 verification sources: publisher/venue pages, IEEE/ACM/Springer/ScienceDirect, official proceedings.
-- T3 recall hints only when needed: Google Scholar, lab/project pages, RoboWiki-style lists, community discussion.
+- T3 recall hints only when needed: Google Scholar, lab/project pages, configured field-curated lists, community discussion.
 
 Suggested pool size:
 
@@ -28,7 +28,7 @@ Filter and rank after the pool exists:
 3. Remove hard exclusions such as review/survey when requested.
 4. Verify identity: title, year, venue, DOI/arXiv ID, PDF.
 5. Score topic fit by concept block coverage.
-6. Score quality by evidence: venue prior, citation count, field trial, real robot, sim-to-real, safety proof, benchmark, code/data.
+6. Score quality by evidence: venue prior, citation count, field-specific validation, replication, benchmark, code/data, or other quality signals from config/query plan.
 7. Mark metrics not verified in the current run as `未核实`.
 
 ## Scoring Shape

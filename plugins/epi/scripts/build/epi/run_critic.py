@@ -151,7 +151,7 @@ def run_critics(paper_root: Path) -> dict:
     reviewers = [
         _reviewer_record(
             "paper-quality-critic",
-            "engineering paper reliability: identity, supported claims, benchmark context, scope, reproducibility, and parse limitations",
+            "academic paper reliability: identity, supported claims, benchmark context, scope, reproducibility, and parse limitations",
             checks["paper_quality"],
             paper_quality_review["evidence"],
             paper_quality_review["warnings"],

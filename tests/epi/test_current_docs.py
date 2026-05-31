@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -40,12 +41,12 @@ def test_progress_doc_records_status_verification_and_next_steps():
     text = _read("progress.md")
 
     assert "# EPI 插件进度说明" in text
-    assert "更新时间：2026-05-30" in text
+    assert "更新时间：2026-05-31" in text
     assert "高质量论文收集和整理" in text
     assert "config-setup" in text
     assert "paper-quality-critic" in text
     assert "wiki-ingest-handoff" in text
-    assert "211 passed in 18.16s" in text
+    assert "255 passed in 27.09s" in text
     assert "82/100" in text
     assert "waiting_for_human_gate" in text
     assert "ready_for_agent=true" in text
@@ -57,10 +58,12 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "two-stage retrieval" in text
     assert "citation graph" in text
     assert "evaluation set" in text
-    assert "RoboWiki" in text
+    assert "用户画像/config 驱动" in text
     assert "发布前必须重跑" in text
     assert "Plugin Eval" in text
     assert "MINERU_TOKEN" in text
+    assert "--skip-existing" in text
+    assert "MinerU reported done but produced no Markdown output" in text
 
 
 def test_linkage_doc_records_paper_discovery_bundle_and_venue_prior():
@@ -81,12 +84,14 @@ def test_linkage_doc_records_paper_discovery_bundle_and_venue_prior():
     assert "5-8 条 query variants" in text
     assert "two-stage retrieval" in text
     assert "--no-query-plan" in text
+    assert "--skip-existing" in text
+    assert "MinerU reported done but produced no Markdown output" in text
     assert "search-record.json.query_records" in text
     assert "venue_prior" in text
     assert "verified_metrics" in text
-    assert "RoboWiki" in text
-    assert "知乎" in text
-    assert "Ocean Engineering" in text
+    assert "通用插件" in text
+    assert "profile、domains、positive_keywords、negative_keywords、venue_prior" in text
+    assert "verified_metrics" in text
 
 
 def test_plugin_project_does_not_embed_local_machine_paths():
@@ -103,3 +108,28 @@ def test_plugin_project_does_not_embed_local_machine_paths():
             text = path.read_text(encoding="utf-8", errors="ignore")
             for phrase in forbidden:
                 assert phrase not in text, f"{phrase} leaked into {path}"
+
+
+def test_marketplace_and_readme_describe_profile_driven_generic_epi():
+    manifest = json.loads((PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    workflow = _read("workflow.md")
+
+    manifest_text = json.dumps(manifest, ensure_ascii=False)
+    assert "profile-driven academic paper discovery" in manifest_text
+    assert "user's config plus the current request" in manifest_text
+    assert "Search and rank academic papers" in manifest["description"]
+    assert "robotics" not in manifest["keywords"]
+    assert "embodied-intelligence" not in manifest["keywords"]
+    assert "control" not in manifest["keywords"]
+
+    assert "A general academic paper intelligence workflow" in readme
+    assert "profile-driven high-quality paper collection" in readme
+    assert "C:\\Users\\liuchf" not in readme
+    assert "D:\\paper-research-wiki" not in readme
+    assert "not a separate marketplace plugin" in readme
+
+    assert "EPI 是通用论文插件，不默认任何学科方向" in workflow
+    assert 'dry-run --query "<your topic>"' in workflow
+    assert "prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing" in workflow
+    assert "robotics embodied intelligence control" not in workflow

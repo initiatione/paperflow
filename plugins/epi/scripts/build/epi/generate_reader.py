@@ -127,7 +127,7 @@ def generate_reader_outputs(paper_root: Path) -> dict:
     ideas_lines = [
         "# Implementation Ideas",
         "",
-        "- Inference: evaluate whether the control pipeline can transfer to local robotics projects.",
+        "- Inference: evaluate whether the paper's method can transfer to the user's configured research profile.",
         f"  {evidence_line('inference', 'basis', 'implementation-ideas')}",
     ]
     ideas_lines.extend(render_role_revision_focus_section(revision_guidance, "Senior Domain Researcher"))
@@ -140,7 +140,7 @@ def generate_reader_outputs(paper_root: Path) -> dict:
             claim_id=f"reader-claim-{len(claims) + 1:03d}",
             reader_role="senior-domain-researcher",
             reader_artifact="reader/implementation-ideas.md",
-            claim="Evaluate whether the control pipeline can transfer to local robotics projects.",
+            claim="Evaluate whether the paper's method can transfer to the user's configured research profile.",
             source="inference",
             locator={"basis": "implementation-ideas"},
         )

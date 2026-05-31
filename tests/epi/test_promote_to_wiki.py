@@ -162,7 +162,7 @@ def _seed_staged_paper(
         plan["compiled_targets"].append(f"reports/{slug}-reading-report.md")
     (staging_root / "promotion-plan.json").write_text(json.dumps(plan), encoding="utf-8")
     (vault / ".manifest.json").write_text(
-        json.dumps({"vault_type": "engineering-paper-research", "papers": []}),
+        json.dumps({"vault_type": "academic-paper-research", "papers": []}),
         encoding="utf-8",
     )
     (vault / "log.md").write_text("# Log\n", encoding="utf-8")
@@ -437,7 +437,7 @@ def test_promotion_snapshots_manifest_and_log_for_rollback(tmp_path):
     slug = "fixture-paper"
     paper_root, _ = _seed_staged_paper(vault, slug)
     original_manifest = {
-        "vault_type": "engineering-paper-research",
+        "vault_type": "academic-paper-research",
         "papers": [{"slug": "old-paper", "promotion_status": "promoted"}],
     }
     original_log = "# Log\n- Existing entry.\n"

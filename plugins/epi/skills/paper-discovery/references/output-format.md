@@ -25,7 +25,7 @@ Then add `EPI 实测证据` with:
 - accepted/rejected counts
 - review exclusion evidence and already-downloaded exclusions such as `already_in_library:<slug>`
 - query variants and whether a sharper rerun was needed
-- venue prior sources used, such as RoboWiki, and weak community hints such as Zhihu when applicable
+- venue prior sources used, especially configured field venues or curated field lists; weak community hints must be labeled as unverified context
 - citation graph expansion evidence when used
 - recall gaps if any
 - `MINERU_TOKEN` set/missing only if setup was checked

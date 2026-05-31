@@ -37,12 +37,12 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
         path.mkdir(parents=True, exist_ok=True)
 
     files = {
-        "index.md": "# Paper Research Wiki\n\nThis vault is dedicated to engineering paper research.\n",
+        "index.md": "# Paper Research Wiki\n\nThis vault is dedicated to profile-driven academic paper research.\n",
         "log.md": "# Log\n\n## Initialized\n\n- Created dedicated paper research wiki structure.\n",
         "hot.md": "# Hot\n\nNo promoted papers yet.\n",
         ".manifest.json": json.dumps(
             {
-                "vault_type": "engineering-paper-research",
+                "vault_type": "academic-paper-research",
                 "schema": "raw source -> evidence handoff -> agent-mediated wiki -> vault schema",
                 "wiki_write_model": "agent-mediated-vault-contract",
                 "suggested_draft_dirs": ["references", "concepts", "synthesis", "reports"],
@@ -66,7 +66,7 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
 def main() -> int:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Initialize a dedicated engineering paper research wiki.")
+    parser = argparse.ArgumentParser(description="Initialize a dedicated academic paper research wiki.")
     parser.add_argument("--vault", type=Path, default=Path(os.environ.get("EPI_VAULT", Path.cwd() / "paper-research-wiki")))
     args = parser.parse_args()
     created = initialize_paper_wiki(args.vault)

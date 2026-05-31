@@ -1,3 +1,4 @@
+from epi import cli
 from epi.cli import build_parser
 
 
@@ -18,6 +19,21 @@ def test_dry_run_parser_defaults_to_query_plan_and_accepts_overrides():
     assert args.no_query_plan is False
     assert args.query_plan_domain == "auv-control"
     assert args.query_plan_max_queries == 8
+
+
+def test_dry_run_parser_accepts_profile_derived_query_plan_domain():
+    args = build_parser().parse_args(
+        [
+            "dry-run",
+            "--query",
+            "molecular property prediction",
+            "--query-plan-domain",
+            "profile",
+        ]
+    )
+
+    assert args.command == "dry-run"
+    assert args.query_plan_domain == "profile"
 
 
 def test_dry_run_parser_accepts_no_query_plan_fallback():
@@ -62,6 +78,123 @@ def test_prepare_ranked_parser_defaults_to_one_paper_and_stops_after_parse():
     assert args.run_id == "run-001"
     assert args.max_papers == 1
     assert args.include_review_candidates is False
+    assert args.skip_existing is False
+
+
+def test_prepare_ranked_parser_accepts_skip_existing_for_resumable_batches():
+    args = build_parser().parse_args(
+        [
+            "prepare-ranked",
+            "--run-id",
+            "run-001",
+            "--max-papers",
+            "10",
+            "--skip-existing",
+        ]
+    )
+
+    assert args.command == "prepare-ranked"
+    assert args.max_papers == 10
+    assert args.skip_existing is True
+
+
+def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypatch, capsys):
+    captured = {}
+
+    def fake_prepare_ranked_papers_from_run(
+        vault,
+        run_id,
+        *,
+        mineru_command=None,
+        max_papers=None,
+        include_review_candidates=False,
+        skip_existing=False,
+    ):
+        captured.update(
+            {
+                "vault": vault,
+                "run_id": run_id,
+                "mineru_command": mineru_command,
+                "max_papers": max_papers,
+                "include_review_candidates": include_review_candidates,
+                "skip_existing": skip_existing,
+            }
+        )
+        return {"run_id": "prepare-ranked-001", "state": "parsed", "processed_count": 0}
+
+    monkeypatch.setattr(cli.workflows, "prepare_ranked_papers_from_run", fake_prepare_ranked_papers_from_run)
+
+    exit_code = cli.main(
+        [
+            "prepare-ranked",
+            "--run-id",
+            "run-001",
+            "--vault",
+            str(tmp_path),
+            "--max-papers",
+            "10",
+            "--skip-existing",
+            "--include-review-candidates",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured == {
+        "vault": tmp_path,
+        "run_id": "run-001",
+        "mineru_command": None,
+        "max_papers": 10,
+        "include_review_candidates": True,
+        "skip_existing": True,
+    }
+    assert "stops_after=parse" in capsys.readouterr().out
+
+
+def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path, monkeypatch):
+    captured = {}
+
+    def fake_advance_paper_batch_from_run(
+        vault,
+        run_id,
+        *,
+        mineru_command=None,
+        max_papers=None,
+        include_review_candidates=False,
+    ):
+        captured.update(
+            {
+                "vault": vault,
+                "run_id": run_id,
+                "mineru_command": mineru_command,
+                "max_papers": max_papers,
+                "include_review_candidates": include_review_candidates,
+            }
+        )
+        return {"run_id": "advance-ranked-001", "state": "batch_done", "processed_count": 0}
+
+    monkeypatch.setattr(cli.workflows, "advance_paper_batch_from_run", fake_advance_paper_batch_from_run)
+
+    exit_code = cli.main(
+        [
+            "advance-ranked",
+            "--run-id",
+            "run-001",
+            "--vault",
+            str(tmp_path),
+            "--max-papers",
+            "3",
+            "--include-review-candidates",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured == {
+        "vault": tmp_path,
+        "run_id": "run-001",
+        "mineru_command": None,
+        "max_papers": 3,
+        "include_review_candidates": True,
+    }
 
 
 def test_wiki_query_parser_accepts_research_decision_filters():

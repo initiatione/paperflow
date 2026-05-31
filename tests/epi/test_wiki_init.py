@@ -32,5 +32,5 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
         assert (vault / relative_path).is_dir()
 
     manifest = json.loads((vault / ".manifest.json").read_text(encoding="utf-8"))
-    assert manifest["vault_type"] == "engineering-paper-research"
+    assert manifest["vault_type"] == "academic-paper-research"
     assert "index.md" in created

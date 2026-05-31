@@ -374,6 +374,121 @@ def test_prepare_ranked_papers_repairs_incomplete_existing_parse_outputs(tmp_pat
     assert not (paper_root / "reader" / "reader.md").exists()
 
 
+def test_prepare_ranked_papers_records_failed_candidate_and_continues(tmp_path, monkeypatch):
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+    (server_root / "good.pdf").write_bytes(b"%PDF-1.4\ngood fixture\n")
+    vault = tmp_path / "vault"
+    run_id = "20260527T122500Z"
+    run_dir = vault / "_runs" / run_id
+    run_dir.mkdir(parents=True)
+    mineru_command = _write_success_mineru_command(tmp_path)
+
+    failing_candidate = _candidate("download-timeout", "Download Timeout", "https://example.org/timeout.pdf")
+    failing_candidate["ranking_protocol"] = {"decision": "advance-candidate"}
+
+    with _LocalServer(server_root) as base_url:
+        good_candidate = _candidate("after-timeout", "After Timeout", f"{base_url}/good.pdf")
+        good_candidate["ranking_protocol"] = {"decision": "advance-candidate"}
+        (run_dir / "rank.json").write_text(
+            json.dumps([failing_candidate, good_candidate]),
+            encoding="utf-8",
+        )
+
+        from epi.orchestrator import _prepare_candidate_until_parsed as original_prepare_candidate
+
+        def _prepare_candidate(vault_path, candidate, *, mineru_command=None):
+            if candidate["slug"] == "download-timeout":
+                raise TimeoutError("simulated download timeout")
+
+            return original_prepare_candidate(
+                vault_path,
+                candidate,
+                mineru_command=mineru_command,
+            )
+
+        monkeypatch.setattr("epi.orchestrator._prepare_candidate_until_parsed", _prepare_candidate)
+
+        batch = prepare_ranked_papers_from_run(
+            vault,
+            run_id,
+            mineru_command=mineru_command,
+            max_papers=2,
+        )
+
+    assert batch["status"] == "failed"
+    assert batch["state"] == "prepare_failed"
+    assert batch["processed_count"] == 2
+    assert [result["paper_slug"] for result in batch["results"]] == ["download-timeout", "after-timeout"]
+    assert batch["results"][0]["state"] == "prepare_failed"
+    assert batch["results"][0]["last_action"] == "prepare"
+    assert batch["results"][0]["stage_record"]["status"] == "failed"
+    assert "simulated download timeout" in batch["results"][0]["stage_record"]["error"]
+    assert batch["results"][1]["state"] == "parsed"
+    assert (vault / "_raw" / "papers" / "after-timeout" / "mineru" / "paper.md").is_file()
+
+    report_json = json.loads((vault / "_runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
+    assert report_json["failed_papers"] == [
+        {"paper_slug": "download-timeout", "state": "prepare_failed", "next_action": None}
+    ]
+    assert report_json["paper_states"][1] == {
+        "paper_slug": "after-timeout",
+        "state": "parsed",
+        "next_action": "read",
+    }
+
+
+def test_prepare_ranked_papers_can_skip_existing_parsed_candidates_when_resuming(tmp_path):
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+    (server_root / "new.pdf").write_bytes(b"%PDF-1.4\nnew fixture\n")
+    vault = tmp_path / "vault"
+    run_id = "20260527T123000Z"
+    run_dir = vault / "_runs" / run_id
+    run_dir.mkdir(parents=True)
+    mineru_command = _write_success_mineru_command(tmp_path)
+
+    existing = _candidate("already-parsed", "Already Parsed", "https://example.org/already.pdf")
+    existing["ranking_protocol"] = {"decision": "advance-candidate"}
+    existing_root = vault / "_raw" / "papers" / "already-parsed"
+    existing_mineru = existing_root / "mineru"
+    existing_mineru.mkdir(parents=True)
+    (existing_root / "paper.pdf").write_bytes(b"%PDF-1.4\nexisting fixture\n")
+    (existing_mineru / "paper.md").write_text("# Already Parsed\n", encoding="utf-8")
+    (existing_mineru / "paper.tex").write_text("\\section{Already Parsed}\n", encoding="utf-8")
+    (existing_mineru / "mineru-manifest.json").write_text("{}", encoding="utf-8")
+    (existing_mineru / "images").mkdir()
+
+    with _LocalServer(server_root) as base_url:
+        new_candidate = _candidate("resume-new", "Resume New", f"{base_url}/new.pdf")
+        new_candidate["ranking_protocol"] = {"decision": "advance-candidate"}
+        (run_dir / "rank.json").write_text(
+            json.dumps([existing, new_candidate]),
+            encoding="utf-8",
+        )
+
+        batch = prepare_ranked_papers_from_run(
+            vault,
+            run_id,
+            mineru_command=mineru_command,
+            max_papers=1,
+            skip_existing=True,
+        )
+
+    assert batch["processed_count"] == 1
+    assert batch["skip_existing"] is True
+    assert batch["skipped_existing_candidates"] == [
+        {"slug": "already-parsed", "title": "Already Parsed", "reason": "already_parsed"}
+    ]
+    assert batch["results"][0]["paper_slug"] == "resume-new"
+    assert batch["results"][0]["state"] == "parsed"
+    assert (vault / "_raw" / "papers" / "resume-new" / "mineru" / "paper.md").is_file()
+
+    report_json = json.loads((vault / "_runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
+    assert report_json["skip_existing"] is True
+    assert report_json["skipped_existing_candidates"] == batch["skipped_existing_candidates"]
+
+
 def test_advance_paper_batch_from_run_skips_review_candidates_by_default(tmp_path):
     server_root = tmp_path / "server"
     server_root.mkdir()

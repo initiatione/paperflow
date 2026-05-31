@@ -17,11 +17,6 @@ profile_fit:
   positive_keywords: "advance papers matching the user's research interests and profile"
   negative_keywords: "demote or review papers matching excluded topics"
 venue_tiers:
-  icra: 1.0
-  iros: 0.95
-  rss: 1.0
-  corl: 0.98
-  neurips: 1.0
-  iclr: 1.0
-  icml: 1.0
-  science_robotics: 1.0
+  configured_top_venue: 1.0
+  configured_strong_venue: 0.9
+  configured_domain_venue: 0.8

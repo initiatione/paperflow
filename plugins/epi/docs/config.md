@@ -11,7 +11,7 @@ python scripts\orchestrator.py doctor --open-setup
 
 EPI 有两层配置，边界不要混：
 
-- 研究画像、关键词、预算、Zotero 和人工确认门写入目标论文库：`<vault>\_meta\epi-config.yaml`。
+- 研究画像、领域、关键词、venue prior、预算、Zotero 和人工确认门写入目标论文库：`<vault>\_meta\epi-config.yaml`。
 - 本机 runtime 依赖写入 Codex 用户级插件区：`%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。这里记录 `paper-search` MCP server 命令、CLI fallback、MinerU 命令和 `mineru.env` 路径；runtime.json 不保存 token 明文。`MINERU_TOKEN` 只从进程环境或 `mineru.env` 载入，报告时只能说 set/missing。
 - 显式进程环境变量优先，runtime.json 只补缺失项；插件升级 cache 时不会覆盖用户级 runtime.json。
 
@@ -40,8 +40,8 @@ python scripts\orchestrator.py wiki-repair --vault <vault> --restore-from <backu
 八步确认：
 
 1. 第一步，先定论文库放哪里。推荐一个专用的本地论文库目录，例如 `<vault>`。
-2. 第二步，我需要知道你主要看哪类论文。推荐“机器人控制、具身智能、AI，默认看方法/系统/实验论文，不默认看综述”。
-3. 第三步，告诉我哪些词算有用，哪些词要避开。默认把 review / survey / systematic review / literature review / meta-analysis 作为避开词；只有用户明确要求综述时才加入综述偏好。
+2. 第二步，我需要知道你的研究画像：学科/应用对象/方法族/常看任务分别是什么。EPI 是通用插件，不默认任何学科；后续匹配词、同义词、venue prior、搜索 query 和阅读/wiki 侧重点都从这个画像和 config 衍生。
+3. 第三步，告诉我哪些词算有用，哪些词要避开，以及你所在领域的高质量期刊/会议/数据库线索。默认把 review / survey / systematic review / literature review / meta-analysis 作为避开词；只有用户明确要求综述时才加入综述偏好。
 4. 第四步，先定搜索从哪里来。推荐 `paper-search` + arxiv / semantic / openalex。
 5. 第五步，定每次先看多少篇。推荐 20。
 6. 第六步，MinerU 先怎么接。推荐 `MINERU_TOKEN` + 默认命令；初始化不调用 MinerU。

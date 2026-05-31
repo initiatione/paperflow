@@ -53,7 +53,7 @@ def test_critic_quorum_includes_role_specific_reviewers_for_reader_v2_outputs(tm
     role_reviewers = quorum["reviewers"][3:]
     assert all("review_protocol" in reviewer for reviewer in quorum["reviewers"])
     assert [reviewer["review_protocol"]["lens"] for reviewer in quorum["reviewers"]] == [
-        "nature-sci-editor+senior-engineering-researcher",
+        "nature-sci-editor+senior-domain-researcher",
         "parse-materialization-reviewer",
         "source-grounding-reviewer",
         "nature-sci-editor",
@@ -132,7 +132,7 @@ def test_critic_quorum_includes_role_specific_reviewers_for_reader_v2_outputs(tm
         },
         {
             "lens": "senior-domain-researcher",
-            "responsibility": "senior researcher fit to the user's robotics, embodied intelligence, and control agenda",
+            "responsibility": "senior researcher fit to the user's configured research profile and agenda",
             "artifact": "reader/research-notes.md",
             "verdict": "pass",
             "action": "preserve",

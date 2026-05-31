@@ -821,7 +821,27 @@ def download_paper_pdf(
         }
     resolved_command = probe["command"]
     args = ["download", source, paper_id, "--save-path", str(output_dir)]
-    result = _run_command(resolved_command, args, timeout_seconds=timeout_seconds)
+    try:
+        result = _run_command(resolved_command, args, timeout_seconds=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "status": "failed",
+            "mode": "paper_search_cli_download",
+            "source": source,
+            "paper_id": paper_id,
+            "mcp_probe": probe,
+            "mcp_server_probe": mcp_failure,
+            "upstream": {
+                "package": "paper-search-mcp",
+                "cli_command": resolved_command,
+                "returncode": None,
+                "stdout": _timeout_text(exc.output).strip(),
+                "stderr": _timeout_text(exc.stderr).strip(),
+                "timeout_seconds": timeout_seconds,
+                **_fallback_fields(mcp_failure),
+            },
+            "error": "paper-search download timed out",
+        }
     pdf_paths = sorted(
         path
         for path in output_dir.rglob("*")

@@ -1,17 +1,17 @@
-# Workflow: Multi-Source Engineering Paper Discovery
+# Workflow: Multi-Source Academic Paper Discovery
 
-Use this workflow when the user asks for high-quality papers, latest papers, non-review papers, or a specific robotics/control/AI topic.
+Use this workflow when the user asks for high-quality papers, latest papers, non-review papers, or any topic defined by the user's EPI profile/config.
 
 ## Procedure
 
 1. Analyze topic into concept blocks:
-   - platform or domain object, such as AUV, humanoid, manipulator, mobile robot
-   - method family, such as RL, MPC, adaptive control, diffusion policy, world model
-   - task, such as tracking, stabilization, path following, manipulation, navigation
-   - environment or disturbance, such as ocean current, turbulence, contact, sim-to-real
-   - validation mode, such as field trial, real robot, simulator, benchmark, proof
+   - configured discipline/domain object
+   - method or topic family
+   - problem, task, population, system, material, dataset, or phenomenon
+   - context, environment, setting, or constraints
+   - validation mode, such as experiment, field study, dataset, benchmark, proof, replication, or code
    - exclusions, especially review/survey when requested
-2. Build a query plan by `query-planner.md`; use `domain-ontology.md` for synonyms, exclusions, and evidence terms.
+2. Build a query plan by `query-planner.md`; use config first and `domain-ontology.md` only as optional examples for synonyms, exclusions, and evidence terms.
 3. Build 5-8 query variants. Include exact phrases and acronym expansions.
 4. Route sources by `source-tiers.md`.
 5. Search T1 sources first through `paper_search_mcp` or configured source adapters.
@@ -25,14 +25,13 @@ Use this workflow when the user asks for high-quality papers, latest papers, non
 
 ## Venue Prior Step
 
-For robotics/control topics, classify venue before final ranking:
+Classify venue before final ranking using the user's `venue_prior`:
 
-- Use curated robotics lists such as RoboWiki as a community prior.
-- Use community discussions such as Zhihu only as weak recall hints or subjective context.
+- Use configured journals/conferences/databases and field-curated lists as prior.
+- Use community discussions only as weak recall hints or subjective context.
 - Verify official venue, publisher page, DOI, citation count, and impact metrics separately.
-- For AUV/control topics, include marine engineering and ocean robotics venues in the recall check, not only general robotics/AI venues.
 
-Do not promote a paper only because a venue is highly ranked. A strong venue with weak topic fit still needs review; a lower-tier venue with real field validation may be valuable for engineering reading.
+Do not promote a paper only because a venue is highly ranked. A strong venue with weak topic fit still needs review; a lower-tier venue with real field validation may be valuable for the user's research reading.
 
 ## Output Evidence
 

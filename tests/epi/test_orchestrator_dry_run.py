@@ -109,11 +109,13 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert state["status"] == "success"
     assert state["dry_run"] is True
     assert state["query_strategy"] == "single_query"
-    assert state["query_plan"]["domain"] == "general-robotics"
+    assert state["query_plan"]["domain"] == "profile-derived"
     assert query_plan["workflow"] == "epi-query-plan"
-    assert query_plan["domain"] == "general-robotics"
+    assert query_plan["domain"] == "profile-derived"
+    assert query_plan["profile"]["domains"] == ["robotics", "control"]
+    assert "robotics" in query_plan["concept_blocks"]["domain_terms"]
     assert all("-review -survey" in query for query in query_plan["query_variants"])
-    assert report["discovery_context"]["query_plan"]["domain"] == "general-robotics"
+    assert report["discovery_context"]["query_plan"]["domain"] == "profile-derived"
     assert report["discovery_context"]["candidate_pool"]["raw"] == 2
     assert state["started_at"]
     assert state["finished_at"]
@@ -247,6 +249,69 @@ def test_dry_run_query_plan_searches_variants_and_merges_candidate_pool(tmp_path
     assert report["discovery_context"]["candidate_pool"]["accepted"] == 3
     assert (run_dir / "paper-search-raw-01.json").is_file()
     assert (run_dir / "paper-search-raw.json").is_file()
+
+
+def test_dry_run_with_generic_config_derives_filter_terms_from_query_plan(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    templates = plugin_root / "templates"
+    templates.mkdir(parents=True)
+    (templates / "interests.example.yaml").write_text(
+        "profile: general_academic_research\n"
+        "domains: []\n"
+        "positive_keywords: []\n"
+        "negative_keywords: []\n"
+        "venue_prior: []\n"
+        "budget:\n"
+        "  max_results: 5\n",
+        encoding="utf-8",
+    )
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Graph Neural Networks for Molecular Property Prediction",
+                    "authors": ["C. Chemist"],
+                    "year": 2025,
+                    "venue": "JCIM",
+                    "abstract": "Molecular property prediction with graph neural network benchmarks.",
+                    "pdf_url": "https://example.org/molecule.pdf",
+                    "citation_count": 12,
+                },
+                {
+                    "source": "fixture",
+                    "title": "Warehouse Robot Navigation",
+                    "authors": ["R. Engineer"],
+                    "year": 2025,
+                    "venue": "ICRA",
+                    "abstract": "Mobile robot navigation and control benchmark.",
+                    "pdf_url": "https://example.org/robot.pdf",
+                    "citation_count": 8,
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="molecular property prediction graph neural network",
+        max_results=5,
+        fixture_path=fixture,
+    )
+
+    query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+
+    assert query_plan["domain"] == "topic-derived"
+    assert "molecular property prediction" in query_plan["concept_blocks"]["domain_terms"]
+    assert [candidate["title"] for candidate in report["accepted"]] == [
+        "Graph Neural Networks for Molecular Property Prediction"
+    ]
+    assert report["rejected"][0]["title"] == "Warehouse Robot Navigation"
+    assert "outside_domain" in report["rejected"][0]["filter_reasons"]
 
 
 def test_dry_run_keeps_review_query_when_user_explicitly_requests_reviews(tmp_path):
@@ -592,7 +657,8 @@ def test_dry_run_ranking_uses_configured_interest_profile_keywords(tmp_path):
         "Humanoid Sim2Real Control with Open Benchmarks",
         "Robot Control for Biomedical Trial Screening",
     ]
-    assert ranked[0]["ranking_protocol"]["matched_positive_keywords"] == ["sim2real", "humanoid"]
+    assert {"sim2real", "humanoid"}.issubset(set(ranked[0]["ranking_protocol"]["matched_positive_keywords"]))
+    assert "robotics" in ranked[0]["ranking_protocol"]["matched_positive_keywords"]
     assert ranked[1]["ranking_protocol"]["matched_negative_keywords"] == ["biomedical trial"]
     assert "negative_keyword_overlap: biomedical trial" in ranked[1]["ranking_protocol"]["cautions"]
 

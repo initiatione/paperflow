@@ -116,7 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
     dry_run.add_argument(
         "--query-plan-domain",
         default="auto",
-        choices=["auto", "auv-control", "embodied-ai", "general-robotics"],
+        choices=["auto", "profile", "auv-control", "embodied-ai", "general-robotics"],
     )
     dry_run.add_argument("--query-plan-max-queries", type=int, default=6)
 
@@ -156,6 +156,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare_ranked.add_argument("--max-papers", type=int, default=1)
     prepare_ranked.add_argument("--mineru-command", default=None)
     prepare_ranked.add_argument("--include-review-candidates", action="store_true")
+    prepare_ranked.add_argument("--skip-existing", action="store_true")
 
     parse_paper = subparsers.add_parser("parse-paper")
     _add_common_vault(parse_paper)
@@ -446,6 +447,7 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
         mineru_command=args.mineru_command,
         max_papers=args.max_papers,
         include_review_candidates=args.include_review_candidates,
+        skip_existing=args.skip_existing,
     )
     print(f"run_dir={args.vault.resolve() / '_runs' / batch['run_id']}")
     print(f"batch_state={batch['state']}")

@@ -113,6 +113,31 @@ raise SystemExit(7)
     return script
 
 
+def _write_done_without_markdown_command(tmp_path):
+    script = tmp_path / "fake_mineru_done_without_markdown.py"
+    script.write_text(
+        """
+import argparse
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--project-root", required=True)
+parser.add_argument("--input-dir", required=True)
+parser.add_argument("--output-dir", required=True)
+parser.add_argument("--layout", default="document-dir")
+args = parser.parse_args()
+
+output_root = Path(args.project_root) / args.output_dir
+(output_root / "paper").mkdir(parents=True, exist_ok=True)
+print("batch_id: done-no-markdown")
+print("batch done-no-markdown: paper.pdf:done")
+raise SystemExit(1)
+""".strip(),
+        encoding="utf-8",
+    )
+    return script
+
+
 def test_mineru_command_imports_markdown_images_manifest_and_records_job(tmp_path):
     paper_root = _seed_paper_root(tmp_path)
     command = [sys.executable, str(_write_success_command(tmp_path))]
@@ -194,6 +219,22 @@ def test_mineru_command_failure_records_error_without_fake_markdown(tmp_path):
     assert not (paper_root / "mineru" / "paper.md").exists()
     assert "simulated mineru failure" in (paper_root / "mineru-command" / "stderr.txt").read_text(encoding="utf-8")
     assert json.loads((paper_root / "parse-record.json").read_text(encoding="utf-8")) == record
+
+
+def test_mineru_command_reports_done_without_markdown_as_missing_output(tmp_path):
+    paper_root = _seed_paper_root(tmp_path)
+    command = [sys.executable, str(_write_done_without_markdown_command(tmp_path))]
+
+    record = run_mineru_command(paper_root, command=command)
+
+    assert record["status"] == "failed"
+    assert record["exit_code"] == 1
+    assert record["error"] == "MinerU reported done but produced no Markdown output"
+    assert record["batch_id"] == "done-no-markdown"
+    assert "batch done-no-markdown: paper.pdf:done" in (
+        paper_root / "mineru-command" / "stdout.txt"
+    ).read_text(encoding="utf-8")
+    assert not (paper_root / "mineru" / "paper.md").exists()
 
 
 def test_parse_paper_with_mineru_uses_vault_slug_boundary(tmp_path):

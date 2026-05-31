@@ -22,7 +22,7 @@ def test_config_doc_defines_plain_chinese_eight_step_onboarding_script():
 
     for phrase in [
         "第一步，先定论文库放哪里",
-        "第二步，我需要知道你主要看哪类论文",
+        "第二步，我需要知道你的研究画像",
         "第三步，告诉我哪些词算有用，哪些词要避开",
         "第四步，先定搜索从哪里来",
         "第五步，定每次先看多少篇",
@@ -39,7 +39,8 @@ def test_config_doc_defines_plain_chinese_eight_step_onboarding_script():
     assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
     assert "runtime.json 不保存 token 明文" in text
     assert "mineru.env" in text
-    assert "默认看方法/系统/实验论文，不默认看综述" in text
+    assert "EPI 是通用插件，不默认任何学科" in text
+    assert "venue prior" in text
     assert "config-status --vault <vault> --json --include-values --include-runtime" in text
 
 
@@ -55,6 +56,8 @@ def test_config_setup_skill_owns_initialization_and_update_onboarding():
     assert "--include-values --include-runtime" in text
     assert "Only run `doctor`" in text
     assert "默认不是综述论文" in text
+    assert "EPI 是通用论文插件" in text
+    assert "venue_prior" in text
     assert "一次只问一个问题" in text
     assert "每个问题必须说明影响" in text
     assert "参考方向" in text
@@ -120,13 +123,20 @@ def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
     mineru = _read(SKILL_DIR / "mineru-paper-parser" / "SKILL.md")
 
     assert "prepare-ranked" in discovery
+    assert "--max-papers 10" in discovery
+    assert "--skip-existing" in discovery
+    assert "smoke test" in discovery
+    assert "profile-derived" in discovery
     assert "stops after" in discovery
     assert "acquire-record.json" in discovery
     assert "parse-record.json" in discovery
+    assert "--max-papers 10" in ingest
+    assert "--skip-existing" in ingest
     assert "Do not use `advance-paper`, `advance-ranked`, or `advance-batch`" in ingest
     assert "tex_source=markdown-fallback" in mineru
     assert "mineru-command\\paper" in mineru
     assert "mineru-command\\parsed" in mineru
+    assert "MinerU reported done but produced no Markdown output" in mineru
 
 
 def test_paper_discovery_skill_documents_quality_first_chat_recommendations():
@@ -196,17 +206,20 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     assert "AUV / Marine Control" in domain_ontology
     assert "autonomous underwater vehicle" in domain_ontology
     assert "5-8 query variants" in search_protocol
+    assert "--no-query-plan" in search_protocol
+    assert "profile or current request" in search_protocol
+    assert "publisher PDF blocks" in search_protocol
     assert "two-stage-retrieval.md" in search_protocol
     assert "citation-graph.md" in search_protocol
     assert "paper_search_mcp" in search_protocol
     assert "source tier" in source_tiers.lower()
-    assert "RoboWiki" in source_tiers
+    assert "field community lists" in source_tiers
     assert "DOI" in dedup_engine
     assert "already_in_library:<slug>" in dedup_engine
     assert "venue_prior" in venue_prior
-    assert "RoboWiki" in venue_prior
-    assert "Zhihu" in venue_prior
-    assert "Ocean Engineering" in venue_prior
+    assert "configured or curated prior" in venue_prior
+    assert "Domain examples, not defaults" in venue_prior
+    assert "Robotics/control profiles may list" in venue_prior
     assert "High Recall Candidate Pool" in two_stage
     assert "query-plan.json" in two_stage
     assert "precision_at_10" in evaluation_set

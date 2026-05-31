@@ -71,12 +71,78 @@ def _new_run_dir(vault_path: Path, prefix: str | None = None) -> tuple[str, Path
     return run_id, run_dir
 
 
-def _build_dry_run_query_plan(query: str, *, domain: str, max_queries: int) -> dict:
+def _build_dry_run_query_plan(query: str, *, domain: str, max_queries: int, config) -> dict:
     return build_query_plan(
         topic=query,
         domain=domain,
         max_queries=max(1, max_queries),
+        profile=config.profile,
+        domains=config.domains,
+        positive_keywords=config.positive_keywords,
+        negative_keywords=config.negative_keywords,
+        venue_prior=config.venue_prior,
     )
+
+
+def _ranking_keywords_from_profile(config, query: str, query_plan: dict | None) -> list[str]:
+    keywords: list[str] = []
+    keywords.extend(config.positive_keywords)
+    keywords.extend(config.domains)
+    if query_plan:
+        blocks = query_plan.get("concept_blocks") or {}
+        for key in ("profile_terms", "domain_terms", "method_or_topic_terms", "problem_terms"):
+            values = blocks.get(key) or []
+            if isinstance(values, list):
+                keywords.extend(str(value) for value in values)
+    if not keywords:
+        keywords.extend(
+            word
+            for word in query.replace("-", " ").replace("/", " ").split()
+            if len(word) > 2 and word.lower() not in {"latest", "recent", "paper", "papers", "quality"}
+        )
+
+    seen: set[str] = set()
+    unique_keywords: list[str] = []
+    for keyword in keywords:
+        normalized = " ".join(str(keyword).lower().split())
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_keywords.append(str(keyword))
+    return unique_keywords
+
+
+def _venue_tiers_from_profile(config, query_plan: dict | None) -> dict[str, float]:
+    venues: list[str] = []
+    venues.extend(config.venue_prior)
+    if query_plan:
+        recall = query_plan.get("recall_gap_checks") or {}
+        venue_families = recall.get("venue_families") or []
+        if isinstance(venue_families, list):
+            venues.extend(
+                str(venue)
+                for venue in venue_families
+                if "configured" not in str(venue).lower() and "field-specific" not in str(venue).lower()
+            )
+
+    tiers: dict[str, float] = {}
+    for index, venue in enumerate(venues):
+        normalized = str(venue).lower()
+        if not normalized or normalized in tiers:
+            continue
+        tiers[normalized] = max(0.75, 1.0 - index * 0.02)
+    return tiers
+
+
+def _filter_domains_from_profile(config, query_plan: dict | None) -> list[str]:
+    if config.domains:
+        return config.domains
+    if query_plan:
+        blocks = query_plan.get("concept_blocks") or {}
+        domain_terms = blocks.get("domain_terms") or []
+        if isinstance(domain_terms, list):
+            return [str(term) for term in domain_terms]
+    return []
 
 
 def _annotate_query_records(records: list[dict], *, query_variant: str, query_variant_index: int) -> list[dict]:
@@ -653,7 +719,12 @@ def run_dry_run(
     run_id, run_dir = _new_run_dir(config.vault_path)
     started_at = utc_now()
     query_plan = (
-        _build_dry_run_query_plan(query, domain=query_plan_domain, max_queries=query_plan_max_queries)
+        _build_dry_run_query_plan(
+            query,
+            domain=query_plan_domain,
+            max_queries=query_plan_max_queries,
+            config=config,
+        )
         if use_query_plan
         else None
     )
@@ -711,7 +782,7 @@ def run_dry_run(
     existing_library_index = load_existing_paper_index(config.vault_path)
     filter_report = filter_candidates_with_report(
         normalized,
-        domains=config.domains,
+        domains=_filter_domains_from_profile(config, query_plan),
         require_pdf=True,
         exclude_terms=query_exclude_terms,
         existing_library_index=existing_library_index,
@@ -728,12 +799,9 @@ def run_dry_run(
 
     ranked_pool = rank_candidates(
         filtered,
-        positive_keywords=(
-            config.positive_keywords
-            or [*config.domains, "robot", "humanoid", "embodied", "control", "navigation"]
-        ),
+        positive_keywords=_ranking_keywords_from_profile(config, query, query_plan),
         negative_keywords=config.negative_keywords,
-        venue_tiers={"icra": 1.0, "iros": 0.95, "rss": 1.0, "corl": 0.98, "neurips": 1.0, "iclr": 1.0, "icml": 1.0},
+        venue_tiers=_venue_tiers_from_profile(config, query_plan),
     )
     ranked = ranked_pool[: config.max_results]
     _write_json(run_dir / "rank.json", ranked)
@@ -1403,14 +1471,7 @@ def _prepare_candidate_until_parsed(
                 ),
             )
 
-    parse_complete = (
-        mineru_md.exists()
-        and mineru_md.stat().st_size > 0
-        and mineru_tex.exists()
-        and mineru_tex.stat().st_size > 0
-        and mineru_manifest.exists()
-        and mineru_images.is_dir()
-    )
+    parse_complete = _has_complete_mineru_parse(paper_root)
     if not parse_complete:
         parse_record = parse_paper_with_mineru(vault_path, slug, mineru_command=mineru_command)
         state = "parsed" if parse_record["status"] == "success" else "parse_failed"
@@ -1440,12 +1501,57 @@ def _prepare_candidate_until_parsed(
     )
 
 
+def _has_complete_mineru_parse(paper_root: Path) -> bool:
+    paper_pdf = paper_root / "paper.pdf"
+    mineru_dir = paper_root / "mineru"
+    mineru_md = mineru_dir / "paper.md"
+    mineru_tex = mineru_dir / "paper.tex"
+    mineru_manifest = mineru_dir / "mineru-manifest.json"
+    mineru_images = mineru_dir / "images"
+    return (
+        paper_pdf.exists()
+        and mineru_md.exists()
+        and mineru_md.stat().st_size > 0
+        and mineru_tex.exists()
+        and mineru_tex.stat().st_size > 0
+        and mineru_manifest.exists()
+        and mineru_images.is_dir()
+    )
+
+
+def _prepare_candidate_failure_state(vault_path: Path, candidate: dict, exc: Exception) -> dict:
+    slug = candidate["slug"]
+    paper_root = raw_paper_root(vault_path, slug)
+    paper_root.mkdir(parents=True, exist_ok=True)
+    record = {
+        "stage": "prepare",
+        "status": "failed",
+        "started_at": utc_now(),
+        "finished_at": utc_now(),
+        "exit_status": 1,
+        "error_type": type(exc).__name__,
+        "error": str(exc),
+    }
+    return _write_paper_run_state(
+        paper_root,
+        _paper_run_state(
+            paper_root=paper_root,
+            slug=slug,
+            state="prepare_failed",
+            last_action="prepare",
+            next_action=None,
+            stage_record=record,
+        ),
+    )
+
+
 def prepare_ranked_papers_from_run(
     vault_path: Path,
     run_id: str,
     mineru_command: str | list[str] | None = None,
     max_papers: int | None = 1,
     include_review_candidates: bool = False,
+    skip_existing: bool = False,
 ) -> dict:
     vault_path = vault_path.resolve()
     initialize_paper_wiki(vault_path)
@@ -1458,13 +1564,32 @@ def prepare_ranked_papers_from_run(
         include_review_candidates=include_review_candidates,
     )
     source_candidate_count = len(candidates)
+    skipped_existing_candidates: list[dict] = []
+    if skip_existing:
+        remaining_candidates = []
+        for candidate in selected_candidates:
+            slug = candidate.get("slug")
+            if slug and _has_complete_mineru_parse(raw_paper_root(vault_path, slug)):
+                skipped_existing_candidates.append(
+                    {
+                        "slug": slug,
+                        "title": candidate.get("title", slug),
+                        "reason": "already_parsed",
+                    }
+                )
+                continue
+            remaining_candidates.append(candidate)
+        selected_candidates = remaining_candidates
     selected_candidates = selected_candidates[:max_papers] if max_papers is not None else selected_candidates
     batch_run_id, batch_run_dir = _new_run_dir(vault_path, "prepare-ranked")
     started_at = utc_now()
-    results = [
-        _prepare_candidate_until_parsed(vault_path, candidate, mineru_command=mineru_command)
-        for candidate in selected_candidates
-    ]
+    results = []
+    for candidate in selected_candidates:
+        try:
+            result = _prepare_candidate_until_parsed(vault_path, candidate, mineru_command=mineru_command)
+        except Exception as exc:
+            result = _prepare_candidate_failure_state(vault_path, candidate, exc)
+        results.append(result)
     failed = any(result["state"].endswith("_failed") for result in results)
     titles_by_slug = {
         candidate["slug"]: candidate.get("title", candidate["slug"])
@@ -1517,7 +1642,9 @@ def prepare_ranked_papers_from_run(
         "source_run_id": run_id,
         "candidate_source": str(rank_path),
         "skipped_ranked_candidates": skipped_ranked_candidates,
+        "skipped_existing_candidates": skipped_existing_candidates,
         "rank_decision_filter": rank_decision_filter,
+        "skip_existing": skip_existing,
         "compiled_wiki_write": False,
         "human_gate_required": False,
         "stops_after": "parse",
@@ -1553,6 +1680,8 @@ def prepare_ranked_papers_from_run(
             "processed_count": len(results),
             "skipped_count": source_candidate_count - len(results),
             "max_papers": max_papers,
+            "skip_existing": skip_existing,
+            "skipped_existing_count": len(skipped_existing_candidates),
             "stops_after": "parse",
         },
         wiki_pages_written=[],
@@ -1564,6 +1693,8 @@ def prepare_ranked_papers_from_run(
     report_payload["processed_count"] = batch["processed_count"]
     report_payload["skipped_count"] = batch["skipped_count"]
     report_payload["skipped_ranked_candidates"] = skipped_ranked_candidates
+    report_payload["skipped_existing_candidates"] = skipped_existing_candidates
+    report_payload["skip_existing"] = skip_existing
     report_payload["rank_decision_filter"] = rank_decision_filter
     report_payload["paper_states"] = paper_states
     report_payload["failed_papers"] = failed_papers

@@ -21,7 +21,7 @@ ROLE_CRITIC_SPECS = [
     {
         "name": "domain-fit-critic",
         "lens": "senior-domain-researcher",
-        "scope": "senior researcher fit to the user's robotics, embodied intelligence, and control agenda",
+        "scope": "senior researcher fit to the user's configured research profile and agenda",
         "consumes": "reader/research-notes.md",
         "required_sections": ["## Fit To Research Direction", "## Follow-up Experiments"],
     },

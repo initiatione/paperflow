@@ -94,9 +94,7 @@ def filter_candidates_with_report(
         if library_match:
             reasons.append(f"already_in_library:{library_match.get('slug')}")
         if domain_terms and not any(term in haystack for term in domain_terms):
-            robotics_terms = ["robot", "humanoid", "control", "navigation", "embodied"]
-            if not any(term in haystack for term in robotics_terms):
-                reasons.append("outside_domain")
+            reasons.append("outside_domain")
         filtered = dict(candidate)
         if library_match:
             filtered["existing_library_match"] = library_match

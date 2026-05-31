@@ -268,6 +268,44 @@ def test_download_prefers_paper_search_mcp_server_over_cli(tmp_path, monkeypatch
     assert result["downloaded_pdf"] == str(output_dir / "paper.pdf")
 
 
+def test_download_treats_cli_timeout_as_upstream_failure(tmp_path, monkeypatch):
+    monkeypatch.setenv("EPI_PAPER_SEARCH_MCP_DISABLED", "1")
+    monkeypatch.setattr("epi.paper_search_adapter._resolve_command", lambda command: command)
+
+    def _run_command(resolved_command, args, timeout_seconds):
+        if args == ["--version"]:
+            return subprocess.CompletedProcess(
+                args=[resolved_command, *args],
+                returncode=0,
+                stdout="paper-search 0.1.4\n",
+                stderr="",
+            )
+        raise subprocess.TimeoutExpired(
+            cmd=[resolved_command, *args],
+            timeout=timeout_seconds,
+            output="partial stdout",
+            stderr="partial stderr",
+        )
+
+    monkeypatch.setattr("epi.paper_search_adapter._run_command", _run_command)
+
+    result = download_paper_pdf(
+        source="arxiv",
+        paper_id="2511.06465v1",
+        output_dir=tmp_path / "downloads",
+        command="paper-search",
+        timeout_seconds=7,
+    )
+
+    assert result["status"] == "failed"
+    assert result["mode"] == "paper_search_cli_download"
+    assert result["error"] == "paper-search download timed out"
+    assert result["upstream"]["returncode"] is None
+    assert result["upstream"]["stdout"] == "partial stdout"
+    assert result["upstream"]["stderr"] == "partial stderr"
+    assert result["upstream"]["timeout_seconds"] == 7
+
+
 def test_live_cli_discovery_invokes_paper_search_and_maps_records(tmp_path, monkeypatch):
     monkeypatch.setenv("EPI_PAPER_SEARCH_MCP_DISABLED", "1")
     fake_command = _write_fake_paper_search(

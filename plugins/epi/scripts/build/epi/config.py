@@ -21,6 +21,7 @@ class PipelineConfig:
     domains: list[str]
     positive_keywords: list[str]
     negative_keywords: list[str]
+    venue_prior: list[str]
     paper_search_command: str | None
     paper_search_sources: list[str]
 
@@ -35,12 +36,13 @@ class EpiConfigPaths:
 
 
 DEFAULT_EPI_CONFIG: dict[str, Any] = {
-    "profile": "robotics_ai_control",
-    "domains": ["robotics", "embodied intelligence", "control"],
+    "profile": "general_academic_research",
+    "domains": [],
     "positive_keywords": [],
     "negative_keywords": [],
+    "venue_prior": [],
     "budget": {"max_results": 20},
-    "paper_search": {"command": "paper-search", "sources": ["arxiv", "semantic", "openalex"]},
+    "paper_search": {"command": "paper-search", "sources": ["arxiv", "semantic", "openalex", "crossref"]},
     "mineru": {
         "token_source": "MINERU_TOKEN env",
         "command": "python skills/mineru-paper-parser/scripts/mineru_batch_to_md.py",
@@ -54,6 +56,7 @@ _FLAT_FIELD_PATHS: dict[str, tuple[str, ...]] = {
     "domains": ("domains",),
     "positive_keywords": ("positive_keywords",),
     "negative_keywords": ("negative_keywords",),
+    "venue_prior": ("venue_prior",),
     "max_results": ("budget", "max_results"),
     "paper_search_command": ("paper_search", "command"),
     "paper_search_sources": ("paper_search", "sources"),
@@ -69,6 +72,7 @@ _TOP_LEVEL_CONFIG_KEYS = {
     "domains",
     "positive_keywords",
     "negative_keywords",
+    "venue_prior",
     "budget",
     "paper_search",
     "mineru",
@@ -226,7 +230,7 @@ def _as_bool(value: Any) -> bool:
 
 
 def _normalize_flat_value(key: str, value: Any) -> Any:
-    if key in {"domains", "positive_keywords", "negative_keywords", "paper_search_sources"}:
+    if key in {"domains", "positive_keywords", "negative_keywords", "venue_prior", "paper_search_sources"}:
         return _as_list(value)
     if key == "max_results":
         return int(value)
@@ -560,15 +564,22 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
     configured_max = int(budget.get("max_results", 20))
     paper_search = interests.get("paper_search") if isinstance(interests.get("paper_search"), dict) else {}
     paper_search_command = paper_search.get("command")
+    paper_search_sources = [str(source) for source in _as_list(paper_search.get("sources"))] or [
+        "arxiv",
+        "semantic",
+        "openalex",
+        "crossref",
+    ]
     return PipelineConfig(
         plugin_root=plugin_root,
         vault_path=vault_path,
         runs_dir=vault_path / "_runs",
         max_results=max_results if max_results is not None else configured_max,
-        profile=str(interests.get("profile", "robotics_ai_control")),
-        domains=list(interests.get("domains", ["robotics", "ai", "embodied intelligence", "control"])),
+        profile=str(interests.get("profile", "general_academic_research")),
+        domains=[str(domain) for domain in _as_list(interests.get("domains"))],
         positive_keywords=list(interests.get("positive_keywords") or []),
         negative_keywords=list(interests.get("negative_keywords") or []),
+        venue_prior=[str(venue) for venue in _as_list(interests.get("venue_prior"))],
         paper_search_command=str(paper_search_command) if paper_search_command else None,
-        paper_search_sources=[str(source) for source in _as_list(paper_search.get("sources"))],
+        paper_search_sources=paper_search_sources,
     )

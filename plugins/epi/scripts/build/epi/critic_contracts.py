@@ -5,7 +5,7 @@ from copy import deepcopy
 
 CORE_CRITIC_PROTOCOLS = {
     "paper-quality-critic": {
-        "lens": "nature-sci-editor+senior-engineering-researcher",
+        "lens": "nature-sci-editor+senior-domain-researcher",
         "consumes": [
             "paper.pdf",
             "metadata.json",

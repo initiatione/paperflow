@@ -43,6 +43,7 @@ def _write_failure_record(
     stderr_path: Path,
     error: str,
     started_at: str,
+    batch_id: str | None = None,
 ) -> dict:
     record = {
         "stage": "parse",
@@ -64,6 +65,8 @@ def _write_failure_record(
             "stderr.txt": file_sha256(stderr_path),
         },
     }
+    if batch_id:
+        record["batch_id"] = batch_id
     write_json_atomic(paper_root / "parse-record.json", record)
     return record
 
@@ -292,19 +295,27 @@ def run_mineru_command(
     write_text_atomic(stdout_path, completed.stdout)
     write_text_atomic(stderr_path, completed.stderr)
     if completed.returncode != 0:
+        manifest, _ = _read_manifest(output_dir)
+        markdown_path = _find_markdown(work_dir, output_dir, manifest)
+        batch_id = _batch_id_from(completed.stdout, manifest)
+        error = f"MinerU command failed with exit code {completed.returncode}"
+        if batch_id and not markdown_path and re.search(rf"batch\s+{re.escape(batch_id)}:.*:done", completed.stdout):
+            error = "MinerU reported done but produced no Markdown output"
         return _write_failure_record(
             paper_root,
             command=args,
             exit_code=completed.returncode,
             stdout_path=stdout_path,
             stderr_path=stderr_path,
-            error=f"MinerU command failed with exit code {completed.returncode}",
+            error=error,
             started_at=started_at,
+            batch_id=batch_id,
         )
 
     manifest, manifest_path = _read_manifest(output_dir)
     markdown_path = _find_markdown(work_dir, output_dir, manifest)
     if not markdown_path:
+        batch_id = _batch_id_from(completed.stdout, manifest)
         return _write_failure_record(
             paper_root,
             command=args,
@@ -313,6 +324,7 @@ def run_mineru_command(
             stderr_path=stderr_path,
             error="MinerU command produced no Markdown output",
             started_at=started_at,
+            batch_id=batch_id,
         )
 
     mineru_dir = paper_root / "mineru"

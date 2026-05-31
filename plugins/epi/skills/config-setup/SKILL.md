@@ -25,15 +25,16 @@ Only run `doctor` when the user asks for dependency health, plugin diagnosis, MC
 - 用户要求“输出当前配置/展示配置/现在配置是什么”时，直接用 fast read-only path，总结 `_meta\epi-config.yaml` 和 user-level runtime status；不要探测 MCP，不要下载论文，不要调用 MinerU.
 - 本机依赖配置写入 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`: paper-search MCP command/args, CLI fallback, MinerU command, and `mineru.env` path. 不保存 token 明文; `MINERU_TOKEN` 只能来自进程环境或 `mineru.env`.
 - 显式进程环境变量优先; runtime.json 只补缺失项, and it survives plugin cache upgrades.
+- EPI 是通用论文插件。不要默认使用机器人、AUV、AI、医学或任何单一学科词表；后续 search/ranking/reader/wiki 侧重点必须从用户画像、domains、positive_keywords、negative_keywords 和 venue_prior 衍生.
 
 ## Initialization Flow
 
 Collect answers step by step:
 
 1. 论文库位置. 推荐一个专用本地论文库目录，例如 `<vault>`.
-2. 主要研究方向和使用目的, such as 前沿跟踪, 项目实现, 方法论文, 系统论文, or 长期 wiki 沉淀.
-3. 用户画像 and paper preference: method, system, dataset, benchmark, real experiment, sim-to-real, reproducible code. 默认不是综述论文; 只有用户明确要求综述时才加入 survey/review 偏好.
-4. Positive and negative keywords.
+2. 主要研究画像: 学科/应用对象/方法族/常看任务, plus 使用目的 such as 前沿跟踪, 项目实现, 方法论文, 系统论文, or 长期 wiki 沉淀.
+3. 用户画像 and paper preference: method, system, dataset, benchmark, real experiment, field validation, reproducible code. 默认不是综述论文; 只有用户明确要求综述时才加入 survey/review 偏好.
+4. Positive/negative keywords and venue prior: 哪些词算匹配, 哪些词要避开, 哪些期刊/会议/数据库/领域榜单只作为召回和排序 prior.
 5. Search source and per-run budget.
 6. MinerU connection. 推荐 `MINERU_TOKEN` + default command; do not call MinerU during setup.
 7. Zotero policy. 推荐 disabled first, collection `EPI`.

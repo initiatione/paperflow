@@ -1,6 +1,6 @@
 {
-  "vault_type": "engineering-paper-research",
-  "schema": "raw source -> compiled wiki -> schema",
+  "vault_type": "academic-paper-research",
+  "schema": "raw source -> evidence handoff -> agent-mediated wiki -> vault schema",
   "compiled_dirs": [
     "references",
     "concepts",

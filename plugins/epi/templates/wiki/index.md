@@ -1,6 +1,6 @@
 # Paper Research Wiki
 
-This vault is dedicated to engineering paper research.
+This vault is dedicated to profile-driven academic paper research.
 
 Compiled knowledge pages live in:
 

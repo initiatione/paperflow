@@ -10,7 +10,7 @@ def _write_manifest(vault, papers):
     (vault / ".manifest.json").write_text(
         json.dumps(
             {
-                "vault_type": "engineering-paper-research",
+                "vault_type": "academic-paper-research",
                 "papers": papers,
             },
             indent=2,

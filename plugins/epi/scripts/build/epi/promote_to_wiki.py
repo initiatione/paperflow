@@ -221,7 +221,7 @@ def _load_manifest(vault_path: Path) -> dict:
     if path.exists():
         manifest = _read_json(path)
     else:
-        manifest = {"vault_type": "engineering-paper-research", "papers": []}
+        manifest = {"vault_type": "academic-paper-research", "papers": []}
     manifest.setdefault("papers", [])
     return manifest
 
@@ -322,7 +322,7 @@ def _refresh_index_and_hot(vault_path: Path, manifest: dict) -> None:
     index_existing = (
         index_path.read_text(encoding="utf-8")
         if index_path.exists()
-        else "# Paper Research Wiki\n\nThis vault is dedicated to engineering paper research.\n"
+        else "# Paper Research Wiki\n\nThis vault is dedicated to profile-driven academic paper research.\n"
     )
     hot_existing = hot_path.read_text(encoding="utf-8") if hot_path.exists() else "# Hot\n\nNo promoted papers yet.\n"
     write_text_atomic(
@@ -383,14 +383,14 @@ def promote_paper(vault_path: Path, slug: str, approved_by: str | None = None) -
             _manifest_path(vault_path),
             state_backup_dir,
             "manifest.json",
-            json.dumps({"vault_type": "engineering-paper-research", "papers": []}, indent=2) + "\n",
+            json.dumps({"vault_type": "academic-paper-research", "papers": []}, indent=2) + "\n",
         ),
         "log": _snapshot_state_file(_log_path(vault_path), state_backup_dir, "log.md", "# Log\n"),
         "index": _snapshot_state_file(
             _index_path(vault_path),
             state_backup_dir,
             "index.md",
-            "# Paper Research Wiki\n\nThis vault is dedicated to engineering paper research.\n",
+            "# Paper Research Wiki\n\nThis vault is dedicated to profile-driven academic paper research.\n",
         ),
         "hot": _snapshot_state_file(
             _hot_path(vault_path),

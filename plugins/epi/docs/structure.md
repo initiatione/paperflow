@@ -4,7 +4,7 @@
 
 ## 总体边界
 
-EPI 是 Codex 插件源码包，位于 `<plugin-root>`。插件的目标链路是：高质量论文发现和排序 -> raw artifact 留痕 -> Reader/Critic 证据审查 -> staging evidence package -> wiki-ingest handoff -> 由 agent 按目标 Obsidian/LLM Wiki vault contract 写入最终知识库。
+EPI 是 Codex 插件源码包，位于 `<plugin-root>`。插件的目标链路是：按用户画像/config 衍生高质量论文发现和排序 -> raw artifact 留痕 -> Reader/Critic 证据审查 -> staging evidence package -> wiki-ingest handoff -> 由 agent 按目标 Obsidian/LLM Wiki vault contract 写入最终知识库。它是通用学术论文插件，不把任何单一学科写成默认方向。
 
 EPI 自身不应该把最终 Obsidian 页面路径、标签、合并策略或 staged writes 固定死。最终写入规则来自目标 vault 的 `AGENTS.md` 和 `_meta/*`，并参考个性化 `obsidian-wiki-dev`、`Ar9av/obsidian-wiki`、`kepano/obsidian-skills`。本插件只准备证据、报告、候选草稿和 handoff。
 
@@ -91,7 +91,7 @@ scripts/build/epi/
 - `rank_papers.py` 负责 ranking signals、ranking protocol 和三角色排序解释。
 - `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization。
 - `generate_reader.py`、`reader_outputs.py`、`reader_evidence.py`、`reader_protocol.py` 负责多角色 reader、evidence map 和证据地址校验。
-- `run_critic.py`、`paper_quality.py`、`role_critics.py` 负责 critic quorum、工程论文可靠性检查和三角色质量门。
+- `run_critic.py`、`paper_quality.py`、`role_critics.py` 负责 critic quorum、学术论文可靠性检查和三角色质量门。
 - `research_decision.py`、`reader_revision_plan.py`、`reader_revision_guidance.py`、`reproduction_plan.py` 把 critic 结果翻译成决策、修复建议和紧凑复现 caveat。
 - `stage_wiki.py` 负责 `_staging` 草稿、轻阅读报告、`wiki-ingest-brief.json` 和 `promotion-plan.json`。
 - `paper_gate.py` 是只读质量门面板，决定当前 slug 是 failure、waiting for human gate，还是允许进入下一动作。
@@ -115,7 +115,7 @@ skills/
 
 - `config-setup`：首次使用或修改配置时的唯一交互入口。一次只问一个问题；最终确认前不运行 `init-config` 或 `apply-config-update`。
 - `paper-discovery`：搜索、排序和 dry-run；当用户要求“1-3”时，指向 `prepare-ranked` 快路，只写 raw 采集和 MinerU 解析产物。
-  - `paper-discovery/README.md`、`scripts/query-planner.py` 与 `references/` 保存可维护检索策略：query planner、domain ontology、source tiers、dedup engine、venue prior、two-stage retrieval、citation graph、evaluation set、multi-source workflow、quality gate 和对话输出格式。RoboWiki/社区榜单只进入 `venue_prior`，真实指标仍需单独核验。
+  - `paper-discovery/README.md`、`scripts/query-planner.py` 与 `references/` 保存可维护检索策略：query planner、domain ontology、source tiers、dedup engine、venue prior、two-stage retrieval、citation graph、evaluation set、multi-source workflow、quality gate 和对话输出格式。venue prior 从用户画像/config 衍生，社区榜单只进入对应领域的弱 prior，真实指标仍需单独核验。
 - `paper-ingest`：推进已选论文进入 raw、reader、critic、staging 和 handoff。只需 1-3 时使用 `prepare-ranked`，不要误入完整 reader/critic/staging 链。
 - `mineru-paper-parser`：低层 PDF -> Markdown/TeX/images/manifest 解析能力；成功后最终产物只放在 `mineru/`，`paper.tex` 必须非空，必要时使用 Markdown fallback。
 - `skill-aware-evolve`：根据 evidence 和验证结果提出受控变更；配置问题必须走配置 proposal。
