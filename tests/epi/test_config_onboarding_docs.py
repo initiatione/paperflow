@@ -148,8 +148,12 @@ def test_paper_discovery_skill_documents_quality_first_chat_recommendations():
     discovery = _read(SKILL_DIR / "paper-discovery" / "SKILL.md")
 
     assert "references/query-planner.md" in discovery
+    assert "references/mode-routing.md" in discovery
+    assert "references/paper-type-taxonomy.md" in discovery
+    assert "references/ranking-rubric.md" in discovery
     assert "references/domain-ontology.md" in discovery
     assert "references/output-format.md" in discovery
+    assert "references/anti-patterns.md" in discovery
     assert "references/search-protocol.md" in discovery
     assert "references/source-tiers.md" in discovery
     assert "references/dedup-engine.md" in discovery
@@ -168,6 +172,9 @@ def test_paper_discovery_skill_defines_stronger_high_quality_search_protocol():
     assert "query-planner.py" in discovery
     assert "--no-query-plan" in discovery
     assert "references/query-planner.md" in discovery
+    assert "references/mode-routing.md" in discovery
+    assert "references/paper-type-taxonomy.md" in discovery
+    assert "references/ranking-rubric.md" in discovery
     assert "references/domain-ontology.md" in discovery
     assert "references/search-protocol.md" in discovery
     assert "references/source-tiers.md" in discovery
@@ -179,11 +186,15 @@ def test_paper_discovery_skill_defines_stronger_high_quality_search_protocol():
     assert "references/workflows/multi-source-discovery.md" in discovery
     assert "references/quality-gate.md" in discovery
     assert "references/output-format.md" in discovery
+    assert "references/anti-patterns.md" in discovery
     assert "The full EPI chain stays documented" in discovery
 
 
 def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     query_planner = _read(SKILL_DIR / "paper-discovery" / "references" / "query-planner.md")
+    mode_routing = _read(SKILL_DIR / "paper-discovery" / "references" / "mode-routing.md")
+    paper_type_taxonomy = _read(SKILL_DIR / "paper-discovery" / "references" / "paper-type-taxonomy.md")
+    ranking_rubric = _read(SKILL_DIR / "paper-discovery" / "references" / "ranking-rubric.md")
     domain_ontology = _read(SKILL_DIR / "paper-discovery" / "references" / "domain-ontology.md")
     search_protocol = _read(SKILL_DIR / "paper-discovery" / "references" / "search-protocol.md")
     source_tiers = _read(SKILL_DIR / "paper-discovery" / "references" / "source-tiers.md")
@@ -201,8 +212,16 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     )
     quality_gate = _read(SKILL_DIR / "paper-discovery" / "references" / "quality-gate.md")
     output_format = _read(SKILL_DIR / "paper-discovery" / "references" / "output-format.md")
+    anti_patterns = _read(SKILL_DIR / "paper-discovery" / "references" / "anti-patterns.md")
 
     assert "5-8 query variants" in query_planner
+    assert "`research_mode`" in query_planner
+    assert "targeted-discovery" in mode_routing
+    assert "systematic-review" in mode_routing
+    assert "paper_type" in paper_type_taxonomy
+    assert "classification_confidence" in paper_type_taxonomy
+    assert "ranking_confidence" in ranking_rubric
+    assert "source_confidence" in ranking_rubric
     assert "AUV / Marine Control" in domain_ontology
     assert "autonomous underwater vehicle" in domain_ontology
     assert "5-8 query variants" in search_protocol
@@ -230,6 +249,7 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     assert "query_plan" in workflow
     assert "verified_metrics" in workflow
     assert "Tier A" in quality_gate
+    assert "paper-type-taxonomy.md" in quality_gate
     assert "Two-stage retrieval" in quality_gate
     assert "venue-prior.md" in quality_gate
     assert "recall gap" in quality_gate
@@ -237,5 +257,18 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     assert "推荐优先看" in output_format
     assert "query_plan_multi_query" in output_format
     assert "venue prior" in output_format
+    assert "ranking_confidence" in output_format
     assert "citation graph expansion" in output_format
     assert "EPI 实测证据" in output_format
+    assert "Method-only leakage" in anti_patterns
+
+
+def test_paper_ingest_source_first_reading_reference_exists():
+    ingest = _read(SKILL_DIR / "paper-ingest" / "SKILL.md")
+    source_first = _read(SKILL_DIR / "paper-ingest" / "references" / "source-first-reading.md")
+
+    assert "references/source-first-reading.md" in ingest
+    assert "Claim Cards" in source_first
+    assert "Formula And Figure Rules" in source_first
+    assert "mineru/paper.tex" in source_first
+    assert "mineru/images/*" in source_first

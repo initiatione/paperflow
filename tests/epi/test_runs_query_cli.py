@@ -181,7 +181,28 @@ def _seed_agent_handoff_paper_gate(vault, slug):
                     "Keep Markdown vault files as the source of truth.",
                 ],
             },
-            "ingest_policy": {"suggested_routes_only": True},
+            "ingest_policy": {
+                "suggested_routes_only": True,
+                "source_first_policy": (
+                    "Final wiki ingest must read the source paper; reader and critic outputs "
+                    "are navigation aids, not substitutes."
+                ),
+            },
+            "source_bundle": {
+                "raw_artifacts": [
+                    "paper.pdf",
+                    "metadata.json",
+                    "mineru/paper.md",
+                    "mineru/paper.tex",
+                    "mineru/images/*",
+                    "mineru/mineru-manifest.json",
+                ],
+                "formula_figure_review": {
+                    "formulas": "Review central formulas and notation.",
+                    "figures_tables_images": "Review figures, tables, and image interpretations.",
+                    "parse_uncertainty": "Record parse uncertainty from images and formulas.",
+                },
+            },
         },
     )
     plan_path = staging_root / "promotion-plan.json"

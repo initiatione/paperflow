@@ -16,7 +16,7 @@ from epi.paper_gate import build_paper_gate, render_paper_gate
 from epi.paper_library import load_existing_paper_index
 from epi.paper_search_adapter import discover
 from epi.promote_to_wiki import promote_paper, rollback_promotion
-from epi.query_planner import build_query_plan, topic_focus_terms
+from epi.query_planner import build_query_plan, infer_research_mode, topic_focus_terms
 from epi.rank_papers import rank_candidates
 from epi.redo import redo_acquire, redo_parse, redo_read, redo_read_recritic, recritic
 from epi.report_run import write_report
@@ -735,6 +735,7 @@ def run_dry_run(
         if use_query_plan
         else None
     )
+    research_mode = (query_plan or {}).get("research_mode") or infer_research_mode(query)
     if query_plan:
         _write_json(run_dir / "query-plan.json", query_plan)
 
@@ -746,6 +747,7 @@ def run_dry_run(
         "status": "running",
         "dry_run": True,
         "query": query,
+        "research_mode": research_mode,
         "query_strategy": "query_plan_multi_query" if query_plan and fixture_path is None else "single_query",
         "profile": config.profile,
         "vault_path": str(config.vault_path),
@@ -828,6 +830,7 @@ def run_dry_run(
     if query_plan:
         budget_usage["query_variant_count"] = len(query_plan.get("query_variants") or [])
     discovery_context = {
+        "research_mode": research_mode,
         "query_strategy": search_record.get("query_strategy", state.get("query_strategy")),
         "query_plan": query_plan or {},
         "candidate_pool": {

@@ -104,6 +104,55 @@ METHOD_FAMILY_PHRASES = [
     "ai",
 ]
 
+RESEARCH_MODE_RULES = [
+    {
+        "mode": "systematic-review",
+        "spectrum": "fidelity",
+        "oversight": "medium",
+        "signals": ("systematic review", "meta-analysis", "meta analysis", "prisma"),
+        "reason": "User asks for a systematic evidence synthesis.",
+    },
+    {
+        "mode": "fact-check",
+        "spectrum": "fidelity",
+        "oversight": "medium",
+        "signals": ("fact-check", "fact check", "verify claims", "evidence verification"),
+        "reason": "User asks to verify claims rather than discover a broad reading list.",
+    },
+    {
+        "mode": "guided",
+        "spectrum": "originality",
+        "oversight": "very-high",
+        "signals": ("guide my research", "help me think", "not sure what to research", "research direction"),
+        "reason": "User asks for guided research scoping before discovery.",
+    },
+    {
+        "mode": "lit-review",
+        "spectrum": "fidelity",
+        "oversight": "medium",
+        "signals": ("literature review", "annotated bibliography", "survey papers", "survey paper"),
+        "reason": "User asks for a literature review or survey-oriented corpus.",
+    },
+    {
+        "mode": "quick-brief",
+        "spectrum": "fidelity",
+        "oversight": "medium",
+        "signals": ("quick brief", "quick research", "30 minute", "short summary"),
+        "reason": "User asks for a compact research brief.",
+    },
+]
+
+NON_REVIEW_MODE_BLOCKERS = (
+    "not review",
+    "no review",
+    "non-review",
+    "exclude review",
+    "not survey",
+    "no survey",
+    "non-survey",
+    "exclude survey",
+)
+
 
 DOMAIN_HINT_PACKS: dict[str, dict[str, Any]] = {
     "auv-control": {
@@ -219,6 +268,32 @@ def _topic_terms(topic: str, *, limit: int = 8) -> list[str]:
 
 def topic_focus_terms(topic: str, *, limit: int = 8) -> list[str]:
     return _topic_terms(topic, limit=limit)
+
+
+def infer_research_mode(topic: str) -> dict[str, Any]:
+    lowered = topic.lower()
+    non_review_requested = any(phrase in lowered for phrase in NON_REVIEW_MODE_BLOCKERS)
+    for rule in RESEARCH_MODE_RULES:
+        if non_review_requested and rule["mode"] in {"lit-review", "systematic-review"}:
+            continue
+        signals = [signal for signal in rule["signals"] if signal in lowered]
+        if signals:
+            return {
+                "schema_version": "epi-research-mode-v1",
+                "mode": rule["mode"],
+                "spectrum": rule["spectrum"],
+                "oversight": rule["oversight"],
+                "signals": signals,
+                "reason": rule["reason"],
+            }
+    return {
+        "schema_version": "epi-research-mode-v1",
+        "mode": "targeted-discovery",
+        "spectrum": "balanced",
+        "oversight": "medium",
+        "signals": [],
+        "reason": "Default EPI mode for profile-driven paper discovery and ranking.",
+    }
 
 
 def _remove_method_family_phrases(topic: str) -> str:
@@ -415,6 +490,7 @@ def build_query_plan(
     return {
         "workflow": "epi-query-plan",
         "topic": topic,
+        "research_mode": infer_research_mode(topic),
         "domain": chosen,
         "profile": {
             "name": profile,

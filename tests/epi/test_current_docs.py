@@ -29,6 +29,7 @@ def test_structure_doc_covers_current_plugin_boundaries():
     assert "scripts/build/epi/" in text
     assert "skills/" in text
     assert "config-setup" in text
+    assert "paper type classification" in text
     assert "paper-gate" in text
     assert "wiki-ingest-handoff" in text
     assert "agent-mediated" in text
@@ -71,7 +72,10 @@ def test_linkage_doc_records_paper_discovery_bundle_and_venue_prior():
 
     assert "nature-academic-search" in text
     assert "scripts/query-planner.py" in text
+    assert "references/mode-routing.md" in text
     assert "references/query-planner.md" in text
+    assert "references/paper-type-taxonomy.md" in text
+    assert "references/ranking-rubric.md" in text
     assert "references/domain-ontology.md" in text
     assert "references/source-tiers.md" in text
     assert "references/dedup-engine.md" in text
@@ -80,7 +84,11 @@ def test_linkage_doc_records_paper_discovery_bundle_and_venue_prior():
     assert "references/citation-graph.md" in text
     assert "references/evaluation-set.md" in text
     assert "references/workflows/multi-source-discovery.md" in text
+    assert "references/anti-patterns.md" in text
     assert "query_plan" in text
+    assert "research_mode" in text
+    assert "paper_classification" in text
+    assert "ranking_rubric" in text
     assert "domain_focus_terms" in text
     assert "5-8 条 query variants" in text
     assert "two-stage retrieval" in text

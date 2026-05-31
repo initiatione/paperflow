@@ -27,7 +27,23 @@ def test_rank_candidates_emits_explainable_research_quality_protocol():
 
     top = ranked[0]
     assert top["score"] > 0.8
+    assert top["paper_type"] == "benchmark"
+    assert top["classification_confidence"] >= 0.5
+    assert top["paper_classification"]["schema_version"] == "epi-paper-classification-v1"
+    assert top["ranking_rubric"]["schema_version"] == "epi-ranking-rubric-v1"
+    assert set(top["ranking_rubric"]["dimensions"]) == {
+        "relevance",
+        "method_rigor",
+        "evidence_sufficiency",
+        "reproducibility",
+        "source_confidence",
+    }
+    assert top["ranking_confidence"] == top["ranking_rubric"]["ranking_confidence"]
     assert top["ranking_protocol"]["schema_version"] == "epi-ranking-protocol-v1"
+    assert top["ranking_protocol"]["paper_type"] == "benchmark"
+    assert top["ranking_protocol"]["classification_confidence"] == top["classification_confidence"]
+    assert top["ranking_protocol"]["ranking_confidence"] == top["ranking_confidence"]
+    assert set(top["ranking_protocol"]["rubric_scores"]) == set(top["ranking_rubric"]["dimensions"])
     assert top["ranking_protocol"]["lenses"] == {
         "editorial": {
             "score": top["ranking_signals"]["editorial_score"],
@@ -87,6 +103,8 @@ def test_rank_candidates_routes_weak_reproducibility_as_review_candidate():
     protocol = ranked[0]["ranking_protocol"]
     assert protocol["decision"] == "review-candidate"
     assert "weak_reproducibility_signal" in protocol["cautions"]
+    assert ranked[0]["paper_type"] == "method"
+    assert ranked[0]["ranking_rubric"]["dimensions"]["reproducibility"]["score"] == protocol["rubric_scores"]["reproducibility"]
     rationale = ranked[0]["ranking_rationale"]
     assert rationale["recommendation"] == "review-candidate"
     assert "review before ingest" in rationale["one_sentence"]

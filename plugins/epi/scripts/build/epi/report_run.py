@@ -33,6 +33,15 @@ def _append_queue_section(report: list[str], title: str, papers: list[dict]) -> 
         reasons = "; ".join(protocol.get("reasons") or [])
         cautions = "; ".join(protocol.get("cautions") or [])
         report.append(f"{index}. {paper.get('title')} - score {paper.get('score')}")
+        classification = paper.get("paper_classification") or {}
+        if classification:
+            report.append(
+                f"   - paper_type: {classification.get('primary_type')} "
+                f"(confidence={classification.get('confidence')})"
+            )
+        if paper.get("ranking_confidence") or (paper.get("ranking_rubric") or {}).get("ranking_confidence"):
+            confidence = paper.get("ranking_confidence") or (paper.get("ranking_rubric") or {}).get("ranking_confidence")
+            report.append(f"   - ranking_confidence: {confidence}")
         if reasons:
             report.append(f"   - reasons: {reasons}")
         if cautions:
@@ -163,6 +172,12 @@ def write_report(
         if discovery_context:
             report.append("")
             report.append("## Discovery Context")
+            research_mode = discovery_context.get("research_mode") or {}
+            if isinstance(research_mode, dict) and research_mode.get("mode"):
+                report.append(
+                    f"- research_mode: {research_mode.get('mode')} "
+                    f"(oversight={research_mode.get('oversight')})"
+                )
             query_plan = discovery_context.get("query_plan") or {}
             if query_plan:
                 report.append(f"- query_strategy: {discovery_context.get('query_strategy')}")
@@ -198,6 +213,8 @@ def write_report(
         report.append("## Ranked Papers")
         for index, paper in enumerate(ranked, start=1):
             report.append(f"{index}. {paper.get('title')} - score {paper.get('score')}")
+            if paper.get("paper_type"):
+                report.append(f"   - paper_type: {paper.get('paper_type')}")
             report.append(f"   - venue: {paper.get('venue')}")
             report.append(f"   - year: {paper.get('year')}")
             report.append(f"   - pdf: {paper.get('pdf_url')}")

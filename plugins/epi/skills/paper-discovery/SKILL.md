@@ -5,7 +5,7 @@ description: "Use when discovering high-quality EPI papers via search/rank dry-r
 
 # Academic Paper Discovery
 
-Use for EPI discovery and the steps 1-3 path: search, normalize/filter/rank, acquire, MinerU parse. Stop at raw artifacts unless the user asks for reader/critic/staging/wiki handoff.
+Use for EPI discovery and the steps 1-3 path: route the research mode, search, normalize/filter/classify/rank, acquire, and MinerU parse. Stop at raw artifacts unless the user asks for reader/critic/staging/wiki handoff.
 
 The full EPI chain stays documented in `docs\epi-linkage.md`. Detailed discovery policy lives in `references/`.
 
@@ -14,6 +14,7 @@ The full EPI chain stays documented in `docs\epi-linkage.md`. Detailed discovery
 - Discovery is profile-driven. Do not treat `paper_search_mcp` result order as quality.
 - EPI is field-agnostic. Do not hardcode robotics, AUV, AI, medicine, or any other discipline unless present in config/request.
 - Derive query plan, `domain_focus_terms`, exclusions, `venue_prior`, and recommendations from `_meta\epi-config.yaml` plus the current request.
+- Use `research_mode`, `paper_classification`, and `ranking_rubric` as routing/explanation contracts, not as final scholarly truth.
 - If config is missing, stop and use `config-setup`. See `docs\config.md`.
 
 ## Reference Routing
@@ -21,7 +22,10 @@ The full EPI chain stays documented in `docs\epi-linkage.md`. Detailed discovery
 Load only what is needed:
 
 - Planning: `references/query-planner.md`
+- Mode routing: `references/mode-routing.md`
 - Search/rerun protocol: `references/search-protocol.md`
+- Paper type taxonomy: `references/paper-type-taxonomy.md`
+- Ranking rubric: `references/ranking-rubric.md`
 - Source roles: `references/source-tiers.md`
 - Dedup: `references/dedup-engine.md`
 - Venue prior: `references/venue-prior.md`
@@ -30,6 +34,7 @@ Load only what is needed:
 - Domain examples, not defaults: `references/domain-ontology.md`
 - Quality gates: `references/quality-gate.md`
 - Chat output: `references/output-format.md`
+- Anti-patterns: `references/anti-patterns.md`
 - Full workflow: `references/workflows/multi-source-discovery.md`
 - Regression checks: `references/evaluation-set.md`
 
@@ -48,7 +53,7 @@ python skills\paper-discovery\scripts\query-planner.py --topic "<topic>" --domai
 python skills\paper-discovery\scripts\query-planner.py --topic "<review topic>" --domain auto --include-reviews --max-queries 8
 ```
 
-Default `dry-run` writes `_runs/<run-id>/query-plan.json`, runs variants, and excludes review/survey/meta unless reviews are requested.
+Default `dry-run` writes `_runs/<run-id>/query-plan.json`, records `research_mode`, runs variants, and excludes review/survey/meta unless reviews are requested.
 
 ```powershell
 python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault>
@@ -73,6 +78,6 @@ Use `--max-papers 10 --skip-existing` for real runs; `--max-papers 1` is a smoke
 
 ## Evidence Check
 
-Before reporting success, inspect `search-record.json`, `acquire-record.json`, `parse-record.json`, `paper.pdf`, `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Track per-paper `acquire_failed`, `parse_failed`, or `prepare_failed`.
+Before reporting success, inspect `search-record.json`, `rank.json`, `acquire-record.json`, `parse-record.json`, `paper.pdf`, `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Track `paper_type`, `classification_confidence`, `ranking_confidence`, and per-paper `acquire_failed`, `parse_failed`, or `prepare_failed`.
 
 Safety: `dry-run` writes only `_runs/<run-id>/`; `prepare-ranked` writes only `_raw\papers\<slug>\...`; neither path enters reader, critic, staging, or wiki writing.

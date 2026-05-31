@@ -9,6 +9,10 @@ Use after dry-run ranking selects papers. Chain goal in `docs\epi-linkage.md`: h
 
 If config is missing, stop and use `config-setup`. See `docs\config.md`.
 
+## Reference Routing
+
+Load `references/source-first-reading.md` when generating or checking reader outputs, critic inputs, staging bundles, or wiki-ingest handoffs. Keep reader summaries compact, but preserve source paper claims, formulas, figures, tables, image interpretations, caveats, and evidence pointers.
+
 ## Choose Path
 
 | Intent | Command path |
@@ -45,7 +49,7 @@ After critic pass, staging prepares evidence drafts, `wiki-ingest-brief.json`, a
 
 ## Source-First Wiki Handoff
 
-`reader/` and critic outputs reduce reading cost; they are not the source of truth for final wiki writing. Before final wiki ingest, load `wiki-ingest-handoff` and verify the handoff requires:
+`reader/` and critic outputs reduce reading cost; they are not the source of truth for final wiki writing. Before final wiki ingest, load `references/source-first-reading.md`, run `wiki-ingest-handoff`, and verify the handoff requires:
 
 - source artifacts: `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`
 - evidence aids: `reader/evidence-map.json`, `reader/figures.md`, `critic/*.json`

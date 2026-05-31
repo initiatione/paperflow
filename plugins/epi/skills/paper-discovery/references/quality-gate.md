@@ -4,6 +4,8 @@ Apply a quality gate before recommendation: a paper should usually have strong p
 
 Venue prior from `venue-prior.md` can raise or lower reading priority, but it cannot pass the quality gate by itself. A paper with weak topic fit, unclear identity, no PDF, or unverifiable claims should not become Tier A only because the venue is famous.
 
+Paper type from `paper-type-taxonomy.md` is a routing hint. It should change how the paper is read, not excuse weak evidence. For example, theory papers require formula/proof preservation, dataset papers require data provenance checks, and benchmark papers require baseline/metric/task scrutiny.
+
 Two-stage retrieval changes when the gate runs: do not reject too early during the high-recall pool stage unless the item is clearly off-topic, duplicated, or explicitly excluded. Apply strict Tier A/B/C/Reject labels only after deduplication, source verification, and citation/venue checks.
 
 For narrow requests, a paper that only matches a broad method family but misses the request's object/task/domain anchor should be rejected as `outside_domain` or left in Tier C at most. This is how EPI avoids letting generic reinforcement learning / GNN / deep learning papers crowd out the actual target field.

@@ -115,6 +115,21 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
         for run in gate.get("check_suite", {}).get("check_runs", [])
         if run.get("conclusion") == "failure"
     ]
+    gate_action_required_checks = [
+        run.get("name")
+        for run in gate.get("check_suite", {}).get("check_runs", [])
+        if run.get("conclusion") == "action_required"
+    ]
+    ready_after_human_approval = (
+        gate.get("next_action") == "run-wiki-ingest-agent"
+        and not gate_failure_checks
+        and gate_action_required_checks == ["human-approval"]
+    )
+    ready_for_agent = (
+        gate.get("next_action") == "run-wiki-ingest-agent"
+        and not gate_failure_checks
+        and not gate_action_required_checks
+    )
     return {
         "title": "EPI Wiki Ingest Handoff",
         "paper_slug": slug,
@@ -122,17 +137,14 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
         "wiki_write_model": plan.get("wiki_write_model") or "agent-mediated-vault-contract",
         "handoff_type": plan.get("handoff_type") or brief.get("handoff_type"),
         "local_skill_policy": "helpers-not-authority",
-        "ready_for_agent": gate.get("next_action") == "run-wiki-ingest-agent" and not gate_failure_checks,
+        "ready_for_agent": ready_for_agent,
+        "ready_after_human_approval": ready_after_human_approval,
         "paper_gate": {
             "status": gate.get("status"),
             "next_action": gate.get("next_action"),
             "conclusion": gate.get("check_suite", {}).get("conclusion"),
             "failure_checks": gate_failure_checks,
-            "action_required_checks": [
-                run.get("name")
-                for run in gate.get("check_suite", {}).get("check_runs", [])
-                if run.get("conclusion") == "action_required"
-            ],
+            "action_required_checks": gate_action_required_checks,
         },
         "paths": {
             "promotion_plan": str(plan_path),
@@ -158,6 +170,7 @@ def render_wiki_ingest_handoff(handoff: dict[str, Any]) -> str:
         f"handoff_type: {handoff.get('handoff_type')}",
         f"wiki_write_model: {handoff.get('wiki_write_model')}",
         f"ready_for_agent: {str(handoff.get('ready_for_agent')).lower()}",
+        f"ready_after_human_approval: {str(handoff.get('ready_after_human_approval')).lower()}",
         f"local skills: {handoff.get('local_skill_policy')}",
         "",
         "## Paper Gate",

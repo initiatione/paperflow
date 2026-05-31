@@ -38,6 +38,8 @@ def test_query_planner_generates_profile_derived_non_review_plan():
     plan = json.loads(result.stdout)
 
     assert plan["workflow"] == "epi-query-plan"
+    assert plan["research_mode"]["schema_version"] == "epi-research-mode-v1"
+    assert plan["research_mode"]["mode"] == "targeted-discovery"
     assert plan["domain"] == "profile-derived"
     assert plan["profile"]["name"] == "computational_chemistry"
     assert "computational chemistry" in plan["concept_blocks"]["domain_terms"]
@@ -75,6 +77,7 @@ def test_query_planner_defaults_to_non_review_for_discovery_topics():
     plan = json.loads(result.stdout)
 
     assert all("-review -survey" in query for query in plan["query_variants"])
+    assert plan["research_mode"]["mode"] == "targeted-discovery"
 
 
 def test_query_planner_can_keep_reviews_when_explicitly_requested():
@@ -101,6 +104,29 @@ def test_query_planner_can_keep_reviews_when_explicitly_requested():
     plan = json.loads(result.stdout)
 
     assert all("-review -survey" not in query for query in plan["query_variants"])
+    assert plan["research_mode"]["mode"] == "lit-review"
+
+
+def test_query_planner_detects_systematic_review_mode_without_non_review_block():
+    plan = build_query_plan(
+        "systematic review with PRISMA about molecular property prediction",
+        non_review=None,
+        max_queries=4,
+    )
+
+    assert plan["research_mode"]["mode"] == "systematic-review"
+    assert plan["research_mode"]["spectrum"] == "fidelity"
+    assert all("-review -survey" not in query for query in plan["query_variants"])
+
+
+def test_query_planner_does_not_route_not_review_queries_to_lit_review_mode():
+    plan = build_query_plan(
+        "latest high quality robot control papers not review",
+        non_review=True,
+        max_queries=4,
+    )
+
+    assert plan["research_mode"]["mode"] == "targeted-discovery"
 
 
 def test_query_planner_auto_detects_embodied_ai_domain():

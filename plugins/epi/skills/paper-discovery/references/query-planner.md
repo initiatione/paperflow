@@ -6,6 +6,7 @@ Use the query planner before the first search whenever the user asks for high-qu
 
 | Field | Meaning |
 | --- | --- |
+| `research_mode` | Intent route such as `targeted-discovery`, `quick-brief`, `lit-review`, `systematic-review`, `fact-check`, or `guided` |
 | `domain` | `profile-derived` by default when config has a user profile; explicit packs are only optional hints |
 | `profile` | The config fields used to derive search terms: profile name, domains, positive/negative keywords, venue prior |
 | `concept_blocks` | Profile terms, domain terms, `domain_focus_terms`, method/topic terms, problem terms, context terms, quality signals, and exclusions |

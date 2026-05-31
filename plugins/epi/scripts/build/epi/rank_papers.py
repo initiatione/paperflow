@@ -24,6 +24,109 @@ BENCHMARK_TERMS = (
     "metric",
 )
 
+PAPER_TYPE_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "survey",
+        (
+            "survey",
+            "review",
+            "systematic review",
+            "literature review",
+            "meta-analysis",
+            "meta analysis",
+            "overview",
+            "tutorial",
+        ),
+    ),
+    (
+        "dataset",
+        (
+            "dataset",
+            "data set",
+            "corpus",
+            "benchmark dataset",
+            "data collection",
+        ),
+    ),
+    (
+        "benchmark",
+        (
+            "benchmark",
+            "leaderboard",
+            "evaluation suite",
+            "baseline comparison",
+            "comparative study",
+        ),
+    ),
+    (
+        "field-trial",
+        (
+            "field trial",
+            "sea trial",
+            "real-world experiment",
+            "hardware experiment",
+            "deployment",
+            "in-the-wild",
+        ),
+    ),
+    (
+        "theory",
+        (
+            "theorem",
+            "proof",
+            "stability analysis",
+            "convergence",
+            "theoretical analysis",
+        ),
+    ),
+    (
+        "system",
+        (
+            "system",
+            "platform",
+            "pipeline",
+            "toolkit",
+            "simulator",
+            "implementation",
+        ),
+    ),
+    (
+        "method",
+        (
+            "method",
+            "algorithm",
+            "approach",
+            "framework",
+            "model",
+            "architecture",
+            "control",
+            "controller",
+            "policy",
+        ),
+    ),
+    (
+        "application",
+        (
+            "application",
+            "case study",
+            "empirical study",
+            "experiment",
+            "evaluation",
+        ),
+    ),
+    (
+        "reproducibility",
+        (
+            "reproducibility",
+            "reproducible",
+            "replication",
+            "replicate",
+            "open-source",
+            "open source",
+        ),
+    ),
+)
+
 
 def _text(candidate: dict) -> str:
     return f"{candidate.get('title', '')} {candidate.get('abstract', '')}".lower()
@@ -36,6 +139,107 @@ def _term_score(text: str, terms: tuple[str, ...]) -> float:
 
 def _matched_keywords(text: str, keywords: list[str]) -> list[str]:
     return [keyword for keyword in keywords if keyword in text]
+
+
+def _classify_paper_type(candidate: dict) -> dict:
+    text = _text(candidate)
+    matches: list[tuple[str, list[str], int]] = []
+    for priority, (paper_type, terms) in enumerate(PAPER_TYPE_RULES):
+        hits = [term for term in terms if term in text]
+        if hits:
+            matches.append((paper_type, hits, priority))
+
+    if not matches:
+        return {
+            "schema_version": "epi-paper-classification-v1",
+            "primary_type": "unknown",
+            "secondary_types": [],
+            "confidence": 0.25,
+            "evidence": [],
+            "type_scores": {},
+        }
+
+    matches.sort(key=lambda item: (-len(item[1]), item[2]))
+    primary_type, primary_hits, _ = matches[0]
+    confidence = round(min(0.95, 0.45 + len(primary_hits) * 0.12 + (0.08 if len(matches) == 1 else 0.0)), 4)
+    return {
+        "schema_version": "epi-paper-classification-v1",
+        "primary_type": primary_type,
+        "secondary_types": [paper_type for paper_type, _, _ in matches[1:4]],
+        "confidence": confidence,
+        "evidence": [f"{primary_type}:{term}" for term in primary_hits[:5]],
+        "type_scores": {paper_type: len(hits) for paper_type, hits, _ in matches},
+    }
+
+
+def _rubric_dimension(score: float, signals: list[str]) -> dict:
+    return {"score": round(score, 4), "signals": signals}
+
+
+def _ranking_rubric(
+    *,
+    signals: dict[str, float],
+    matched_keywords: list[str],
+    classification: dict,
+) -> dict:
+    source_confidence = round(
+        signals["venue_score"] * 0.35
+        + signals["citation_score"] * 0.25
+        + signals["pdf_score"] * 0.4,
+        4,
+    )
+    method_rigor = round(signals["benchmark_score"] * 0.55 + signals["peer_review_score"] * 0.45, 4)
+    evidence_sufficiency = round(
+        signals["pdf_score"] * 0.30
+        + signals["benchmark_score"] * 0.35
+        + signals["citation_score"] * 0.20
+        + signals["reproducibility_score"] * 0.15,
+        4,
+    )
+    keyword_confidence = min(1.0, len(matched_keywords) / 3)
+    ranking_confidence = round(
+        min(
+            1.0,
+            0.20
+            + keyword_confidence * 0.25
+            + signals["pdf_score"] * 0.20
+            + source_confidence * 0.20
+            + max(signals["benchmark_score"], signals["reproducibility_score"]) * 0.15,
+        ),
+        4,
+    )
+    dimensions = {
+        "relevance": _rubric_dimension(
+            signals["domain_fit_score"],
+            ["positive_keyword_overlap", "negative_keyword_penalty"],
+        ),
+        "method_rigor": _rubric_dimension(
+            method_rigor,
+            ["benchmark_signal", "citation_signal", "pdf_available"],
+        ),
+        "evidence_sufficiency": _rubric_dimension(
+            evidence_sufficiency,
+            ["pdf_available", "benchmark_signal", "citation_signal", "reproducibility_signal"],
+        ),
+        "reproducibility": _rubric_dimension(
+            signals["reproducibility_score"],
+            ["code_available", "reproducibility_terms"],
+        ),
+        "source_confidence": _rubric_dimension(
+            source_confidence,
+            ["venue_prior", "citation_signal", "pdf_available"],
+        ),
+    }
+    return {
+        "schema_version": "epi-ranking-rubric-v1",
+        "paper_type": classification["primary_type"],
+        "dimensions": dimensions,
+        "ranking_confidence": ranking_confidence,
+        "score_explanation": [
+            "Score combines profile/topic relevance, venue prior, citations, recency, PDF/code availability, and reproducibility evidence.",
+            f"Classified as {classification['primary_type']} from title/abstract evidence.",
+        ],
+    }
 
 
 def _ranking_protocol(
@@ -220,6 +424,12 @@ def rank_candidates(
             "domain_fit_score": domain_fit_score,
             "reproducibility_score": reproducibility_score,
         }
+        classification = _classify_paper_type(candidate)
+        rubric = _ranking_rubric(
+            signals=ranked_candidate["ranking_signals"],
+            matched_keywords=matched_keywords,
+            classification=classification,
+        )
         protocol = _ranking_protocol(
             matched_keywords=matched_keywords,
             matched_negative_keywords=matched_negative_keywords,
@@ -229,6 +439,19 @@ def rank_candidates(
             },
             code_available=bool(candidate.get("code_url")),
         )
+        protocol["paper_type"] = classification["primary_type"]
+        protocol["classification_confidence"] = classification["confidence"]
+        protocol["rubric_scores"] = {
+            name: dimension["score"]
+            for name, dimension in rubric["dimensions"].items()
+        }
+        protocol["ranking_confidence"] = rubric["ranking_confidence"]
+        ranked_candidate["paper_type"] = classification["primary_type"]
+        ranked_candidate["classification_confidence"] = classification["confidence"]
+        ranked_candidate["classification_evidence"] = classification["evidence"]
+        ranked_candidate["paper_classification"] = classification
+        ranked_candidate["ranking_rubric"] = rubric
+        ranked_candidate["ranking_confidence"] = rubric["ranking_confidence"]
         ranked_candidate["ranking_protocol"] = protocol
         ranked_candidate["ranking_rationale"] = _ranking_rationale(
             decision=protocol["decision"],

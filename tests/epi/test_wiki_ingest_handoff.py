@@ -173,6 +173,9 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["paper_slug"] == slug
     assert handoff["paper_gate"]["next_action"] == "run-wiki-ingest-agent"
     assert handoff["wiki_write_model"] == "agent-mediated-vault-contract"
+    assert handoff["ready_for_agent"] is False
+    assert handoff["ready_after_human_approval"] is True
+    assert handoff["paper_gate"]["action_required_checks"] == ["human-approval"]
     assert handoff["contract_files"]["AGENTS.md"]["present"] is True
     assert handoff["contract_files"]["_meta/schema.md"]["present"] is True
     assert handoff["contract_files"]["_meta/directory-structure.md"]["present"] is False
@@ -196,6 +199,8 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
 
     assert "# EPI Wiki Ingest Handoff - fixture-paper" in output
     assert "next_action: run-wiki-ingest-agent" in output
+    assert "ready_for_agent: false" in output
+    assert "ready_after_human_approval: true" in output
     assert "local skills: helpers-not-authority" in output
     assert "- AGENTS.md: present" in output
     assert "- _meta/directory-structure.md: missing" in output
@@ -226,5 +231,7 @@ def test_wiki_ingest_handoff_cli_outputs_json(tmp_path, monkeypatch, capsys):
     payload = json.loads(output)
     assert exit_code == 0
     assert payload["paper_slug"] == slug
+    assert payload["ready_for_agent"] is False
+    assert payload["ready_after_human_approval"] is True
     assert payload["paper_gate"]["next_action"] == "run-wiki-ingest-agent"
     assert payload["contract_files"]["AGENTS.md"]["present"] is True

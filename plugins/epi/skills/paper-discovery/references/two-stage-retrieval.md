@@ -27,10 +27,11 @@ Filter and rank after the pool exists:
 2. Deduplicate against `_raw/papers/*/metadata.json`.
 3. Remove hard exclusions such as review/survey when requested.
 4. Enforce `domain_focus_terms` when present. This is the hard anchor gate for the current request; broad config or method terms should not let method-only papers pass.
-5. Verify identity: title, year, venue, DOI/arXiv ID, PDF.
-6. Score topic fit by concept block coverage.
-7. Score quality by evidence: venue prior, citation count, field-specific validation, replication, benchmark, code/data, or other quality signals from config/query plan.
-8. Mark metrics not verified in the current run as `未核实`.
+5. Classify paper type from title/abstract using `paper-type-taxonomy.md`.
+6. Verify identity: title, year, venue, DOI/arXiv ID, PDF.
+7. Score topic fit by concept block coverage.
+8. Score quality by evidence: venue prior, citation count, field-specific validation, replication, benchmark, code/data, or other quality signals from config/query plan.
+9. Emit `ranking_rubric` and mark metrics not verified in the current run as `未核实`.
 
 ## Scoring Shape
 

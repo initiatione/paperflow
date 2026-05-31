@@ -109,13 +109,16 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert state["status"] == "success"
     assert state["dry_run"] is True
     assert state["query_strategy"] == "single_query"
+    assert state["research_mode"]["mode"] == "targeted-discovery"
     assert state["query_plan"]["domain"] == "profile-derived"
     assert query_plan["workflow"] == "epi-query-plan"
+    assert query_plan["research_mode"]["mode"] == "targeted-discovery"
     assert query_plan["domain"] == "profile-derived"
     assert query_plan["profile"]["domains"] == ["robotics", "control"]
     assert "robotics" in query_plan["concept_blocks"]["domain_terms"]
     assert all("-review -survey" in query for query in query_plan["query_variants"])
     assert report["discovery_context"]["query_plan"]["domain"] == "profile-derived"
+    assert report["discovery_context"]["research_mode"]["mode"] == "targeted-discovery"
     assert report["discovery_context"]["candidate_pool"]["raw"] == 2
     assert state["started_at"]
     assert state["finished_at"]
@@ -133,6 +136,10 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert report["run_id"] == run_dir.name
     assert report["accepted"][0]["title"] == "Embodied Navigation Control for Mobile Robots"
     assert ranked[0]["ranking_protocol"]["schema_version"] == "epi-ranking-protocol-v1"
+    assert ranked[0]["paper_classification"]["schema_version"] == "epi-paper-classification-v1"
+    assert ranked[0]["ranking_rubric"]["schema_version"] == "epi-ranking-rubric-v1"
+    assert ranked[0]["ranking_protocol"]["paper_type"] == ranked[0]["paper_type"]
+    assert ranked[0]["ranking_protocol"]["ranking_confidence"] == ranked[0]["ranking_confidence"]
     assert ranked[0]["ranking_protocol"]["lenses"]["editorial"]["signals"] == [
         "venue_tier",
         "freshness",

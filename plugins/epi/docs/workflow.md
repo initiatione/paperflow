@@ -6,7 +6,7 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 
 本机依赖由 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` 自动加载：优先 paper-search MCP server，CLI 作为 fallback，MinerU token 从环境或 `mineru.env` 读取。不要把 token 写入 runtime.json，也不要在报告里打印 token 值。
 
-EPI 是通用论文插件，不默认任何学科方向。`dry-run` 会从 `<vault>\_meta\epi-config.yaml` 的 profile、domains、positive/negative keywords、venue prior 和当前请求生成 `query-plan.json`，再按 query variants 调用 MCP/CLI 搜索、去重、过滤和排序。Query plan 的扩展词用于扩大召回；ranking 的画像匹配词只来自用户 config 和当前请求核心词，避免宽召回词稀释窄主题相关性。AUV、机器人、医学等只能来自用户配置、当前请求或显式领域 hint。
+EPI 是通用论文插件，不默认任何学科方向。`dry-run` 会从 `<vault>\_meta\epi-config.yaml` 的 profile、domains、positive/negative keywords、venue prior 和当前请求生成 `query-plan.json`，记录 `research_mode`，再按 query variants 调用 MCP/CLI 搜索、去重、过滤、分类和排序。Query plan 的扩展词用于扩大召回；ranking 的画像匹配词只来自用户 config 和当前请求核心词，避免宽召回词稀释窄主题相关性。`rank.json` 会暴露 `paper_type`、`paper_classification`、`ranking_rubric` 和 `ranking_confidence`，用于解释阅读优先级，不替代源论文阅读。AUV、机器人、医学等只能来自用户配置、当前请求或显式领域 hint。
 
 ```powershell
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault>
