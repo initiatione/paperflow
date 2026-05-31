@@ -11,10 +11,11 @@ For steps 1-3 only, prefer the precise raw-prep command:
 
 ```powershell
 python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 10 --skip-existing --include-review-candidates --vault <vault>
+python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 10 --skip-existing --include-review-candidates --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 1 --vault <vault>
 ```
 
-This path performs acquire + MinerU parse and stops after `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Use `--max-papers 10 --skip-existing` for real user testing so already parsed papers do not consume the batch budget; `--max-papers 1` is only a smoke test. `prepare-ranked` records per-paper `acquire_failed`, `parse_failed`, or `prepare_failed` and continues, so inspect the report instead of assuming a nonzero batch exit means no papers were parsed. Do not use `advance-paper`, `advance-ranked`, or `advance-batch` when the user only asked for 1-3, because those commands continue into reader/critic/staging on later invocations.
+This path performs acquire + MinerU parse and stops after `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Use `--max-papers 10 --skip-existing` for real user testing so already parsed papers do not consume the batch budget; `--max-papers 1` is only a smoke test. Use `--json` for automated follow-up so the prepared run id, processed/skipped counts, stop point, and report paths are machine-readable. `prepare-ranked` records per-paper `acquire_failed`, `parse_failed`, or `prepare_failed` and continues, so inspect the report instead of assuming a nonzero batch exit means no papers were parsed. Do not use `advance-paper`, `advance-ranked`, or `advance-batch` when the user only asked for 1-3, because those commands continue into reader/critic/staging on later invocations.
 
 ```powershell
 python scripts\orchestrator.py advance-ranked --run-id <dry-run-id> --max-papers 3 --vault <vault>

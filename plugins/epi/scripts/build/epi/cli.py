@@ -158,6 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare_ranked.add_argument("--mineru-command", default=None)
     prepare_ranked.add_argument("--include-review-candidates", action="store_true")
     prepare_ranked.add_argument("--skip-existing", action="store_true")
+    prepare_ranked.add_argument("--json", action="store_true")
 
     parse_paper = subparsers.add_parser("parse-paper")
     _add_common_vault(parse_paper)
@@ -465,6 +466,31 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
         include_review_candidates=args.include_review_candidates,
         skip_existing=args.skip_existing,
     )
+    run_dir = args.vault.resolve() / "_runs" / batch["run_id"]
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "run_dir": str(run_dir),
+                    "run_id": batch["run_id"],
+                    "source_run_id": batch.get("source_run_id"),
+                    "batch_state": batch["state"],
+                    "status": batch.get("status"),
+                    "processed_count": batch["processed_count"],
+                    "skipped_count": batch.get("skipped_count", 0),
+                    "stops_after": "parse",
+                    "artifacts": {
+                        "batch_record": str(run_dir / "batch-advance-record.json"),
+                        "report": str(run_dir / "report.md"),
+                        "report_json": str(run_dir / "report.json"),
+                        "run_state": str(run_dir / "run-state.json"),
+                    },
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0 if batch["state"] != "prepare_failed" else 1
     print(f"run_dir={args.vault.resolve() / '_runs' / batch['run_id']}")
     print(f"batch_state={batch['state']}")
     print(f"processed_count={batch['processed_count']}")

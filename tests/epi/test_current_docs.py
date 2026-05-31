@@ -46,7 +46,7 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "config-setup" in text
     assert "paper-quality-critic" in text
     assert "wiki-ingest-handoff" in text
-    assert "259 passed in 27.60s" in text
+    assert "268 passed in 29.24s" in text
     assert "82/100" in text
     assert "waiting_for_human_gate" in text
     assert "ready_for_agent=true" in text
@@ -133,4 +133,5 @@ def test_marketplace_and_readme_describe_profile_driven_generic_epi():
     assert "EPI 是通用论文插件，不默认任何学科方向" in workflow
     assert 'dry-run --query "<your topic>"' in workflow
     assert "prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing" in workflow
+    assert "prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json" in workflow
     assert "robotics embodied intelligence control" not in workflow

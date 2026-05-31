@@ -12,13 +12,14 @@ EPI 是通用论文插件，不默认任何学科方向。`dry-run` 会从 `<vau
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault>
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault>
+python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json
 python scripts\orchestrator.py advance-ranked --run-id <run-id> --max-papers 3 --vault <vault>
 python scripts\orchestrator.py research-queue --vault <vault>
 python scripts\orchestrator.py paper-gate --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py wiki-ingest-handoff --slug <paper-slug> --vault <vault>
 ```
 
-Dry-run writes only `_runs`; `--json` prints the run id and key artifact paths for agent/tool chaining. `prepare-ranked` is the precise search -> acquire -> MinerU raw-parse path and stops before reader/critic/staging; use `--max-papers 10 --skip-existing` for real batches and `--max-papers 1` only for smoke tests. Full ingest writes raw artifacts, then staging writes `_staging` only after critic pass. EPI prepares evidence drafts, a lightweight report, and `wiki-ingest-brief.json`; final Obsidian/LLM Wiki pages are written by the wiki ingest agent according to the target vault contract.
+Dry-run writes only `_runs`; `--json` prints the run id and key artifact paths for agent/tool chaining. `prepare-ranked` is the precise search -> acquire -> MinerU raw-parse path and stops before reader/critic/staging; use `--max-papers 10 --skip-existing` for real batches and `--max-papers 1` only for smoke tests. `prepare-ranked --json` prints the prepared run id, source run id, processed/skipped counts, stop point, and key report paths for automation. Full ingest writes raw artifacts, then staging writes `_staging` only after critic pass. EPI prepares evidence drafts, a lightweight report, and `wiki-ingest-brief.json`; final Obsidian/LLM Wiki pages are written by the wiki ingest agent according to the target vault contract.
 
 Reader v2 creates role notes plus `reader/evidence-map.json`:
 

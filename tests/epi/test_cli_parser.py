@@ -154,6 +154,85 @@ def test_prepare_ranked_parser_accepts_skip_existing_for_resumable_batches():
     assert args.skip_existing is True
 
 
+def test_prepare_ranked_parser_accepts_json_output():
+    args = build_parser().parse_args(
+        [
+            "prepare-ranked",
+            "--run-id",
+            "run-001",
+            "--json",
+        ]
+    )
+
+    assert args.command == "prepare-ranked"
+    assert args.json is True
+
+
+def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatch, capsys):
+    captured = {}
+
+    def fake_prepare_ranked_papers_from_run(
+        vault,
+        run_id,
+        *,
+        mineru_command=None,
+        max_papers=None,
+        include_review_candidates=False,
+        skip_existing=False,
+    ):
+        captured.update(
+            {
+                "vault": vault,
+                "run_id": run_id,
+                "mineru_command": mineru_command,
+                "max_papers": max_papers,
+                "include_review_candidates": include_review_candidates,
+                "skip_existing": skip_existing,
+            }
+        )
+        return {
+            "run_id": "prepare-ranked-001",
+            "source_run_id": run_id,
+            "state": "prepared",
+            "status": "prepared",
+            "processed_count": 2,
+            "skipped_count": 1,
+        }
+
+    monkeypatch.setattr(cli.workflows, "prepare_ranked_papers_from_run", fake_prepare_ranked_papers_from_run)
+
+    exit_code = cli.main(
+        [
+            "prepare-ranked",
+            "--run-id",
+            "run-001",
+            "--vault",
+            str(tmp_path),
+            "--max-papers",
+            "10",
+            "--skip-existing",
+            "--include-review-candidates",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    payload = __import__("json").loads(output)
+    run_dir = tmp_path / "_runs" / "prepare-ranked-001"
+    assert exit_code == 0
+    assert payload["run_id"] == "prepare-ranked-001"
+    assert payload["source_run_id"] == "run-001"
+    assert payload["batch_state"] == "prepared"
+    assert payload["processed_count"] == 2
+    assert payload["skipped_count"] == 1
+    assert payload["stops_after"] == "parse"
+    assert payload["run_dir"] == str(run_dir)
+    assert payload["artifacts"]["batch_record"] == str(run_dir / "batch-advance-record.json")
+    assert payload["artifacts"]["report_json"] == str(run_dir / "report.json")
+    assert captured["skip_existing"] is True
+    assert captured["include_review_candidates"] is True
+
+
 def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypatch, capsys):
     captured = {}
 

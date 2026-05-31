@@ -78,7 +78,7 @@ ranking 必须同时给机器信号和低阅读负担解释：
 
 ### 3. 采集、解析与 raw 留痕
 
-入口：`prepare-ranked` 用于只走搜索后采集 + MinerU 解析并停止；`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`parse-paper` 用于继续完整 ingest 或单步修复。实测批量命令应使用 `prepare-ranked --max-papers 10 --skip-existing`，使已解析论文不占补跑预算；`--max-papers 1` 仅用于 smoke test。
+入口：`prepare-ranked` 用于只走搜索后采集 + MinerU 解析并停止；`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`parse-paper` 用于继续完整 ingest 或单步修复。实测批量命令应使用 `prepare-ranked --max-papers 10 --skip-existing`，使已解析论文不占补跑预算；`--max-papers 1` 仅用于 smoke test。自动化串联时使用 `prepare-ranked --json`，输出 prepared run id、source run id、processed/skipped counts、`stops_after=parse` 和 report artifact 路径。
 
 关键产物：
 

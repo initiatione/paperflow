@@ -58,10 +58,11 @@ python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sour
 python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<exact narrow topic>" --no-query-plan --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault>
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --include-review-candidates --vault <vault>
+python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --include-review-candidates --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 1 --vault <vault>
 ```
 
-`query-planner.py` 不访问网络，只把用户画像/config 和用户主题转换成可审计的检索计划。默认 `dry-run` 会生成 `_runs/<run-id>/query-plan.json`，并按 query variants 多次搜索形成 candidate pool；默认排除 review/survey/meta 类综述候选，用户明确找综述时才放开。如果 profile-derived 计划偏离用户当前主题，改用 `--no-query-plan` 的精确短语查询或先更新 config。`dry-run` 只写 `_runs`。`prepare-ranked` 只写 `_raw/papers/<slug>`，完成 PDF 下载和 MinerU 解析后停止；实测批量用 `--max-papers 10 --skip-existing`，`--max-papers 1` 只用于 smoke test。
+`query-planner.py` 不访问网络，只把用户画像/config 和用户主题转换成可审计的检索计划。默认 `dry-run` 会生成 `_runs/<run-id>/query-plan.json`，并按 query variants 多次搜索形成 candidate pool；默认排除 review/survey/meta 类综述候选，用户明确找综述时才放开。如果 profile-derived 计划偏离用户当前主题，改用 `--no-query-plan` 的精确短语查询或先更新 config。`dry-run` 只写 `_runs`。`prepare-ranked` 只写 `_raw/papers/<slug>`，完成 PDF 下载和 MinerU 解析后停止；实测批量用 `--max-papers 10 --skip-existing`，`--max-papers 1` 只用于 smoke test；自动化串联时加 `--json` 读取 prepared run id、processed/skipped counts、stop point 和报告路径。
 
 ## 参考来源
 
