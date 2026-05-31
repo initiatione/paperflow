@@ -21,6 +21,7 @@ from epi.rank_papers import rank_candidates
 from epi.redo import redo_acquire, redo_parse, redo_read, redo_read_recritic, recritic
 from epi.report_run import write_report
 from epi.run_index import (
+    auto_prune_run_lifecycle,
     prune_run_lifecycle,
     query_research_queue,
     query_runs,
@@ -47,6 +48,14 @@ def _write_json(path: Path, payload: object) -> None:
 
 def _refresh_run_index(vault_path: Path) -> None:
     refresh_run_index(vault_path.resolve())
+
+
+def _auto_manage_run_lifecycle(vault_path: Path) -> dict:
+    return auto_prune_run_lifecycle(
+        vault_path.resolve(),
+        keep_latest=15,
+        keep_per_workflow=2,
+    )
 
 
 def _hash_existing_outputs(paths: dict[str, Path]) -> dict[str, str]:
@@ -882,6 +891,15 @@ def run_dry_run(
         }
     )
     _write_json(run_dir / "run-state.json", state)
+    lifecycle = _auto_manage_run_lifecycle(config.vault_path)
+    if lifecycle.get("deleted_count"):
+        state["run_lifecycle"] = {
+            "auto": True,
+            "deleted_count": lifecycle.get("deleted_count", 0),
+            "manifest_path": lifecycle.get("manifest_path"),
+            "policy": lifecycle.get("policy"),
+        }
+        _write_json(run_dir / "run-state.json", state)
     _refresh_run_index(config.vault_path)
     return run_dir
 
@@ -1371,6 +1389,15 @@ def advance_paper_batch(
     if source_run_id is not None:
         report_payload["source_run_id"] = source_run_id
     _write_json(report_json_path, report_payload)
+    lifecycle = _auto_manage_run_lifecycle(vault_path)
+    if lifecycle.get("deleted_count"):
+        batch["run_lifecycle"] = {
+            "auto": True,
+            "deleted_count": lifecycle.get("deleted_count", 0),
+            "manifest_path": lifecycle.get("manifest_path"),
+            "policy": lifecycle.get("policy"),
+        }
+        _write_json(run_dir / "run-state.json", batch)
     _refresh_run_index(vault_path)
     return batch
 
@@ -1701,6 +1728,15 @@ def prepare_ranked_papers_from_run(
     report_payload["source_run_id"] = run_id
     report_payload["stops_after"] = "parse"
     _write_json(report_json_path, report_payload)
+    lifecycle = _auto_manage_run_lifecycle(vault_path)
+    if lifecycle.get("deleted_count"):
+        batch["run_lifecycle"] = {
+            "auto": True,
+            "deleted_count": lifecycle.get("deleted_count", 0),
+            "manifest_path": lifecycle.get("manifest_path"),
+            "policy": lifecycle.get("policy"),
+        }
+        _write_json(batch_run_dir / "run-state.json", batch)
     _refresh_run_index(vault_path)
     return batch
 

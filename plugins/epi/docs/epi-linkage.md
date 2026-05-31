@@ -168,7 +168,7 @@ run index 是状态面板，不是 research agenda。EPI 不暴露 `research-age
 
 `research-queue --bucket ready_to_promote --actions` 必须以当前 `paper-gate` 为准，而不是旧 run report 或 `_runs/index.json` 缓存。生成 actions 时要现场重算 `paper_gate` 和 reason。若当前 gate failure、unknown、构建失败，或待办不是精确 `human-approval`，只能建议 `inspect-paper-gate`；agent-mediated plan 应建议 `run-wiki-ingest-agent`，legacy compiled-draft plan 才能建议 `promote-to-wiki`。
 
-`_runs` 是过渡态证据区，需要生命周期管理。入口：`run-lifecycle --keep-latest 30 --keep-per-workflow 2 [--max-age-days N] [--apply] [--json]`。默认 dry-run，只列候选；`--apply` 才删除单次 run 目录并刷新 index/dashboard/research-queue。它不得删除 `_runs/index.json`、dashboard、research queue、feedback log、`_raw`、`_staging`、最终 wiki、Zotero 或配置历史；清理 manifest 写入 `_meta/run-lifecycle/`。
+`_runs` 是过渡态证据区，需要生命周期管理。EPI run 结束后会自动检查 `_runs` 下单次 run 目录数量；超过 15 个时自动应用 lifecycle cleanup，保留最新 15 个 terminal run，并按 workflow 至少保留 2 个。手动入口：`run-lifecycle --keep-latest 15 --keep-per-workflow 2 [--max-age-days N] [--apply] [--json]`。手动模式默认 dry-run，只列候选；`--apply` 才删除单次 run 目录并刷新 index/dashboard/research-queue。它不得删除 `_runs/index.json`、dashboard、research queue、feedback log、`_raw`、`_staging`、最终 wiki、Zotero 或配置历史；清理 manifest 写入 `_meta/run-lifecycle/`。
 
 论文发现必须和已下载库去重。`dry-run` 在 filter 阶段扫描 `_raw/papers/*/metadata.json`，按 DOI、arXiv ID、normalized title 匹配已入库论文；命中时写入 `filter_reasons: already_in_library:<slug>`，不得再次进入 `rank.json` 推荐。
 

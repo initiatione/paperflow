@@ -247,7 +247,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_lifecycle = subparsers.add_parser("run-lifecycle")
     _add_common_vault(run_lifecycle)
-    run_lifecycle.add_argument("--keep-latest", type=int, default=30)
+    run_lifecycle.add_argument("--keep-latest", type=int, default=15)
     run_lifecycle.add_argument("--keep-per-workflow", type=int, default=2)
     run_lifecycle.add_argument("--max-age-days", type=int, default=None)
     run_lifecycle.add_argument("--apply", action="store_true")

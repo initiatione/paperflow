@@ -8,8 +8,9 @@ from epi.paper_gate import build_paper_gate
 
 
 _SUCCESS_STATUSES = {"success", "succeeded", "waiting_for_human_gate"}
-_TERMINAL_CLEANUP_STATUSES = {"success", "succeeded", "skipped", "neutral"}
+_TERMINAL_CLEANUP_STATUSES = {"success", "succeeded", "skipped", "neutral", "failed", "failure", "error"}
 _PROTECTED_CLEANUP_STATUSES = {"running", "waiting_for_human_gate"}
+_STALE_RUNNING_AFTER = timedelta(hours=6)
 _HUMAN_GATE_PENDING = {"pending", "required"}
 _RESEARCH_QUEUE_BUCKETS = [
     "ready_to_promote",
@@ -267,6 +268,13 @@ def _entry_time(entry):
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _is_stale_running_entry(entry, *, now=None):
+    if entry.get("status") != "running":
+        return False
+    now = now or datetime.now(timezone.utc)
+    return _entry_time(entry) < now - _STALE_RUNNING_AFTER
 
 
 def _build_research_queue(entries, vault_path):
@@ -831,7 +839,7 @@ def _write_lifecycle_manifest(vault_path, manifest):
 def prune_run_lifecycle(
     vault_path,
     *,
-    keep_latest=30,
+    keep_latest=15,
     keep_per_workflow=2,
     max_age_days=None,
     apply=False,
@@ -846,22 +854,41 @@ def prune_run_lifecycle(
             continue
         entry = _normalize_run_entry(child)
         if entry is None:
-            skipped.append({"run_id": child.name, "reason": "missing_or_invalid_run_state"})
-            continue
-        entry = dict(entry)
-        entry["path"] = str(child)
+            entry = {
+                "run_id": child.name,
+                "workflow_type": "unknown",
+                "state": "invalid",
+                "status": "failed",
+                "started_at": datetime.fromtimestamp(child.stat().st_mtime, timezone.utc).isoformat(),
+                "finished_at": datetime.fromtimestamp(child.stat().st_mtime, timezone.utc).isoformat(),
+                "path": str(child),
+                "invalid_run_state": True,
+            }
+        else:
+            entry = dict(entry)
+            entry["path"] = str(child)
         entries.append(entry)
 
     entries.sort(key=_sort_key, reverse=True)
+    now = datetime.now(timezone.utc)
     cleanup_eligible_entries = [
         entry
         for entry in entries
-        if entry.get("status", "unknown") in _TERMINAL_CLEANUP_STATUSES
+        if (
+            entry.get("status", "unknown") in _TERMINAL_CLEANUP_STATUSES
+            or _is_stale_running_entry(entry, now=now)
+        )
         and _human_gate_status(entry) not in _HUMAN_GATE_PENDING
     ]
-    protected_ids = {entry["run_id"] for entry in cleanup_eligible_entries[: max(0, keep_latest)]}
+    retention_entries = [
+        entry
+        for entry in cleanup_eligible_entries
+        if not entry.get("invalid_run_state")
+        and not _is_stale_running_entry(entry, now=now)
+    ]
+    protected_ids = {entry["run_id"] for entry in retention_entries[: max(0, keep_latest)]}
     by_workflow = {}
-    for entry in cleanup_eligible_entries:
+    for entry in retention_entries:
         by_workflow.setdefault(entry.get("workflow_type", "unknown"), []).append(entry)
     for workflow_entries in by_workflow.values():
         protected_ids.update(entry["run_id"] for entry in workflow_entries[: max(0, keep_per_workflow)])
@@ -875,10 +902,14 @@ def prune_run_lifecycle(
     for entry in entries:
         run_id = entry["run_id"]
         status = entry.get("status", "unknown")
-        if status in _PROTECTED_CLEANUP_STATUSES or _human_gate_status(entry) in _HUMAN_GATE_PENDING:
+        stale_running = _is_stale_running_entry(entry, now=now)
+        if _human_gate_status(entry) in _HUMAN_GATE_PENDING:
             protected.append({"run_id": run_id, "reason": "active_or_human_gate_pending"})
             continue
-        if status not in _TERMINAL_CLEANUP_STATUSES:
+        if status in _PROTECTED_CLEANUP_STATUSES and not stale_running:
+            protected.append({"run_id": run_id, "reason": "active_or_human_gate_pending"})
+            continue
+        if status not in _TERMINAL_CLEANUP_STATUSES and not stale_running:
             protected.append({"run_id": run_id, "reason": f"non_cleanup_status:{status}"})
             continue
         if run_id in protected_ids:
@@ -892,6 +923,9 @@ def prune_run_lifecycle(
                 "run_id": run_id,
                 "workflow_type": entry.get("workflow_type"),
                 "status": status,
+                "cleanup_reason": "stale_running" if stale_running else (
+                    "invalid_run_state" if entry.get("invalid_run_state") else "retention_overflow"
+                ),
                 "started_at": entry.get("started_at"),
                 "finished_at": entry.get("finished_at"),
                 "path": entry["path"],
@@ -919,6 +953,7 @@ def prune_run_lifecycle(
             "max_age_days": max_age_days,
             "eligible_statuses": sorted(_TERMINAL_CLEANUP_STATUSES),
             "protected_statuses": sorted(_PROTECTED_CLEANUP_STATUSES),
+            "stale_running_after_hours": _STALE_RUNNING_AFTER.total_seconds() / 3600,
         },
         "total_run_dirs": len(entries),
         "candidate_count": len(candidates),
@@ -932,6 +967,45 @@ def prune_run_lifecycle(
         manifest_path = _write_lifecycle_manifest(vault_path, manifest)
         manifest["manifest_path"] = str(manifest_path)
     return manifest
+
+
+def auto_prune_run_lifecycle(
+    vault_path,
+    *,
+    keep_latest=15,
+    keep_per_workflow=2,
+    max_age_days=None,
+):
+    runs_root = _runs_root(vault_path)
+    runs_root.mkdir(parents=True, exist_ok=True)
+    run_dir_count = sum(1 for child in runs_root.iterdir() if child.is_dir())
+    if run_dir_count <= keep_latest:
+        return {
+            "dry_run": False,
+            "auto": True,
+            "skipped": True,
+            "reason": "below_threshold",
+            "runs_root": str(runs_root),
+            "total_run_dirs": run_dir_count,
+            "policy": {
+                "keep_latest": keep_latest,
+                "keep_per_workflow": keep_per_workflow,
+                "max_age_days": max_age_days,
+            },
+            "candidate_count": 0,
+            "deleted_count": 0,
+            "deleted": [],
+        }
+    result = prune_run_lifecycle(
+        vault_path,
+        keep_latest=keep_latest,
+        keep_per_workflow=keep_per_workflow,
+        max_age_days=max_age_days,
+        apply=True,
+    )
+    result["auto"] = True
+    result["skipped"] = False
+    return result
 
 
 def render_run_lifecycle(result):

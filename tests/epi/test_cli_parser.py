@@ -345,8 +345,6 @@ def test_run_lifecycle_parser_defaults_to_dry_run():
     args = build_parser().parse_args(
         [
             "run-lifecycle",
-            "--keep-latest",
-            "20",
             "--keep-per-workflow",
             "3",
             "--json",
@@ -354,7 +352,7 @@ def test_run_lifecycle_parser_defaults_to_dry_run():
     )
 
     assert args.command == "run-lifecycle"
-    assert args.keep_latest == 20
+    assert args.keep_latest == 15
     assert args.keep_per_workflow == 3
     assert args.apply is False
     assert args.json is True

@@ -105,3 +105,11 @@ def test_default_discovery_exclusion_terms_skip_reviews_unless_requested():
     assert "survey" in default_terms
     assert "meta-analysis" in default_terms
     assert review_terms == []
+
+
+def test_default_discovery_exclusion_terms_treat_not_review_as_non_review_discovery():
+    terms = default_discovery_exclusion_terms("latest high quality AUV control papers not review")
+
+    assert "review" in terms
+    assert "survey" in terms
+    assert "meta-analysis" in terms

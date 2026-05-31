@@ -66,7 +66,10 @@ def _term_matches_haystack(term: str, haystack: str) -> bool:
 def default_discovery_exclusion_terms(query: str) -> list[str]:
     requested_terms = exclusion_terms_from_query(query)
     if requested_terms:
-        return requested_terms
+        terms: list[str] = []
+        for key in ("review", "survey", "meta"):
+            terms.extend(DOCUMENT_TYPE_EXCLUSION_TERMS[key])
+        return terms
 
     query_lower = query.lower()
     if any(phrase in query_lower for phrase in REVIEW_REQUEST_PHRASES):
