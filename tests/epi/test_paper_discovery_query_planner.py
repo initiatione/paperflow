@@ -168,6 +168,7 @@ def test_query_planner_promotes_explicit_topic_domain_over_broad_profile_terms()
     assert plan["domain"] == "profile-derived"
     assert plan["concept_blocks"]["domain_focus_terms"] == [
         "AUV control",
+        "AUV",
         "autonomous underwater vehicle",
         "unmanned underwater vehicle",
         "underwater robot",

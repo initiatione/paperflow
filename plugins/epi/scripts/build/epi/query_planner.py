@@ -109,6 +109,7 @@ DOMAIN_HINT_PACKS: dict[str, dict[str, Any]] = {
     "auv-control": {
         "detect": ["auv", "underwater", "marine", "ocean"],
         "domain_terms": [
+            "AUV",
             "autonomous underwater vehicle",
             "unmanned underwater vehicle",
             "underwater robot",
@@ -346,9 +347,10 @@ def _term_blocks(
         for term in configured_domains
         if any(marker in term.lower() for marker in topic_hint_pack.get("detect", []))
     ]
+    topic_anchor_terms = [] if topic_hint_pack else _topic_domain_anchor_terms(topic)
     domain_focus_terms = unique(
         topic_domain_terms
-        + _topic_domain_anchor_terms(topic)
+        + topic_anchor_terms
         + topic_hint_pack.get("domain_terms", [])
     )
 

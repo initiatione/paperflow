@@ -5,26 +5,40 @@ description: "Use when EPI _runs, dashboards, research-queue, run logs, or trans
 
 # EPI Run Lifecycle
 
-Use this skill to manage transient EPI workflow artifacts without touching downloaded papers or final wiki content.
+管理 EPI 工作流的临时产物（`_runs`、dashboards、research-queue、run logs、transition-state），不触碰已下载论文和最终 wiki 内容。
 
-When subagents are available, delegate lifecycle maintenance to a small/cost-efficient worker so the main agent can continue the user-facing workflow. The worker should run dry-run first, report candidates and manifest path, and wait for explicit approval before using `--apply`.
+## 默认 dry-run 优先
 
-The workflow auto-applies lifecycle cleanup after EPI runs when `_runs` has more than 15 single-run directories. Manual cleanup still defaults to dry-run first:
+清理是有破坏性的，所以默认先 dry-run 看清单，确认后再 `--apply`。
+
+工作流在 `_runs` 超过 15 个单次运行目录时会自动触发清理。手动清理仍默认 dry-run：
 
 ```powershell
 python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 15 --keep-per-workflow 2 --json
 ```
 
-Apply only after the user agrees:
+用户同意后才加 `--apply`：
 
 ```powershell
 python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 15 --keep-per-workflow 2 --apply --json
 ```
 
-Rules:
+## 委派给子 agent（如可用）
 
-- Clean only single-run directories under `_runs`; keep `_runs/index.json`, dashboards, research queue, and feedback logs.
-- Never delete `_raw`, `_staging`, final wiki pages, Zotero records, or config history.
-- The command writes a lifecycle manifest under `_meta\run-lifecycle\`.
-- Active runs, human-gate-pending runs, and non-terminal failures are protected by default.
-- Discovery must also deduplicate against `_raw\papers`: already downloaded papers should be rejected with `already_in_library:<slug>` rather than recommended again.
+有 subagent 时，把生命周期维护委派给一个小/低成本 worker，让主 agent 继续面向用户的工作流。worker 应：先跑 dry-run，报告候选清单和 manifest 路径，等待用户明确批准后才用 `--apply`。
+
+## 清理边界
+
+**只清理** `_runs` 下的单次运行目录。
+
+**绝不删除**：
+
+- `_runs/index.json`、dashboards、research queue、feedback logs
+- `_raw`、`_staging`、最终 wiki 页面、Zotero 记录、config history
+- active runs、human-gate-pending runs、非终态 failures（默认受保护）
+
+命令会在 `_meta\run-lifecycle\` 下写一份清理 manifest，便于回溯。
+
+## 与 Discovery 的去重协同
+
+Discovery 阶段必须同时和 `_raw\papers` 去重：已下载的论文应以 `already_in_library:<slug>` 拒绝，而不是再次推荐。这样生命周期清理和去重不会互相打架。

@@ -495,6 +495,84 @@ def test_dry_run_filters_method_only_results_when_topic_has_domain_anchors(tmp_p
     assert rejected["Causal-Paced Deep Reinforcement Learning"] == ["outside_domain"]
 
 
+def test_dry_run_filters_broad_vehicle_tracking_when_underwater_anchor_is_required(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    templates = plugin_root / "templates"
+    templates.mkdir(parents=True)
+    (templates / "interests.example.yaml").write_text(
+        "profile: robotics_ai_control\n"
+        "domains:\n"
+        "  - robotics\n"
+        "  - robot control\n"
+        "  - reinforcement learning\n"
+        "  - AUV control\n"
+        "positive_keywords:\n"
+        "  - reinforcement learning\n"
+        "  - AUV\n"
+        "  - underwater robot\n"
+        "negative_keywords:\n"
+        "  - review\n"
+        "budget:\n"
+        "  max_results: 5\n",
+        encoding="utf-8",
+    )
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Robust Trajectory Tracking Control for Underactuated Autonomous Underwater Vehicles",
+                    "authors": ["A. Researcher"],
+                    "year": 2025,
+                    "venue": "Ocean Engineering",
+                    "abstract": (
+                        "Autonomous underwater vehicle control with trajectory tracking, "
+                        "ocean current disturbance experiments, and benchmark simulation."
+                    ),
+                    "pdf_url": "https://example.org/auv.pdf",
+                    "citation_count": 4,
+                },
+                {
+                    "source": "fixture",
+                    "title": "Gaussian-Process-based Adaptive Tracking Control for Autonomous Ground Vehicles",
+                    "authors": ["B. Researcher"],
+                    "year": 2025,
+                    "venue": "arXiv",
+                    "abstract": (
+                        "Autonomous ground vehicles use trajectory tracking and adaptive control "
+                        "with real experiments on an electric car."
+                    ),
+                    "pdf_url": "https://example.org/ground.pdf",
+                    "citation_count": 2,
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query=(
+            "AUV autonomous underwater vehicle reinforcement learning trajectory tracking "
+            "path following ocean current adaptive control safety critical control not review"
+        ),
+        max_results=5,
+        fixture_path=fixture,
+    )
+
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+
+    assert [candidate["title"] for candidate in report["accepted"]] == [
+        "Robust Trajectory Tracking Control for Underactuated Autonomous Underwater Vehicles"
+    ]
+    rejected = {candidate["title"]: candidate["filter_reasons"] for candidate in report["rejected"]}
+    assert rejected["Gaussian-Process-based Adaptive Tracking Control for Autonomous Ground Vehicles"] == [
+        "outside_domain"
+    ]
+
+
 def test_dry_run_keeps_review_query_when_user_explicitly_requests_reviews(tmp_path):
     plugin_root = tmp_path / "plugin"
     _write_minimal_plugin_template(plugin_root)

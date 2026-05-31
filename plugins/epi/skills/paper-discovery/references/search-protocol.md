@@ -18,6 +18,8 @@ Before running the first query:
 
 For any narrow field, do not let the query planner blur the target into generic AI/science terms. If the first planned run broadens away from the user's configured profile or current request, rerun with `--no-query-plan` and exact phrases from the user's wording, or update config before rerunning.
 
+If the current request activates a domain hint pack, keep the hard anchor gate on that pack's strong synonyms and the user's configured domain terms. Long-query n-grams that describe only a broad task or object class are recall aids, not sufficient evidence for domain fit.
+
 Treat publisher PDF blocks as acquisition evidence, not as the end of discovery. HTTP 403/502 from IEEE, Wiley, or publisher PDFs should be reported as publisher PDF blocks; then try open sources, arXiv versions, DOI landing pages, Semantic Scholar/OpenAlex metadata, or a sharper arXiv-first query before concluding that the paper cannot be processed.
 
 If the first result set is generic, stale, too review-heavy, or full of blocked PDFs, run a sharper rerun rather than stopping early.
