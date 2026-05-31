@@ -285,6 +285,8 @@ def _wiki_rule_source_model() -> dict:
             "Merge or update existing notes before creating duplicates.",
             "Keep Markdown vault files as the source of truth; QMD and search indexes are retrieval aids.",
             "Preserve source provenance and distinguish extracted, inferred, and ambiguous claims.",
+            "Final wiki pages must be grounded in the source paper artifacts, not reader summaries alone.",
+            "Review central formulas, figures, tables, and image evidence before distilling reusable wiki claims.",
             "Respect vault-local staged writes, link format, language policy, taxonomy, and frontmatter schema.",
         ],
     }
@@ -355,6 +357,11 @@ def _build_wiki_ingest_brief(
             "staged_writes_policy": "Respect the target vault staged-write convention when present.",
             "provenance_policy": "Keep extracted, inferred, and ambiguous claims distinguishable.",
             "source_of_truth": "Markdown vault plus EPI source bundle; QMD/search indexes are retrieval aids only.",
+            "source_first_policy": (
+                "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json "
+                "before final wiki writing; reader and critic outputs are navigation and quality signals, "
+                "not substitutes for the source paper."
+            ),
             "suggested_routes_only": True,
         },
         "vault_contract_resolution": [
@@ -393,7 +400,39 @@ def _build_wiki_ingest_brief(
             "theory_and_experiment": experiment_note,
         },
         "source_bundle": {
-            "raw_artifacts": ["paper.pdf", "metadata.json", "mineru/paper.md", "mineru/paper.tex"],
+            "raw_artifacts": [
+                "paper.pdf",
+                "metadata.json",
+                "mineru/paper.md",
+                "mineru/paper.tex",
+                "mineru/images/*",
+                "mineru/mineru-manifest.json",
+            ],
+            "primary_source_reading_order": [
+                "metadata.json",
+                "mineru/paper.md",
+                "mineru/paper.tex",
+                "mineru/images/*",
+                "mineru/mineru-manifest.json",
+                "reader/evidence-map.json",
+                "reader/figures.md",
+                "critic/critic-report.json",
+                "critic/research-decision.json",
+            ],
+            "formula_figure_review": {
+                "formulas": (
+                    "Review central formulas in mineru/paper.md and mineru/paper.tex; preserve important "
+                    "definitions, assumptions, derivation steps, and notation rather than reducing them to prose."
+                ),
+                "figures_tables_images": (
+                    "Interpret figures/tables/images from mineru/images/* and reader/figures.md; preserve what "
+                    "each visual shows, the task/metric/baseline context, and any uncertainty from the parse."
+                ),
+                "parse_uncertainty": (
+                    "If formulas, tables, or figures appear missing, ambiguous, or parse-limited, inspect paper.pdf "
+                    "before treating the content as absent."
+                ),
+            },
             "reader_artifacts": [
                 "reader/reader.md",
                 "reader/editorial-summary.md",

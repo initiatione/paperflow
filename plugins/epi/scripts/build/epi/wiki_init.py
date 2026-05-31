@@ -5,6 +5,71 @@ import os
 from pathlib import Path
 
 
+AGENTS_MD = """# EPI Paper Research Wiki
+
+## Source-first paper ingest
+
+This vault is for source-first academic paper ingest. Final wiki pages are agent-mediated and must be grounded in the source paper artifacts, not reader summaries alone.
+
+Required reading before final wiki writing:
+
+- `AGENTS.md`
+- `_meta/agent-operating-contract.md`
+- `_meta/schema.md`
+- `_meta/taxonomy.md`
+- `_meta/directory-structure.md`
+- `_staging/papers/<slug>/wiki-ingest-brief.json`
+- `mineru/paper.md`
+- `mineru/paper.tex`
+- `mineru/images/*`
+- `mineru/mineru-manifest.json`
+"""
+
+
+AGENT_OPERATING_CONTRACT_MD = """# Agent Operating Contract
+
+- Keep Markdown vault files as the source of truth.
+- Treat `reader/` and critic outputs as navigation and quality signals, not substitutes for the source paper.
+- Review `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json` before final wiki writing.
+- Preserve central formulas, figures, tables, and image evidence when distilling claims.
+- Search existing pages before creating new ones.
+"""
+
+
+SCHEMA_MD = """# Vault Schema
+
+Source-first paper ingest schema:
+
+1. raw paper and MinerU artifacts
+2. reader and critic evidence
+3. staging drafts and wiki-ingest handoff
+4. agent-mediated final wiki pages
+
+Final wiki content must preserve claims, formulas, figures/tables/images, and image evidence.
+"""
+
+
+TAXONOMY_MD = """# Vault Taxonomy
+
+- `references/`: evidence-grounded source pages
+- `concepts/`: reusable atomic ideas
+- `synthesis/`: cross-paper relationships
+- `reports/`: low-burden reading entrypoints
+
+Do not invent new top-level wiki routes without vault approval.
+"""
+
+
+DIRECTORY_STRUCTURE_MD = """# Directory Structure
+
+The paper research vault keeps paper acquisition, staging, and final wiki outputs separate.
+
+- `_raw/papers/<slug>/`: downloaded source paper artifacts
+- `_staging/papers/<slug>/`: review drafts and wiki handoff
+- `references/`, `concepts/`, `synthesis/`, `reports/`: final wiki page families when approved by the vault contract
+"""
+
+
 REQUIRED_DIRS = [
     "_raw/papers",
     "_staging/papers",
@@ -37,6 +102,11 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
         path.mkdir(parents=True, exist_ok=True)
 
     files = {
+        "AGENTS.md": AGENTS_MD,
+        "_meta/agent-operating-contract.md": AGENT_OPERATING_CONTRACT_MD,
+        "_meta/schema.md": SCHEMA_MD,
+        "_meta/taxonomy.md": TAXONOMY_MD,
+        "_meta/directory-structure.md": DIRECTORY_STRUCTURE_MD,
         "index.md": "# Paper Research Wiki\n\nThis vault is dedicated to profile-driven academic paper research.\n",
         "log.md": "# Log\n\n## Initialized\n\n- Created dedicated paper research wiki structure.\n",
         "hot.md": "# Hot\n\nNo promoted papers yet.\n",
@@ -45,6 +115,18 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
                 "vault_type": "academic-paper-research",
                 "schema": "raw source -> evidence handoff -> agent-mediated wiki -> vault schema",
                 "wiki_write_model": "agent-mediated-vault-contract",
+                "source_first_wiki_ingest": True,
+                "must_read_source_artifacts": [
+                    "mineru/paper.md",
+                    "mineru/paper.tex",
+                    "mineru/images/*",
+                    "mineru/mineru-manifest.json",
+                ],
+                "handoff_artifacts": [
+                    "wiki-ingest-brief.json",
+                    "promotion-plan.json",
+                    "reader/evidence-map.json",
+                ],
                 "suggested_draft_dirs": ["references", "concepts", "synthesis", "reports"],
                 "wiki_dirs": ["references", "concepts", "synthesis", "entities", "skills", "projects", "journal"],
                 "operational_dirs": ["_raw", "_staging", "_quarantine", "_runs", "_evolution", "_meta"],

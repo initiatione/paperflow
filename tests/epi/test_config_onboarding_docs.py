@@ -49,32 +49,35 @@ def test_config_setup_skill_owns_initialization_and_update_onboarding():
     text = _read(skill_path)
 
     assert "name: config-setup" in text
-    assert "初始化" in text
-    assert "修改" in text
+    assert "docs\\config.md" in text
     assert "doctor" in text
     assert "config-status" in text
     assert "--include-values --include-runtime" in text
     assert "Only run `doctor`" in text
-    assert "默认不是综述论文" in text
     assert "EPI 是通用论文插件" in text
-    assert "venue_prior" in text
     assert "一次只问一个问题" in text
-    assert "每个问题必须说明影响" in text
-    assert "参考方向" in text
     assert "最终确认前不得运行 `init-config`" in text
     assert "最终确认前不得运行 `apply-config-update`" in text
-    assert "不要一次性输出完整默认配置" in text
-    assert "你刚刚选了什么" in text
     assert "runtime.json" in text
     assert "不保存 token 明文" in text
+    assert "YAML field names" in text
+    assert "默认" in text
+    assert "technical preview" in text
 
 
 def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     text = _read(SKILL_DIR / "wiki-setup" / "SKILL.md")
+    recovery = _read(SKILL_DIR / "wiki-setup" / "references" / "reset-recovery.md")
 
     assert "name: wiki-setup" in text
     assert "scripts\\init_paper_wiki.py" in text
     assert "Initialization is idempotent" in text
+    assert "AGENTS.md" in text
+    assert "_meta\\agent-operating-contract.md" in text
+    assert "_meta\\directory-structure.md" in text
+    assert "source-first for paper research" in text
+    assert "mineru\\paper.md" in text
+    assert "mineru\\images\\*" in text
     assert "Reset is destructive" in text
     assert "wiki structure reset and EPI config reset are separate operations" in text
     assert "_meta\\epi-config.yaml" in text
@@ -87,18 +90,18 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "wiki-reset --vault <vault> --preview --json" in text
     assert "wiki-reset --vault <vault>" in text
     assert "--reset-config-confirmed-by" in text
-    assert "wiki-repair --vault <vault> --json" in text
-    assert "config-recover --vault <vault> --json" in text
-    assert "config-restore --vault <vault>" in text
-    assert "确认恢复 EPI config" in text
     assert "不需要备份" in text
     assert "do not back up wiki content" in text
     assert "Misdelete Recovery" in text
     assert "误删" in text
-    assert "Actively ask whether the user wants help restoring important settings" in text
-    assert "<vault-parent>\\paper-research-wiki-reset-backups\\" in text
-    assert "backup outside the active vault" in text
     assert "without the exact second confirmation" in text
+    assert "wiki-repair --vault <vault> --json" in recovery
+    assert "config-recover --vault <vault> --json" in recovery
+    assert "config-restore --vault <vault>" in recovery
+    assert "确认恢复 EPI config" in recovery
+    assert "Actively ask whether the user wants help restoring important settings" in recovery
+    assert "<vault-parent>\\paper-research-wiki-reset-backups\\" in recovery
+    assert "backup outside the active vault" in recovery
 
 
 def test_epi_skills_delegate_onboarding_wording_to_config_doc():
@@ -111,10 +114,7 @@ def test_epi_skills_delegate_onboarding_wording_to_config_doc():
         text = _read(SKILL_DIR / skill_name / "SKILL.md")
 
         assert "docs\\config.md" in text
-        assert "聊天式初始化脚本" in text
         assert "config-setup" in text
-        assert "不要自由发挥成技术字段问卷" in text
-        assert "不要一次性输出完整默认配置" in text
 
 
 def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
@@ -133,6 +133,11 @@ def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
     assert "--max-papers 10" in ingest
     assert "--skip-existing" in ingest
     assert "Do not use `advance-paper`, `advance-ranked`, or `advance-batch`" in ingest
+    assert "Source-First Wiki Handoff" in ingest
+    assert "mineru/paper.md" in ingest
+    assert "mineru/images/*" in ingest
+    assert "central formulas" in ingest
+    assert "not the source of truth" in ingest
     assert "tex_source=markdown-fallback" in mineru
     assert "mineru-command\\paper" in mineru
     assert "mineru-command\\parsed" in mineru
@@ -142,7 +147,6 @@ def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
 def test_paper_discovery_skill_documents_quality_first_chat_recommendations():
     discovery = _read(SKILL_DIR / "paper-discovery" / "SKILL.md")
 
-    assert "README.md" in discovery
     assert "references/query-planner.md" in discovery
     assert "references/domain-ontology.md" in discovery
     assert "references/output-format.md" in discovery
@@ -179,7 +183,6 @@ def test_paper_discovery_skill_defines_stronger_high_quality_search_protocol():
 
 
 def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
-    readme = _read(SKILL_DIR / "paper-discovery" / "README.md")
     query_planner = _read(SKILL_DIR / "paper-discovery" / "references" / "query-planner.md")
     domain_ontology = _read(SKILL_DIR / "paper-discovery" / "references" / "domain-ontology.md")
     search_protocol = _read(SKILL_DIR / "paper-discovery" / "references" / "search-protocol.md")
@@ -199,9 +202,6 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     quality_gate = _read(SKILL_DIR / "paper-discovery" / "references" / "quality-gate.md")
     output_format = _read(SKILL_DIR / "paper-discovery" / "references" / "output-format.md")
 
-    assert "EPI 论文发现子 Skill 说明" in readme
-    assert "nature-academic-search" in readme
-    assert "Query Planner" in readme
     assert "5-8 query variants" in query_planner
     assert "AUV / Marine Control" in domain_ontology
     assert "autonomous underwater vehicle" in domain_ontology

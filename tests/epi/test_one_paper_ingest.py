@@ -153,6 +153,8 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert wiki_ingest_brief["ingest_policy"]["suggested_routes_only"] is True
     assert "target vault contract" in wiki_ingest_brief["ingest_policy"]["authority"]
     assert "Markdown vault" in wiki_ingest_brief["ingest_policy"]["source_of_truth"]
+    assert "mineru/paper.md" in wiki_ingest_brief["ingest_policy"]["source_first_policy"]
+    assert "not substitutes for the source paper" in wiki_ingest_brief["ingest_policy"]["source_first_policy"]
     assert "target vault AGENTS.md" in wiki_ingest_brief["vault_contract_resolution"]
     assert "_meta/schema.md" in wiki_ingest_brief["vault_contract_resolution"]
     framework_names = [item["name"] for item in wiki_ingest_brief["wiki_framework_references"]]
@@ -186,6 +188,25 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
         "reading_report",
     ]
     assert {target["route_status"] for target in wiki_ingest_brief["suggested_routes"]} == {"suggested-by-epi"}
+    assert wiki_ingest_brief["source_bundle"]["raw_artifacts"] == [
+        "paper.pdf",
+        "metadata.json",
+        "mineru/paper.md",
+        "mineru/paper.tex",
+        "mineru/images/*",
+        "mineru/mineru-manifest.json",
+    ]
+    assert wiki_ingest_brief["source_bundle"]["primary_source_reading_order"][:5] == [
+        "metadata.json",
+        "mineru/paper.md",
+        "mineru/paper.tex",
+        "mineru/images/*",
+        "mineru/mineru-manifest.json",
+    ]
+    formula_figure_review = wiki_ingest_brief["source_bundle"]["formula_figure_review"]
+    assert "central formulas" in formula_figure_review["formulas"]
+    assert "figures/tables/images" in formula_figure_review["figures_tables_images"]
+    assert "paper.pdf" in formula_figure_review["parse_uncertainty"]
     assert wiki_ingest_brief["source_bundle"]["evidence"]["claim_count"] >= 3
     assert wiki_ingest_brief["source_bundle"]["evidence"]["reader_roles"] == [
         "nature-sci-editor",

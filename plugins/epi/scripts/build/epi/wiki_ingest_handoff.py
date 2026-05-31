@@ -51,10 +51,30 @@ def _agent_checklist(
 ) -> list[str]:
     read_before = brief.get("wiki_rule_source_model", {}).get("must_read_before_final_write") or CONTRACT_FILES
     handoff_paths = plan.get("agent_handoff_paths") or []
+    source_policy = brief.get("ingest_policy", {}).get("source_first_policy")
+    source_bundle = brief.get("source_bundle") or {}
+    raw_artifacts = source_bundle.get("raw_artifacts") or []
+    primary_order = source_bundle.get("primary_source_reading_order") or []
+    formula_figure_review = source_bundle.get("formula_figure_review") or {}
     checklist = [
         "Read target vault contract files before any final wiki write: " + ", ".join(str(item) for item in read_before),
         "Read the EPI evidence handoff: "
         + ", ".join(str(path) for path in handoff_paths)
+        + ".",
+        "source-first rule: read the source paper artifacts before any final wiki write: "
+        + ", ".join(str(item) for item in raw_artifacts or primary_order)
+        + ".",
+        "Source-first rule: " + str(source_policy or "reader outputs are navigation and quality signals, not substitutes for the source paper."),
+        "Review formulas, figures, tables, and images before distilling reusable claims: "
+        + ", ".join(
+            str(item)
+            for item in [
+                formula_figure_review.get("formulas"),
+                formula_figure_review.get("figures_tables_images"),
+                formula_figure_review.get("parse_uncertainty"),
+            ]
+            if item
+        )
         + ".",
         f"Inspect paper-gate status={gate.get('status')} next_action={gate.get('next_action')}; stop on any failure checks.",
         "Search existing wiki pages with index/frontmatter, QMD when configured, and grep before creating a new page.",

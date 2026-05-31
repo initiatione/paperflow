@@ -69,6 +69,7 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     {"source": "current user instruction", "role": "session goal"},
                     {"source": "target vault AGENTS.md", "role": "owner contract"},
                     {"source": "_meta/schema.md", "role": "routing"},
+                    {"source": "_meta/taxonomy.md", "role": "taxonomy"},
                     {"source": "Ar9av/obsidian-wiki", "role": "framework"},
                     {"source": "kepano/obsidian-skills", "role": "format"},
                     {"source": "initiatione/obsidian-wiki-dev", "role": "personalized rules"},
@@ -79,8 +80,10 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 ],
                 "must_read_before_final_write": [
                     "target vault AGENTS.md",
+                    "_meta/agent-operating-contract.md",
                     "_meta/schema.md",
                     "_meta/taxonomy.md",
+                    "_meta/directory-structure.md",
                     "index.md",
                     "log.md",
                     ".manifest.json",
@@ -88,11 +91,35 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "write_contract_requirements": [
                     "Keep Markdown vault files as the source of truth.",
                     "Search existing pages before creating duplicates.",
+                    "Final wiki pages must be grounded in the source paper artifacts, not reader summaries alone.",
                 ],
             },
             "ingest_policy": {
                 "suggested_routes_only": True,
                 "authority": "Resolve the target vault contract first.",
+                "source_first_policy": "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
+            },
+            "source_bundle": {
+                "raw_artifacts": [
+                    "paper.pdf",
+                    "metadata.json",
+                    "mineru/paper.md",
+                    "mineru/paper.tex",
+                    "mineru/images/*",
+                    "mineru/mineru-manifest.json",
+                ],
+                "primary_source_reading_order": [
+                    "metadata.json",
+                    "mineru/paper.md",
+                    "mineru/paper.tex",
+                    "mineru/images/*",
+                    "mineru/mineru-manifest.json",
+                ],
+                "formula_figure_review": {
+                    "formulas": "Review central formulas from mineru/paper.md and mineru/paper.tex before distilling claims.",
+                    "figures_tables_images": "Interpret figures, tables, and images from mineru/images/* instead of collapsing them into reader summary prose.",
+                    "parse_uncertainty": "Inspect paper.pdf when MinerU parse limitations or missing figure/formula signals appear.",
+                },
             },
             "suggested_routes": [
                 {"page_type": "reference", "target": "references/fixture-paper.md"},
@@ -151,6 +178,11 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["contract_files"]["_meta/directory-structure.md"]["present"] is False
     assert handoff["local_skill_policy"] == "helpers-not-authority"
     assert handoff["suggested_routes_only"] is True
+    assert "source-first rule" in handoff["agent_checklist"][2]
+    assert any("mineru/paper.md" in item for item in handoff["agent_checklist"])
+    assert any("mineru/images/*" in item for item in handoff["agent_checklist"])
+    assert any("source paper artifacts" in item for item in handoff["agent_checklist"])
+    assert any("figures, tables, and images" in item for item in handoff["agent_checklist"])
     assert handoff["agent_checklist"][0].startswith("Read target vault contract files")
     assert any("Search existing wiki pages" in item for item in handoff["agent_checklist"])
     assert any("Do not write final pages" in item for item in handoff["agent_checklist"])
@@ -171,6 +203,9 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
     assert "kepano/obsidian-skills" in output
     assert "local llm-wiki / wiki-ingest / obsidian-markdown skills" in output
     assert "Do not write final pages from EPI suggested routes directly." in output
+    assert "mineru/paper.md" in output
+    assert "mineru/images/*" in output
+    assert "source paper artifacts" in output
 
 
 def test_wiki_ingest_handoff_cli_outputs_json(tmp_path, monkeypatch, capsys):

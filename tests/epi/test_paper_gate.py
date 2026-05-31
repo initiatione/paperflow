@@ -83,9 +83,29 @@ def _seed_paper_gate_fixture(vault, slug, *, critic_outcome="pass", staged=True,
                         ],
                         "write_contract_requirements": [
                             "Keep Markdown vault files as the source of truth.",
+                            "Final wiki pages must be grounded in the source paper artifacts, not reader summaries alone.",
+                            "Review central formulas, figures, tables, and image evidence before distilling reusable wiki claims.",
                         ],
                     },
-                    "ingest_policy": {"suggested_routes_only": True},
+                    "ingest_policy": {
+                        "suggested_routes_only": True,
+                        "source_first_policy": "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
+                    },
+                    "source_bundle": {
+                        "raw_artifacts": [
+                            "paper.pdf",
+                            "metadata.json",
+                            "mineru/paper.md",
+                            "mineru/paper.tex",
+                            "mineru/images/*",
+                            "mineru/mineru-manifest.json",
+                        ],
+                        "formula_figure_review": {
+                            "formulas": "Review central formulas before distilling claims.",
+                            "figures_tables_images": "Interpret figures/tables/images from mineru/images/*.",
+                            "parse_uncertainty": "Inspect paper.pdf when parse limitations appear.",
+                        },
+                    },
                 },
             )
             plan.update(
@@ -181,6 +201,24 @@ def test_paper_gate_blocks_agent_handoff_without_wiki_rule_source_model(tmp_path
     checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
     assert checks["wiki-ingest-brief"]["conclusion"] == "failure"
     assert "wiki_rule_source_model is missing" in checks["wiki-ingest-brief"]["output"]["summary"]
+    assert "human-approval" not in checks
+
+
+def test_paper_gate_blocks_agent_handoff_without_source_first_artifacts(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    _seed_paper_gate_fixture(vault, slug, agent_handoff=True)
+    brief_path = vault / "_staging" / "papers" / slug / "wiki-ingest-brief.json"
+    brief = json.loads(brief_path.read_text(encoding="utf-8"))
+    brief["source_bundle"]["raw_artifacts"].remove("mineru/images/*")
+    brief_path.write_text(json.dumps(brief), encoding="utf-8")
+
+    gate = build_paper_gate(vault, slug)
+
+    assert gate["status"] == "blocked"
+    checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
+    assert checks["wiki-ingest-brief"]["conclusion"] == "failure"
+    assert "source-first raw artifacts are incomplete" in checks["wiki-ingest-brief"]["output"]["summary"]
     assert "human-approval" not in checks
 
 

@@ -1,44 +1,44 @@
 ---
 name: run-lifecycle
-description: "Use when EPI _runs, dashboards, research-queue, run logs, or transition-state artifacts accumulate too much, or when the user asks to clean, prune, archive, deduplicate, or lifecycle-manage EPI workflow artifacts."
+description: "Use when inspecting, cleaning, pruning, or archiving transient EPI _runs dashboards, queues, and logs."
 ---
 
 # EPI Run Lifecycle
 
-管理 EPI 工作流的临时产物（`_runs`、dashboards、research-queue、run logs、transition-state），不触碰已下载论文和最终 wiki 内容。
+Manage transient EPI workflow artifacts without touching downloaded papers, staging papers, final wiki content, Zotero records, or configuration history.
 
-## 默认 dry-run 优先
+## Default To Dry Run
 
-清理是有破坏性的，所以默认先 dry-run 看清单，确认后再 `--apply`。
-
-工作流在 `_runs` 超过 15 个单次运行目录时会自动触发清理。手动清理仍默认 dry-run：
+Lifecycle cleanup is destructive, so manual cleanup starts with a dry run:
 
 ```powershell
 python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 15 --keep-per-workflow 2 --json
 ```
 
-用户同意后才加 `--apply`：
+Add `--apply` only after explicit approval:
 
 ```powershell
 python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 15 --keep-per-workflow 2 --apply --json
 ```
 
-## 委派给子 agent（如可用）
+The EPI workflow may auto-apply lifecycle cleanup after runs when `_runs` exceeds 15 single-run directories. Manual operation remains approval-first.
 
-有 subagent 时，把生命周期维护委派给一个小/低成本 worker，让主 agent 继续面向用户的工作流。worker 应：先跑 dry-run，报告候选清单和 manifest 路径，等待用户明确批准后才用 `--apply`。
+## Cleanup Boundary
 
-## 清理边界
+Clean only terminal single-run directories under `_runs`.
 
-**只清理** `_runs` 下的单次运行目录。
+Never delete:
 
-**绝不删除**：
+- `_runs/index.json`, dashboards, research queue, feedback logs
+- `_raw`, `_staging`, final wiki pages, Zotero records, config history
+- active runs, human-gate-pending runs, or protected non-terminal failures
 
-- `_runs/index.json`、dashboards、research queue、feedback logs
-- `_raw`、`_staging`、最终 wiki 页面、Zotero 记录、config history
-- active runs、human-gate-pending runs、非终态 failures（默认受保护）
+The command writes a manifest under `_meta\run-lifecycle\`.
 
-命令会在 `_meta\run-lifecycle\` 下写一份清理 manifest，便于回溯。
+## Optional Delegation
 
-## 与 Discovery 的去重协同
+If subagents are available, delegate lifecycle inventory to a small worker. The worker should run dry-run first, report candidate paths and manifest path, and wait for explicit approval before `--apply`.
 
-Discovery 阶段必须同时和 `_raw\papers` 去重：已下载的论文应以 `already_in_library:<slug>` 拒绝，而不是再次推荐。这样生命周期清理和去重不会互相打架。
+## Discovery Coordination
+
+Discovery must deduplicate against `_raw\papers`: already downloaded papers should be rejected as `already_in_library:<slug>` rather than recommended again. This keeps lifecycle cleanup separate from library identity.

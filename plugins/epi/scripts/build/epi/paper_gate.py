@@ -112,6 +112,19 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
     )
     write_requirements = rule_source_model.get("write_contract_requirements") or []
     write_requirement_text = "\n".join(str(item) for item in write_requirements or [])
+    source_bundle = brief.get("source_bundle") if isinstance(brief.get("source_bundle"), dict) else {}
+    raw_artifacts = [
+        str(item)
+        for item in source_bundle.get("raw_artifacts", [])
+        if isinstance(item, str)
+    ]
+    raw_artifact_text = "\n".join(raw_artifacts)
+    formula_figure_review = (
+        source_bundle.get("formula_figure_review")
+        if isinstance(source_bundle.get("formula_figure_review"), dict)
+        else {}
+    )
+    formula_figure_text = "\n".join(str(item) for item in formula_figure_review.values())
     required_frameworks = [
         "Ar9av/obsidian-wiki",
         "kepano/obsidian-skills",
@@ -125,6 +138,30 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
         issues.append("handoff_type is not agent-mediated-wiki-ingest")
     if not ingest_policy.get("suggested_routes_only"):
         issues.append("brief must mark suggested routes as non-authoritative")
+    source_first_policy = str(ingest_policy.get("source_first_policy") or "")
+    if "source paper" not in source_first_policy or "not substitutes" not in source_first_policy:
+        issues.append("source-first ingest policy is missing")
+    required_raw_artifacts = [
+        "paper.pdf",
+        "metadata.json",
+        "mineru/paper.md",
+        "mineru/paper.tex",
+        "mineru/images/*",
+        "mineru/mineru-manifest.json",
+    ]
+    missing_raw_artifacts = [
+        artifact for artifact in required_raw_artifacts if artifact not in raw_artifact_text
+    ]
+    if missing_raw_artifacts:
+        issues.append("source-first raw artifacts are incomplete")
+    formula_figure_lower = formula_figure_text.lower()
+    if (
+        "formula" not in formula_figure_lower
+        or "figure" not in formula_figure_lower
+        or "table" not in formula_figure_lower
+        or "image" not in formula_figure_lower
+    ):
+        issues.append("formula/figure/image review requirements are missing")
     if missing_frameworks:
         issues.append("framework references are incomplete")
     if not rule_source_model:
