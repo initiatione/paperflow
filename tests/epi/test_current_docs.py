@@ -32,6 +32,7 @@ def test_evaluation_doc_separates_runtime_checks_from_development_quality_loop()
         "paper-gate",
         "wiki-ingest-handoff",
         "record-human-approval",
+        "wiki-ingest-trigger",
         "record-wiki-ingest",
         "zotero-sync",
         "report.md",
@@ -95,11 +96,13 @@ def test_structure_doc_covers_current_plugin_boundaries():
     assert "report" in text
     assert "wiki-ingest-handoff" in text
     assert "record-human-approval" in text
+    assert "wiki-ingest-trigger" in text
     assert "record-wiki-ingest" in text
     assert "`report`" in text
     assert "run report" in text
     assert "wiki_ingest_record.py" in text
     assert "wiki_ingest_approval.py" in text
+    assert "wiki_ingest_trigger.py" in text
     assert "agent-mediated" in text
     assert "claim-support" in text
     assert "parse-quality-critic" in text

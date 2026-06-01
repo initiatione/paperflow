@@ -13,11 +13,12 @@ python scripts\orchestrator.py report --run-id <run-id> --vault <vault>
 python scripts\orchestrator.py paper-gate --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py wiki-ingest-handoff --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py record-human-approval --slug <paper-slug> --approved-by <name> --scope run-wiki-ingest-agent --vault <vault>
+python scripts\orchestrator.py wiki-ingest-trigger --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py record-wiki-ingest --slug <paper-slug> --page <final-page.md> --approved-by <name> --source-review <final-source-review.json> --vault <vault>
 python scripts\orchestrator.py zotero-sync --paper-root <vault>\_raw\papers\<paper-slug> --collection EPI --enabled
 ```
 
-Runtime artifacts stay in `_runs`, `_raw`, `_staging`, and the optional Zotero sidecar. The main artifacts are `_runs/<run-id>/search-record.json`, `rank.json`, `report.md`, `report.json`, and `run-state.json`, plus paper-scoped `parse-record.json`, `critic-report.json`, `_staging/papers/<slug>/human-approval.json`, `wiki-ingest-record.json`, and `zotero-record.json` files.
+Runtime artifacts stay in `_runs`, `_raw`, `_staging`, and the optional Zotero sidecar. The main artifacts are `_runs/<run-id>/search-record.json`, `rank.json`, `report.md`, `report.json`, and `run-state.json`, plus paper-scoped `parse-record.json`, `critic-report.json`, `_staging/papers/<slug>/human-approval.json`, `_staging/papers/<slug>/wiki-agent-trigger.json`, `wiki-ingest-record.json`, and `zotero-record.json` files.
 
 `report --run-id` reads existing `_runs/<run-id>/report.md`, `report.json`, and `run-state.json`; it does not rerun discovery, ingest, MinerU, staging, or wiki writes.
 

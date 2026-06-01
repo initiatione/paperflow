@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from epi.orchestrator import main
+from epi.orchestrator import main, record_human_approval
 from epi.report_run import load_run_report
 from epi.run_index import _paper_gate_allows_promotion, refresh_run_index
 
@@ -582,6 +582,90 @@ def test_research_queue_cli_actions_points_agent_handoff_to_handoff_command(tmp_
     assert f"record-human-approval --slug {slug}" in actions[2]["command"]
     assert "--scope run-wiki-ingest-agent" in actions[2]["command"]
     assert actions[2]["uses"] == "human-approval.json"
+
+
+def test_research_queue_cli_actions_points_approved_agent_handoff_to_trigger_command(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    runs_root = vault / "_runs"
+    slug = "approved-agent-handoff-paper"
+    _seed_agent_handoff_paper_gate(vault, slug)
+    _seed_run(
+        runs_root,
+        "20260529T112700Z-agent-handoff",
+        workflow_type="advance-batch",
+        state="staging_ready",
+        status="waiting_for_human_gate",
+        paper_slug=slug,
+        next_actions=["run-wiki-ingest-agent"],
+        human_gate={"status": "required"},
+    )
+    refresh_run_index(vault)
+    record_human_approval(
+        vault,
+        slug,
+        approved_by="codex-test",
+        scope="run-wiki-ingest-agent",
+    )
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "research-queue",
+        "--bucket",
+        "ready_to_promote",
+        "--actions",
+        "--json",
+        "--vault",
+        str(vault),
+    )
+
+    payload = json.loads(output)
+    actions = payload["items"][0]["recommended_actions"]
+    assert exit_code == 0
+    assert payload["items"][0]["reason"] == "wiki ingest agent is approved and ready"
+    assert [action["action"] for action in actions] == [
+        "inspect-paper-gate",
+        "wiki-ingest-handoff",
+        "wiki-ingest-trigger",
+    ]
+    assert f"wiki-ingest-trigger --slug {slug}" in actions[2]["command"]
+    assert actions[2]["uses"] == "wiki-agent-trigger.json"
+    assert actions[2]["human_gate_required"] is False
+
+
+def test_research_queue_cli_actions_can_resume_from_human_approval_run(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    slug = "approval-only-agent-handoff-paper"
+    _seed_agent_handoff_paper_gate(vault, slug)
+    record_human_approval(
+        vault,
+        slug,
+        approved_by="codex-test",
+        scope="run-wiki-ingest-agent",
+    )
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "research-queue",
+        "--bucket",
+        "ready_to_promote",
+        "--actions",
+        "--json",
+        "--vault",
+        str(vault),
+    )
+
+    payload = json.loads(output)
+    actions = payload["items"][0]["recommended_actions"]
+    assert exit_code == 0
+    assert payload["items"][0]["paper_slug"] == slug
+    assert payload["items"][0]["reason"] == "wiki ingest agent is approved and ready"
+    assert [action["action"] for action in actions] == [
+        "inspect-paper-gate",
+        "wiki-ingest-handoff",
+        "wiki-ingest-trigger",
+    ]
 
 
 def test_research_queue_does_not_promote_when_gate_action_required_checks_are_missing():

@@ -399,6 +399,21 @@ def test_wiki_ingest_handoff_parser_accepts_slug_and_json():
     assert args.json is True
 
 
+def test_wiki_ingest_trigger_parser_accepts_slug_and_json():
+    args = build_parser().parse_args(
+        [
+            "wiki-ingest-trigger",
+            "--slug",
+            "fixture-paper",
+            "--json",
+        ]
+    )
+
+    assert args.command == "wiki-ingest-trigger"
+    assert args.slug == "fixture-paper"
+    assert args.json is True
+
+
 def test_record_wiki_ingest_parser_accepts_pages_approval_notes_and_json():
     args = build_parser().parse_args(
         [

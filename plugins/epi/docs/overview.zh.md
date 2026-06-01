@@ -257,6 +257,20 @@ python scripts\orchestrator.py record-human-approval --slug <slug> --approved-by
 
 这个 artifact 是“允许外部 wiki ingest agent 写最终页”的机器可验证证据。没有它，`wiki-ingest-handoff` 不应显示 `ready_for_agent=true`，`record-wiki-ingest` 也不能事后补登记。
 
+批准后继续触发当前 agent：
+
+```powershell
+python scripts\orchestrator.py wiki-ingest-trigger --slug <slug> --vault <vault> --json
+```
+
+`wiki-ingest-trigger` 会写：
+
+```text
+<vault>/_staging/papers/<slug>/wiki-agent-trigger.json
+```
+
+它不是后台自动拉起 Claude/Codex 的进程，也不写最终页；它把“当前 agent 可以开始按目标 vault contract、wiki-provenance 和 source-first closure 写 wiki”的指令、路径、checklist 和 final-source-review 合同固化下来。用户读完轻阅读报告后再次触发 `@EPI`，EPI 可以先看 `research-queue --bucket ready_to_promote --actions`，若 gate 已批准就执行 `wiki-ingest-trigger`，然后由当前 Claude/Codex/其他 wiki-capable agent 进入最终 wiki 写入。
+
 ### 7. Final Wiki Ingest 与 Provenance
 
 最终 Obsidian/LLM Wiki 页面由 wiki ingest agent 写，不由 EPI 的固定 promotion 脚本决定路径。执行器可以是 Claude、Codex 或其他 wiki-capable agent，但必须先读取目标 vault contract：

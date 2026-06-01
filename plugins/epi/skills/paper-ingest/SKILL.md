@@ -21,6 +21,7 @@ For final wiki-page provenance, support labels, and claim-to-evidence round-trip
 | --- | --- |
 | Steps 1-3 only: download + MinerU parse, stop at raw artifacts | `prepare-ranked` |
 | Continue into reader, critic, staging, approval, and handoff | `advance-*`, `paper-gate`, `wiki-ingest-handoff`, `record-human-approval` |
+| Resume final wiki writing after approval or a later `@EPI` turn | `research-queue --bucket ready_to_promote --actions`, then `wiki-ingest-trigger` |
 | Final wiki provenance and claim labels | `wiki-provenance` |
 
 ## Path A: Raw Artifacts Only
@@ -47,6 +48,7 @@ python scripts\orchestrator.py advance-batch --candidates <candidate-json> --max
 python scripts\orchestrator.py paper-gate --slug <slug> --vault <vault>
 python scripts\orchestrator.py wiki-ingest-handoff --slug <slug> --vault <vault>
 python scripts\orchestrator.py record-human-approval --slug <slug> --approved-by <name> --scope run-wiki-ingest-agent --vault <vault>
+python scripts\orchestrator.py wiki-ingest-trigger --slug <slug> --vault <vault>
 python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-page.md> --approved-by <name> --source-review <final-source-review.json> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault> --json
@@ -72,6 +74,8 @@ If the handoff lacks these fields, repair staging or rerun the relevant EPI step
 ## Wiki Boundary
 
 Final Obsidian/LLM Wiki pages are agent-mediated under the target vault contract. The final wiki executor may be Claude, Codex, or another wiki-capable agent. Before final writing, run `wiki-ingest-handoff`, resolve `AGENTS.md` and `_meta/*`, use the framework references named in `docs\epi-linkage.md`, keep local wiki skills as adapters, and require `wiki_rule_source_model`. Then record pre-write approval with `record-human-approval --scope run-wiki-ingest-agent`; do not let the wiki ingest agent write final or staged vault pages until the handoff reports `ready_for_agent=true`.
+
+When the user has read the lightweight report and calls `@EPI` again to continue wiki writing, run `research-queue --bucket ready_to_promote --actions --json` or the known slug's `wiki-ingest-trigger --slug <slug> --json`. The trigger writes `_staging/papers/<slug>/wiki-agent-trigger.json` only after approval and gives the current Claude, Codex, or other wiki-capable agent the source-first instruction bundle. It does not spawn a hidden background agent and does not write final pages by itself.
 
 If the user asks for claim labels, provenance blocks, evidence-address preservation, or later round-trip retrieval from final pages, switch to `wiki-provenance` instead of expanding this skill.
 

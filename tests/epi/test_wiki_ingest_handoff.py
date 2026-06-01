@@ -3,6 +3,7 @@ import sys
 
 from epi.orchestrator import main, record_human_approval
 from epi.wiki_ingest_handoff import build_wiki_ingest_handoff, render_wiki_ingest_handoff
+from epi.wiki_ingest_trigger import build_wiki_ingest_trigger, render_wiki_ingest_trigger
 
 
 def _write_json(path, payload):
@@ -241,6 +242,72 @@ def test_build_wiki_ingest_handoff_is_ready_after_recorded_human_approval(tmp_pa
     assert handoff["paper_gate"]["action_required_checks"] == []
     assert handoff["paths"]["human_approval"] == approval["record_path"]
     assert any("Human approval is recorded" in item for item in handoff["agent_checklist"])
+
+
+def test_wiki_ingest_trigger_requires_human_approval_before_agent_start(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+
+    trigger = build_wiki_ingest_trigger(vault, slug)
+
+    assert trigger["status"] == "action_required"
+    assert trigger["ready_for_agent"] is False
+    assert trigger["ready_after_human_approval"] is True
+    assert trigger["next_action"] == "record-human-approval"
+    assert "record-human-approval" in trigger["instruction"]
+    assert not (vault / "_staging" / "papers" / slug / "wiki-agent-trigger.json").exists()
+
+
+def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    record_human_approval(
+        vault,
+        slug,
+        approved_by="codex-test",
+        scope="run-wiki-ingest-agent",
+    )
+
+    trigger = build_wiki_ingest_trigger(vault, slug)
+    trigger_path = vault / "_staging" / "papers" / slug / "wiki-agent-trigger.json"
+    stored = json.loads(trigger_path.read_text(encoding="utf-8"))
+
+    assert trigger["schema_version"] == "epi-wiki-agent-trigger-v1"
+    assert trigger["status"] == "ready"
+    assert trigger["ready_for_agent"] is True
+    assert trigger["next_action"] == "run-current-agent-as-wiki-ingest-agent"
+    assert trigger["trigger_path"] == str(trigger_path)
+    assert stored["schema_version"] == "epi-wiki-agent-trigger-v1"
+    assert stored["next_action"] == "run-current-agent-as-wiki-ingest-agent"
+    assert "Claude" in trigger["executor_policy"]["allowed_executors"]
+    assert "Codex" in trigger["executor_policy"]["allowed_executors"]
+    assert "wiki-provenance" in trigger["instruction"]
+    assert "final-source-review.json" in trigger["instruction"]
+    assert "record-wiki-ingest" in trigger["instruction"]
+    assert "reports" in trigger["paths"]["reading_report"]
+    assert "fixture-paper-reading-report.md" in trigger["paths"]["reading_report"]
+    assert trigger["paths"]["wiki_ingest_brief"].endswith("wiki-ingest-brief.json")
+    assert any("evidence-map.json" in item for item in trigger["agent_checklist"])
+    assert not (vault / "references").exists()
+
+
+def test_render_wiki_ingest_trigger_shows_resume_command_after_approval(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    record_human_approval(
+        vault,
+        slug,
+        approved_by="codex-test",
+        scope="run-wiki-ingest-agent",
+    )
+
+    output = render_wiki_ingest_trigger(build_wiki_ingest_trigger(vault, slug))
+
+    assert "# EPI Wiki Agent Trigger - fixture-paper" in output
+    assert "ready_for_agent: true" in output
+    assert "next_action: run-current-agent-as-wiki-ingest-agent" in output
+    assert "wiki-provenance" in output
+    assert "record-wiki-ingest" in output
 
 
 def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):

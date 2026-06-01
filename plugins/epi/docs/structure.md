@@ -104,6 +104,7 @@ scripts/build/epi/
 - `paper_gate.py` 是只读质量门面板，决定当前 slug 是 failure、waiting for human gate，还是允许进入下一动作。
 - `wiki_ingest_handoff.py` 是只读 handoff 渲染器，给最终 wiki ingest agent 提供路径、规则优先级、final-source-review 合同和 checklist。
 - `wiki_ingest_approval.py` 是 agent-mediated 前置人类批准 helper：写入并校验 `_staging/papers/<slug>/human-approval.json`，要求当前 gate 只有 `human-approval` 待办。
+- `wiki_ingest_trigger.py` 是批准后的继续/触发 helper：写入 `_staging/papers/<slug>/wiki-agent-trigger.json`，让当前 Claude、Codex 或其他 wiki-capable agent 按同一 target vault contract 继续最终页写入；它不写最终 wiki 页面。
 - `wiki_ingest_record.py` 是 agent-mediated 完成态记录器：只读取最终 Markdown 页面、前置 `human-approval.json` 和 `final-source-review.json`，校验路径在 vault 内且不在 EPI 内部目录，验证源工件 hash、公式/图片/PDF 复核和 final page provenance，记录 hash 和 human approval，不写最终页面。
 - `promote_to_wiki.py` 只保留 legacy compiled-draft promotion 和 rollback，不能替代 agent-mediated wiki ingest。
 - `zotero_sync.py` 负责本地 record-only Zotero sidecar：读取论文 metadata 和 wiki ingest record，写 `zotero-record.json`，不调用外部 Zotero API。
@@ -176,6 +177,7 @@ EPI 默认 vault 形态：
       reports/
       wiki-ingest-brief.json
       human-approval.json
+      wiki-agent-trigger.json
       promotion-plan.json
   AGENTS.md
   _meta/agent-operating-contract.md
@@ -192,6 +194,7 @@ EPI 默认 vault 形态：
 - `wiki-ingest-handoff` 和 `paper-gate` 都是只读。
 - 当前默认 agent-mediated plan 不写 compiled wiki。
 - agent-mediated wiki ingest 前，必须先用 `record-human-approval --scope run-wiki-ingest-agent` 写 `_staging/papers/<slug>/human-approval.json`；`wiki-ingest-handoff` 只有在该 artifact 有效时才显示 `ready_for_agent=true`。
+- 批准后可用 `wiki-ingest-trigger --slug <slug>` 写 `_staging/papers/<slug>/wiki-agent-trigger.json`，作为当前 agent 或下一次 `@EPI` 的继续写入指令；该触发包不等于最终 wiki 写入。
 - agent-mediated wiki ingest 完成后，先由 wiki agent 写 `final-source-review.json`，再用 `record-wiki-ingest --source-review ...` 只写 `_raw/papers/<slug>/wiki-ingest-record.json` 和 `_staging/papers/<slug>/wiki-ingest-record.json`，记录目标 vault agent 已写出的最终 Markdown 页、source review、pre-write approval 及其 sha256；它不得修改最终页、manifest、index、log 或 hot。
 - Zotero 集成只写 `_raw/papers/<slug>/zotero-record.json` 和 run report 中的 `zotero_results`；它不得调用外部 API、改 final wiki 页或删除 Zotero 数据。
 - legacy `promote-to-wiki` 只处理显式 compiled targets，并要求 `approved-by`。

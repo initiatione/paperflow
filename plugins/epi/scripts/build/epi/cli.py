@@ -303,6 +303,11 @@ def build_parser() -> argparse.ArgumentParser:
     wiki_ingest_handoff.add_argument("--slug", required=True)
     wiki_ingest_handoff.add_argument("--json", action="store_true")
 
+    wiki_ingest_trigger = subparsers.add_parser("wiki-ingest-trigger")
+    _add_common_vault(wiki_ingest_trigger)
+    wiki_ingest_trigger.add_argument("--slug", required=True)
+    wiki_ingest_trigger.add_argument("--json", action="store_true")
+
     record_human_approval = subparsers.add_parser("record-human-approval")
     _add_common_vault(record_human_approval)
     record_human_approval.add_argument("--slug", required=True)
@@ -975,6 +980,15 @@ def _handle_wiki_ingest_handoff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_wiki_ingest_trigger(args: argparse.Namespace) -> int:
+    result = workflows.build_wiki_ingest_trigger(args.vault.resolve(), args.slug)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(workflows.render_wiki_ingest_trigger(result))
+    return 0 if result.get("status") in {"ready", "already_recorded"} else 1
+
+
 def _handle_record_human_approval(args: argparse.Namespace) -> int:
     result = workflows.record_human_approval(
         args.vault.resolve(),
@@ -1058,6 +1072,7 @@ HANDLERS: dict[str, Handler] = {
     "research-queue": _handle_research_queue,
     "wiki-query": _handle_wiki_query,
     "wiki-ingest-handoff": _handle_wiki_ingest_handoff,
+    "wiki-ingest-trigger": _handle_wiki_ingest_trigger,
     "record-human-approval": _handle_record_human_approval,
     "record-wiki-ingest": _handle_record_wiki_ingest,
     "paper-gate": _handle_paper_gate,

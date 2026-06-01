@@ -233,6 +233,13 @@ def _ready_to_promote_reason(gate_summary):
         if gate_summary.get("next_action") == "run-wiki-ingest-agent":
             return "wiki ingest handoff is ready"
         return "promotion gate is ready"
+    if (
+        gate_summary.get("conclusion") == "success"
+        and gate_summary.get("next_action") == "run-wiki-ingest-agent"
+    ):
+        return "wiki ingest agent is approved and ready"
+    if gate_summary.get("next_action") == "review-recorded-wiki-pages":
+        return "wiki ingest has already been recorded"
     return "paper gate status unknown"
 
 
@@ -530,6 +537,19 @@ def _wiki_ingest_handoff_action_command(vault_path, slug):
     return " ".join(args)
 
 
+def _wiki_ingest_trigger_action_command(vault_path, slug):
+    args = [
+        "python",
+        r"scripts\orchestrator.py",
+        "wiki-ingest-trigger",
+        "--slug",
+        slug,
+        "--vault",
+        str(Path(vault_path).resolve()),
+    ]
+    return " ".join(args)
+
+
 def _record_human_approval_action_command(vault_path, slug):
     args = [
         "python",
@@ -585,6 +605,18 @@ def _paper_gate_allows_wiki_ingest(item):
         and gate_summary.get("next_action") == "run-wiki-ingest-agent"
         and not gate_summary.get("failure_checks")
         and action_required_checks == {"human-approval"}
+    )
+
+
+def _paper_gate_ready_for_wiki_ingest(item):
+    gate_summary = item.get("paper_gate")
+    if not isinstance(gate_summary, dict):
+        return False
+    return (
+        gate_summary.get("conclusion") == "success"
+        and gate_summary.get("next_action") == "run-wiki-ingest-agent"
+        and not gate_summary.get("failure_checks")
+        and not gate_summary.get("action_required_checks")
     )
 
 
@@ -656,6 +688,33 @@ def _recommended_actions(bucket, item, vault_path):
                     "checklist": [
                         "record approval before the wiki ingest agent writes final or staged vault pages",
                         "use the same approved-by value later for record-wiki-ingest",
+                    ],
+                }
+            )
+        if _paper_gate_ready_for_wiki_ingest(item):
+            actions.append(
+                {
+                    "action": "wiki-ingest-handoff",
+                    "command": _wiki_ingest_handoff_action_command(vault_path, slug),
+                    "human_gate_required": False,
+                    "uses": "wiki-ingest-brief.json",
+                    "checklist": [
+                        "confirm ready_for_agent=true",
+                        "read target vault AGENTS.md and _meta/*",
+                        "keep final page provenance source-grounded",
+                    ],
+                }
+            )
+            actions.append(
+                {
+                    "action": "wiki-ingest-trigger",
+                    "command": _wiki_ingest_trigger_action_command(vault_path, slug),
+                    "human_gate_required": False,
+                    "uses": "wiki-agent-trigger.json",
+                    "checklist": [
+                        "create the trigger package for the current Claude, Codex, or wiki-capable agent",
+                        "write or stage final pages under the target vault contract",
+                        "create final-source-review.json, then run record-wiki-ingest",
                     ],
                 }
             )

@@ -1,0 +1,200 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from epi.artifacts import staging_paper_root, utc_now, write_json_atomic
+from epi.wiki_ingest_approval import load_human_approval_record
+from epi.wiki_ingest_handoff import build_wiki_ingest_handoff
+
+
+WIKI_AGENT_TRIGGER_SCHEMA_VERSION = "epi-wiki-agent-trigger-v1"
+
+
+def wiki_agent_trigger_path(vault_path: Path, slug: str) -> Path:
+    return staging_paper_root(vault_path.resolve(), slug) / "wiki-agent-trigger.json"
+
+
+def _staging_path(staging_root: Path, value: object) -> str | None:
+    if not value:
+        return None
+    candidate = Path(str(value))
+    if candidate.is_absolute():
+        return str(candidate)
+    return str(staging_root / candidate)
+
+
+def _reading_report_path(handoff: dict[str, Any], staging_root: Path, slug: str) -> str:
+    entrypoints = handoff.get("entrypoints") if isinstance(handoff.get("entrypoints"), dict) else {}
+    explicit = _staging_path(staging_root, entrypoints.get("reading_report"))
+    if explicit:
+        return explicit
+    paths = handoff.get("paths") if isinstance(handoff.get("paths"), dict) else {}
+    for value in paths.get("agent_handoff_paths") or []:
+        value_text = str(value)
+        if "reading-report" in value_text or value_text.endswith("-report.md"):
+            return value_text
+    return str(staging_root / "reports" / f"{slug}-reading-report.md")
+
+
+def _approved_by(vault_path: Path, slug: str) -> str:
+    record = load_human_approval_record(vault_path, slug) or {}
+    return str(record.get("approved_by") or "<same-approved-by>")
+
+
+def _ready_instruction(
+    *,
+    slug: str,
+    approved_by: str,
+    source_review_path: str,
+) -> str:
+    return (
+        "Continue as the current wiki ingest agent, using wiki-provenance plus the target vault wiki skill "
+        "or contract. Re-read the source bundle before writing: paper.pdf, metadata.json, mineru/paper.md, "
+        "mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json. Preserve support status and "
+        "evidence-map addresses in final pages. Write or stage the final Markdown pages under the target "
+        "vault contract, then create "
+        + source_review_path
+        + " and run record-wiki-ingest --slug "
+        + slug
+        + " --page <final-page.md> --approved-by "
+        + approved_by
+        + " --source-review "
+        + source_review_path
+        + "."
+    )
+
+
+def _base_payload(
+    *,
+    vault_path: Path,
+    slug: str,
+    handoff: dict[str, Any],
+    trigger_path: Path,
+) -> dict[str, Any]:
+    staging_root = staging_paper_root(vault_path, slug)
+    paths = handoff.get("paths") if isinstance(handoff.get("paths"), dict) else {}
+    contract = (
+        handoff.get("final_source_review_contract")
+        if isinstance(handoff.get("final_source_review_contract"), dict)
+        else {}
+    )
+    source_review_path = staging_root / str(contract.get("suggested_output_path") or "final-source-review.json")
+    return {
+        "schema_version": WIKI_AGENT_TRIGGER_SCHEMA_VERSION,
+        "paper_slug": slug,
+        "paper_title": handoff.get("paper_title") or slug,
+        "created_at": utc_now(),
+        "ready_for_agent": bool(handoff.get("ready_for_agent")),
+        "ready_after_human_approval": bool(handoff.get("ready_after_human_approval")),
+        "trigger_path": str(trigger_path),
+        "paper_gate": handoff.get("paper_gate") or {},
+        "paths": {
+            "promotion_plan": paths.get("promotion_plan"),
+            "wiki_ingest_brief": paths.get("wiki_ingest_brief"),
+            "human_approval": paths.get("human_approval"),
+            "reading_report": _reading_report_path(handoff, staging_root, slug),
+            "final_source_review": str(source_review_path),
+            "trigger": str(trigger_path),
+        },
+        "executor_policy": handoff.get("execution_agent_policy") or {},
+        "final_source_review_contract": contract,
+        "agent_checklist": list(handoff.get("agent_checklist") or []),
+        "writes_final_wiki_pages": False,
+    }
+
+
+def build_wiki_ingest_trigger(vault_path: Path, slug: str) -> dict[str, Any]:
+    vault_path = vault_path.resolve()
+    handoff = build_wiki_ingest_handoff(vault_path, slug)
+    trigger_path = wiki_agent_trigger_path(vault_path, slug)
+    payload = _base_payload(
+        vault_path=vault_path,
+        slug=slug,
+        handoff=handoff,
+        trigger_path=trigger_path,
+    )
+    paper_gate = payload.get("paper_gate") if isinstance(payload.get("paper_gate"), dict) else {}
+    next_action = paper_gate.get("next_action")
+
+    if handoff.get("ready_for_agent"):
+        approved_by = _approved_by(vault_path, slug)
+        payload.update(
+            {
+                "status": "ready",
+                "next_action": "run-current-agent-as-wiki-ingest-agent",
+                "instruction": _ready_instruction(
+                    slug=slug,
+                    approved_by=approved_by,
+                    source_review_path=str(payload["paths"]["final_source_review"]),
+                ),
+            }
+        )
+        if not payload["executor_policy"].get("allowed_executors"):
+            payload["executor_policy"] = {
+                **payload["executor_policy"],
+                "allowed_executors": ["Claude", "Codex", "other wiki-capable agents"],
+            }
+        write_json_atomic(trigger_path, payload)
+        return payload
+
+    if handoff.get("ready_after_human_approval"):
+        payload.update(
+            {
+                "status": "action_required",
+                "next_action": "record-human-approval",
+                "instruction": (
+                    "Do not start the wiki ingest agent yet. Run record-human-approval "
+                    "--scope run-wiki-ingest-agent, then rerun wiki-ingest-trigger."
+                ),
+            }
+        )
+        return payload
+
+    if next_action == "review-recorded-wiki-pages":
+        payload.update(
+            {
+                "status": "already_recorded",
+                "next_action": "review-recorded-wiki-pages",
+                "instruction": "Final wiki pages are already recorded; review wiki-ingest-record.json and the final pages.",
+            }
+        )
+        return payload
+
+    payload.update(
+        {
+            "status": "blocked",
+            "next_action": next_action or "inspect-paper-gate",
+            "instruction": "Do not start wiki writing. Inspect paper-gate and repair failures or unresolved checks first.",
+        }
+    )
+    return payload
+
+
+def render_wiki_ingest_trigger(trigger: dict[str, Any]) -> str:
+    paths = trigger.get("paths") if isinstance(trigger.get("paths"), dict) else {}
+    lines = [
+        f"# EPI Wiki Agent Trigger - {trigger.get('paper_slug')}",
+        "",
+        f"status: {trigger.get('status')}",
+        f"ready_for_agent: {str(trigger.get('ready_for_agent')).lower()}",
+        f"ready_after_human_approval: {str(trigger.get('ready_after_human_approval')).lower()}",
+        f"next_action: {trigger.get('next_action')}",
+        f"trigger_path: {trigger.get('trigger_path')}",
+        "",
+        "## Paths",
+        "",
+    ]
+    for key in [
+        "wiki_ingest_brief",
+        "reading_report",
+        "human_approval",
+        "final_source_review",
+    ]:
+        lines.append(f"- {key}: {paths.get(key) or '-'}")
+    lines.extend(["", "## Instruction", "", str(trigger.get("instruction") or "")])
+    lines.extend(["", "## Agent Checklist", ""])
+    for item in trigger.get("agent_checklist") or []:
+        lines.append(f"- {item}")
+    lines.append("")
+    return "\n".join(lines)

@@ -45,6 +45,7 @@ from epi.stage_wiki import stage_paper
 from epi.wiki_ingest_approval import create_human_approval_record, human_approval_record_path
 from epi.wiki_ingest_handoff import build_wiki_ingest_handoff, render_wiki_ingest_handoff
 from epi.wiki_ingest_record import create_wiki_ingest_record
+from epi.wiki_ingest_trigger import build_wiki_ingest_trigger, render_wiki_ingest_trigger
 from epi.wiki_query import query_wiki, render_wiki_query
 from epi.wiki_init import initialize_paper_wiki
 from epi.zotero_sync import sync_zotero_record
@@ -455,6 +456,7 @@ def _write_human_approval_report(
         f"- approved_by: {record.get('approved_by')}",
         f"- scope: {record.get('scope')}",
         f"- approval_path: {record.get('record_path')}",
+        "- next_action: wiki-ingest-trigger",
         "",
     ]
     write_text_atomic(report_md_path, "\n".join(lines))
@@ -467,6 +469,8 @@ def _write_human_approval_report(
             "paper_slug": slug,
             "status": record.get("status"),
             "human_approval_record": record,
+            "next_actions": ["run-wiki-ingest-agent"],
+            "recommended_next_command": f"wiki-ingest-trigger --slug {slug}",
         },
     )
 

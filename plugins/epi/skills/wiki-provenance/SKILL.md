@@ -16,6 +16,7 @@ No durable wiki claim without a support status and an evidence route. The page m
 Before writing or reviewing final pages, load:
 
 - `wiki-ingest-handoff` output.
+- `wiki-agent-trigger.json` when the handoff has already been approved and EPI has generated the resume package.
 - `wiki-ingest-brief.json`.
 - `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`.
 - `reader/evidence-map.json` and `reader/claim-support.json`.
@@ -35,7 +36,7 @@ If a source-grounded claim is only the paper author's assertion, keep the suppor
 
 ## Workflow
 
-1. Run `wiki-ingest-handoff --slug <slug>` and stop if the handoff is not ready.
+1. Run `wiki-ingest-handoff --slug <slug>` and stop if the handoff is not ready; after human approval, `wiki-ingest-trigger --slug <slug>` may provide the current agent's resume package.
 2. Read the source bundle before final prose. Reader summaries are navigation aids, not source authority.
 3. For each durable claim, choose a support status and cite the evidence address from `evidence-map.json`, `claim-support.json`, source artifacts, or PDF fallback review.
 4. Embed evidence addresses in the page or in a page-local provenance block; do not leave them only in EPI sidecar JSON.
