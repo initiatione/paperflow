@@ -271,6 +271,7 @@ def test_marketplace_and_readme_describe_profile_driven_generic_epi():
     assert "C:\\Users\\liuchf" not in readme
     assert "D:\\paper-research-wiki" not in readme
     assert "not a separate marketplace plugin" in readme
+    assert manifest["version"] in manifest["interface"]["shortDescription"]
 
     assert "EPI 是通用论文插件，不默认任何学科方向" in workflow
     assert "Claude" in workflow

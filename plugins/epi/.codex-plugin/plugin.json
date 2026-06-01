@@ -19,7 +19,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "EPI",
-    "shortDescription": "Find, vet, and stage high-quality academic papers for agent-mediated Obsidian wiki ingest.",
+    "shortDescription": "v0.1.0+codex.20260601033341 | Find, vet, and stage high-quality academic papers for agent-mediated Obsidian wiki ingest.",
     "longDescription": "EPI packages a Codex workflow for profile-driven academic paper discovery, evidence-grounded reader/critic review, MinerU parsing, low-burden reading reports, wiki handoff, and proposal-based quality evolution. It derives search terms, venue prior, ranking, and wiki/reader emphasis from the user's config plus the current request, preserves raw artifacts, and prepares handoffs for an agent to write into the target Obsidian/LLM Wiki according to that vault's contract.",
     "developerName": "liuchf",
     "category": "Productivity",
