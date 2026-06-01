@@ -121,6 +121,29 @@ def _seed_critic_ready_paper(vault, candidate, *, sources=None):
         "The method is evaluated on a navigation benchmark with a baseline and reward metric.\n",
         encoding="utf-8",
     )
+    (mineru_dir / "paper.tex").write_text("\\section{Abstract}\nCritic ready fixture.\n", encoding="utf-8")
+    (mineru_dir / "mineru-manifest.json").write_text(
+        json.dumps(
+            {
+                "batch_id": "critic-ready-fixture",
+                "outputs": [
+                    {
+                        "file_name": "paper.pdf",
+                        "state": "done",
+                        "markdown_path": "parsed/paper/paper.md",
+                        "image_count": 1,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    images_dir = mineru_dir / "images"
+    images_dir.mkdir()
+    (images_dir / "figure-1.png").write_bytes(b"fake image bytes")
+    (paper_root / "parse-record.json").write_text(
+        json.dumps({"stage": "parse", "status": "success"}), encoding="utf-8"
+    )
     generate_reader_outputs(paper_root)
     return paper_root
 
@@ -214,7 +237,7 @@ def test_advance_paper_batch_reports_research_decisions_after_critic(tmp_path):
     assert report_json["reader_revision_plans"][0]["slug"] == "decision-paper"
     assert report_json["reader_revision_plans"][0]["next_action"] == "stage"
     assert report_json["reader_revision_plans"][0]["blocking_count"] == 0
-    assert report_json["reader_revision_plans"][0]["warning_count"] == 1
+    assert report_json["reader_revision_plans"][0]["warning_count"] == 0
     assert report_json["reader_revision_plans"][0]["plan_path"].endswith("reader-revision-plan.json")
     assert "## Research Decisions" in report_md
     assert "Decision Paper - stage-for-promotion-review" in report_md
@@ -397,7 +420,7 @@ def test_prepare_ranked_papers_records_failed_candidate_and_continues(tmp_path, 
 
         from epi.orchestrator import _prepare_candidate_until_parsed as original_prepare_candidate
 
-        def _prepare_candidate(vault_path, candidate, *, mineru_command=None):
+        def _prepare_candidate(vault_path, candidate, *, mineru_command=None, mineru_timeout=None):
             if candidate["slug"] == "download-timeout":
                 raise TimeoutError("simulated download timeout")
 
@@ -405,6 +428,7 @@ def test_prepare_ranked_papers_records_failed_candidate_and_continues(tmp_path, 
                 vault_path,
                 candidate,
                 mineru_command=mineru_command,
+                mineru_timeout=mineru_timeout,
             )
 
         monkeypatch.setattr("epi.orchestrator._prepare_candidate_until_parsed", _prepare_candidate)
@@ -458,6 +482,9 @@ def test_prepare_ranked_papers_can_skip_existing_parsed_candidates_when_resuming
     (existing_mineru / "paper.tex").write_text("\\section{Already Parsed}\n", encoding="utf-8")
     (existing_mineru / "mineru-manifest.json").write_text("{}", encoding="utf-8")
     (existing_mineru / "images").mkdir()
+    (existing_root / "parse-record.json").write_text(
+        json.dumps({"stage": "parse", "status": "success"}), encoding="utf-8"
+    )
 
     with _LocalServer(server_root) as base_url:
         new_candidate = _candidate("resume-new", "Resume New", f"{base_url}/new.pdf")
@@ -487,6 +514,48 @@ def test_prepare_ranked_papers_can_skip_existing_parsed_candidates_when_resuming
     report_json = json.loads((vault / "_runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
     assert report_json["skip_existing"] is True
     assert report_json["skipped_existing_candidates"] == batch["skipped_existing_candidates"]
+
+
+def test_prepare_ranked_papers_reparses_when_parse_record_missing_or_unsuccessful(tmp_path):
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+    vault = tmp_path / "vault"
+    run_id = "20260527T124500Z"
+    run_dir = vault / "_runs" / run_id
+    run_dir.mkdir(parents=True)
+    mineru_command = _write_success_mineru_command(tmp_path)
+
+    # Complete mineru/ files but NO success parse-record (e.g. process killed between
+    # writing mineru/ outputs and parse-record.json, or a leftover/corrupted parse).
+    # --skip-existing must NOT treat this as done; it must reparse.
+    stale = _candidate("stale-parse", "Stale Parse", "https://example.org/stale.pdf")
+    stale["ranking_protocol"] = {"decision": "advance-candidate"}
+    stale_root = vault / "_raw" / "papers" / "stale-parse"
+    stale_mineru = stale_root / "mineru"
+    stale_mineru.mkdir(parents=True)
+    (stale_root / "paper.pdf").write_bytes(b"%PDF-1.4\nstale fixture\n")
+    (stale_mineru / "paper.md").write_text("# Stale Parse\n", encoding="utf-8")
+    (stale_mineru / "paper.tex").write_text("\\section{Stale Parse}\n", encoding="utf-8")
+    (stale_mineru / "mineru-manifest.json").write_text("{}", encoding="utf-8")
+    (stale_mineru / "images").mkdir()
+    (stale_root / "parse-record.json").write_text(
+        json.dumps({"stage": "parse", "status": "failed"}), encoding="utf-8"
+    )
+    (run_dir / "rank.json").write_text(json.dumps([stale]), encoding="utf-8")
+
+    batch = prepare_ranked_papers_from_run(
+        vault,
+        run_id,
+        mineru_command=mineru_command,
+        max_papers=1,
+        skip_existing=True,
+    )
+
+    assert batch["skipped_existing_candidates"] == []
+    assert batch["processed_count"] == 1
+    assert batch["results"][0]["paper_slug"] == "stale-parse"
+    assert batch["results"][0]["state"] == "parsed"
+    assert json.loads((stale_root / "parse-record.json").read_text(encoding="utf-8"))["status"] == "success"
 
 
 def test_advance_paper_batch_from_run_skips_review_candidates_by_default(tmp_path):

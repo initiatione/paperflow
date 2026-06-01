@@ -23,6 +23,8 @@ Human approval is required before activation. Accepted chain changes must update
 
 Acceptance gates with `metric`, `operator`, and `value` are real non-regression gates. For example, `plugin_eval_score >= 91` must be present in `--validation-result-json`; `passed: true` alone is not enough if the metric regresses, is missing, or cannot be compared.
 
+`quality_loop_sources_complete` is also a real activation gate. If an `evaluation-brief` forwarded missing or invalid Plugin Eval, `epi-quality-gates`, or benchmark sources into `propose-evolution`, `activate-evolution` must reject the proposal even when `--validation-result-json` says `{"passed": true}`. Collect the missing evidence first, then generate a new complete brief.
+
 ## Commands
 
 ```powershell

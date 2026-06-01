@@ -6,7 +6,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from epi.acquire_papers import acquire_paper, acquire_paper_from_url
-from epi.artifacts import file_sha256, json_sha256, raw_paper_root, utc_now, write_json_atomic, write_text_atomic
+from epi.artifacts import (
+    file_sha256,
+    json_sha256,
+    raw_paper_root,
+    utc_now,
+    write_json_atomic,
+    write_text_atomic,
+)
 from epi.config import load_config, load_wiki_config
 from epi.feedback import record_feedback
 from epi.evaluation_loop import build_improvement_brief, render_improvement_brief, write_improvement_brief
@@ -35,6 +42,7 @@ from epi.run_critic import run_critics
 from epi.run_mineru_parse import materialize_mineru_fixture, run_mineru_command
 from epi.skill_aware_evolve import activate_evolution, propose_evolution, query_evolution, render_evolution_query
 from epi.stage_wiki import stage_paper
+from epi.wiki_ingest_approval import create_human_approval_record, human_approval_record_path
 from epi.wiki_ingest_handoff import build_wiki_ingest_handoff, render_wiki_ingest_handoff
 from epi.wiki_ingest_record import create_wiki_ingest_record
 from epi.wiki_query import query_wiki, render_wiki_query
@@ -427,6 +435,107 @@ def _write_wiki_ingest_record_report(
     report_payload["page_records"] = record.get("page_records") or []
     report_payload["zotero_results"] = zotero_results
     _write_json(report_json_path, report_payload)
+
+
+def _write_human_approval_report(
+    run_dir: Path,
+    *,
+    run_id: str,
+    slug: str,
+    record: dict,
+) -> None:
+    report_md_path = run_dir / "report.md"
+    report_json_path = run_dir / "report.json"
+    lines = [
+        f"# EPI Human Approval - {slug}",
+        "",
+        f"- run_id: {run_id}",
+        "- workflow_type: record-human-approval",
+        f"- status: {record.get('status')}",
+        f"- approved_by: {record.get('approved_by')}",
+        f"- scope: {record.get('scope')}",
+        f"- approval_path: {record.get('record_path')}",
+        "",
+    ]
+    write_text_atomic(report_md_path, "\n".join(lines))
+    _write_json(
+        report_json_path,
+        {
+            "schema_version": "epi-human-approval-report-v1",
+            "run_id": run_id,
+            "workflow_type": "record-human-approval",
+            "paper_slug": slug,
+            "status": record.get("status"),
+            "human_approval_record": record,
+        },
+    )
+
+
+def record_human_approval(
+    vault_path: Path,
+    slug: str,
+    *,
+    approved_by: str,
+    scope: str,
+    notes: str | None = None,
+) -> dict:
+    vault_path = vault_path.resolve()
+    gate = build_paper_gate(vault_path, slug)
+    record = create_human_approval_record(
+        vault_path,
+        slug,
+        approved_by=approved_by,
+        scope=scope,
+        notes=notes,
+        gate=gate,
+    )
+    record_path = human_approval_record_path(vault_path, slug)
+    record["record_path"] = str(record_path)
+    run_id, run_dir = _new_run_dir(vault_path, "record-human-approval")
+    _write_human_approval_report(run_dir, run_id=run_id, slug=slug, record=record)
+    _write_json(
+        run_dir / "run-state.json",
+        {
+            "stage": "record-human-approval",
+            "run_id": run_id,
+            "workflow_type": "record-human-approval",
+            "state": "human_approved_for_wiki_ingest",
+            "status": "success",
+            "paper_slug": slug,
+            "vault_path": str(vault_path),
+            "compiled_wiki_write": False,
+            "record_only": True,
+            "finished_at": utc_now(),
+            "tool_versions": _tool_versions("orchestrator", "wiki_ingest_approval"),
+            "output_artifact_hashes": _hash_existing_outputs(
+                {
+                    "human-approval.json": record_path,
+                    "report.md": run_dir / "report.md",
+                    "report.json": run_dir / "report.json",
+                }
+            ),
+        },
+    )
+    paper_root = raw_paper_root(vault_path, slug)
+    _write_paper_run_state(
+        paper_root,
+        _paper_run_state(
+            paper_root=paper_root,
+            slug=slug,
+            state="human_approved_for_wiki_ingest",
+            last_action="record-human-approval",
+            next_action="run-wiki-ingest-agent",
+            stage_record=record,
+            human_gate_required=False,
+        ),
+    )
+    _refresh_run_index(vault_path)
+    return {
+        "run_id": run_id,
+        "run_dir": str(run_dir),
+        "record": record,
+        "record_path": str(record_path),
+    }
 
 
 def record_wiki_ingest(
@@ -1143,11 +1252,16 @@ def acquire_paper_from_candidate(vault_path: Path, candidate: dict) -> dict:
     return acquire_paper_from_url(candidate, paper_root)
 
 
-def parse_paper_with_mineru(vault_path: Path, slug: str, mineru_command: str | list[str] | None = None) -> dict:
+def parse_paper_with_mineru(
+    vault_path: Path,
+    slug: str,
+    mineru_command: str | list[str] | None = None,
+    mineru_timeout: int | None = None,
+) -> dict:
     paper_root = raw_paper_root(vault_path.resolve(), slug)
     if not paper_root.exists():
         raise FileNotFoundError(f"missing raw paper root: {paper_root}")
-    return run_mineru_command(paper_root, command=mineru_command)
+    return run_mineru_command(paper_root, command=mineru_command, timeout_seconds=mineru_timeout)
 
 
 def _write_paper_run_state(paper_root: Path, state: dict) -> dict:
@@ -1179,13 +1293,17 @@ def _paper_run_state(
     return payload
 
 
-def advance_paper_once(vault_path: Path, candidate: dict, mineru_command: str | list[str] | None = None) -> dict:
+def advance_paper_once(
+    vault_path: Path,
+    candidate: dict,
+    mineru_command: str | list[str] | None = None,
+    mineru_timeout: int | None = None,
+) -> dict:
     vault_path = vault_path.resolve()
     initialize_paper_wiki(vault_path)
     slug = candidate["slug"]
     paper_root = raw_paper_root(vault_path, slug)
     paper_pdf = paper_root / "paper.pdf"
-    mineru_md = paper_root / "mineru" / "paper.md"
     reader_md = paper_root / "reader" / "reader.md"
     critic_report_path = paper_root / "critic" / "critic-report.json"
     promotion_plan = vault_path / "_staging" / "papers" / slug / "promotion-plan.json"
@@ -1206,8 +1324,10 @@ def advance_paper_once(vault_path: Path, candidate: dict, mineru_command: str | 
             ),
         )
 
-    if not mineru_md.exists():
-        record = parse_paper_with_mineru(vault_path, slug, mineru_command=mineru_command)
+    if not _has_complete_mineru_parse(paper_root):
+        record = parse_paper_with_mineru(
+            vault_path, slug, mineru_command=mineru_command, mineru_timeout=mineru_timeout
+        )
         state = "parsed" if record["status"] == "success" else "parse_failed"
         next_action = "read" if record["status"] == "success" else None
         return _write_paper_run_state(
@@ -1368,6 +1488,7 @@ def advance_paper_batch(
     source_candidate_count: int | None = None,
     skipped_ranked_candidates: list[dict] | None = None,
     rank_decision_filter: list[str] | None = None,
+    mineru_timeout: int | None = None,
 ) -> dict:
     vault_path = vault_path.resolve()
     initialize_paper_wiki(vault_path)
@@ -1380,7 +1501,7 @@ def advance_paper_batch(
     run_id, run_dir = _new_run_dir(vault_path, "batch-advance")
     started_at = utc_now()
     results = [
-        advance_paper_once(vault_path, candidate, mineru_command=mineru_command)
+        advance_paper_once(vault_path, candidate, mineru_command=mineru_command, mineru_timeout=mineru_timeout)
         for candidate in selected_candidates
     ]
     failed = any(result["state"].endswith("_failed") for result in results)
@@ -1628,6 +1749,7 @@ def advance_paper_batch_from_run(
     mineru_command: str | list[str] | None = None,
     max_papers: int | None = None,
     include_review_candidates: bool = False,
+    mineru_timeout: int | None = None,
 ) -> dict:
     vault_path = vault_path.resolve()
     rank_path = vault_path / "_runs" / run_id / "rank.json"
@@ -1649,6 +1771,7 @@ def advance_paper_batch_from_run(
         source_candidate_count=len(candidates),
         skipped_ranked_candidates=skipped_ranked_candidates,
         rank_decision_filter=rank_decision_filter,
+        mineru_timeout=mineru_timeout,
     )
 
 
@@ -1657,6 +1780,7 @@ def _prepare_candidate_until_parsed(
     candidate: dict,
     *,
     mineru_command: str | list[str] | None = None,
+    mineru_timeout: int | None = None,
 ) -> dict:
     slug = candidate["slug"]
     paper_root = raw_paper_root(vault_path, slug)
@@ -1684,7 +1808,9 @@ def _prepare_candidate_until_parsed(
 
     parse_complete = _has_complete_mineru_parse(paper_root)
     if not parse_complete:
-        parse_record = parse_paper_with_mineru(vault_path, slug, mineru_command=mineru_command)
+        parse_record = parse_paper_with_mineru(
+            vault_path, slug, mineru_command=mineru_command, mineru_timeout=mineru_timeout
+        )
         state = "parsed" if parse_record["status"] == "success" else "parse_failed"
         next_action = "read" if parse_record["status"] == "success" else None
         return _write_paper_run_state(
@@ -1712,6 +1838,17 @@ def _prepare_candidate_until_parsed(
     )
 
 
+def _parse_record_status(paper_root: Path) -> str | None:
+    record_path = paper_root / "parse-record.json"
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+    if isinstance(record, dict) and record.get("status") is not None:
+        return str(record.get("status"))
+    return None
+
+
 def _has_complete_mineru_parse(paper_root: Path) -> bool:
     paper_pdf = paper_root / "paper.pdf"
     mineru_dir = paper_root / "mineru"
@@ -1719,7 +1856,7 @@ def _has_complete_mineru_parse(paper_root: Path) -> bool:
     mineru_tex = mineru_dir / "paper.tex"
     mineru_manifest = mineru_dir / "mineru-manifest.json"
     mineru_images = mineru_dir / "images"
-    return (
+    files_complete = (
         paper_pdf.exists()
         and mineru_md.exists()
         and mineru_md.stat().st_size > 0
@@ -1728,6 +1865,12 @@ def _has_complete_mineru_parse(paper_root: Path) -> bool:
         and mineru_manifest.exists()
         and mineru_images.is_dir()
     )
+    if not files_complete:
+        return False
+    # A complete parse must also carry a success parse-record. This guards against
+    # a crash/kill between writing mineru/ files and parse-record.json, and against
+    # corrupted/leftover outputs being silently skipped by --skip-existing.
+    return _parse_record_status(paper_root) == "success"
 
 
 def _prepare_candidate_failure_state(vault_path: Path, candidate: dict, exc: Exception) -> dict:
@@ -1763,6 +1906,7 @@ def prepare_ranked_papers_from_run(
     max_papers: int | None = 1,
     include_review_candidates: bool = False,
     skip_existing: bool = False,
+    mineru_timeout: int | None = None,
 ) -> dict:
     vault_path = vault_path.resolve()
     initialize_paper_wiki(vault_path)
@@ -1797,7 +1941,9 @@ def prepare_ranked_papers_from_run(
     results = []
     for candidate in selected_candidates:
         try:
-            result = _prepare_candidate_until_parsed(vault_path, candidate, mineru_command=mineru_command)
+            result = _prepare_candidate_until_parsed(
+                vault_path, candidate, mineru_command=mineru_command, mineru_timeout=mineru_timeout
+            )
         except Exception as exc:
             result = _prepare_candidate_failure_state(vault_path, candidate, exc)
         results.append(result)

@@ -249,3 +249,53 @@ def test_parse_paper_with_mineru_uses_vault_slug_boundary(tmp_path):
     assert record["status"] == "success"
     assert record["batch_id"] == "fake-batch-001"
     assert (paper_root / "mineru" / "paper.md").is_file()
+
+
+def test_resolve_mineru_timeout_prefers_param_then_env_then_default(monkeypatch):
+    from epi.run_mineru_parse import _resolve_mineru_timeout
+
+    monkeypatch.delenv("EPI_MINERU_TIMEOUT", raising=False)
+    assert _resolve_mineru_timeout(None) == 7200
+    assert _resolve_mineru_timeout(120) == 120
+
+    monkeypatch.setenv("EPI_MINERU_TIMEOUT", "300")
+    assert _resolve_mineru_timeout(None) == 300
+    # explicit positive param overrides the environment
+    assert _resolve_mineru_timeout(120) == 120
+
+    # invalid / non-positive env values fall back to the default
+    monkeypatch.setenv("EPI_MINERU_TIMEOUT", "not-a-number")
+    assert _resolve_mineru_timeout(None) == 7200
+    monkeypatch.setenv("EPI_MINERU_TIMEOUT", "0")
+    assert _resolve_mineru_timeout(None) == 7200
+    # booleans are not valid timeouts
+    monkeypatch.delenv("EPI_MINERU_TIMEOUT", raising=False)
+    assert _resolve_mineru_timeout(True) == 7200
+
+
+def _write_sleeping_command(tmp_path):
+    script = tmp_path / "fake_mineru_sleep.py"
+    script.write_text("import time\ntime.sleep(15)\n", encoding="utf-8")
+    return script
+
+
+def test_mineru_command_times_out_with_explicit_timeout(tmp_path):
+    paper_root = _seed_paper_root(tmp_path)
+    command = [sys.executable, str(_write_sleeping_command(tmp_path))]
+
+    record = run_mineru_command(paper_root, command=command, timeout_seconds=1)
+
+    assert record["status"] == "failed"
+    assert record["error"] == "MinerU command timed out after 1 seconds"
+    assert json.loads((paper_root / "parse-record.json").read_text(encoding="utf-8"))["status"] == "failed"
+
+
+def test_mineru_command_times_out_using_env_timeout(tmp_path, monkeypatch):
+    paper_root = _seed_paper_root(tmp_path)
+    command = [sys.executable, str(_write_sleeping_command(tmp_path))]
+    monkeypatch.setenv("EPI_MINERU_TIMEOUT", "1")
+
+    record = run_mineru_command(paper_root, command=command)
+
+    assert record["status"] == "failed"
+    assert record["error"] == "MinerU command timed out after 1 seconds"

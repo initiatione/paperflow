@@ -181,6 +181,20 @@ def _check_run_for_gate(
     if name == "human_approval":
         conclusion = "success" if approved else "failure"
         summary = "Human approval recorded." if approved else "Human approval is required."
+    elif name == "quality_loop_sources_complete":
+        missing_sources = [str(item) for item in gate.get("missing_sources") or []]
+        invalid_sources = [str(item) for item in gate.get("invalid_sources") or []]
+        if missing_sources or invalid_sources:
+            conclusion = "failure"
+            parts = []
+            if missing_sources:
+                parts.append("missing sources: " + ", ".join(missing_sources))
+            if invalid_sources:
+                parts.append("invalid sources: " + ", ".join(invalid_sources))
+            summary = "Quality-loop evidence sources are incomplete; " + "; ".join(parts) + "."
+        else:
+            conclusion = "success"
+            summary = "Quality-loop evidence sources are complete."
     elif validation_result is None:
         conclusion = "action_required"
         summary = gate.get("description") or "Validation result is required before applying this skill change."

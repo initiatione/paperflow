@@ -83,7 +83,7 @@ ranking 必须同时给机器信号和低阅读负担解释：
 
 ### 3. 采集、解析与 raw 留痕
 
-入口：`prepare-ranked` 用于只走搜索后采集 + MinerU 解析并停止；`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`parse-paper` 用于继续完整 ingest 或单步修复。实测批量命令应使用 `prepare-ranked --max-papers 10 --skip-existing`，使已解析论文不占补跑预算；`--max-papers 1` 仅用于 smoke test。自动化串联时使用 `prepare-ranked --json`，输出 prepared run id、source run id、processed/skipped counts、`stops_after=parse` 和 report artifact 路径。
+入口：`prepare-ranked` 用于只走搜索后采集 + MinerU 解析并停止；`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`parse-paper` 用于继续完整 ingest 或单步修复。实测批量命令应使用 `prepare-ranked --max-papers 10 --skip-existing`，使已解析论文不占补跑预算；`--max-papers 1` 仅用于 smoke test。`--skip-existing` 和单篇推进都要求 `paper.pdf`、MinerU Markdown/TeX/images/manifest 以及 `parse-record.json status=success` 同时成立，避免半截 parse 被当成已完成。自动化串联时使用 `prepare-ranked --json`，输出 prepared run id、source run id、processed/skipped counts、`stops_after=parse` 和 report artifact 路径。MinerU 子进程默认超时 7200 秒，可用 `--mineru-timeout <seconds>` 或 `EPI_MINERU_TIMEOUT` 覆盖。
 
 关键产物：
 
@@ -95,6 +95,8 @@ ranking 必须同时给机器信号和低阅读负担解释：
 - `_raw/papers/<slug>/mineru/images/...`
 - `_raw/papers/<slug>/mineru/mineru-manifest.json`
 - `_raw/papers/<slug>/run-state.json`
+
+采集失败时，`acquire-record.json` 必须包含 `failure_class`、`retryable` 和 `recovery_hint`，用于区分 `no-url`、`already-exists`、`empty-pdf`、`access-denied`、`not-found`、`rate-limited`、`server-error`、`http-error`、`network` 和 `unknown`，让 agent 决定重试、换源或跳过。
 
 成功解析时只保留最终 `mineru/` 产物和 `mineru-command/stdout.txt`、`mineru-command/stderr.txt` 日志，不保留重复的 `mineru-command/paper` 或 `mineru-command/parsed` 大型工作副本。若 MinerU 没有返回原生 `.tex`，EPI 从 `paper.md` 生成非空 LaTeX fallback，并在 `parse-record.json` 记录 `tex_source=markdown-fallback`；原生 TeX 记录 `tex_source=mineru-native`。解析失败时保留错误和 run-state，不进入 staging 或 compiled wiki；若 stdout 显示 batch done 但缺少 Markdown，记录 `MinerU reported done but produced no Markdown output` 以便区分 upstream 完成但本地无可用 `paper.md` 的情况。
 
@@ -131,7 +133,7 @@ paper-quality 重点检查学术论文可靠性：
 
 入口：`paper-gate --slug <slug> [--json]`。它是 GitHub checks 风格的只读状态面板，只读 raw/staging 证据，不写 `_runs`、raw、staging 或 compiled wiki。
 
-检查项：`critic-report`、`critic-outcome`、`hard-rule`、`critic-quorum`、`promotion-plan`、`staged-drafts`、`wiki-ingest-brief`、`final-wiki-authority`、`human-approval`；只有 legacy compiled-draft plan 才检查 `compiled-targets`。gate `failure` 时不得进入最终 wiki 写入。当前 agent-mediated 计划只有在 `next_action=run-wiki-ingest-agent`、`failure_checks=[]` 且 `action_required_checks == ["human-approval"]` 时，才允许建议由 agent 执行 wiki ingest；agent 完成最终页后，`record-wiki-ingest` 会写入 `wiki-ingest-record.json`，此后 gate 进入 `status=wiki_ingest_recorded`、`next_action=review-recorded-wiki-pages`。legacy 计划才可能建议 `promote-to-wiki`。`wiki-ingest-brief` 检查必须验证 `wiki_rule_source_model`，确保 handoff 不是单纯列出三个仓库名，而是明确 target vault contract、个性化 wiki-skills、Ar9av/obsidian-wiki、kepano/obsidian-skills、本机 helper skills 的优先级。
+检查项：`critic-report`、`critic-outcome`、`hard-rule`、`critic-quorum`、`promotion-plan`、`staged-drafts`、`wiki-ingest-brief`、`final-wiki-authority`、`human-approval`；只有 legacy compiled-draft plan 才检查 `compiled-targets`。gate `failure` 时不得进入最终 wiki 写入。当前 agent-mediated 计划只有在 `next_action=run-wiki-ingest-agent`、`failure_checks=[]` 且 `action_required_checks == ["human-approval"]` 时，才允许记录前置批准：`record-human-approval --scope run-wiki-ingest-agent` 会写 `_staging/papers/<slug>/human-approval.json`。批准记录有效后，gate 进入 `status=ready_for_wiki_ingest_agent`、`check_suite.conclusion=success`，`wiki-ingest-handoff` 才显示 `ready_for_agent=true`。agent 完成最终页后，`record-wiki-ingest` 会验证这个前置批准 artifact 和相同 `approved-by`，再写入 `wiki-ingest-record.json`；此后 gate 进入 `status=wiki_ingest_recorded`、`next_action=review-recorded-wiki-pages`。legacy 计划才可能建议 `promote-to-wiki`。`wiki-ingest-brief` 检查必须验证 `wiki_rule_source_model`，确保 handoff 不是单纯列出三个仓库名，而是明确 target vault contract、个性化 wiki-skills、Ar9av/obsidian-wiki、kepano/obsidian-skills、本机 helper skills 的优先级。
 
 ### 7. Staging 与轻阅读报告
 
@@ -152,9 +154,11 @@ staging 生成证据包和非权威草稿：
 
 当前默认路径是 agent-mediated wiki ingest handoff：`promotion-plan.json` 记录 `handoff_type=agent-mediated-wiki-ingest`、`wiki_write_model=agent-mediated-vault-contract`、`final_page_authority=target-vault-contract-and-wiki-ingest-agent`、`wiki_ingest_brief_path`、`agent_handoff_paths`、`final_source_review_contract` 和 `suggested_final_source_review_path`。EPI 不用固定脚本决定最终 Obsidian Wiki 页面路径；`references/`、`concepts/`、`synthesis/`、`reports/` 只是不具约束力的 suggested draft routes。
 
-入口：`wiki-ingest-handoff --slug <slug> [--json]`。它是只读 handoff 渲染器，不写 `_runs`、raw、staging 或 compiled wiki。输出内容包括：当前 `paper-gate` 摘要、`promotion-plan.json` / `wiki-ingest-brief.json` 路径、目标 vault contract 文件是否存在、`wiki_rule_source_model` 的优先级、framework references、suggested routes、trust status、final-source-review 合同和 agent checklist。`research-queue --bucket ready_to_promote --actions` 对 agent-mediated plan 必须给出该命令，用户或 agent 先阅读 handoff，再按目标 vault contract 执行最终 wiki ingest。
+入口：`wiki-ingest-handoff --slug <slug> [--json]`。它是只读 handoff 渲染器，不写 `_runs`、raw、staging 或 compiled wiki。输出内容包括：当前 `paper-gate` 摘要、`promotion-plan.json` / `wiki-ingest-brief.json` / `human-approval.json` 路径、目标 vault contract 文件是否存在、`wiki_rule_source_model` 的优先级、framework references、suggested routes、trust status、final-source-review 合同和 agent checklist。`research-queue --bucket ready_to_promote --actions` 对 agent-mediated plan 必须给出该命令，用户或 agent 先阅读 handoff，再记录前置 human approval，之后才按目标 vault contract 执行最终 wiki ingest。
 
-入口：`record-wiki-ingest --slug <slug> --page <final-page.md> [--page ...] --approved-by <name> --source-review <final-source-review.json> [--json]`。它是 agent-mediated 完成态记录器，不替 final wiki agent 写页面。它重新检查 `paper-gate`，只允许无 failure checks 且当前为 agent-mediated wiki ingest 状态；要求 human approval；校验每个最终页是 vault 内 Markdown 文件，且不在 `_raw`、`_staging`、`_runs`、`_quarantine`、`.obsidian` 等内部目录；验证 `final-source-review.json` 中的 `paper.pdf`、`metadata.json`、MinerU Markdown、TeX、images、manifest hash，要求公式复核、图表/图片复核、PDF fallback 决策和每个最终页 `source_grounded=true` provenance；读取并记录页面 sha256、大小、相对路径、`promotion-plan.json`、`wiki-ingest-brief.json`、`source_bundle`、`wiki_rule_source_model`、`final_source_review` 和 approval 元数据。它只写 `_raw/papers/<slug>/wiki-ingest-record.json`、`_staging/papers/<slug>/wiki-ingest-record.json`、一次 `_runs/record-wiki-ingest-*` 报告和该论文 raw `run-state.json`，不得修改最终 wiki 页面、manifest/index/log/hot。记录后 `paper-gate` 应显示 `wiki_ingest_recorded`，后续 Zotero/report/人工复核可以读取真实 final page paths、hashes 和 source-first closure。
+入口：`record-human-approval --slug <slug> --approved-by <name> --scope run-wiki-ingest-agent [--json]`。它是 agent-mediated wiki ingest 的前置人类批准记录器，只在当前 `paper-gate` 无 failure checks 且唯一 action-required 为 `human-approval` 时写 `_staging/papers/<slug>/human-approval.json`，schema 为 `epi-human-approval-v1`。它不得写最终 wiki 页面，也不得替代 final wiki agent。
+
+入口：`record-wiki-ingest --slug <slug> --page <final-page.md> [--page ...] --approved-by <name> --source-review <final-source-review.json> [--json]`。它是 agent-mediated 完成态记录器，不替 final wiki agent 写页面。它重新检查 `paper-gate`，只允许无 failure checks 且当前为 agent-mediated wiki ingest 状态；要求已存在前置 `human-approval.json`，且 `--approved-by` 必须和批准 artifact 的 `approved_by` 完全一致；校验每个最终页是 vault 内 Markdown 文件，且不在 `_raw`、`_staging`、`_runs`、`_quarantine`、`.obsidian` 等内部目录；验证 `final-source-review.json` 中的 `paper.pdf`、`metadata.json`、MinerU Markdown、TeX、images、manifest hash，要求公式复核、图表/图片复核、PDF fallback 决策和每个最终页 `source_grounded=true` provenance；读取并记录页面 sha256、大小、相对路径、`promotion-plan.json`、`wiki-ingest-brief.json`、`human-approval.json`、`source_bundle`、`wiki_rule_source_model`、`final_source_review` 和 approval 元数据。它只写 `_raw/papers/<slug>/wiki-ingest-record.json`、`_staging/papers/<slug>/wiki-ingest-record.json`、一次 `_runs/record-wiki-ingest-*` 报告和该论文 raw `run-state.json`，不得修改最终 wiki 页面、manifest/index/log/hot。记录后 `paper-gate` 应显示 `wiki_ingest_recorded`，后续 Zotero/report/人工复核可以读取真实 final page paths、hashes 和 source-first closure。
 
 Zotero 是可选 side tool，不是论文/wikibase 质量门。`record-wiki-ingest` 和 legacy `promote-to-wiki` 会根据 `<vault>/_meta/epi-config.yaml` 的 `zotero.enabled` / `zotero.collection` 写本地 `_raw/papers/<slug>/zotero-record.json`：禁用或未配置时记录 `status=skipped` 和 reason；启用时记录 `status=recorded`、collection、metadata snapshot、`wiki-ingest-record.json` 摘要和 final wiki page hashes。它不调用外部 Zotero API、不删除已有 Zotero 数据；`report.md` / `report.json` 会显示 `zotero_results`，让 Step 12 -> Step 14 在运行证据里闭合。
 
@@ -175,7 +179,7 @@ run index 是状态面板，不是 research agenda。EPI 不暴露 `research-age
 
 `waiting_for_human_gate` 是非失败状态，应进入 human gate pending 和 `ready_to_promote`，不计入 failed runs。`ready_to_promote` item 可附带紧凑 `paper_gate` 摘要：`status`、`conclusion`、`next_action`、`action_required_checks`、`failure_checks`。
 
-`research-queue --bucket ready_to_promote --actions` 必须以当前 `paper-gate` 为准，而不是旧 run report 或 `_runs/index.json` 缓存。生成 actions 时要现场重算 `paper_gate` 和 reason。若当前 gate failure、unknown、构建失败，或待办不是精确 `human-approval`，只能建议 `inspect-paper-gate`；agent-mediated plan 应建议 `run-wiki-ingest-agent`，legacy compiled-draft plan 才能建议 `promote-to-wiki`。
+`research-queue --bucket ready_to_promote --actions` 必须以当前 `paper-gate` 为准，而不是旧 run report 或 `_runs/index.json` 缓存。生成 actions 时要现场重算 `paper_gate` 和 reason。若当前 gate failure、unknown、构建失败，或待办不是精确 `human-approval`，只能建议 `inspect-paper-gate`；agent-mediated plan 应先建议 `wiki-ingest-handoff` 和 `record-human-approval`，批准后再建议 `run-wiki-ingest-agent`，legacy compiled-draft plan 才能建议 `promote-to-wiki`。
 
 `_runs` 是过渡态证据区，需要生命周期管理。EPI run 结束后会自动检查 `_runs` 下单次 run 目录数量；超过 15 个时自动应用 lifecycle cleanup，保留最新 15 个 terminal run，并按 workflow 至少保留 2 个。手动入口：`run-lifecycle --keep-latest 15 --keep-per-workflow 2 [--max-age-days N] [--apply] [--json]`。手动模式默认 dry-run，只列候选；`--apply` 才删除单次 run 目录并刷新 index/dashboard/research-queue。它不得删除 `_runs/index.json`、dashboard、research queue、feedback log、`_raw`、`_staging`、最终 wiki、Zotero 或配置历史；清理 manifest 写入 `_meta/run-lifecycle/`。
 
@@ -187,7 +191,7 @@ EPI 自进化是 proposal-based，不直接修改插件代码、用户配置或 
 
 输入：run evidence、human feedback、Plugin Eval、`epi-quality-gates` metric pack、benchmark report、critic warning/failure pattern。输出：reflection type、evidence type、classification、target asset、rationale、proposed change、evidence、before metrics、acceptance gates、bounded change、risk level、approval requirement。
 
-插件开发质量环必须闭合为：Plugin Eval -> `epi-quality-gates` -> benchmark -> compare before/after -> `evaluation-brief` improvement brief -> `propose-evolution`。`evaluation-brief` 是本环的机器可读桥接命令：它把 Plugin Eval、metric pack、benchmark 和 before/after metrics 合并成 `epi-improvement-brief-v1`，并生成 `proposed_evolution` payload。完整 dev-loop brief 必须有 Plugin Eval JSON、`epi-quality-gates` JSON 和 benchmark/comparison JSON；缺任一证据源时，brief 必须写出 `source_completeness.complete=false`、`missing_sources` 和 `quality_loop_sources_complete` acceptance gate，`next_action` 应为 `collect-missing-quality-evidence`，不能伪装成可直接 `propose-evolution` 的完整证据包。brief 默认写入 `.plugin-eval/improvement-briefs/`，属于本地开发产物，不随插件发布；真正改变 skill/template 仍必须走 `propose-evolution`、human approval 和 validation gates。
+插件开发质量环必须闭合为：Plugin Eval -> `epi-quality-gates` -> benchmark -> compare before/after -> `evaluation-brief` improvement brief -> `propose-evolution`。`evaluation-brief` 是本环的机器可读桥接命令：它把 Plugin Eval、metric pack、benchmark 和 before/after metrics 合并成 `epi-improvement-brief-v1`，并生成 `proposed_evolution` payload。完整 dev-loop brief 必须有 Plugin Eval JSON、`epi-quality-gates` JSON 和 benchmark/comparison JSON；缺任一证据源时，brief 必须写出 `source_completeness.complete=false`、`missing_sources` 和 `quality_loop_sources_complete` acceptance gate，`next_action` 应为 `collect-missing-quality-evidence`，不能伪装成可直接 `propose-evolution` 的完整证据包。`activate-evolution` 会在执行点重新检查 `quality_loop_sources_complete`：只要 `missing_sources` 或 `invalid_sources` 非空，即使 `validation_result.passed=true` 也必须拒绝激活。brief 默认写入 `.plugin-eval/improvement-briefs/`，属于本地开发产物，不随插件发布；真正改变 skill/template 仍必须走 `propose-evolution`、human approval 和 validation gates。
 
 classification：
 
@@ -197,7 +201,7 @@ classification：
 
 `configuration_change 必须 record-only`，即使目标是白名单模板也不得应用模板修改；`evolution-query` 的下一步应指向 `propose-config-update`。`skill-aware-evolve` 技能入口也必须保留这条边界提示。
 
-激活规则：没有 human approval 不应用；没有 validation result 时进入 `_evolution/pending/<proposal-id>.json`，`check_suite.conclusion=action_required`；验证失败进入 `_evolution/rejected/<proposal-id>.json`，`check_suite.conclusion=failure`；通过后才进入 active。即使自定义 acceptance gates 只写 `human_approval`，系统也必须补 validation check run。带 `metric`、`operator`、`value` 的 acceptance gate 必须真实读取 validation result 并比较，例如 `plugin_eval_score >= 91`；外层 `passed=true` 不能绕过分数退化、缺失或无法比较的指标。
+激活规则：没有 human approval 不应用；没有 validation result 时进入 `_evolution/pending/<proposal-id>.json`，`check_suite.conclusion=action_required`；验证失败进入 `_evolution/rejected/<proposal-id>.json`，`check_suite.conclusion=failure`；通过后才进入 active。即使自定义 acceptance gates 只写 `human_approval`，系统也必须补 validation check run。带 `metric`、`operator`、`value` 的 acceptance gate 必须真实读取 validation result 并比较，例如 `plugin_eval_score >= 91`；外层 `passed=true` 不能绕过分数退化、缺失或无法比较的指标，也不能绕过 `quality_loop_sources_complete` 的缺失/无效证据源。
 
 入口：`propose-evolution`、`activate-evolution`、`evolution-query`。推荐顺序是先 propose，再 query 看 check suite 和 next action，最后在验证可用时 activate。
 

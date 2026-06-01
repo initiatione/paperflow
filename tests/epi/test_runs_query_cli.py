@@ -561,11 +561,15 @@ def test_research_queue_cli_actions_points_agent_handoff_to_handoff_command(tmp_
     assert exit_code == 0
     assert [action["action"] for action in actions] == [
         "inspect-paper-gate",
-        "run-wiki-ingest-agent",
+        "wiki-ingest-handoff",
+        "record-human-approval",
     ]
     assert f"wiki-ingest-handoff --slug {slug}" in actions[1]["command"]
     assert actions[1]["uses"] == "wiki-ingest-brief.json"
     assert "read target vault AGENTS.md and _meta/*" in actions[1]["checklist"]
+    assert f"record-human-approval --slug {slug}" in actions[2]["command"]
+    assert "--scope run-wiki-ingest-agent" in actions[2]["command"]
+    assert actions[2]["uses"] == "human-approval.json"
 
 
 def test_research_queue_does_not_promote_when_gate_action_required_checks_are_missing():

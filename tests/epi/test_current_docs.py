@@ -31,6 +31,7 @@ def test_evaluation_doc_separates_runtime_checks_from_development_quality_loop()
         "python scripts\\orchestrator.py report",
         "paper-gate",
         "wiki-ingest-handoff",
+        "record-human-approval",
         "record-wiki-ingest",
         "zotero-sync",
         "report.md",
@@ -93,10 +94,12 @@ def test_structure_doc_covers_current_plugin_boundaries():
     assert "paper-gate" in text
     assert "report" in text
     assert "wiki-ingest-handoff" in text
+    assert "record-human-approval" in text
     assert "record-wiki-ingest" in text
     assert "`report`" in text
     assert "run report" in text
     assert "wiki_ingest_record.py" in text
+    assert "wiki_ingest_approval.py" in text
     assert "agent-mediated" in text
     assert "claim-support" in text
     assert "parse-quality-critic" in text
@@ -117,6 +120,7 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "parse-quality-critic" in text
     assert "mineru/mineru-manifest.json" in text
     assert "wiki-ingest-handoff" in text
+    assert "record-human-approval" in text
     assert "record-wiki-ingest" in text
     assert "wiki_ingest_recorded" in text
     assert "287 passed in 30.16s" in text

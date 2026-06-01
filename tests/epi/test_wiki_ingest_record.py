@@ -4,7 +4,7 @@ import sys
 import pytest
 
 from epi.artifacts import file_sha256
-from epi.orchestrator import main, record_wiki_ingest
+from epi.orchestrator import main, record_human_approval, record_wiki_ingest
 from epi.paper_gate import build_paper_gate
 from epi.wiki_ingest_record import create_wiki_ingest_record
 
@@ -232,6 +232,15 @@ def _write_final_source_review(vault, slug, pages):
     return path
 
 
+def _approve_handoff(vault, slug, *, approved_by="codex-test"):
+    return record_human_approval(
+        vault,
+        slug,
+        approved_by=approved_by,
+        scope="run-wiki-ingest-agent",
+    )
+
+
 def _enable_zotero(vault, *, collection="EPI Lab"):
     config = vault / "_meta" / "epi-config.yaml"
     config.parent.mkdir(parents=True, exist_ok=True)
@@ -262,6 +271,7 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     reference = _write_final_page(vault, "papers/fixture-paper.md", "# Final Reference\n")
     concept = _write_final_page(vault, "concepts/fixture-concept.md", "# Final Concept\n")
     source_review = _write_final_source_review(vault, slug, [reference, concept])
+    _approve_handoff(vault, slug)
     before_hashes = {path: file_sha256(path) for path in [reference, concept]}
 
     result = record_wiki_ingest(
@@ -335,6 +345,7 @@ def test_record_wiki_ingest_uses_enabled_zotero_config_in_report(tmp_path):
     _enable_zotero(vault, collection="Reading Lab")
     page = _write_final_page(vault, "papers/fixture-paper.md", "# Final Reference\n")
     source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
 
     result = record_wiki_ingest(
         vault,
@@ -374,11 +385,40 @@ def test_create_wiki_ingest_record_rejects_missing_human_approval(tmp_path):
     assert not (vault / "_raw" / "papers" / slug / "wiki-ingest-record.json").exists()
 
 
+def test_create_wiki_ingest_record_rejects_missing_prewrite_approval_artifact(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(vault, "papers/fixture-paper.md", "# Final Reference\n")
+
+    with pytest.raises(ValueError, match="pre-write human approval"):
+        create_wiki_ingest_record(vault, slug, [str(page)], approved_by="codex-test")
+
+    assert not (vault / "_raw" / "papers" / slug / "wiki-ingest-record.json").exists()
+
+
+def test_create_wiki_ingest_record_rejects_mismatched_prewrite_approval_actor(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(vault, "papers/fixture-paper.md", "# Final Reference\n")
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug, approved_by="codex-test")
+
+    with pytest.raises(ValueError, match="does not match pre-write human approval"):
+        create_wiki_ingest_record(
+            vault,
+            slug,
+            [str(page)],
+            approved_by="different-reviewer",
+            source_review_path=str(source_review),
+        )
+
+
 def test_create_wiki_ingest_record_rejects_pages_outside_vault(tmp_path):
     vault = tmp_path / "vault"
     outside = tmp_path / "outside.md"
     outside.write_text("# Outside\n", encoding="utf-8")
     slug = _seed_agent_handoff(vault)
+    _approve_handoff(vault, slug)
 
     with pytest.raises(ValueError, match="inside vault"):
         create_wiki_ingest_record(vault, slug, [str(outside)], approved_by="codex-test")
@@ -388,6 +428,7 @@ def test_create_wiki_ingest_record_rejects_internal_staging_page_as_final_page(t
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     staging_page = vault / "_staging" / "papers" / slug / "references" / "fixture-paper.md"
+    _approve_handoff(vault, slug)
 
     with pytest.raises(ValueError, match="must not be under _staging"):
         create_wiki_ingest_record(vault, slug, [str(staging_page)], approved_by="codex-test")
@@ -398,6 +439,7 @@ def test_create_wiki_ingest_record_rejects_invalid_final_source_review(tmp_path)
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(vault, "papers/fixture-paper.md", "# Final Reference\n")
     source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
     payload = json.loads(source_review.read_text(encoding="utf-8"))
     payload["reviewed_artifacts"] = [
         item for item in payload["reviewed_artifacts"] if item["artifact"] != "mineru/paper.tex"
@@ -419,6 +461,7 @@ def test_record_wiki_ingest_cli_outputs_json(tmp_path, monkeypatch, capsys):
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(vault, "papers/fixture-paper.md", "# Final Reference\n")
     source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
 
     exit_code, output = _run_orchestrator_cli(
         monkeypatch,

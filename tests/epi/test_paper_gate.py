@@ -1,7 +1,7 @@
 import json
 import sys
 
-from epi.orchestrator import main
+from epi.orchestrator import main, record_human_approval
 from epi.paper_gate import build_paper_gate, render_paper_gate
 
 
@@ -183,6 +183,31 @@ def test_paper_gate_reports_agent_handoff_ready_for_wiki_ingest(tmp_path):
     assert checks["final-wiki-authority"] == "success"
     assert checks["human-approval"] == "action_required"
     assert "compiled-targets" not in checks
+
+
+def test_paper_gate_marks_agent_handoff_approved_before_wiki_ingest(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    _seed_paper_gate_fixture(vault, slug, agent_handoff=True)
+
+    approval = record_human_approval(
+        vault,
+        slug,
+        approved_by="codex-test",
+        scope="run-wiki-ingest-agent",
+        notes="approved for wiki ingest agent",
+    )
+    gate = build_paper_gate(vault, slug)
+
+    assert approval["record"]["schema_version"] == "epi-human-approval-v1"
+    assert approval["record"]["approved_by"] == "codex-test"
+    assert gate["status"] == "ready_for_wiki_ingest_agent"
+    assert gate["check_suite"]["conclusion"] == "success"
+    assert gate["next_action"] == "run-wiki-ingest-agent"
+    checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
+    assert checks["human-approval"]["conclusion"] == "success"
+    assert checks["human-approval"]["details"]["record_type"] == "human-approval"
+    assert checks["human-approval"]["details"]["approved_by"] == "codex-test"
 
 
 def test_paper_gate_blocks_agent_handoff_without_wiki_rule_source_model(tmp_path):

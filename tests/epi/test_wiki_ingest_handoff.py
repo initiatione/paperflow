@@ -1,7 +1,7 @@
 import json
 import sys
 
-from epi.orchestrator import main
+from epi.orchestrator import main, record_human_approval
 from epi.wiki_ingest_handoff import build_wiki_ingest_handoff, render_wiki_ingest_handoff
 
 
@@ -206,6 +206,26 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["agent_checklist"][0].startswith("Read target vault contract files")
     assert any("Search existing wiki pages" in item for item in handoff["agent_checklist"])
     assert any("Do not write final pages" in item for item in handoff["agent_checklist"])
+
+
+def test_build_wiki_ingest_handoff_is_ready_after_recorded_human_approval(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+
+    approval = record_human_approval(
+        vault,
+        slug,
+        approved_by="codex-test",
+        scope="run-wiki-ingest-agent",
+    )
+    handoff = build_wiki_ingest_handoff(vault, slug)
+
+    assert handoff["ready_for_agent"] is True
+    assert handoff["ready_after_human_approval"] is False
+    assert handoff["paper_gate"]["conclusion"] == "success"
+    assert handoff["paper_gate"]["action_required_checks"] == []
+    assert handoff["paths"]["human_approval"] == approval["record_path"]
+    assert any("Human approval is recorded" in item for item in handoff["agent_checklist"])
 
 
 def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):

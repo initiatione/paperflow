@@ -6,6 +6,11 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from epi.run_critic import HARD_RULE
+from epi.wiki_ingest_approval import (
+    HUMAN_APPROVAL_SCOPE,
+    human_approval_record_path,
+    validate_human_approval_record,
+)
 
 
 _ALLOWED_COMPILED_TARGET_ROOTS = {"references", "concepts", "synthesis", "reports"}
@@ -334,6 +339,31 @@ def _completion_record_check(paper_root: Path) -> dict[str, Any] | None:
     )
 
 
+def _prewrite_human_approval_check(vault_path: Path, slug: str) -> dict[str, Any] | None:
+    valid, record, issues = validate_human_approval_record(vault_path, slug)
+    path = human_approval_record_path(vault_path, slug)
+    if record is None:
+        return None
+    if not valid:
+        return _check_run(
+            "human-approval",
+            "failure",
+            "Pre-write human approval record is invalid: " + "; ".join(issues),
+            details={"path": str(path), "record_type": "human-approval"},
+        )
+    return _check_run(
+        "human-approval",
+        "success",
+        "Human approval is recorded before the wiki ingest agent runs.",
+        details={
+            "path": str(path),
+            "approved_by": record.get("approved_by"),
+            "record_type": "human-approval",
+            "scope": record.get("scope") or HUMAN_APPROVAL_SCOPE,
+        },
+    )
+
+
 def build_paper_gate(vault_path: Path, slug: str) -> dict[str, Any]:
     vault_path = vault_path.resolve()
     paper_root = vault_path / "_raw" / "papers" / slug
@@ -417,13 +447,21 @@ def build_paper_gate(vault_path: Path, slug: str) -> dict[str, Any]:
     if promotion_check is not None:
         check_runs.append(promotion_check)
     elif critic_outcome == "pass" and plan and _suite_conclusion(check_runs) == "success":
-        check_runs.append(
-            _check_run(
-                "human-approval",
-                "action_required",
-                "Human approval is required before final wiki ingest or legacy compiled wiki write.",
-            )
+        prewrite_approval_check = (
+            _prewrite_human_approval_check(vault_path, slug)
+            if _is_agent_handoff_plan(plan)
+            else None
         )
+        if prewrite_approval_check is not None:
+            check_runs.append(prewrite_approval_check)
+        else:
+            check_runs.append(
+                _check_run(
+                    "human-approval",
+                    "action_required",
+                    "Human approval is required before final wiki ingest or legacy compiled wiki write.",
+                )
+            )
 
     conclusion = _suite_conclusion(check_runs)
     next_action = _next_action(critic_report, plan, conclusion, promotion_check)
@@ -469,6 +507,8 @@ def _gate_status(conclusion: str, next_action: str, promotion_check: dict[str, A
         return "promoted"
     if conclusion == "failure":
         return "blocked"
+    if next_action == "run-wiki-ingest-agent" and conclusion == "success":
+        return "ready_for_wiki_ingest_agent"
     if next_action in {"promote-to-wiki", "run-wiki-ingest-agent"}:
         return "waiting_for_human_gate"
     return "action_required"

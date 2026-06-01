@@ -33,6 +33,8 @@ Prefer EPI orchestrator:
 python scripts\orchestrator.py parse-paper --slug <slug> --vault <vault>
 ```
 
+Use `--mineru-timeout <seconds>` for a one-off long or short run. If omitted, EPI reads `EPI_MINERU_TIMEOUT`; invalid or non-positive values fall back to 7200 seconds.
+
 Standalone batch path:
 
 ```powershell

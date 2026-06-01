@@ -218,14 +218,39 @@ def _markdown_to_latex(markdown: str) -> str:
     return "\n".join(lines)
 
 
+_DEFAULT_MINERU_TIMEOUT_SECONDS = 7200
+
+
+def _resolve_mineru_timeout(timeout_seconds: int | None) -> int:
+    """Resolve the MinerU subprocess timeout.
+
+    Precedence: explicit positive ``timeout_seconds`` -> ``EPI_MINERU_TIMEOUT``
+    environment variable (positive int) -> default 7200 seconds. Invalid or
+    non-positive values are ignored rather than raising.
+    """
+
+    if isinstance(timeout_seconds, int) and not isinstance(timeout_seconds, bool) and timeout_seconds > 0:
+        return timeout_seconds
+    raw = os.environ.get("EPI_MINERU_TIMEOUT")
+    if raw is not None:
+        try:
+            value = int(str(raw).strip())
+        except (TypeError, ValueError):
+            value = 0
+        if value > 0:
+            return value
+    return _DEFAULT_MINERU_TIMEOUT_SECONDS
+
+
 def run_mineru_command(
     paper_root: Path,
     *,
     command: str | Sequence[str] | None = None,
     plugin_root: Path | None = None,
-    timeout_seconds: int = 7200,
+    timeout_seconds: int | None = None,
 ) -> dict:
     apply_runtime_config()
+    timeout_seconds = _resolve_mineru_timeout(timeout_seconds)
     paper_root = paper_root.resolve()
     source_pdf = paper_root / "paper.pdf"
     if not source_pdf.exists():

@@ -136,3 +136,25 @@ def test_advance_paper_once_routes_one_safe_stage_at_a_time(tmp_path):
 
     run_state = json.loads((paper_root / "run-state.json").read_text(encoding="utf-8"))
     assert run_state == records[-1]
+
+
+def test_advance_paper_once_reparses_incomplete_existing_parse_outputs(tmp_path):
+    vault = tmp_path / "vault"
+    candidate = _candidate("https://example.org/routed.pdf")
+    paper_root = vault / "_raw" / "papers" / "routed-paper"
+    mineru_root = paper_root / "mineru"
+    mineru_root.mkdir(parents=True)
+    (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nstale parse fixture\n")
+    (mineru_root / "paper.md").write_text("# Stale Parse\n", encoding="utf-8")
+    (mineru_root / "paper.tex").write_text("\\section{Stale Parse}\n", encoding="utf-8")
+    (mineru_root / "mineru-manifest.json").write_text("{}", encoding="utf-8")
+    (mineru_root / "images").mkdir()
+    (paper_root / "parse-record.json").write_text(
+        json.dumps({"stage": "parse", "status": "failed"}), encoding="utf-8"
+    )
+
+    record = advance_paper_once(vault, candidate, mineru_command=_write_success_mineru_command(tmp_path))
+
+    assert record["state"] == "parsed"
+    assert record["last_action"] == "parse"
+    assert json.loads((paper_root / "parse-record.json").read_text(encoding="utf-8"))["status"] == "success"

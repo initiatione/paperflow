@@ -168,6 +168,25 @@ def test_prepare_ranked_parser_accepts_json_output():
     assert args.json is True
 
 
+def test_mineru_timeout_flag_accepted_on_parse_and_batch_commands_and_defaults_to_none():
+    parser = build_parser()
+    default_parse = parser.parse_args(["parse-paper", "--slug", "fixture-paper"])
+    assert default_parse.mineru_timeout is None
+
+    for command in ("advance-paper", "advance-batch", "advance-ranked", "prepare-ranked", "parse-paper"):
+        if command == "advance-paper":
+            argv = [command, "--candidate", "candidate.json", "--mineru-timeout", "120"]
+        elif command == "advance-batch":
+            argv = [command, "--candidates", "candidates.json", "--mineru-timeout", "120"]
+        elif command == "parse-paper":
+            argv = [command, "--slug", "fixture-paper", "--mineru-timeout", "120"]
+        else:
+            argv = [command, "--run-id", "run-001", "--mineru-timeout", "120"]
+        args = build_parser().parse_args(argv)
+        assert args.command == command
+        assert args.mineru_timeout == 120
+
+
 def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatch, capsys):
     captured = {}
 
@@ -179,6 +198,7 @@ def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatc
         max_papers=None,
         include_review_candidates=False,
         skip_existing=False,
+        mineru_timeout=None,
     ):
         captured.update(
             {
@@ -188,6 +208,7 @@ def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatc
                 "max_papers": max_papers,
                 "include_review_candidates": include_review_candidates,
                 "skip_existing": skip_existing,
+                "mineru_timeout": mineru_timeout,
             }
         )
         return {
@@ -244,6 +265,7 @@ def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypat
         max_papers=None,
         include_review_candidates=False,
         skip_existing=False,
+        mineru_timeout=None,
     ):
         captured.update(
             {
@@ -253,6 +275,7 @@ def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypat
                 "max_papers": max_papers,
                 "include_review_candidates": include_review_candidates,
                 "skip_existing": skip_existing,
+                "mineru_timeout": mineru_timeout,
             }
         )
         return {"run_id": "prepare-ranked-001", "state": "parsed", "processed_count": 0}
@@ -281,6 +304,7 @@ def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypat
         "max_papers": 10,
         "include_review_candidates": True,
         "skip_existing": True,
+        "mineru_timeout": None,
     }
     assert "stops_after=parse" in capsys.readouterr().out
 
@@ -295,6 +319,7 @@ def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path
         mineru_command=None,
         max_papers=None,
         include_review_candidates=False,
+        mineru_timeout=None,
     ):
         captured.update(
             {
@@ -303,6 +328,7 @@ def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path
                 "mineru_command": mineru_command,
                 "max_papers": max_papers,
                 "include_review_candidates": include_review_candidates,
+                "mineru_timeout": mineru_timeout,
             }
         )
         return {"run_id": "advance-ranked-001", "state": "batch_done", "processed_count": 0}
@@ -329,6 +355,7 @@ def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path
         "mineru_command": None,
         "max_papers": 3,
         "include_review_candidates": True,
+        "mineru_timeout": None,
     }
 
 
@@ -398,6 +425,30 @@ def test_record_wiki_ingest_parser_accepts_pages_approval_notes_and_json():
     assert args.approved_by == "codex-test"
     assert args.notes == "agent applied target vault contract"
     assert args.source_review == "_staging/papers/fixture-paper/final-source-review.json"
+    assert args.json is True
+
+
+def test_record_human_approval_parser_accepts_scope_notes_and_json():
+    args = build_parser().parse_args(
+        [
+            "record-human-approval",
+            "--slug",
+            "fixture-paper",
+            "--approved-by",
+            "codex-test",
+            "--scope",
+            "run-wiki-ingest-agent",
+            "--notes",
+            "approved for final wiki ingest agent",
+            "--json",
+        ]
+    )
+
+    assert args.command == "record-human-approval"
+    assert args.slug == "fixture-paper"
+    assert args.approved_by == "codex-test"
+    assert args.scope == "run-wiki-ingest-agent"
+    assert args.notes == "approved for final wiki ingest agent"
     assert args.json is True
 
 

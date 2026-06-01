@@ -6,6 +6,7 @@ from typing import Any
 
 from epi.artifacts import file_sha256, raw_paper_root, staging_paper_root, utc_now, write_json_atomic
 from epi.paper_gate import build_paper_gate
+from epi.wiki_ingest_approval import human_approval_record_path, validate_human_approval_record
 
 
 _INTERNAL_VAULT_ROOTS = {"_raw", "_staging", "_runs", "_quarantine", ".git", ".obsidian"}
@@ -346,6 +347,15 @@ def create_wiki_ingest_record(
 
     gate = build_paper_gate(vault_path, slug)
     _ensure_gate_allows_record(gate)
+    approval_valid, approval_record, approval_issues = validate_human_approval_record(
+        vault_path,
+        slug,
+        approved_by=approved_by,
+        require_existing=True,
+    )
+    if not approval_valid:
+        raise ValueError("; ".join(approval_issues))
+    assert approval_record is not None
 
     page_records = [_resolve_page(vault_path, page) for page in pages]
     seen: set[str] = set()
@@ -389,12 +399,15 @@ def create_wiki_ingest_record(
     action_required_checks = _gate_check_names(gate, "action_required")
     human_gate_decision = {
         "status": "approved",
-        "approved_by": str(approved_by).strip(),
-        "approved_at": recorded_at,
-        "approval_scope": "agent-mediated-final-wiki-ingest-record",
+        "approved_by": str(approval_record.get("approved_by") or approved_by).strip(),
+        "approved_at": approval_record.get("approved_at") or recorded_at,
+        "approval_scope": approval_record.get("scope") or "run-wiki-ingest-agent",
+        "prewrite_approval_record": str(human_approval_record_path(vault_path, slug)),
     }
     if notes:
         human_gate_decision["notes"] = notes
+    elif approval_record.get("notes"):
+        human_gate_decision["notes"] = approval_record.get("notes")
 
     record_payload = {
         "schema_version": "epi-wiki-ingest-record-v1",
@@ -446,6 +459,7 @@ def create_wiki_ingest_record(
             "staging_root": str(staging_root),
             "promotion_plan": str(plan_path),
             "wiki_ingest_brief": str(brief_path),
+            "human_approval": str(human_approval_record_path(vault_path, slug)),
             "agent_handoff_paths": plan.get("agent_handoff_paths") or [],
         },
         "page_records": page_records,

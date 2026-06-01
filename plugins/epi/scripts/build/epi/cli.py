@@ -138,18 +138,21 @@ def build_parser() -> argparse.ArgumentParser:
     advance.add_argument("--candidate", type=Path, required=True)
     _add_common_vault(advance)
     advance.add_argument("--mineru-command", default=None)
+    advance.add_argument("--mineru-timeout", type=int, default=None)
 
     advance_batch = subparsers.add_parser("advance-batch")
     advance_batch.add_argument("--candidates", type=Path, required=True)
     _add_common_vault(advance_batch)
     advance_batch.add_argument("--max-papers", type=int, default=None)
     advance_batch.add_argument("--mineru-command", default=None)
+    advance_batch.add_argument("--mineru-timeout", type=int, default=None)
 
     advance_ranked = subparsers.add_parser("advance-ranked")
     advance_ranked.add_argument("--run-id", required=True)
     _add_common_vault(advance_ranked)
     advance_ranked.add_argument("--max-papers", type=int, default=None)
     advance_ranked.add_argument("--mineru-command", default=None)
+    advance_ranked.add_argument("--mineru-timeout", type=int, default=None)
     advance_ranked.add_argument("--include-review-candidates", action="store_true")
 
     prepare_ranked = subparsers.add_parser("prepare-ranked")
@@ -157,6 +160,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_vault(prepare_ranked)
     prepare_ranked.add_argument("--max-papers", type=int, default=1)
     prepare_ranked.add_argument("--mineru-command", default=None)
+    prepare_ranked.add_argument("--mineru-timeout", type=int, default=None)
     prepare_ranked.add_argument("--include-review-candidates", action="store_true")
     prepare_ranked.add_argument("--skip-existing", action="store_true")
     prepare_ranked.add_argument("--json", action="store_true")
@@ -165,6 +169,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_vault(parse_paper)
     parse_paper.add_argument("--slug", required=True)
     parse_paper.add_argument("--mineru-command", default=None)
+    parse_paper.add_argument("--mineru-timeout", type=int, default=None)
 
     promote = subparsers.add_parser("promote-to-wiki")
     _add_common_vault(promote)
@@ -297,6 +302,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_vault(wiki_ingest_handoff)
     wiki_ingest_handoff.add_argument("--slug", required=True)
     wiki_ingest_handoff.add_argument("--json", action="store_true")
+
+    record_human_approval = subparsers.add_parser("record-human-approval")
+    _add_common_vault(record_human_approval)
+    record_human_approval.add_argument("--slug", required=True)
+    record_human_approval.add_argument("--approved-by", required=True)
+    record_human_approval.add_argument("--scope", required=True)
+    record_human_approval.add_argument("--notes", default=None)
+    record_human_approval.add_argument("--json", action="store_true")
 
     record_wiki_ingest = subparsers.add_parser("record-wiki-ingest")
     _add_common_vault(record_wiki_ingest)
@@ -453,6 +466,7 @@ def _handle_advance_paper(args: argparse.Namespace) -> int:
         args.vault,
         _load_json(args.candidate),
         mineru_command=args.mineru_command,
+        mineru_timeout=args.mineru_timeout,
     )
     print(f"paper_state={state['state']}")
     print(f"last_action={state['last_action']}")
@@ -467,6 +481,7 @@ def _handle_advance_batch(args: argparse.Namespace) -> int:
         _load_json(args.candidates),
         mineru_command=args.mineru_command,
         max_papers=args.max_papers,
+        mineru_timeout=args.mineru_timeout,
     )
     print(f"run_dir={args.vault.resolve() / '_runs' / batch['run_id']}")
     print(f"batch_state={batch['state']}")
@@ -481,6 +496,7 @@ def _handle_advance_ranked(args: argparse.Namespace) -> int:
         mineru_command=args.mineru_command,
         max_papers=args.max_papers,
         include_review_candidates=args.include_review_candidates,
+        mineru_timeout=args.mineru_timeout,
     )
     print(f"run_dir={args.vault.resolve() / '_runs' / batch['run_id']}")
     print(f"batch_state={batch['state']}")
@@ -496,6 +512,7 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
         max_papers=args.max_papers,
         include_review_candidates=args.include_review_candidates,
         skip_existing=args.skip_existing,
+        mineru_timeout=args.mineru_timeout,
     )
     run_dir = args.vault.resolve() / "_runs" / batch["run_id"]
     if args.json:
@@ -530,7 +547,9 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
 
 
 def _handle_parse_paper(args: argparse.Namespace) -> int:
-    record = workflows.parse_paper_with_mineru(args.vault, args.slug, mineru_command=args.mineru_command)
+    record = workflows.parse_paper_with_mineru(
+        args.vault, args.slug, mineru_command=args.mineru_command, mineru_timeout=args.mineru_timeout
+    )
     print(f"parse_status={record['status']}")
     if record.get("batch_id"):
         print(f"batch_id={record['batch_id']}")
@@ -956,6 +975,24 @@ def _handle_wiki_ingest_handoff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_record_human_approval(args: argparse.Namespace) -> int:
+    result = workflows.record_human_approval(
+        args.vault.resolve(),
+        args.slug,
+        approved_by=args.approved_by,
+        scope=args.scope,
+        notes=args.notes,
+    )
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        record = result["record"]
+        print(f"approval_status={record['status']}")
+        print(f"approval_path={result['record_path']}")
+        print(f"run_dir={result['run_dir']}")
+    return 0
+
+
 def _handle_record_wiki_ingest(args: argparse.Namespace) -> int:
     result = workflows.record_wiki_ingest(
         args.vault.resolve(),
@@ -1021,6 +1058,7 @@ HANDLERS: dict[str, Handler] = {
     "research-queue": _handle_research_queue,
     "wiki-query": _handle_wiki_query,
     "wiki-ingest-handoff": _handle_wiki_ingest_handoff,
+    "record-human-approval": _handle_record_human_approval,
     "record-wiki-ingest": _handle_record_wiki_ingest,
     "paper-gate": _handle_paper_gate,
 }

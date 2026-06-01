@@ -4,7 +4,7 @@ import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-from epi.acquire_papers import acquire_paper_from_url
+from epi.acquire_papers import acquire_paper_from_url, _classify_acquire_failure
 from epi.orchestrator import acquire_paper_from_candidate
 
 
@@ -95,6 +95,9 @@ def test_acquire_paper_from_url_records_http_failure_without_pdf(tmp_path):
     assert record["finished_at"]
     assert record["http_status"] == 404
     assert "HTTP 404" in record["error"]
+    assert record["failure_class"] == "not-found"
+    assert record["retryable"] is False
+    assert record["recovery_hint"]
     assert record["input_artifact_hashes"]["candidate_metadata"]
     assert record["output_artifact_hashes"]["metadata.json"]
     assert not (paper_root / "paper.pdf").exists()
@@ -195,3 +198,34 @@ def test_acquire_paper_from_candidate_uses_vault_slug_boundary(tmp_path):
     assert record["status"] == "success"
     assert record["output_path"] == str(paper_root / "paper.pdf")
     assert (paper_root / "paper.pdf").is_file()
+
+
+def test_classify_acquire_failure_maps_status_and_kind():
+    assert _classify_acquire_failure(403) == (
+        "access-denied",
+        False,
+        "Source denied access; try arXiv/open-access source or a mirror.",
+    )
+    assert _classify_acquire_failure(401)[0] == "access-denied"
+    assert _classify_acquire_failure(404)[0] == "not-found"
+    assert _classify_acquire_failure(410)[0] == "not-found"
+
+    rate_limited = _classify_acquire_failure(429)
+    assert rate_limited[0] == "rate-limited"
+    assert rate_limited[1] is True
+
+    server_error = _classify_acquire_failure(502)
+    assert server_error[0] == "server-error"
+    assert server_error[1] is True
+
+    network = _classify_acquire_failure(None, "network")
+    assert network[0] == "network"
+    assert network[1] is True
+
+    empty = _classify_acquire_failure(200, "empty-pdf")
+    assert empty[0] == "empty-pdf"
+    assert empty[1] is True
+
+    assert _classify_acquire_failure(None, "no-url")[0] == "no-url"
+    assert _classify_acquire_failure(None, "already-exists")[0] == "already-exists"
+    assert _classify_acquire_failure(None)[0] == "unknown"

@@ -47,6 +47,35 @@ def _candidate_download_identity(candidate: dict) -> tuple[str, str] | None:
     return None
 
 
+def _classify_acquire_failure(http_status: int | None, error_kind: str | None = None) -> tuple[str, bool, str]:
+    """Map an acquisition failure to (failure_class, retryable, recovery_hint).
+
+    Gives the driving agent an actionable signal instead of a single opaque error
+    string. The hint is advisory only; EPI never auto-retries or auto-switches
+    sources on its own.
+    """
+
+    if error_kind == "no-url":
+        return "no-url", False, "Candidate has no pdf_url; switch to a downloadable source or enrich metadata."
+    if error_kind == "already-exists":
+        return "already-exists", False, "PDF already exists; use --redo / redo-acquire to refetch."
+    if error_kind == "empty-pdf":
+        return "empty-pdf", True, "Downloaded PDF was empty; retry or try an open-access/arXiv source."
+    if http_status is not None:
+        if http_status in (401, 403):
+            return "access-denied", False, "Source denied access; try arXiv/open-access source or a mirror."
+        if http_status in (404, 410):
+            return "not-found", False, "PDF URL is dead; switch source or skip this candidate."
+        if http_status in (408, 429):
+            return "rate-limited", True, "Rate limited; slow down and retry later."
+        if 500 <= http_status <= 599:
+            return "server-error", True, "Upstream temporary failure; retry later or try another source."
+        return "http-error", False, f"HTTP {http_status}; verify the source URL."
+    if error_kind in ("network", "timeout"):
+        return "network", True, "Network/timeout error; retry or try another source."
+    return "unknown", False, "Unknown acquisition failure; check the source URL and network."
+
+
 def _write_failed_acquire_record(
     paper_root: Path,
     candidate: dict,
@@ -56,9 +85,11 @@ def _write_failed_acquire_record(
     started_at: str,
     candidate_metadata_hash: str,
     http_status: int | None = None,
+    error_kind: str | None = None,
 ) -> dict:
     paper_root.mkdir(parents=True, exist_ok=True)
     write_json_atomic(paper_root / "metadata.json", _metadata_from_candidate(candidate))
+    failure_class, retryable, recovery_hint = _classify_acquire_failure(http_status, error_kind)
     record = {
         "stage": "acquire",
         "mode": mode,
@@ -69,6 +100,9 @@ def _write_failed_acquire_record(
         "exit_status": 1,
         "pdf_url": candidate.get("pdf_url"),
         "http_status": http_status,
+        "failure_class": failure_class,
+        "retryable": retryable,
+        "recovery_hint": recovery_hint,
         "output_path": str(paper_root / "paper.pdf"),
         "error": error,
         "input_artifact_hashes": {
@@ -142,6 +176,7 @@ def acquire_paper_from_url(
             error="candidate pdf_url is required",
             started_at=started_at,
             candidate_metadata_hash=candidate_metadata_hash,
+            error_kind="no-url",
         )
     if target_pdf.exists() and not redo:
         return _write_failed_acquire_record(
@@ -151,6 +186,7 @@ def acquire_paper_from_url(
             error=f"raw PDF already exists: {target_pdf}",
             started_at=started_at,
             candidate_metadata_hash=candidate_metadata_hash,
+            error_kind="already-exists",
         )
 
     temp_pdf = target_pdf.with_suffix(".pdf.tmp")
@@ -178,6 +214,7 @@ def acquire_paper_from_url(
                         error=f"downloaded PDF is empty: {source}:{paper_id}",
                         started_at=started_at,
                         candidate_metadata_hash=candidate_metadata_hash,
+                        error_kind="empty-pdf",
                     )
                 os.replace(temp_pdf, target_pdf)
                 record = {
@@ -225,6 +262,7 @@ def acquire_paper_from_url(
                 error=f"downloaded PDF is empty: {pdf_url}",
                 started_at=started_at,
                 candidate_metadata_hash=candidate_metadata_hash,
+                error_kind="empty-pdf",
             )
         os.replace(temp_pdf, target_pdf)
     except urllib.error.HTTPError as exc:
@@ -248,6 +286,7 @@ def acquire_paper_from_url(
             error=f"failed to download PDF: {exc}",
             started_at=started_at,
             candidate_metadata_hash=candidate_metadata_hash,
+            error_kind="network",
         )
 
     record = {

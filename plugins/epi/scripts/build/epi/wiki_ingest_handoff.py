@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from epi.paper_gate import build_paper_gate
+from epi.wiki_ingest_approval import human_approval_record_path
 
 
 CONTRACT_FILES = [
@@ -97,10 +98,26 @@ def _agent_checklist(
         "Respect vault-local staged writes, link format, language policy, taxonomy, and frontmatter schema.",
         "Do not write final pages from EPI suggested routes directly.",
     ]
+    human_approval_run = next(
+        (
+            run
+            for run in gate.get("check_suite", {}).get("check_runs", [])
+            if run.get("name") == "human-approval"
+        ),
+        {},
+    )
     if gate.get("check_suite", {}).get("conclusion") == "action_required":
         checklist.insert(
             3,
             "Record human approval before the wiki ingest agent performs final or staged vault writes.",
+        )
+    elif human_approval_run.get("conclusion") == "success":
+        details = human_approval_run.get("details") if isinstance(human_approval_run.get("details"), dict) else {}
+        checklist.insert(
+            3,
+            "Human approval is recorded at "
+            + str(details.get("path") or "human-approval.json")
+            + "; the wiki ingest agent may proceed if no failure checks appear.",
         )
     return checklist
 
@@ -144,6 +161,7 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
         and not gate_failure_checks
         and not gate_action_required_checks
     )
+    approval_path = human_approval_record_path(vault_path, slug)
     return {
         "title": "EPI Wiki Ingest Handoff",
         "paper_slug": slug,
@@ -163,6 +181,7 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
         "paths": {
             "promotion_plan": str(plan_path),
             "wiki_ingest_brief": str(brief_path),
+            "human_approval": str(approval_path),
             "agent_handoff_paths": plan.get("agent_handoff_paths") or [],
         },
         "final_source_review_contract": (
@@ -216,6 +235,9 @@ def render_wiki_ingest_handoff(handoff: dict[str, Any]) -> str:
     for item in handoff.get("suggested_routes") or []:
         lines.append(f"- {item.get('page_type')}: {item.get('target')}")
     contract = handoff.get("final_source_review_contract") or {}
+    paths = handoff.get("paths") if isinstance(handoff.get("paths"), dict) else {}
+    lines.extend(["", "## Human Approval", ""])
+    lines.append(f"- path: {paths.get('human_approval') or '-'}")
     lines.extend(["", "## Final Source Review", ""])
     lines.append(f"- required: {str(bool(contract.get('required'))).lower()}")
     lines.append(f"- suggested_output_path: {contract.get('suggested_output_path') or 'final-source-review.json'}")

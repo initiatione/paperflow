@@ -44,7 +44,7 @@ python scripts\orchestrator.py <command>
 - 解析与修复：`parse-paper`、`redo-acquire`、`redo-parse`、`redo-read`、`recritic`。
 - Reader/Critic/Gate：推进命令内部生成 reader 和 critic；只读检查用 `paper-gate`。
 - Report：`report` 是公开读取入口；`report --run-id <run-id> [--json]` 读取已有 run report artifact；内部生成模块是 `report_run.py`，不是额外的 `run-report` CLI。
-- Staging 与 Wiki handoff：`wiki-ingest-handoff` 渲染 agent-mediated handoff；`record-wiki-ingest` 记录外部 agent 已完成的最终页路径和 hash；`promote-to-wiki` 仅保留 legacy compiled-draft 兼容。
+- Staging 与 Wiki handoff：`wiki-ingest-handoff` 渲染 agent-mediated handoff；`record-human-approval` 记录外部 agent 写入前的人类批准；`record-wiki-ingest` 记录外部 agent 已完成的最终页路径和 hash；`promote-to-wiki` 仅保留 legacy compiled-draft 兼容。
 - 索引与查询：`runs-query`、`research-queue`、`wiki-query`。
 - 反馈、评估与进化：`record-feedback`、`evaluation-brief`、`propose-evolution`、`activate-evolution`、`evolution-query`。`evaluation-brief` 把 Plugin Eval、`epi-quality-gates`、benchmark 和 before/after metrics 合并成本地 improvement brief，再交给 `propose-evolution`。
 - 外部集成：`zotero-sync`，以及 MinerU 解析相关命令。
@@ -76,6 +76,7 @@ scripts/build/epi/
   stage_wiki.py
   paper_gate.py
   wiki_ingest_handoff.py
+  wiki_ingest_approval.py
   wiki_ingest_record.py
   promote_to_wiki.py
   run_index.py
@@ -92,8 +93,9 @@ scripts/build/epi/
 - `doctor.py` 负责只读健康检查；外部依赖缺失是 warning，插件结构缺失才 error。
 - `runtime_config.py` 负责从 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` 加载本机依赖配置，只补缺失的进程环境变量，不覆盖显式 env，不保存 token 明文。
 - `paper_search_adapter.py` 优先调用外部 `paper-search-mcp` stdio server，并在失败、超时或空结果时回退到 `paper-search` CLI，把上游输出标准化为 EPI 候选记录。
+- `acquire_papers.py` 负责下载或复制 PDF，并在失败 `acquire-record.json` 中写 `failure_class`、`retryable` 和 `recovery_hint`，让后续 agent 区分重试、换源和跳过。
 - `rank_papers.py` 负责 paper type classification、ranking signals、ranking rubric、ranking protocol 和三角色排序解释。
-- `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization。
+- `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization；默认 7200 秒超时，可由 `--mineru-timeout` 或 `EPI_MINERU_TIMEOUT` 覆盖。
 - `generate_reader.py`、`reader_outputs.py`、`reader_evidence.py`、`reader_protocol.py` 负责多角色 reader、evidence map 和证据地址校验；reader 会把 TeX、MinerU manifest 和 PDF fallback 作为 source-first 证据写入 evidence/claim-support，而不是只输出摘要。
 - `run_critic.py`、`paper_quality.py`、`role_critics.py` 负责 critic quorum、学术论文可靠性检查和三角色质量门；其中 `parse-quality-critic` 会检查 MinerU Markdown、TeX、images、manifest 和 `parse-record.json`，避免原文公式/图像证据在进入 reader/wiki 前被静默抹掉。
 - `report_run.py` 负责生成 `_runs/<run-id>/report.md` 和 `report.json`，并提供 `report --run-id` 的只读 loader；该 CLI 会展示 run report artifact 和 `run-state.json` payload，但不刷新 index、queue、raw、staging、Zotero 或 wiki。
@@ -101,7 +103,8 @@ scripts/build/epi/
 - `stage_wiki.py` 负责 `_staging` 草稿、轻阅读报告、`wiki-ingest-brief.json`、`final_source_review_contract` 和 `promotion-plan.json`。
 - `paper_gate.py` 是只读质量门面板，决定当前 slug 是 failure、waiting for human gate，还是允许进入下一动作。
 - `wiki_ingest_handoff.py` 是只读 handoff 渲染器，给最终 wiki ingest agent 提供路径、规则优先级、final-source-review 合同和 checklist。
-- `wiki_ingest_record.py` 是 agent-mediated 完成态记录器：只读取最终 Markdown 页面和 `final-source-review.json`，校验路径在 vault 内且不在 EPI 内部目录，验证源工件 hash、公式/图片/PDF 复核和 final page provenance，记录 hash 和 human approval，不写最终页面。
+- `wiki_ingest_approval.py` 是 agent-mediated 前置人类批准 helper：写入并校验 `_staging/papers/<slug>/human-approval.json`，要求当前 gate 只有 `human-approval` 待办。
+- `wiki_ingest_record.py` 是 agent-mediated 完成态记录器：只读取最终 Markdown 页面、前置 `human-approval.json` 和 `final-source-review.json`，校验路径在 vault 内且不在 EPI 内部目录，验证源工件 hash、公式/图片/PDF 复核和 final page provenance，记录 hash 和 human approval，不写最终页面。
 - `promote_to_wiki.py` 只保留 legacy compiled-draft promotion 和 rollback，不能替代 agent-mediated wiki ingest。
 - `zotero_sync.py` 负责本地 record-only Zotero sidecar：读取论文 metadata 和 wiki ingest record，写 `zotero-record.json`，不调用外部 Zotero API。
 - `run_index.py` 负责 `_runs/index.json`、dashboard 和 `research-queue.json`，并在 ready queue 里嵌入当前 paper-gate 摘要；record/promote routed runs 会把 `zotero_results` 带入 index 和 dashboard。
@@ -168,6 +171,7 @@ EPI 默认 vault 形态：
       synthesis/
       reports/
       wiki-ingest-brief.json
+      human-approval.json
       promotion-plan.json
   AGENTS.md
   _meta/agent-operating-contract.md
@@ -183,7 +187,8 @@ EPI 默认 vault 形态：
 - critic pass 后才允许写 `_staging/papers/<slug>`。
 - `wiki-ingest-handoff` 和 `paper-gate` 都是只读。
 - 当前默认 agent-mediated plan 不写 compiled wiki。
-- agent-mediated wiki ingest 完成后，先由 wiki agent 写 `final-source-review.json`，再用 `record-wiki-ingest --source-review ...` 只写 `_raw/papers/<slug>/wiki-ingest-record.json` 和 `_staging/papers/<slug>/wiki-ingest-record.json`，记录目标 vault agent 已写出的最终 Markdown 页、source review 及其 sha256；它不得修改最终页、manifest、index、log 或 hot。
+- agent-mediated wiki ingest 前，必须先用 `record-human-approval --scope run-wiki-ingest-agent` 写 `_staging/papers/<slug>/human-approval.json`；`wiki-ingest-handoff` 只有在该 artifact 有效时才显示 `ready_for_agent=true`。
+- agent-mediated wiki ingest 完成后，先由 wiki agent 写 `final-source-review.json`，再用 `record-wiki-ingest --source-review ...` 只写 `_raw/papers/<slug>/wiki-ingest-record.json` 和 `_staging/papers/<slug>/wiki-ingest-record.json`，记录目标 vault agent 已写出的最终 Markdown 页、source review、pre-write approval 及其 sha256；它不得修改最终页、manifest、index、log 或 hot。
 - Zotero 集成只写 `_raw/papers/<slug>/zotero-record.json` 和 run report 中的 `zotero_results`；它不得调用外部 API、改 final wiki 页或删除 Zotero 数据。
 - legacy `promote-to-wiki` 只处理显式 compiled targets，并要求 `approved-by`。
 

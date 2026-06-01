@@ -18,7 +18,7 @@ Load `references/source-first-reading.md` when generating or checking reader out
 | Intent | Command path |
 | --- | --- |
 | Steps 1-3 only: download + MinerU parse, stop at raw artifacts | `prepare-ranked` |
-| Continue into reader, critic, staging, and handoff | `advance-*`, `paper-gate`, `wiki-ingest-handoff` |
+| Continue into reader, critic, staging, approval, and handoff | `advance-*`, `paper-gate`, `wiki-ingest-handoff`, `record-human-approval` |
 
 ## Path A: Raw Artifacts Only
 
@@ -32,6 +32,8 @@ python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers
 
 Use `--max-papers 10 --skip-existing` for real testing; `--max-papers 1` is a smoke test. Use `--json` for run id, counts, stop point, and report paths. Inspect per-paper failures: `acquire_failed`, `parse_failed`, `prepare_failed`.
 
+Failed `acquire-record.json` includes `failure_class`, `retryable`, and `recovery_hint`; use them to decide whether to retry, switch source, or skip. For slow MinerU jobs, pass `--mineru-timeout <seconds>` or set `EPI_MINERU_TIMEOUT`; complete parse reuse requires `parse-record.json status=success`, not just a Markdown file.
+
 Do not use `advance-paper`, `advance-ranked`, or `advance-batch` when the user only asked for 1-3.
 
 ## Path B: Reader, Critic, Staging
@@ -41,6 +43,7 @@ python scripts\orchestrator.py advance-ranked --run-id <dry-run-id> --max-papers
 python scripts\orchestrator.py advance-batch --candidates <candidate-json> --max-papers 3 --vault <vault>
 python scripts\orchestrator.py paper-gate --slug <slug> --vault <vault>
 python scripts\orchestrator.py wiki-ingest-handoff --slug <slug> --vault <vault>
+python scripts\orchestrator.py record-human-approval --slug <slug> --approved-by <name> --scope run-wiki-ingest-agent --vault <vault>
 python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-page.md> --approved-by <name> --source-review <final-source-review.json> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault> --json
@@ -65,8 +68,8 @@ If the handoff lacks these fields, repair staging or rerun the relevant EPI step
 
 ## Wiki Boundary
 
-Final Obsidian/LLM Wiki pages are agent-mediated under the target vault contract. Before final writing, run `wiki-ingest-handoff`, resolve `AGENTS.md` and `_meta/*`, use the framework references named in `docs\epi-linkage.md`, keep local wiki skills as adapters, and require `wiki_rule_source_model`.
+Final Obsidian/LLM Wiki pages are agent-mediated under the target vault contract. Before final writing, run `wiki-ingest-handoff`, resolve `AGENTS.md` and `_meta/*`, use the framework references named in `docs\epi-linkage.md`, keep local wiki skills as adapters, and require `wiki_rule_source_model`. Then record pre-write approval with `record-human-approval --scope run-wiki-ingest-agent`; do not let the wiki ingest agent write final or staged vault pages until the handoff reports `ready_for_agent=true`.
 
-After the wiki ingest agent has written or staged the final Markdown pages, create `final-source-review.json`, then run `record-wiki-ingest --page ... --approved-by ... --source-review ...`. This command is record-only: it rechecks `paper-gate`, validates final source review, verifies each final page is inside the vault and outside EPI internal folders, records sha256 hashes in raw/staging, and marks the paper `wiki_ingest_recorded`. It must not rewrite final pages or replace the target vault's ingest agent.
+After the wiki ingest agent has written or staged the final Markdown pages, create `final-source-review.json`, then run `record-wiki-ingest --page ... --approved-by ... --source-review ...`. This command is record-only: it rechecks `paper-gate`, requires matching pre-write `human-approval.json`, validates final source review, verifies each final page is inside the vault and outside EPI internal folders, records sha256 hashes in raw/staging, and marks the paper `wiki_ingest_recorded`. It must not rewrite final pages or replace the target vault's ingest agent.
 
-Safety: raw/staging writes are allowed. Compiled wiki writes require critic pass, handoff, and human approval.
+Safety: raw/staging writes are allowed. Compiled wiki writes require critic pass, handoff, pre-write human approval, and final source review.

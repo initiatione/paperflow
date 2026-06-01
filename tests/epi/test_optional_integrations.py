@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from epi.evaluation_loop import build_improvement_brief
 from epi.feedback import record_feedback
 from epi.skill_aware_evolve import activate_evolution, propose_evolution, query_evolution, render_evolution_query
 from epi.zotero_sync import sync_zotero_record
@@ -315,6 +316,54 @@ def test_activate_evolution_rejects_when_metric_gate_regresses_even_if_passed_fl
     assert rejected["activation_status"] == "rejected_by_validation"
     assert plugin_eval_check["conclusion"] == "failure"
     assert "does not satisfy" in plugin_eval_check["output"]["summary"]
+    assert rejected["asset_application"]["status"] == "record_only"
+    assert target_path.read_text(encoding="utf-8") == original
+
+
+def test_activate_evolution_rejects_incomplete_quality_loop_sources_even_if_validation_passed(tmp_path):
+    _seed_templates(tmp_path)
+    target_path = tmp_path / "templates" / "ranking.example.yaml"
+    original = target_path.read_text(encoding="utf-8")
+    missing_plugin_eval = tmp_path / "missing-plugin-eval.json"
+    brief = build_improvement_brief(
+        target_asset="templates/ranking.example.yaml",
+        rationale="Do not activate a quality-loop proposal until all evidence sources are complete.",
+        proposed_change={"weights": {"topic_relevance": 0.41}},
+        before_metrics={"plugin_eval_score": 91},
+        after_metrics={"plugin_eval_score": 92},
+        plugin_eval_path=missing_plugin_eval,
+        metric_pack_path=None,
+        benchmark_path=None,
+    )
+    proposed = brief["proposed_evolution"]
+    proposal = propose_evolution(
+        tmp_path,
+        reflection_type=proposed["reflection_type"],
+        target_asset=proposed["target_asset"],
+        rationale=proposed["rationale"],
+        proposed_change=proposed["proposed_change"],
+        evidence=proposed["evidence"],
+        evidence_type=proposed["evidence_type"],
+        before_metrics=proposed["before_metrics"],
+        acceptance_gates=proposed["acceptance_gates"],
+    )
+
+    rejected = activate_evolution(
+        tmp_path,
+        proposal["id"],
+        approved=True,
+        validation_result={"passed": True, "summary": "tests passed but quality-loop sources are incomplete"},
+    )
+
+    completeness_check = next(
+        run for run in rejected["check_suite"]["check_runs"] if run["name"] == "quality_loop_sources_complete"
+    )
+    assert rejected["status"] == "rejected"
+    assert rejected["activation_status"] == "rejected_by_validation"
+    assert completeness_check["conclusion"] == "failure"
+    assert "plugin_eval" in completeness_check["output"]["summary"]
+    assert "epi_quality_gates" in completeness_check["output"]["summary"]
+    assert "benchmark" in completeness_check["output"]["summary"]
     assert rejected["asset_application"]["status"] == "record_only"
     assert target_path.read_text(encoding="utf-8") == original
 

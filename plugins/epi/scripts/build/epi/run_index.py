@@ -530,6 +530,23 @@ def _wiki_ingest_handoff_action_command(vault_path, slug):
     return " ".join(args)
 
 
+def _record_human_approval_action_command(vault_path, slug):
+    args = [
+        "python",
+        r"scripts\orchestrator.py",
+        "record-human-approval",
+        "--slug",
+        slug,
+        "--approved-by",
+        "<name>",
+        "--scope",
+        "run-wiki-ingest-agent",
+        "--vault",
+        str(Path(vault_path).resolve()),
+    ]
+    return " ".join(args)
+
+
 def _promote_action_command(vault_path, slug):
     args = [
         "python",
@@ -619,7 +636,7 @@ def _recommended_actions(bucket, item, vault_path):
         if _paper_gate_allows_wiki_ingest(item):
             actions.append(
                 {
-                    "action": "run-wiki-ingest-agent",
+                    "action": "wiki-ingest-handoff",
                     "command": _wiki_ingest_handoff_action_command(vault_path, slug),
                     "human_gate_required": True,
                     "uses": "wiki-ingest-brief.json",
@@ -627,6 +644,18 @@ def _recommended_actions(bucket, item, vault_path):
                         "read target vault AGENTS.md and _meta/*",
                         "merge existing pages before creating new ones",
                         "respect vault frontmatter, tags, links, and staged writes",
+                    ],
+                }
+            )
+            actions.append(
+                {
+                    "action": "record-human-approval",
+                    "command": _record_human_approval_action_command(vault_path, slug),
+                    "human_gate_required": True,
+                    "uses": "human-approval.json",
+                    "checklist": [
+                        "record approval before the wiki ingest agent writes final or staged vault pages",
+                        "use the same approved-by value later for record-wiki-ingest",
                     ],
                 }
             )
