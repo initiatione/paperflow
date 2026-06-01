@@ -196,6 +196,24 @@ def test_linkage_doc_records_paper_discovery_bundle_and_venue_prior():
     assert "verified_metrics" in text
 
 
+def test_paper_discovery_chat_output_requires_priority_abstracts_and_metrics():
+    skill = (PLUGIN_ROOT / "skills" / "paper-discovery" / "SKILL.md").read_text(encoding="utf-8")
+    output_format = (
+        PLUGIN_ROOT / "skills" / "paper-discovery" / "references" / "output-format.md"
+    ).read_text(encoding="utf-8")
+    linkage = _read("epi-linkage.md")
+
+    for text in [skill, output_format, linkage]:
+        assert "reading-priority" in text or "阅读优先级" in text
+        assert "short Chinese abstract" in text or "中文简短摘要" in text
+        assert "citation" in text or "引用数" in text
+        assert "impact factor" in text or "影响因子" in text
+        assert "CiteScore" in text
+        assert "未核实" in text
+    assert "Do not output an unsorted title-only list" in output_format
+    assert "禁止返回未排序的标题清单" in linkage
+
+
 def test_plugin_project_does_not_embed_local_machine_paths():
     forbidden = [
         "C:\\Users\\liuchf",

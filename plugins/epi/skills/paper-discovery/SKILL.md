@@ -17,6 +17,7 @@ For ongoing topic monitoring, "what is new since last run/date", backlog priorit
 - EPI is field-agnostic. Do not hardcode robotics, AUV, AI, medicine, or any other discipline unless present in config/request.
 - Derive query plan, `domain_focus_terms`, exclusions, `venue_prior`, and recommendations from `_epi\meta\epi-config.yaml` plus the current request.
 - Use `research_mode`, `paper_classification`, and `ranking_rubric` as routing/explanation contracts, not as final scholarly truth.
+- For chat-window results, load `references/output-format.md` and return papers in reading-priority order with title, short Chinese abstract, and quality metrics such as citations, impact factor/quartile, CiteScore, or `未核实`.
 - If config is missing, stop and use `config-setup`. See `docs\config.md`.
 
 ## Reference Routing
