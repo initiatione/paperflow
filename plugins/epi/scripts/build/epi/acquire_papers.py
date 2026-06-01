@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import ipaddress
 import os
 import shutil
+import socket
 import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 from epi.artifacts import file_sha256, json_sha256, utc_now, write_json_atomic
 from epi.paper_search_adapter import download_paper_pdf
@@ -121,6 +124,38 @@ def acquire_paper(candidate: dict, pdf_path: Path, paper_root: Path, *, redo: bo
     return acquire_record
 
 
+_ALLOWED_URL_SCHEMES = {"http", "https"}
+
+
+def _is_private_ip(hostname: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(hostname)
+        return addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved
+    except ValueError:
+        pass
+    try:
+        for info in socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP):
+            addr = ipaddress.ip_address(info[4][0])
+            if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+                return True
+    except (socket.gaierror, OSError):
+        pass
+    return False
+
+
+def _reject_unsafe_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme not in _ALLOWED_URL_SCHEMES:
+        raise ValueError(f"URL scheme not allowed: {parsed.scheme!r} (only http/https permitted)")
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise ValueError("URL has no hostname")
+    if os.environ.get("EPI_ALLOW_PRIVATE_URLS", "").strip().lower() in {"1", "true", "yes"}:
+        return
+    if _is_private_ip(hostname):
+        raise ValueError(f"URL points to a private/reserved address: {hostname}")
+
+
 def acquire_paper_from_url(
     candidate: dict,
     paper_root: Path,
@@ -207,6 +242,7 @@ def acquire_paper_from_url(
                 write_json_atomic(paper_root / "acquire-record.json", record)
                 return record
 
+    _reject_unsafe_url(pdf_url)
     http_status: int | None = None
     try:
         request = urllib.request.Request(pdf_url, headers={"User-Agent": "EPI/0.1"})

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import json
 import os
 import queue
@@ -478,13 +477,12 @@ def _parse_extra(extra: object) -> dict:
     if not extra:
         return {}
     if isinstance(extra, str):
-        for parser in (json.loads, ast.literal_eval):
-            try:
-                parsed = parser(extra)
-            except (SyntaxError, ValueError, TypeError, json.JSONDecodeError):
-                continue
-            if isinstance(parsed, dict):
-                return parsed
+        try:
+            parsed = json.loads(extra)
+        except (ValueError, json.JSONDecodeError):
+            return {}
+        if isinstance(parsed, dict):
+            return parsed
     return {}
 
 

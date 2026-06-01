@@ -7,6 +7,7 @@ import time
 import zipfile
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 
@@ -128,7 +129,14 @@ def poll_batch(token: str, batch_id: str, timeout: int, interval: int) -> list[d
     raise TimeoutError(f"timed out waiting for batch {batch_id}")
 
 
+def _reject_non_https_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise RuntimeError(f"URL scheme not allowed: {parsed.scheme!r} (only http/https permitted)")
+
+
 def download_markdown_and_assets(zip_url: str, asset_root: Path, extract_images: bool) -> tuple[bytes, int]:
+    _reject_non_https_url(zip_url)
     response = requests.get(zip_url, timeout=600)
     if response.status_code != 200:
         text = response.text[:500]
