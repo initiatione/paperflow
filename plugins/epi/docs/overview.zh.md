@@ -432,3 +432,9 @@ python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-pa
 9. `final-source-review.json`
 10. `_epi/raw/papers/<slug>/wiki-ingest-record.json`
 
+## 文献 Wiki 七类页面契约
+
+EPI 的最终目标不是把论文摘要塞进单页，而是把科研判断沉淀进 7 类正式页面：`references/` 单篇证据页，`concepts/` 方法/理论/术语页，`derivations/` 推导与理论复建页，`experiments/` 复现与实现判断页，`synthesis/` 跨论文综合页，`reports/` 低负担阅读入口页，`opportunities/` 创新机会页。
+
+正式写入需要 `epi-wiki-deposition`、`wiki-ingest`、`wiki-provenance`、`tag-taxonomy`。`final-source-review.json` 需要覆盖 `theory_reconstruction`、`formula_derivation`、`figure_table_evidence`、`novelty_type`、`implementability`、`reproducibility_risk`、`research_gap`、`cost_level`，并把页面状态推进到 `draft -> source-reviewed -> under-review -> verified`。`verified` 要求 source reread、formula/figure review、证据路径完整和 source review 完整；创新性判断必须区分 author-claimed novelty 和 EPI-confirmed novelty。
+

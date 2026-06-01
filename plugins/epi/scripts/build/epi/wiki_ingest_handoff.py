@@ -7,6 +7,13 @@ from typing import Any
 from epi.artifacts import staging_paper_root
 from epi.paper_gate import build_paper_gate
 from epi.wiki_ingest_approval import human_approval_record_path
+from epi.wiki_contracts import (
+    formal_page_family_names,
+    formal_page_family_paths,
+    page_lifecycle_states,
+    required_wiki_skills,
+    research_review_fields,
+)
 
 
 CONTRACT_FILES = [
@@ -45,6 +52,22 @@ def _brief_path_from_plan(plan: dict[str, Any], staging_root: Path) -> Path:
     return Path(value) if value else staging_root / "wiki-ingest-brief.json"
 
 
+def _family_paths(values: object) -> list[str]:
+    records = values if isinstance(values, list) else []
+    paths: list[str] = []
+    for item in records:
+        if isinstance(item, dict):
+            value = str(item.get("path") or item.get("name") or "").strip()
+        else:
+            value = str(item or "").strip()
+        if not value:
+            continue
+        if not value.endswith("/"):
+            value += "/"
+        paths.append(value)
+    return paths or formal_page_family_paths()
+
+
 def _agent_checklist(
     *,
     gate: dict[str, Any],
@@ -71,6 +94,16 @@ def _agent_checklist(
         else {}
     )
     final_source_review_path = final_source_review_contract.get("suggested_output_path") or "final-source-review.json"
+    families = _family_paths(
+        brief.get("formal_page_family_records")
+        or brief.get("formal_page_families")
+        or final_source_review_contract.get("formal_page_families")
+    )
+    review_fields = (
+        brief.get("research_review_fields")
+        or final_source_review_contract.get("research_review_fields")
+        or research_review_fields()
+    )
     checklist = [
         "Execution agent is neutral: Claude, Codex, or another wiki-capable agent may perform the final write if it follows the same handoff, approval, provenance, and vault-contract gates.",
         "Read target vault contract files before any final wiki write: " + ", ".join(str(item) for item in read_before),
@@ -96,11 +129,16 @@ def _agent_checklist(
             if item
         )
         + ".",
+        "Route formal research knowledge into the seven EPI page families when useful: "
+        + ", ".join(families)
+        + ".",
         "Before record-wiki-ingest, write "
         + str(final_source_review_path)
         + " using schema "
         + str(final_source_review_contract.get("record_schema_version") or "epi-final-source-review-v1")
-        + "; record artifact hashes, formula review, figure/image review, PDF fallback decision, and final page provenance.",
+        + "; record artifact hashes, formula review, figure/image review, PDF fallback decision, final page provenance, and research fields "
+        + ", ".join(str(field) for field in review_fields)
+        + ".",
         f"Inspect paper-gate status={gate.get('status')} next_action={gate.get('next_action')}; stop on any failure checks.",
         "Search existing wiki pages with index/frontmatter, QMD when configured, and grep before creating a new page.",
         "Merge or update existing notes before creating duplicates.",
@@ -175,6 +213,11 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
         and not gate_action_required_checks
     )
     approval_path = human_approval_record_path(vault_path, slug)
+    source_review_contract = (
+        brief.get("final_source_review_contract")
+        if isinstance(brief.get("final_source_review_contract"), dict)
+        else {}
+    )
     return {
         "title": "EPI Wiki Ingest Handoff",
         "paper_slug": slug,
@@ -184,10 +227,33 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
         "local_skill_policy": "helpers-not-authority",
         "epi_write_scope": plan.get("epi_write_scope") or ingest_policy.get("epi_write_scope"),
         "formal_routes_suggested": bool(brief.get("formal_routes_suggested", True)),
+        "formal_page_families": (
+            brief.get("formal_page_families")
+            or source_review_contract.get("formal_page_families")
+            or plan.get("formal_page_families")
+            or formal_page_family_names()
+        ),
+        "research_review_fields": (
+            brief.get("research_review_fields")
+            or source_review_contract.get("research_review_fields")
+            or plan.get("research_review_fields")
+            or research_review_fields()
+        ),
+        "page_lifecycle_states": (
+            brief.get("page_lifecycle_states")
+            or source_review_contract.get("page_lifecycle_states")
+            or plan.get("page_lifecycle_states")
+            or page_lifecycle_states()
+        ),
         "wiki_batch_handoff_required": bool(
             plan.get("wiki_batch_handoff_required") or ingest_policy.get("wiki_batch_handoff_required")
         ),
-        "required_wiki_skills": ingest_policy.get("required_wiki_skills") or plan.get("required_wiki_skills") or [],
+        "required_wiki_skills": (
+            ingest_policy.get("required_wiki_skills")
+            or source_review_contract.get("required_wiki_skills")
+            or plan.get("required_wiki_skills")
+            or required_wiki_skills()
+        ),
         "ready_for_agent": ready_for_agent,
         "ready_after_human_approval": ready_after_human_approval,
         "paper_gate": {
@@ -203,11 +269,7 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
             "human_approval": str(approval_path),
             "agent_handoff_paths": plan.get("agent_handoff_paths") or [],
         },
-        "final_source_review_contract": (
-            brief.get("final_source_review_contract")
-            if isinstance(brief.get("final_source_review_contract"), dict)
-            else {}
-        ),
+        "final_source_review_contract": source_review_contract,
         "contract_files": _contract_file_status(vault_path),
         "framework_references": framework_references,
         "wiki_rule_source_model": rule_source_model,
@@ -284,6 +346,16 @@ def render_wiki_ingest_handoff(handoff: dict[str, Any]) -> str:
     lines.extend(["", "## Required Wiki Skills", ""])
     for skill in handoff.get("required_wiki_skills") or []:
         lines.append(f"- {skill}")
+    lines.extend(["", "## Formal Page Families", ""])
+    for family in _family_paths(handoff.get("formal_page_families")):
+        lines.append(f"- {family}")
+    lines.extend(["", "## Research Review Fields", ""])
+    for field in handoff.get("research_review_fields") or []:
+        lines.append(f"- {field}")
+    lifecycle_states = handoff.get("page_lifecycle_states") or []
+    if lifecycle_states:
+        lines.append("")
+        lines.append("page_lifecycle: " + " -> ".join(str(state) for state in lifecycle_states))
     contract = handoff.get("final_source_review_contract") or {}
     paths = handoff.get("paths") if isinstance(handoff.get("paths"), dict) else {}
     lines.extend(["", "## Human Approval", ""])

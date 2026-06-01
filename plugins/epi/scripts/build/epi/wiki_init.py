@@ -6,6 +6,35 @@ import subprocess
 from pathlib import Path
 
 from epi.epi_repository import ensure_epi_repository
+from epi.wiki_contracts import formal_page_family_names, formal_page_family_paths
+
+
+FORMAL_PAGE_DIRS = formal_page_family_names()
+FORMAL_PAGE_PATHS = formal_page_family_paths()
+KNOWLEDGE_GRAPH_DIRS = [*FORMAL_PAGE_DIRS, "entities", "projects", "skills", "journal"]
+GRAPH_SEARCH = "path:/^index\\.md$/ OR " + " OR ".join(
+    f"path:/^{directory}\\\\//" for directory in KNOWLEDGE_GRAPH_DIRS
+)
+
+
+def _formal_page_taxonomy_lines() -> str:
+    roles = {
+        "references/": "evidence-grounded single-paper claim/support/evidence pages",
+        "concepts/": "reusable method, theory, and terminology pages",
+        "derivations/": "formula derivation and theory reconstruction pages",
+        "experiments/": "implementation, baseline, metric, cost, and implementability pages",
+        "synthesis/": "cross-paper method comparison and contradiction pages",
+        "reports/": "low-burden reading entrypoints",
+        "opportunities/": "research gap, novelty, and project opportunity pages",
+    }
+    return "\n".join(f"- `{path}`: {roles[path]}" for path in FORMAL_PAGE_PATHS)
+
+
+def _formal_page_directory_lines() -> str:
+    return "\n".join(
+        f"- `{path}`: final wiki page family written by the wiki skill, not by EPI"
+        for path in FORMAL_PAGE_PATHS
+    )
 
 
 AGENTS_MD = """# EPI Paper Research Wiki
@@ -57,10 +86,7 @@ Final wiki content must preserve claims, formulas, figures/tables/images, and im
 
 TAXONOMY_MD = """# Vault Taxonomy
 
-- `references/`: evidence-grounded source pages
-- `concepts/`: reusable atomic ideas
-- `synthesis/`: cross-paper relationships
-- `reports/`: low-burden reading entrypoints
+""" + _formal_page_taxonomy_lines() + """
 
 EPI must not create formal pages in these roots. The wiki skill creates or updates them after reading a batch of source papers. Do not invent new top-level wiki routes without vault approval.
 """
@@ -75,18 +101,14 @@ The paper research vault keeps paper acquisition, staging, and final wiki output
 - `_epi/staging/papers/<slug>/`: per-paper evidence handoff
 - `_epi/staging/wiki-batches/<batch-id>/`: multi-paper handoff for wiki skill deposition
 - `_epi/runs/`: transient run reports and dashboards, auto-cleaned by repository policy
-- `references/`, `concepts/`, `synthesis/`, `reports/`: final wiki page families written by the wiki skill, not by EPI
+""" + _formal_page_directory_lines() + """
 """
 
 
 GRAPH_JSON = json.dumps(
     {
         "collapse-filter": True,
-        "search": (
-            "path:/^index\\.md$/ OR path:/^references\\// OR path:/^concepts\\// OR "
-            "path:/^synthesis\\// OR path:/^entities\\// OR path:/^projects\\// OR "
-            "path:/^skills\\// OR path:/^journal\\//"
-        ),
+        "search": GRAPH_SEARCH,
         "showTags": False,
         "showAttachments": False,
         "hideUnresolved": False,
@@ -97,13 +119,6 @@ GRAPH_JSON = json.dumps(
 ) + "\n"
 
 
-GRAPH_SEARCH = (
-    "path:/^index\\.md$/ OR path:/^references\\// OR path:/^concepts\\// OR "
-    "path:/^synthesis\\// OR path:/^entities\\// OR path:/^projects\\// OR "
-    "path:/^skills\\// OR path:/^journal\\//"
-)
-
-
 GRAPH_VISIBILITY_MD = """# Graph Visibility Policy
 
 This vault treats the main Obsidian graph as a knowledge-layer view, not a workflow dump.
@@ -111,13 +126,7 @@ This vault treats the main Obsidian graph as a knowledge-layer view, not a workf
 ## Show in the main graph
 
 - `index.md`
-- `references/`
-- `concepts/`
-- `synthesis/`
-- `entities/`
-- `projects/`
-- `skills/`
-- `journal/`
+""" + "\n".join(f"- `{path}`" for path in [*FORMAL_PAGE_PATHS, "entities/", "projects/", "skills/", "journal/"]) + """
 
 These are the durable, human-readable knowledge nodes. Source paper Markdown under `_epi/raw` is source material for final writing, not a formal graph page.
 
@@ -143,9 +152,7 @@ EPI reader outputs, critic reports, staging briefs, run dashboards, and raw pape
 
 REQUIRED_DIRS = [
     "_meta",
-    "references",
-    "concepts",
-    "synthesis",
+    *FORMAL_PAGE_DIRS,
     "entities",
     "skills",
     "projects",
@@ -183,7 +190,7 @@ def _manifest_payload(existing: dict | None = None) -> dict:
             "formal_pages_written_by": "wiki-skill-batch-distillation",
             "graph_ignore_internal_dirs": True,
             "raw_paper_markdown_role": "source-material-not-formal-page",
-            "wiki_dirs": ["references", "concepts", "synthesis", "entities", "skills", "projects", "journal"],
+            "wiki_dirs": [*FORMAL_PAGE_DIRS, "entities", "skills", "projects", "journal"],
             "operational_dirs": ["_epi"],
             "papers": existing.get("papers", []),
         }

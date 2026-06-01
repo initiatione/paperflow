@@ -9,6 +9,37 @@ from epi.paper_gate import build_paper_gate
 from epi.wiki_ingest_record import create_wiki_ingest_record
 
 
+EXPECTED_RESEARCH_WIKI_SKILLS = [
+    "epi-wiki-deposition",
+    "wiki-ingest",
+    "wiki-provenance",
+    "tag-taxonomy",
+]
+
+EXPECTED_RESEARCH_REVIEW_FIELDS = [
+    "theory_reconstruction",
+    "formula_derivation",
+    "figure_table_evidence",
+    "novelty_type",
+    "implementability",
+    "reproducibility_risk",
+    "research_gap",
+    "cost_level",
+]
+
+EXPECTED_FORMAL_PAGE_FAMILIES = [
+    "references",
+    "concepts",
+    "derivations",
+    "experiments",
+    "synthesis",
+    "reports",
+    "opportunities",
+]
+
+EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "source-reviewed", "under-review", "verified"]
+
+
 def _write_json(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -99,6 +130,10 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "mineru/mineru-manifest.json",
                 ],
                 "record_schema_version": "epi-final-source-review-v1",
+                "required_wiki_skills": EXPECTED_RESEARCH_WIKI_SKILLS,
+                "formal_page_families": EXPECTED_FORMAL_PAGE_FAMILIES,
+                "research_review_fields": EXPECTED_RESEARCH_REVIEW_FIELDS,
+                "page_lifecycle_states": EXPECTED_PAGE_LIFECYCLE_STATES,
             },
             "wiki_rule_source_model": {
                 "execution_agent_policy": {
@@ -135,9 +170,12 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "epi_write_scope": "internal-underscore-artifacts-only",
                 "formal_routes_suggested": False,
                 "wiki_batch_handoff_required": True,
-                "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+                "required_wiki_skills": EXPECTED_RESEARCH_WIKI_SKILLS,
                 "source_first_policy": f"Read {canonical_mineru_md}, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
             },
+            "formal_page_families": EXPECTED_FORMAL_PAGE_FAMILIES,
+            "research_review_fields": EXPECTED_RESEARCH_REVIEW_FIELDS,
+            "page_lifecycle_states": EXPECTED_PAGE_LIFECYCLE_STATES,
             "formal_routes_suggested": False,
             "suggested_routes": [],
             "handoff_artifacts": [
@@ -244,8 +282,51 @@ def _write_final_source_review(vault, slug, pages):
         },
         "wiki_batch_ingest": {
             "status": "completed",
-            "wiki_skill_used": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "wiki_skill_used": EXPECTED_RESEARCH_WIKI_SKILLS,
             "paper_slugs": [slug],
+        },
+        "theory_reconstruction": {
+            "status": "reviewed",
+            "summary": "Reconstructed the paper's theoretical assumptions and claim chain.",
+        },
+        "formula_derivation": {
+            "status": "reviewed",
+            "summary": "Reviewed derivation steps and noted any skipped algebra before wiki deposition.",
+        },
+        "figure_table_evidence": {
+            "status": "reviewed",
+            "summary": "Mapped key figures and tables to final-page evidence claims.",
+        },
+        "novelty_type": {
+            "status": "reviewed",
+            "summary": "Separated author-claimed novelty from EPI-confirmed novelty.",
+        },
+        "implementability": {
+            "status": "reviewed",
+            "summary": "Estimated implementation difficulty and required components.",
+        },
+        "reproducibility_risk": {
+            "status": "reviewed",
+            "summary": "Recorded dataset, code, compute, baseline, and metric risks.",
+        },
+        "research_gap": {
+            "status": "reviewed",
+            "summary": "Captured open problems that can become follow-up research directions.",
+        },
+        "cost_level": {
+            "status": "reviewed",
+            "summary": "Estimated resource cost level for implementation and validation.",
+        },
+        "page_lifecycle": {
+            "status": "verified",
+            "allowed_states": EXPECTED_PAGE_LIFECYCLE_STATES,
+            "verified_requirements": [
+                "source_reread",
+                "formula_figure_review",
+                "evidence_path_complete",
+                "final_source_review_complete",
+            ],
+            "summary": "Final pages satisfy the verified gate.",
         },
         "formal_content_quality": {
             "status": "reviewed",
@@ -327,6 +408,11 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     assert record["source_first_verification_method"] == "final-source-review-json"
     assert record["final_source_review"]["status"] == "verified"
     assert record["paths"]["final_source_review"] == str(source_review)
+    assert record["final_source_review"]["wiki_batch_ingest"]["wiki_skill_used"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    for field in EXPECTED_RESEARCH_REVIEW_FIELDS:
+        assert record["final_source_review"][field]["status"] == "reviewed"
+    assert record["final_source_review"]["page_lifecycle"]["status"] == "verified"
+    assert record["final_source_review"]["page_lifecycle"]["allowed_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
     assert record["relative_page_paths"] == [
         "papers/fixture-paper.md",
         "concepts/navigation-control.md",
@@ -519,6 +605,28 @@ def test_create_wiki_ingest_record_rejects_invalid_final_source_review(tmp_path)
     _write_json(source_review, payload)
 
     with pytest.raises(ValueError, match="final source review.*mineru/paper.tex"):
+        create_wiki_ingest_record(
+            vault,
+            slug,
+            [str(page)],
+            approved_by="codex-test",
+            source_review_path=str(source_review),
+        )
+
+
+def test_create_wiki_ingest_record_requires_research_review_contract(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(vault, "papers/fixture-paper.md", "# Final Reference\n")
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+    payload = json.loads(source_review.read_text(encoding="utf-8"))
+    payload["wiki_batch_ingest"]["wiki_skill_used"] = ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"]
+    payload.pop("formula_derivation")
+    payload["page_lifecycle"]["status"] = "under-review"
+    _write_json(source_review, payload)
+
+    with pytest.raises(ValueError, match="tag-taxonomy.*formula_derivation.*page_lifecycle"):
         create_wiki_ingest_record(
             vault,
             slug,

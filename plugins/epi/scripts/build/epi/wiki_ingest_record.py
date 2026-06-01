@@ -8,6 +8,7 @@ from epi.artifacts import file_sha256, raw_paper_root, staging_paper_root, utc_n
 from epi.paper_gate import build_paper_gate
 from epi.source_artifacts import is_mineru_markdown_artifact, source_first_artifacts
 from epi.wiki_ingest_approval import human_approval_record_path, validate_human_approval_record
+from epi.wiki_contracts import page_lifecycle_states, required_wiki_skills, research_review_fields
 
 
 _INTERNAL_VAULT_ROOTS = {"_epi", "_raw", "_staging", "_runs", "_quarantine", ".git", ".obsidian"}
@@ -310,11 +311,25 @@ def _validate_wiki_batch_ingest_section(payload: dict[str, Any], slug: str, fail
     if section.get("status") != "completed":
         failures.append("final source review wiki_batch_ingest must be status=completed")
     skills = "\n".join(str(item) for item in section.get("wiki_skill_used") or section.get("skills_used") or [])
-    if "wiki-ingest" not in skills:
-        failures.append("final source review wiki_batch_ingest must record wiki-ingest skill usage")
+    for skill in required_wiki_skills():
+        if skill not in skills:
+            failures.append(f"final source review wiki_batch_ingest must record {skill} skill usage")
     paper_slugs = [str(item) for item in section.get("paper_slugs") or []]
     if slug not in paper_slugs:
         failures.append("final source review wiki_batch_ingest must include the recorded paper slug")
+
+
+def _validate_research_review_sections(payload: dict[str, Any], failures: list[str]) -> None:
+    for field in research_review_fields():
+        _validate_review_section(payload, field, failures)
+    lifecycle = payload.get("page_lifecycle") if isinstance(payload.get("page_lifecycle"), dict) else {}
+    if lifecycle.get("status") != "verified":
+        failures.append("final source review page_lifecycle must be status=verified")
+    allowed_states = [str(item) for item in lifecycle.get("allowed_states") or []]
+    if allowed_states != page_lifecycle_states():
+        failures.append("final source review page_lifecycle must record allowed lifecycle states")
+    if not str(lifecycle.get("summary") or "").strip():
+        failures.append("final source review page_lifecycle must include a summary")
 
 
 def _validate_formal_content_quality_section(payload: dict[str, Any], failures: list[str]) -> None:
@@ -367,6 +382,7 @@ def _validate_final_source_review(
     _validate_review_section(payload, "figure_table_image_review", failures)
     _validate_pdf_fallback_section(payload, failures)
     _validate_wiki_batch_ingest_section(payload, slug, failures)
+    _validate_research_review_sections(payload, failures)
     _validate_formal_content_quality_section(payload, failures)
     _validate_final_page_provenance(payload=payload, page_records=page_records, failures=failures)
 
@@ -488,6 +504,28 @@ def create_wiki_ingest_record(
     elif approval_record.get("notes"):
         human_gate_decision["notes"] = approval_record.get("notes")
 
+    if source_review_payload is not None:
+        final_source_review_record: dict[str, Any] = {
+            "status": "verified",
+            "path": str(resolved_source_review_path),
+            "schema_version": source_review_payload.get("schema_version"),
+            "reviewed_artifacts": source_review_payload.get("reviewed_artifacts") or [],
+            "formula_review": source_review_payload.get("formula_review") or {},
+            "figure_table_image_review": source_review_payload.get("figure_table_image_review") or {},
+            "pdf_fallback_review": source_review_payload.get("pdf_fallback_review") or {},
+            "wiki_batch_ingest": source_review_payload.get("wiki_batch_ingest") or {},
+            "formal_content_quality": source_review_payload.get("formal_content_quality") or {},
+            "final_page_provenance": source_review_payload.get("final_page_provenance") or [],
+            "page_lifecycle": source_review_payload.get("page_lifecycle") or {},
+        }
+        for field in research_review_fields():
+            final_source_review_record[field] = source_review_payload.get(field) or {}
+    else:
+        final_source_review_record = {
+            "status": "missing",
+            "required": bool(source_review_contract.get("required")),
+        }
+
     record_payload = {
         "schema_version": "epi-wiki-ingest-record-v1",
         "stage": "record-wiki-ingest",
@@ -508,23 +546,7 @@ def create_wiki_ingest_record(
             if source_first_verified_by_source_review
             else "brief-contract-only"
         ),
-        "final_source_review": (
-            {
-                "status": "verified",
-                "path": str(resolved_source_review_path),
-                "schema_version": source_review_payload.get("schema_version"),
-                "reviewed_artifacts": source_review_payload.get("reviewed_artifacts") or [],
-                "formula_review": source_review_payload.get("formula_review") or {},
-                "figure_table_image_review": source_review_payload.get("figure_table_image_review") or {},
-                "pdf_fallback_review": source_review_payload.get("pdf_fallback_review") or {},
-                "final_page_provenance": source_review_payload.get("final_page_provenance") or [],
-            }
-            if source_review_payload is not None
-            else {
-                "status": "missing",
-                "required": bool(source_review_contract.get("required")),
-            }
-        ),
+        "final_source_review": final_source_review_record,
         "human_gate_decision": human_gate_decision,
         "paper_gate": {
             "status": gate.get("status"),

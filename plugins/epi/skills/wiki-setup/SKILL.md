@@ -110,3 +110,9 @@ python scripts\orchestrator.py wiki-repair --vault <vault> --restore-from <backu
 ```
 
 Never reset/delete without the exact second confirmation, without preserving EPI config unless `确认同时重置 EPI config` was also provided, outside the intended vault, in unrelated paths, or while ingest/MinerU/promotion/wiki ingest is running.
+
+## Literature Wiki Contract
+
+Initialization seeds formal wiki page families for paper research: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. EPI itself still writes only `_epi/`; final pages are written by a wiki-capable agent after handoff and approval.
+
+The vault contract should expect `epi-wiki-deposition`, `wiki-ingest`, `wiki-provenance`, and `tag-taxonomy`. Final source review fields are `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`; lifecycle is `draft -> source-reviewed -> under-review -> verified`.

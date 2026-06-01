@@ -5,6 +5,16 @@ from pathlib import Path
 
 from epi.artifacts import staging_paper_root, utc_now, wiki_batch_pending_root, write_json_atomic, write_text_atomic
 from epi.source_artifacts import canonical_source_first_artifacts
+from epi.wiki_contracts import (
+    final_source_review_must_record,
+    formal_page_family_names,
+    formal_page_family_paths,
+    formal_page_family_records,
+    page_lifecycle_states,
+    required_wiki_skills,
+    research_review_fields,
+    verified_page_requirements,
+)
 
 
 def _source_first_artifacts(slug: str) -> list[str]:
@@ -90,10 +100,17 @@ def _write_batch_handoff(
             "handoff_type": "wiki-skill-batch-distillation",
             "epi_write_scope": "internal-underscore-artifacts-only",
             "formal_routes_suggested": False,
-            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "required_wiki_skills": required_wiki_skills(),
+            "formal_page_families": formal_page_family_names(),
+            "research_review_fields": research_review_fields(),
+            "page_lifecycle_states": page_lifecycle_states(),
             "paper_slugs": [],
             "papers": [],
         }
+    existing["required_wiki_skills"] = required_wiki_skills()
+    existing["formal_page_families"] = formal_page_family_names()
+    existing["research_review_fields"] = research_review_fields()
+    existing["page_lifecycle_states"] = page_lifecycle_states()
     papers = [
         item
         for item in existing.get("papers", [])
@@ -117,9 +134,10 @@ def _write_batch_handoff(
     existing["paper_slugs"] = [str(item["paper_slug"]) for item in papers]
     existing["papers"] = papers
     existing["wiki_skill_instruction"] = (
-        "Load wiki-ingest and epi-wiki-deposition. Distill formal pages from the source papers, "
-        "formulas, figures, images, and compact EPI evidence aids. Do not promote EPI staging reports "
-        "or per-paper audit pages as formal wiki pages."
+        "Load epi-wiki-deposition, wiki-ingest, wiki-provenance, and tag-taxonomy. Distill formal "
+        "pages across references/, concepts/, derivations/, experiments/, synthesis/, reports/, and "
+        "opportunities/ from the source papers, formulas, figures, images, and compact EPI evidence "
+        "aids. Do not promote EPI staging reports or per-paper audit pages as formal wiki pages."
     )
     write_json_atomic(batch_path, existing)
     return batch_path
@@ -531,16 +549,12 @@ def _final_source_review_contract(slug: str) -> dict:
         "required": True,
         "suggested_output_path": "final-source-review.json",
         "required_artifacts": _source_first_artifacts(slug),
-        "must_record": [
-            "reviewed_artifacts[] with artifact, status, and sha256 for file artifacts",
-            "mineru/images/* file_count plus per-image relative_path and sha256 when images exist",
-            "formula_review with status=reviewed and a summary of formulas, notation, assumptions, or parse gaps",
-            "figure_table_image_review with status=reviewed and a summary of figures, tables, image evidence, and uncertainty",
-            "pdf_fallback_review with status=reviewed or not-needed and a summary of PDF fallback decisions",
-            "wiki_batch_ingest with status=completed, wiki_skill_used including wiki-ingest, and paper_slugs[]",
-            "formal_content_quality with status=reviewed and audit_pages_excluded=true",
-            "final_page_provenance[] mapping every final wiki page to source_grounded=true",
-        ],
+        "must_record": final_source_review_must_record(),
+        "required_wiki_skills": required_wiki_skills(),
+        "formal_page_families": formal_page_family_names(),
+        "research_review_fields": research_review_fields(),
+        "page_lifecycle_states": page_lifecycle_states(),
+        "verified_page_requirements": verified_page_requirements(),
         "record_command_flag": "--source-review <final-source-review.json>",
         "record_schema_version": "epi-final-source-review-v1",
     }
@@ -585,6 +599,10 @@ def _build_wiki_ingest_brief(
         "paper_slug": slug,
         "title": title,
         "trust_status": _reading_trust_payload(research_decision, reproduction_plan),
+        "formal_page_families": formal_page_family_names(),
+        "formal_page_family_records": formal_page_family_records(),
+        "research_review_fields": research_review_fields(),
+        "page_lifecycle_states": page_lifecycle_states(),
         "wiki_framework_references": [
             {
                 "name": "Ar9av/obsidian-wiki",
@@ -611,11 +629,19 @@ def _build_wiki_ingest_brief(
             "epi_write_scope": "internal-underscore-artifacts-only",
             "formal_routes_suggested": False,
             "wiki_batch_handoff_required": True,
-            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "required_wiki_skills": required_wiki_skills(),
             "executor_policy": "Claude, Codex, or any other wiki-capable agent may perform the final write if they respect the same contract.",
             "merge_policy": "Search existing pages first; update or merge before creating duplicates.",
             "staged_writes_policy": "Respect the target vault staged-write convention when present.",
-            "provenance_policy": "Keep extracted, inferred, and ambiguous claims distinguishable.",
+            "provenance_policy": "Keep extracted, inferred, and ambiguous claims distinguishable; use wiki-provenance and tag-taxonomy together.",
+            "formal_page_policy": (
+                "Use the seven EPI research wiki families as appropriate: "
+                + ", ".join(formal_page_family_paths())
+            ),
+            "research_field_policy": (
+                "final-source-review must record theory/formula/figure evidence, novelty, "
+                "implementability, reproducibility risk, research gaps, and cost."
+            ),
             "source_of_truth": "Markdown vault plus EPI source bundle; QMD/search indexes are retrieval aids only.",
             "source_first_policy": (
                 f"Read {source_markdown}, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json "
@@ -667,12 +693,16 @@ def _build_wiki_ingest_brief(
         "wiki_skill_handoff": {
             "required": True,
             "batch_required": True,
-            "minimum_role": "The current agent must load the wiki-ingest skill before writing final pages.",
-            "required_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "minimum_role": "The current agent must load epi-wiki-deposition, wiki-ingest, wiki-provenance, and tag-taxonomy before writing final pages.",
+            "required_skills": required_wiki_skills(),
+            "formal_page_families": formal_page_family_names(),
+            "research_review_fields": research_review_fields(),
+            "page_lifecycle_states": page_lifecycle_states(),
             "formal_page_rule": (
                 "Do not promote EPI audit artifacts or per-paper pseudo concept/synthesis/report pages. "
                 "Final pages are readable wiki pages produced by the wiki skill from source papers, formulas, "
-                "figures, images, and compact EPI evidence aids."
+                "figures, images, and compact EPI evidence aids across references/, concepts/, derivations/, "
+                "experiments/, synthesis/, reports/, and opportunities/."
             ),
         },
         "role_lenses": {
@@ -993,7 +1023,10 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path) -> Path:
         "epi_write_scope": "internal-underscore-artifacts-only",
         "formal_routes_suggested": False,
         "wiki_batch_handoff_required": True,
-        "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+        "required_wiki_skills": required_wiki_skills(),
+        "formal_page_families": formal_page_family_names(),
+        "research_review_fields": research_review_fields(),
+        "page_lifecycle_states": page_lifecycle_states(),
         "staged_evidence": [str(source_reader_path)],
         "staged_reports": [str(reading_report_path)],
         "wiki_ingest_brief_path": str(wiki_ingest_brief_path),

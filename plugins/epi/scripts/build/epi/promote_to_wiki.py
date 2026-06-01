@@ -7,9 +7,10 @@ from pathlib import PurePosixPath
 
 from epi.artifacts import raw_paper_root, staging_paper_root, utc_now, write_json_atomic, write_text_atomic
 from epi.run_critic import HARD_RULE
+from epi.wiki_contracts import formal_page_family_names, formal_page_family_paths
 
 
-_ALLOWED_COMPILED_TARGET_ROOTS = {"references", "concepts", "synthesis", "reports"}
+_ALLOWED_COMPILED_TARGET_ROOTS = set(formal_page_family_names())
 
 
 def _read_json(path: Path) -> dict:
@@ -52,7 +53,7 @@ def _compiled_target_path(vault_path: Path, target: str) -> Path:
         or target_path.parts[0] not in _ALLOWED_COMPILED_TARGET_ROOTS
     ):
         raise ValueError(
-            "compiled target must be a relative path under references/, concepts/, synthesis/, or reports/"
+            "compiled target must be a relative path under " + ", ".join(formal_page_family_paths())
         )
     compiled_path = (vault_path.resolve() / Path(*target_path.parts)).resolve()
     try:

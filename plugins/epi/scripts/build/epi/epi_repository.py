@@ -69,7 +69,7 @@ This `_epi` folder is the only place where EPI writes operational paper artifact
 2. Use EPI reader/critic/staging outputs as navigation and quality signals only.
 3. Final wiki pages must be distilled from original paper artifacts, formulas, figures, images, and batch-level comparison.
 4. Never promote `_epi/staging` reports, audit pages, or per-paper pseudo routes as formal wiki pages.
-5. New EPI writes must stay under `_epi`; root `references/`, `concepts/`, `synthesis/`, and `reports/` are wiki-skill-owned.
+5. New EPI writes must stay under `_epi`; root `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/` are wiki-skill-owned.
 """
 
 

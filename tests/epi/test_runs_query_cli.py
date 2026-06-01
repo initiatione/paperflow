@@ -7,6 +7,7 @@ from epi.orchestrator import main, record_human_approval
 from epi.report_run import load_run_report
 from epi.run_index import _paper_gate_allows_promotion, refresh_run_index
 from epi.stage_wiki import _build_wiki_ingest_brief
+from epi.wiki_contracts import required_wiki_skills
 
 
 def _write_json(path, payload):
@@ -118,7 +119,7 @@ def _seed_ready_paper_gate(vault, slug):
             "epi_write_scope": "internal-underscore-artifacts-only",
             "formal_routes_suggested": False,
             "wiki_batch_handoff_required": True,
-            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "required_wiki_skills": required_wiki_skills(),
             "staged_evidence": [str(staged_source_reader)],
             "staged_reports": [str(staged_report)],
             "wiki_ingest_brief_path": str(brief_path),

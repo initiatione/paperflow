@@ -7,6 +7,37 @@ from epi.run_critic import run_critics
 from epi.stage_wiki import stage_paper
 
 
+EXPECTED_RESEARCH_WIKI_SKILLS = [
+    "epi-wiki-deposition",
+    "wiki-ingest",
+    "wiki-provenance",
+    "tag-taxonomy",
+]
+
+EXPECTED_FORMAL_PAGE_FAMILIES = [
+    "references",
+    "concepts",
+    "derivations",
+    "experiments",
+    "synthesis",
+    "reports",
+    "opportunities",
+]
+
+EXPECTED_RESEARCH_REVIEW_FIELDS = [
+    "theory_reconstruction",
+    "formula_derivation",
+    "figure_table_evidence",
+    "novelty_type",
+    "implementability",
+    "reproducibility_risk",
+    "research_gap",
+    "cost_level",
+]
+
+EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "source-reviewed", "under-review", "verified"]
+
+
 def _write_phase2_fixture(tmp_path):
     pdf = tmp_path / "paper.pdf"
     pdf.write_bytes(b"%PDF-1.4\nfixture paper\n")
@@ -162,7 +193,10 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert wiki_ingest_brief["ingest_policy"]["epi_write_scope"] == "internal-underscore-artifacts-only"
     assert wiki_ingest_brief["ingest_policy"]["formal_routes_suggested"] is False
     assert wiki_ingest_brief["ingest_policy"]["wiki_batch_handoff_required"] is True
-    assert "wiki-ingest" in wiki_ingest_brief["ingest_policy"]["required_wiki_skills"]
+    assert wiki_ingest_brief["ingest_policy"]["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert wiki_ingest_brief["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
+    assert wiki_ingest_brief["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
+    assert wiki_ingest_brief["page_lifecycle_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
     assert "target vault contract" in wiki_ingest_brief["ingest_policy"]["authority"]
     assert "Markdown vault" in wiki_ingest_brief["ingest_policy"]["source_of_truth"]
     assert canonical_mineru_md in wiki_ingest_brief["ingest_policy"]["source_first_policy"]
@@ -179,6 +213,14 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert final_source_review_contract["suggested_output_path"] == "final-source-review.json"
     assert final_source_review_contract["record_schema_version"] == "epi-final-source-review-v1"
     assert "mineru/paper.tex" in final_source_review_contract["required_artifacts"]
+    assert final_source_review_contract["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert final_source_review_contract["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
+    assert final_source_review_contract["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
+    assert final_source_review_contract["page_lifecycle_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
+    must_record = "\n".join(final_source_review_contract["must_record"])
+    for field in EXPECTED_RESEARCH_REVIEW_FIELDS:
+        assert field in must_record
+    assert "verified" in must_record
     execution_agent_policy = wiki_ingest_brief["wiki_rule_source_model"]["execution_agent_policy"]
     assert execution_agent_policy["allowed_executors"][:2] == ["Claude", "Codex"]
     assert "target vault contract" in execution_agent_policy["brand_neutrality"]
@@ -215,6 +257,8 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
         "internal-evidence-only"
     }
     assert wiki_ingest_brief["wiki_skill_handoff"]["batch_required"] is True
+    assert wiki_ingest_brief["wiki_skill_handoff"]["required_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert wiki_ingest_brief["wiki_skill_handoff"]["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
     assert wiki_ingest_brief["source_bundle"]["raw_artifacts"] == [
         "paper.pdf",
         "metadata.json",
@@ -254,6 +298,10 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert promotion_plan["epi_write_scope"] == "internal-underscore-artifacts-only"
     assert promotion_plan["formal_routes_suggested"] is False
     assert promotion_plan["wiki_batch_handoff_required"] is True
+    assert promotion_plan["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert promotion_plan["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
+    assert promotion_plan["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
+    assert promotion_plan["page_lifecycle_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
     assert promotion_plan["wiki_ingest_brief_path"] == str(wiki_ingest_brief_path)
     batch_handoff_path = tmp_path / "vault" / "_epi" / "staging" / "wiki-batches" / "pending" / "wiki-batch-ingest-brief.json"
     assert promotion_plan["wiki_batch_ingest_brief_path"] == str(batch_handoff_path)
@@ -263,6 +311,10 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert slug in batch_handoff["paper_slugs"]
     assert batch_handoff["epi_write_scope"] == "internal-underscore-artifacts-only"
     assert batch_handoff["formal_routes_suggested"] is False
+    assert batch_handoff["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert batch_handoff["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
+    assert batch_handoff["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
+    assert batch_handoff["page_lifecycle_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
     assert promotion_plan["suggested_final_source_review_path"] == str(staging_root / "final-source-review.json")
     assert promotion_plan["final_source_review_contract"]["required"] is True
     assert str(reading_report_path) in promotion_plan["agent_handoff_paths"]

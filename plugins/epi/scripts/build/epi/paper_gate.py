@@ -13,9 +13,15 @@ from epi.wiki_ingest_approval import (
     human_approval_record_path,
     validate_human_approval_record,
 )
+from epi.wiki_contracts import (
+    formal_page_family_names,
+    required_wiki_skills,
+    page_lifecycle_states,
+    research_review_fields,
+)
 
 
-_ALLOWED_COMPILED_TARGET_ROOTS = {"references", "concepts", "synthesis", "reports"}
+_ALLOWED_COMPILED_TARGET_ROOTS = set(formal_page_family_names())
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -133,6 +139,11 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
         else {}
     )
     formula_figure_text = "\n".join(str(item) for item in formula_figure_review.values())
+    final_source_review_contract = (
+        brief.get("final_source_review_contract")
+        if isinstance(brief.get("final_source_review_contract"), dict)
+        else {}
+    )
     required_frameworks = [
         "Ar9av/obsidian-wiki",
         "kepano/obsidian-skills",
@@ -150,9 +161,21 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
         issues.append("brief must not suggest formal wiki routes")
     if ingest_policy.get("wiki_batch_handoff_required") is not True:
         issues.append("brief must require wiki skill batch handoff")
-    required_wiki_skills = "\n".join(str(item) for item in ingest_policy.get("required_wiki_skills") or [])
-    if "wiki-ingest" not in required_wiki_skills:
-        issues.append("brief must require the wiki-ingest skill for final pages")
+    required_skill_values = ingest_policy.get("required_wiki_skills") or final_source_review_contract.get("required_wiki_skills") or []
+    missing_required_skills = [skill for skill in required_wiki_skills() if skill not in required_skill_values]
+    if missing_required_skills:
+        issues.append("brief required_wiki_skills are incomplete: " + ", ".join(missing_required_skills))
+    page_family_values = brief.get("formal_page_families") or final_source_review_contract.get("formal_page_families") or []
+    missing_page_families = [family for family in formal_page_family_names() if family not in page_family_values]
+    if missing_page_families:
+        issues.append("formal page families are incomplete: " + ", ".join(missing_page_families))
+    review_field_values = brief.get("research_review_fields") or final_source_review_contract.get("research_review_fields") or []
+    missing_review_fields = [field for field in research_review_fields() if field not in review_field_values]
+    if missing_review_fields:
+        issues.append("research review fields are incomplete: " + ", ".join(missing_review_fields))
+    lifecycle_values = brief.get("page_lifecycle_states") or final_source_review_contract.get("page_lifecycle_states") or []
+    if [str(item) for item in lifecycle_values] != page_lifecycle_states():
+        issues.append("page lifecycle states are incomplete")
     if brief.get("suggested_routes"):
         issues.append("suggested_routes must be empty for EPI internal handoff")
     handoff_artifacts = brief.get("handoff_artifacts")

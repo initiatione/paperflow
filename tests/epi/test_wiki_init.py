@@ -5,6 +5,17 @@ from epi.epi_repository import migrate_legacy_epi_roots
 from epi.wiki_init import initialize_paper_wiki
 
 
+EXPECTED_RESEARCH_WIKI_DIRS = [
+    "references",
+    "concepts",
+    "derivations",
+    "experiments",
+    "synthesis",
+    "reports",
+    "opportunities",
+]
+
+
 def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     vault = tmp_path / "paper-research-wiki"
 
@@ -24,9 +35,7 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
         "_epi/meta",
         "_epi/policies",
         "_meta",
-        "references",
-        "concepts",
-        "synthesis",
+        *EXPECTED_RESEARCH_WIKI_DIRS,
         "entities",
         "skills",
         "projects",
@@ -47,6 +56,7 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     assert "wiki-ingest-brief.json" in manifest["handoff_artifacts"]
     assert manifest["epi_internal_root"] == "_epi"
     assert manifest["operational_dirs"] == ["_epi"]
+    assert manifest["wiki_dirs"][:7] == EXPECTED_RESEARCH_WIKI_DIRS
     assert (vault / "AGENTS.md").is_file()
     assert (vault / "_epi" / "README.md").is_file()
     assert (vault / "_epi" / "manifest.json").is_file()
@@ -59,11 +69,20 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     assert "_epi/raw/papers" in (vault / "_epi" / "README.md").read_text(encoding="utf-8")
     assert "mineru/paper.tex" in (vault / "_meta" / "agent-operating-contract.md").read_text(encoding="utf-8")
     assert "figures/tables/images" in (vault / "_meta" / "schema.md").read_text(encoding="utf-8")
+    taxonomy = (vault / "_meta" / "taxonomy.md").read_text(encoding="utf-8")
+    directory_structure = (vault / "_meta" / "directory-structure.md").read_text(encoding="utf-8")
+    for wiki_dir in EXPECTED_RESEARCH_WIKI_DIRS:
+        assert f"`{wiki_dir}/`" in taxonomy
+        assert f"`{wiki_dir}/`" in directory_structure
+    assert "formula derivation" in taxonomy
+    assert "implementability" in taxonomy
+    assert "research gap" in taxonomy
     assert "_epi/" in (vault / "_meta" / "graph-visibility.md").read_text(encoding="utf-8")
     graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
     assert "_epi" not in graph["search"]
     assert "_raw" not in graph["search"]
-    assert "path:/^references\\//" in graph["search"]
+    for wiki_dir in EXPECTED_RESEARCH_WIKI_DIRS:
+        assert f"path:/^{wiki_dir}\\\\//" in graph["search"]
     assert (vault / ".git").is_dir()
     assert ".git" in created
     assert (
@@ -132,6 +151,7 @@ def test_initialize_paper_wiki_repairs_legacy_contract_files_without_losing_mani
     assert manifest["vault_type"] == "engineering-paper-research"
     assert manifest["operational_dirs"] == ["_epi"]
     assert manifest["epi_internal_root"] == "_epi"
+    assert manifest["wiki_dirs"][:7] == EXPECTED_RESEARCH_WIKI_DIRS
     assert manifest["papers"] == [{"paper_slug": "kept-paper", "status": "wiki_ingest_recorded"}]
     graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
     assert "_raw" not in graph["search"]

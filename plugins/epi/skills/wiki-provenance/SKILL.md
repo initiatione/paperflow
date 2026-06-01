@@ -70,3 +70,9 @@ Load `references/page-provenance.md` for a fuller page and final-source-review c
 - Do not let unsupported claims enter main factual sections.
 - Do not omit evidence addresses from final pages just because `record-wiki-ingest` stores hashes.
 - Do not write final pages from EPI suggested routes directly; the target vault contract decides paths, links, tags, merge policy, and staged writes.
+
+## Literature Wiki Contract
+
+Apply provenance across the seven EPI paper wiki families: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. Use `wiki-provenance` with `tag-taxonomy` so evidence status and tags do not drift between single-paper pages, derivation pages, experiment pages, synthesis pages, and opportunity pages.
+
+`final-source-review.json` must preserve `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`. Keep author-claimed novelty separate from EPI-confirmed novelty, and only mark pages `verified` after source reread, formula/figure review, and complete evidence paths.
