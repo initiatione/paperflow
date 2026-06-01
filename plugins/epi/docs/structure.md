@@ -1,6 +1,6 @@
 # EPI 插件结构说明
 
-本文档描述当前 EPI 插件的源代码结构、运行边界和主要产物位置。它回答“文件在哪里、谁负责什么、哪些目录不能被当成最终知识库写入入口”。端到端行为契约仍以 `docs/epi-linkage.md` 为准。
+本文档描述当前 EPI 插件的源代码结构、运行边界和主要产物位置。它回答“文件在哪里、谁负责什么、哪些目录不能被当成最终知识库写入入口”。若需要一份把结构和完整工作流放在一起的中文导航，先读 `docs/overview.zh.md`；端到端行为契约仍以 `docs/epi-linkage.md` 为准。
 
 ## 总体边界
 
@@ -21,7 +21,7 @@ plugins/epi/
 ```
 
 - `.codex-plugin/plugin.json`：Codex marketplace 识别入口，包含插件名称、版本、展示文案、技能目录和 marketplace 链接。安装刷新通常需要更新版本 cachebuster。
-- `docs/`：用户可读说明。`epi-linkage.md` 是主链路维护契约；`structure.md` 是本文件；`progress.md` 是开发进度说明；`config.md` 是首次配置和修改配置的话术来源。
+- `docs/`：用户可读说明。`overview.zh.md` 是中文总览入口；`epi-linkage.md` 是主链路维护契约；`structure.md` 是本文件；`progress.md` 是开发进度说明；`config.md` 是首次配置和修改配置的话术来源。
 - `scripts/`：Codex 插件内的可执行 wrapper。用户和技能通常调用 `python scripts\orchestrator.py ...`。
 - `scripts/build/epi/`：实际 Python 实现模块。wrapper 会把这里作为包代码运行。
 - `skills/`：Codex skills。每个 skill 的 `SKILL.md` 只保留触发条件、安全边界和核心命令，详细链路放在 docs。
@@ -120,6 +120,8 @@ skills/
   paper-discovery/
   paper-ingest/
   mineru-paper-parser/
+  topic-tracking/
+  wiki-provenance/
   skill-aware-evolve/
   zotero-sync/
 ```
@@ -127,9 +129,11 @@ skills/
 - `config-setup`：首次使用或修改配置时的唯一交互入口。入口保持短句和边界，完整聊天式引导与更新流见 `docs/config.md`；最终确认前不运行 `init-config` 或 `apply-config-update`。
 - `paper-discovery`：搜索、排序和 dry-run；当用户要求“1-3”时，指向 `prepare-ranked` 快路，只写 raw 采集和 MinerU 解析产物。
   - `paper-discovery/scripts/query-planner.py` 与 `paper-discovery/references/` 保存可维护检索策略：mode routing、query planner、paper type taxonomy、ranking rubric、domain ontology、source tiers、dedup engine、venue prior、two-stage retrieval、citation graph、evaluation set、multi-source workflow、quality gate、anti-patterns 和对话输出格式。venue prior 从用户画像/config 衍生，社区榜单只进入对应领域的弱 prior，真实指标仍需单独核验。
+- `topic-tracking`：主题中心、纵向增量、backlog、coverage 和 broad-to-deep 阅读视图；它承接“这次之后有什么新东西”“我有没有漏掉关键分支”这类问题，`paper-discovery` 只保留检索/排序底层。
 - `paper-ingest`：推进已选论文进入 raw、reader、critic、staging 和 handoff。只需 1-3 时使用 `prepare-ranked`，不要误入完整 reader/critic/staging 链。
   - `paper-ingest/references/source-first-reading.md` 是 reader/critic/staging/wiki handoff 的 source-first 阅读协议，要求最终沉淀前重读 MinerU Markdown、TeX、images、manifest 和必要时的 PDF，最终记录 `final-source-review.json`，并使用 `reader/claim-support.json` 区分源文摘取、metadata-only 与 inference。
 - `mineru-paper-parser`：低层 PDF -> Markdown/TeX/images/manifest 解析能力；成功后最终产物只放在 `mineru/`，`paper.tex` 必须非空，必要时使用 Markdown fallback。
+- `wiki-provenance`：final wiki 页 provenance、claim support status、evidence address 和 round-trip retrieval hook；它承接“最终页上的这句话到底来自哪里”这类问题，`paper-ingest` 只保留 source-first handoff。
 - `skill-aware-evolve`：根据 evidence 和验证结果提出受控变更；配置问题必须走配置 proposal。
 - `wiki-setup`：初始化、检查、修复和重置 paper wiki vault。入口只保留边界和命令，详细恢复与误删清单见 `skills/wiki-setup/references/reset-recovery.md`。初始化会创建 `AGENTS.md` 和 `_meta/agent-operating-contract.md`、`_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`，默认要求 source-first paper ingest：最终 wiki 写入先读 `mineru/paper.md`、`mineru/paper.tex`、`mineru/images/*` 和 manifest。
 - `zotero-sync`：Zotero 记录和可选同步，默认安全边界是本地记录优先；`record-wiki-ingest` 和 legacy `promote-to-wiki` 会自动写 record-only sidecar 并把结果带入 report。

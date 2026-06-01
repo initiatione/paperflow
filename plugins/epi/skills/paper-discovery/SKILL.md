@@ -1,6 +1,6 @@
 ---
 name: paper-discovery
-description: "Use when discovering high-quality EPI papers via search/rank dry-runs, review exclusion, acquisition, or MinerU steps 1-3."
+description: "Use when discovering high-quality EPI papers via one-off search/rank dry-runs, review exclusion, acquisition, or MinerU steps 1-3."
 ---
 
 # Academic Paper Discovery
@@ -8,6 +8,8 @@ description: "Use when discovering high-quality EPI papers via search/rank dry-r
 Use for EPI discovery and the steps 1-3 path: route the research mode, search, normalize/filter/classify/rank, acquire, and MinerU parse. Stop at raw artifacts unless the user asks for reader/critic/staging/wiki handoff.
 
 The full EPI chain stays documented in `docs\epi-linkage.md`. Detailed discovery policy lives in `references/`.
+
+For ongoing topic monitoring, "what is new since last run/date", backlog priority, breadth coverage, or systematic-review coverage, use `topic-tracking` as the outer workflow and this skill only as the retrieval/ranking layer.
 
 ## Rules
 
