@@ -15,6 +15,7 @@ def _write_json(path, payload):
 
 
 def _seed_agent_handoff(vault, slug="fixture-paper"):
+    canonical_mineru_md = f"mineru/{slug}.md"
     paper_root = vault / "_epi" / "raw" / "papers" / slug
     staging_root = vault / "_epi" / "staging" / "papers" / slug
     paper_root.mkdir(parents=True, exist_ok=True)
@@ -31,7 +32,7 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture paper\n")
     mineru_dir = paper_root / "mineru"
     mineru_dir.mkdir(parents=True, exist_ok=True)
-    (mineru_dir / "paper.md").write_text(
+    (mineru_dir / f"{slug}.md").write_text(
         "# Abstract\n\nFixture paper abstract.\n\n## Method\n\nFixture paper method.\n",
         encoding="utf-8",
     )
@@ -92,7 +93,7 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "required_artifacts": [
                     "paper.pdf",
                     "metadata.json",
-                    "mineru/paper.md",
+                    canonical_mineru_md,
                     "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
@@ -135,7 +136,7 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "formal_routes_suggested": False,
                 "wiki_batch_handoff_required": True,
                 "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
-                "source_first_policy": "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
+                "source_first_policy": f"Read {canonical_mineru_md}, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
             },
             "formal_routes_suggested": False,
             "suggested_routes": [],
@@ -147,7 +148,7 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "raw_artifacts": [
                     "paper.pdf",
                     "metadata.json",
-                    "mineru/paper.md",
+                    canonical_mineru_md,
                     "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
@@ -204,6 +205,7 @@ def _source_artifact_record(paper_root, artifact):
 def _write_final_source_review(vault, slug, pages):
     paper_root = vault / "_epi" / "raw" / "papers" / slug
     staging_root = vault / "_epi" / "staging" / "papers" / slug
+    canonical_mineru_md = f"mineru/{slug}.md"
     image_files = sorted((paper_root / "mineru" / "images").glob("*"))
     payload = {
         "schema_version": "epi-final-source-review-v1",
@@ -211,7 +213,7 @@ def _write_final_source_review(vault, slug, pages):
         "reviewed_artifacts": [
             _source_artifact_record(paper_root, "paper.pdf"),
             _source_artifact_record(paper_root, "metadata.json"),
-            _source_artifact_record(paper_root, "mineru/paper.md"),
+            _source_artifact_record(paper_root, canonical_mineru_md),
             _source_artifact_record(paper_root, "mineru/paper.tex"),
             {
                 "artifact": "mineru/images/*",

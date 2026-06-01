@@ -128,7 +128,8 @@ def test_advance_paper_once_routes_one_safe_stage_at_a_time(tmp_path):
 
     paper_root = vault / "_epi" / "raw" / "papers" / "routed-paper"
     assert (paper_root / "paper.pdf").is_file()
-    assert (paper_root / "mineru" / "paper.md").is_file()
+    assert (paper_root / "mineru" / "routed-paper.md").is_file()
+    assert not (paper_root / "mineru" / "paper.md").exists()
     assert (paper_root / "reader" / "reader.md").is_file()
     assert (paper_root / "critic" / "critic-report.json").is_file()
     assert (vault / "_epi" / "staging" / "papers" / "routed-paper" / "promotion-plan.json").is_file()

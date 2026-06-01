@@ -136,7 +136,7 @@ skills/
 - `mineru-paper-parser`：低层 PDF -> Markdown/TeX/images/manifest 解析能力；成功后最终产物只放在 `mineru/`，`paper.tex` 必须非空，必要时使用 Markdown fallback。
 - `wiki-provenance`：final wiki 页 provenance、claim support status、evidence address 和 round-trip retrieval hook；它承接“最终页上的这句话到底来自哪里”这类问题，`paper-ingest` 只保留 source-first handoff。
 - `skill-aware-evolve`：根据 evidence 和验证结果提出受控变更；配置问题必须走配置 proposal。
-- `wiki-setup`：初始化、检查、修复和重置 paper wiki vault。入口只保留边界和命令，详细恢复与误删清单见 `skills/wiki-setup/references/reset-recovery.md`。初始化会创建或保留 vault-local git repository，写入 `AGENTS.md` 和 `_meta/agent-operating-contract.md`、`_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`，默认要求 source-first paper ingest：最终 wiki 写入先读 `mineru/paper.md`、`mineru/paper.tex`、`mineru/images/*` 和 manifest。
+- `wiki-setup`：初始化、检查、修复和重置 paper wiki vault。入口只保留边界和命令，详细恢复与误删清单见 `skills/wiki-setup/references/reset-recovery.md`。初始化会创建或保留 vault-local git repository，写入 `AGENTS.md` 和 `_meta/agent-operating-contract.md`、`_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`，默认要求 source-first paper ingest：最终 wiki 写入先读 `mineru/<slug>.md`、`mineru/paper.tex`、`mineru/images/*` 和 manifest。
 - `zotero-sync`：Zotero 记录和可选同步，默认安全边界是本地记录优先；`record-wiki-ingest` 和 legacy `promote-to-wiki` 会自动写 record-only sidecar 并把结果带入 report。
 
 ## Vault Artifact 结构

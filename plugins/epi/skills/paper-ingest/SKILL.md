@@ -26,7 +26,7 @@ For final wiki-page provenance, support labels, and claim-to-evidence round-trip
 
 ## Path A: Raw Artifacts Only
 
-Stops after `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`.
+Stops after `mineru\<slug>.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`.
 
 ```powershell
 python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 10 --skip-existing --include-review-candidates --vault <vault>
@@ -70,7 +70,7 @@ The approval report must be Chinese-first and dense but short. For a batch, use 
 
 `reader/` and critic outputs reduce reading cost; they are not the source of truth for final wiki writing. Before final wiki ingest, load `references/source-first-reading.md`, run `wiki-ingest-handoff`, and verify the handoff requires:
 
-- source artifacts: `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`
+- source artifacts: `paper.pdf`, `metadata.json`, `mineru/<slug>.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`
 - evidence aids: `reader/evidence-map.json`, `reader/claim-support.json`, `reader/figures.md`, `critic/*.json`
 - formula/figure review: preserve central formulas, notation, derivation cues, figures, tables, image interpretations, parse uncertainty, and source provenance
 - final source review: require `final-source-review.json` with source artifact hashes, formula review, figure/image review, PDF fallback decision, and final page provenance

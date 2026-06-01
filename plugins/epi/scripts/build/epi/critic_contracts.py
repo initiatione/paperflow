@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from epi.source_artifacts import MINERU_MARKDOWN_ARTIFACT_LABEL
+
 
 CORE_CRITIC_PROTOCOLS = {
     "paper-quality-critic": {
@@ -9,7 +11,7 @@ CORE_CRITIC_PROTOCOLS = {
         "consumes": [
             "paper.pdf",
             "metadata.json",
-            "mineru/paper.md",
+            MINERU_MARKDOWN_ARTIFACT_LABEL,
             "reader/reader.md",
             "reader/figures.md",
             "reader/reproducibility.md",
@@ -30,7 +32,7 @@ CORE_CRITIC_PROTOCOLS = {
         "lens": "parse-materialization-reviewer",
         "consumes": [
             "paper.pdf",
-            "mineru/paper.md",
+            MINERU_MARKDOWN_ARTIFACT_LABEL,
             "mineru/paper.tex",
             "mineru/images",
             "mineru/mineru-manifest.json",

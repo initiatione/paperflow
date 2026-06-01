@@ -78,7 +78,7 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "_meta\\agent-operating-contract.md" in text
     assert "_meta\\directory-structure.md" in text
     assert "source-first for paper research" in text
-    assert "mineru\\paper.md" in text
+    assert "mineru\\<slug>.md" in text
     assert "mineru\\images\\*" in text
     assert "Reset is destructive" in text
     assert "wiki structure reset and EPI config reset are separate operations" in text
@@ -142,7 +142,7 @@ def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
     assert "Do not use `advance-paper`, `advance-ranked`, or `advance-batch`" in ingest
     assert "Source-First Wiki Handoff" in ingest
     assert "report --run-id <run-id>" in ingest
-    assert "mineru/paper.md" in ingest
+    assert "mineru/<slug>.md" in ingest
     assert "mineru/images/*" in ingest
     assert "central formulas" in ingest
     assert "not the source of truth" in ingest

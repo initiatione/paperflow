@@ -14,6 +14,7 @@ from epi.reader_protocol import (
 )
 from epi.reader_outputs import write_role_reader_outputs
 from epi.reader_revision_guidance import render_role_revision_focus_section
+from epi.source_artifacts import resolve_mineru_markdown_path, resolved_mineru_markdown_relative_path
 
 
 def _revision_guidance_text(reader_dir: Path) -> str:
@@ -34,7 +35,8 @@ def _read_optional_json_object(path: Path) -> dict:
 def generate_reader_outputs(paper_root: Path) -> dict:
     started_at = utc_now()
     metadata = json.loads((paper_root / "metadata.json").read_text(encoding="utf-8"))
-    mineru_text = (paper_root / "mineru" / "paper.md").read_text(encoding="utf-8")
+    mineru_markdown_path = resolve_mineru_markdown_path(paper_root)
+    mineru_text = mineru_markdown_path.read_text(encoding="utf-8")
     paper_pdf_path = paper_root / "paper.pdf"
     paper_tex_path = paper_root / "mineru" / "paper.tex"
     mineru_manifest_path = paper_root / "mineru" / "mineru-manifest.json"
@@ -46,6 +48,7 @@ def generate_reader_outputs(paper_root: Path) -> dict:
     reader_dir.mkdir(parents=True, exist_ok=True)
     revision_guidance = _revision_guidance_text(reader_dir)
     claims: list[dict] = []
+    mineru_markdown_source = resolved_mineru_markdown_relative_path(paper_root)
 
     reader = [
         f"# {title}",
@@ -54,14 +57,14 @@ def generate_reader_outputs(paper_root: Path) -> dict:
     ]
     for index, (heading, claim_text) in enumerate(sections[:2], start=1):
         reader.append(f"- Claim {index}: {claim_text}")
-        reader.append(f"  {evidence_line('mineru/paper.md', 'heading', heading)}")
+        reader.append(f"  {evidence_line(mineru_markdown_source, 'heading', heading)}")
         claims.append(
             claim_record(
                 claim_id=f"reader-claim-{index:03d}",
                 reader_role="nature-sci-editor" if index == 1 else "peer-reviewer",
                 reader_artifact="reader/reader.md",
                 claim=claim_text,
-                source="mineru/paper.md",
+                source=mineru_markdown_source,
                 locator={"heading": heading},
             )
         )
@@ -92,6 +95,7 @@ def generate_reader_outputs(paper_root: Path) -> dict:
             metadata=metadata,
             sections=sections,
             first_claim_index=len(claims) + 1,
+            mineru_markdown_source=mineru_markdown_source,
             revision_guidance=revision_guidance,
             paper_tex_text=paper_tex_text,
             mineru_manifest=mineru_manifest,
@@ -200,7 +204,7 @@ def generate_reader_outputs(paper_root: Path) -> dict:
     )
     input_artifact_hashes = {
         "metadata.json": file_sha256(paper_root / "metadata.json"),
-        "mineru/paper.md": file_sha256(paper_root / "mineru" / "paper.md"),
+        mineru_markdown_source: file_sha256(mineru_markdown_path),
     }
     optional_inputs = {
         "paper.pdf": paper_pdf_path,

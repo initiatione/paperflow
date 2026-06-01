@@ -55,7 +55,7 @@ CHECK_TARGETS = {
     "scope_overclaim": ["reader/editorial-summary.md", "reader/research-notes.md"],
     "parse_vs_paper_failure": ["paper.pdf", "reader/figures.md", "reader/technical-reading.md"],
     "reader_evidence_traceability": ["reader/*.md", "reader/evidence-map.json"],
-    "parse_materialization": ["mineru/paper.md"],
+    "parse_materialization": ["mineru/<slug>.md"],
 }
 
 CHECK_INSTRUCTIONS = {
@@ -66,7 +66,7 @@ CHECK_INSTRUCTIONS = {
     "scope_overclaim": "Rewrite deployment or generalization language so it matches the actual simulation, demo, or small-scale evidence.",
     "parse_vs_paper_failure": "Inspect the PDF before treating missing figures or formulas in MinerU output as absent from the paper.",
     "reader_evidence_traceability": "Repair Evidence addresses so each reader claim resolves to metadata, parsed paper text, parsed images, or inference basis.",
-    "parse_materialization": "Rerun parsing or attach a valid mineru/paper.md before critic review can trust reader artifacts.",
+    "parse_materialization": "Rerun parsing or attach the canonical MinerU markdown at mineru/<slug>.md before critic review can trust reader artifacts.",
     "role_artifact_contract": "Restore the role-specific required sections and structured Evidence lines for the target reader artifact.",
 }
 

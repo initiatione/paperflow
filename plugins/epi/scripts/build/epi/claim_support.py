@@ -3,9 +3,11 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from epi.source_artifacts import MINERU_MARKDOWN_ARTIFACT_LABEL, is_mineru_markdown_artifact
+
 
 SUPPORT_BY_SOURCE = {
-    "mineru/paper.md": {
+    MINERU_MARKDOWN_ARTIFACT_LABEL: {
         "support_status": "source-grounded",
         "support_grade": "direct-text",
         "epistemic_status": "extracted",
@@ -44,6 +46,8 @@ SUPPORT_BY_SOURCE = {
 
 
 def classify_claim_support(source: str) -> dict[str, str]:
+    if is_mineru_markdown_artifact(source):
+        return dict(SUPPORT_BY_SOURCE[MINERU_MARKDOWN_ARTIFACT_LABEL])
     return dict(
         SUPPORT_BY_SOURCE.get(
             source,

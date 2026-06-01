@@ -14,7 +14,7 @@ AGENTS_MD = """# EPI Paper Research Wiki
 
 This vault is for source-first academic paper ingest. Final wiki pages are agent-mediated and must be grounded in the source paper artifacts, not reader summaries alone.
 
-EPI writes only the internal `_epi/` repository. Formal graph pages are written by the wiki skill after batch deposition. Obsidian graph views should ignore `_epi/`; `_epi/raw/papers/<slug>/mineru/paper.md` remains source material for final writing, not a formal wiki page.
+EPI writes only the internal `_epi/` repository. Formal graph pages are written by the wiki skill after batch deposition. Obsidian graph views should ignore `_epi/`; `_epi/raw/papers/<slug>/mineru/<slug>.md` remains source material for final writing, not a formal wiki page.
 
 Required reading before final wiki writing:
 
@@ -25,7 +25,7 @@ Required reading before final wiki writing:
 - `_meta/directory-structure.md`
 - `_epi/README.md`
 - `_epi/staging/papers/<slug>/wiki-ingest-brief.json`
-- `mineru/paper.md`
+- `mineru/<slug>.md`
 - `mineru/paper.tex`
 - `mineru/images/*`
 - `mineru/mineru-manifest.json`
@@ -36,7 +36,7 @@ AGENT_OPERATING_CONTRACT_MD = """# Agent Operating Contract
 
 - Keep Markdown vault files as the source of truth.
 - Treat `reader/` and critic outputs as navigation and quality signals, not substitutes for the source paper.
-- Review `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json` before final wiki writing.
+- Review `mineru/<slug>.md`, `mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json` before final wiki writing.
 - Preserve central formulas, figures, tables, and image evidence when distilling claims.
 - Search existing pages before creating new ones.
 """
@@ -167,7 +167,7 @@ def _manifest_payload(existing: dict | None = None) -> dict:
             "git_auto_init": True,
             "git_initial_commit": False,
             "must_read_source_artifacts": [
-                "mineru/paper.md",
+                "mineru/<slug>.md",
                 "mineru/paper.tex",
                 "mineru/images/*",
                 "mineru/mineru-manifest.json",
@@ -252,7 +252,7 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
 
     contract_files = {
         "AGENTS.md": (AGENTS_MD, "EPI writes only the internal `_epi/` repository"),
-        "_meta/agent-operating-contract.md": (AGENT_OPERATING_CONTRACT_MD, "Review `mineru/paper.md`, `mineru/paper.tex`"),
+        "_meta/agent-operating-contract.md": (AGENT_OPERATING_CONTRACT_MD, "Review `mineru/<slug>.md`, `mineru/paper.tex`"),
         "_meta/schema.md": (SCHEMA_MD, "internal staging handoff for wiki skill batch deposition"),
         "_meta/taxonomy.md": (TAXONOMY_MD, "EPI must not create formal pages"),
         "_meta/directory-structure.md": (DIRECTORY_STRUCTURE_MD, "_epi/raw/papers/<slug>/"),

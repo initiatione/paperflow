@@ -54,7 +54,7 @@ This `_epi` folder is the only place where EPI writes operational paper artifact
 
 ## Navigation
 
-- `_epi/raw/papers/<slug>/`: source paper repository. Keep `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json` here.
+- `_epi/raw/papers/<slug>/`: source paper repository. Keep `paper.pdf`, `metadata.json`, `mineru/<slug>.md`, `mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json` here.
 - `_epi/staging/papers/<slug>/`: per-paper internal evidence handoff. These files are not formal wiki pages.
 - `_epi/staging/wiki-batches/pending/wiki-batch-ingest-brief.json`: batch handoff for the wiki skill.
 - `_epi/runs/`: workflow reports, dashboards, query plans, and transient execution state.

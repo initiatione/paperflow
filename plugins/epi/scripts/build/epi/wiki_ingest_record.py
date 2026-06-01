@@ -6,6 +6,7 @@ from typing import Any
 
 from epi.artifacts import file_sha256, raw_paper_root, staging_paper_root, utc_now, write_json_atomic
 from epi.paper_gate import build_paper_gate
+from epi.source_artifacts import is_mineru_markdown_artifact, source_first_artifacts
 from epi.wiki_ingest_approval import human_approval_record_path, validate_human_approval_record
 
 
@@ -22,16 +23,6 @@ _AUDIT_PAGE_MARKERS = [
     "stage: staging",
     "formal_page: false",
 ]
-REQUIRED_FINAL_SOURCE_ARTIFACTS = [
-    "paper.pdf",
-    "metadata.json",
-    "mineru/paper.md",
-    "mineru/paper.tex",
-    "mineru/images/*",
-    "mineru/mineru-manifest.json",
-]
-
-
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -145,10 +136,9 @@ def _source_first_confirmed(brief: dict[str, Any]) -> bool:
         else {}
     )
     formula_figure_text = "\n".join(str(item) for item in formula_figure_review.values()).lower()
-    return all(
+    return any(is_mineru_markdown_artifact(artifact) for artifact in source_bundle.get("raw_artifacts") or []) and all(
         artifact in raw_artifacts
         for artifact in [
-            "mineru/paper.md",
             "mineru/paper.tex",
             "mineru/images/*",
             "mineru/mineru-manifest.json",
@@ -350,6 +340,7 @@ def _validate_final_source_review(
 ) -> dict[str, Any]:
     payload = _read_required_json(source_review_path)
     failures: list[str] = []
+    expected_source_artifacts = source_first_artifacts(paper_root)
     if payload.get("schema_version") != FINAL_SOURCE_REVIEW_SCHEMA_VERSION:
         failures.append("final source review has unsupported schema_version")
     if payload.get("paper_slug") and payload.get("paper_slug") != slug:
@@ -357,7 +348,7 @@ def _validate_final_source_review(
 
     by_artifact, artifact_failures = _review_records_by_artifact(payload)
     failures.extend(artifact_failures)
-    for artifact in REQUIRED_FINAL_SOURCE_ARTIFACTS:
+    for artifact in expected_source_artifacts:
         record = by_artifact.get(artifact)
         if not record:
             failures.append(f"final source review missing required artifact: {artifact}")

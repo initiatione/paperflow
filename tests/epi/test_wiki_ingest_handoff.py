@@ -12,6 +12,7 @@ def _write_json(path, payload):
 
 
 def _seed_agent_handoff(vault, slug="fixture-paper"):
+    canonical_mineru_md = f"mineru/{slug}.md"
     paper_root = vault / "_epi" / "raw" / "papers" / slug
     staging_root = vault / "_epi" / "staging" / "papers" / slug
     paper_root.mkdir(parents=True, exist_ok=True)
@@ -70,7 +71,7 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "required_artifacts": [
                     "paper.pdf",
                     "metadata.json",
-                    "mineru/paper.md",
+                    canonical_mineru_md,
                     "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
@@ -125,26 +126,26 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "formal_routes_suggested": False,
                 "wiki_batch_handoff_required": True,
                 "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
-                "source_first_policy": "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
+                "source_first_policy": f"Read {canonical_mineru_md}, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
             },
             "source_bundle": {
                 "raw_artifacts": [
                     "paper.pdf",
                     "metadata.json",
-                    "mineru/paper.md",
+                    canonical_mineru_md,
                     "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
                 ],
                 "primary_source_reading_order": [
                     "metadata.json",
-                    "mineru/paper.md",
+                    canonical_mineru_md,
                     "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
                 ],
                 "formula_figure_review": {
-                    "formulas": "Review central formulas from mineru/paper.md and mineru/paper.tex before distilling claims.",
+                    "formulas": f"Review central formulas from {canonical_mineru_md} and mineru/paper.tex before distilling claims.",
                     "figures_tables_images": "Interpret figures, tables, and images from mineru/images/* instead of collapsing them into reader summary prose.",
                     "parse_uncertainty": "Inspect paper.pdf when MinerU parse limitations or missing figure/formula signals appear.",
                 },
@@ -225,7 +226,7 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["agent_checklist"][0].startswith("Execution agent is neutral")
     assert any(item.startswith("Read target vault contract") for item in handoff["agent_checklist"])
     assert any("source-first rule" in item for item in handoff["agent_checklist"])
-    assert any("mineru/paper.md" in item for item in handoff["agent_checklist"])
+    assert any("mineru/fixture-paper.md" in item for item in handoff["agent_checklist"])
     assert any("mineru/images/*" in item for item in handoff["agent_checklist"])
     assert any("source paper artifacts" in item for item in handoff["agent_checklist"])
     assert any("figures, tables, and images" in item for item in handoff["agent_checklist"])
@@ -341,7 +342,7 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
     assert "Do not write final pages from EPI suggested routes directly" in output
     assert "## Final Source Review" in output
     assert "suggested_output_path: final-source-review.json" in output
-    assert "mineru/paper.md" in output
+    assert "mineru/fixture-paper.md" in output
     assert "mineru/images/*" in output
     assert "source paper artifacts" in output
 

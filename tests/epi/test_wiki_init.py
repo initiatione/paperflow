@@ -42,7 +42,7 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     assert manifest["git_repository_required"] is True
     assert manifest["git_auto_init"] is True
     assert manifest["git_initial_commit"] is False
-    assert "mineru/paper.md" in manifest["must_read_source_artifacts"]
+    assert "mineru/<slug>.md" in manifest["must_read_source_artifacts"]
     assert "mineru/images/*" in manifest["must_read_source_artifacts"]
     assert "wiki-ingest-brief.json" in manifest["handoff_artifacts"]
     assert manifest["epi_internal_root"] == "_epi"

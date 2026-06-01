@@ -27,7 +27,7 @@ Good:
 ```markdown
 - The paper reports a 12% improvement on Benchmark X under Setting Y.
   Support: source-grounded; stance=author-claim
-  Evidence: mineru/paper.md#results; reader/claim-support.json#claim-008; Table 3
+  Evidence: mineru/<slug>.md#results; reader/claim-support.json#claim-008; Table 3
   Caveat: source reports this for Setting Y only.
 ```
 
@@ -44,7 +44,7 @@ When inline evidence would make the page noisy, use a compact local block:
 ```markdown
 ## Provenance
 
-- Source bundle: paper.pdf; metadata.json; mineru/paper.md; mineru/paper.tex; mineru/images; mineru/mineru-manifest.json
+- Source bundle: paper.pdf; metadata.json; mineru/<slug>.md; mineru/paper.tex; mineru/images; mineru/mineru-manifest.json
 - Evidence maps: reader/evidence-map.json; reader/claim-support.json
 - Final source review: final-source-review.json
 - Support status: source-grounded=<n>; metadata-only=<n>; inferred=<n>; unsupported=0

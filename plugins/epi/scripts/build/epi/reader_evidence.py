@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from epi.claim_support import classify_claim_support
+from epi.source_artifacts import resolve_mineru_markdown_path
 
 
 REQUIRED_READER_ROLES = {
@@ -61,7 +62,7 @@ def _validate_evidence_reference(
     headings: set[str],
 ) -> list[str]:
     source = parsed["source"]
-    if source == "mineru/paper.md":
+    if source.startswith("mineru/") and source.endswith(".md"):
         heading = parsed.get("heading")
         if not heading or heading not in headings:
             return [f"{label}: missing mineru heading for Evidence: {_evidence_address(parsed)}"]
@@ -155,7 +156,7 @@ def validate_reader_evidence(paper_root: Path, evidence_docs: dict[str, str]) ->
         return False, ["reader outputs missing structured Evidence lines"]
 
     metadata = json.loads((paper_root / "metadata.json").read_text(encoding="utf-8"))
-    mineru_text = (paper_root / "mineru" / "paper.md").read_text(encoding="utf-8")
+    mineru_text = resolve_mineru_markdown_path(paper_root).read_text(encoding="utf-8")
     headings = _mineru_headings(mineru_text)
     failures: list[str] = []
 
@@ -185,7 +186,7 @@ def validate_evidence_map(paper_root: Path) -> tuple[bool, list[str]]:
         return False, ["reader/evidence-map.json missing"]
 
     metadata = json.loads((paper_root / "metadata.json").read_text(encoding="utf-8"))
-    mineru_text = (paper_root / "mineru" / "paper.md").read_text(encoding="utf-8")
+    mineru_text = resolve_mineru_markdown_path(paper_root).read_text(encoding="utf-8")
     headings = _mineru_headings(mineru_text)
     failures: list[str] = []
 

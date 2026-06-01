@@ -50,9 +50,9 @@ Expected structure includes one EPI internal repository root `_epi`, wiki contra
 - `_epi\evolution\`
 - `_epi\meta\`
 
-Obsidian graph views should ignore `_epi`; `_epi/raw/papers/<slug>/mineru/paper.md` remains source material, not a formal wiki page.
+Obsidian graph views should ignore `_epi`; `_epi/raw/papers/<slug>/mineru/<slug>.md` remains source material, not a formal wiki page.
 
-Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`. These defaults are source-first for paper research: final wiki pages must read `mineru\paper.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`, then use reader/critic outputs as evidence aids.
+Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`. These defaults are source-first for paper research: final wiki pages must read `mineru\<slug>.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`, then use reader/critic outputs as evidence aids.
 
 For existing vaults with old top-level operational roots, migrate before or after initialization:
 

@@ -22,6 +22,7 @@ from epi.epi_repository import cleanup_epi_repository, migrate_legacy_epi_roots
 from epi.report_run import load_run_report
 from epi.runtime_config import apply_runtime_config
 from epi.run_index import RESEARCH_QUEUE_BUCKETS
+from epi.source_artifacts import resolve_mineru_markdown_path, resolved_mineru_markdown_relative_path
 from epi.wiki_reset import reset_wiki_vault
 
 
@@ -753,7 +754,7 @@ def _handle_redo_read(args: argparse.Namespace) -> int:
     started_at = utc_now()
     paper_root = raw_paper_root(args.vault.resolve(), args.slug)
     input_hashes = {
-        "mineru/paper.md": file_sha256(paper_root / "mineru" / "paper.md"),
+        resolved_mineru_markdown_relative_path(paper_root): file_sha256(resolve_mineru_markdown_path(paper_root)),
     }
     revision_plan_path = paper_root / "critic" / "reader-revision-plan.json"
     if args.from_revision_plan and revision_plan_path.exists():

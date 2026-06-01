@@ -7,6 +7,7 @@ from typing import Any
 
 from epi.artifacts import existing_raw_paper_root, existing_staging_paper_root
 from epi.run_critic import HARD_RULE
+from epi.source_artifacts import is_mineru_markdown_artifact
 from epi.wiki_ingest_approval import (
     HUMAN_APPROVAL_SCOPE,
     human_approval_record_path,
@@ -163,7 +164,6 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
     required_raw_artifacts = [
         "paper.pdf",
         "metadata.json",
-        "mineru/paper.md",
         "mineru/paper.tex",
         "mineru/images/*",
         "mineru/mineru-manifest.json",
@@ -171,6 +171,8 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
     missing_raw_artifacts = [
         artifact for artifact in required_raw_artifacts if artifact not in raw_artifact_text
     ]
+    if not any(is_mineru_markdown_artifact(artifact) for artifact in raw_artifacts):
+        missing_raw_artifacts.append("mineru/<slug>.md")
     if missing_raw_artifacts:
         issues.append("source-first raw artifacts are incomplete")
     formula_figure_lower = formula_figure_text.lower()

@@ -18,7 +18,7 @@ Before writing or reviewing final pages, load:
 - `wiki-ingest-handoff` output.
 - `wiki-agent-trigger.json` when the handoff has already been approved and EPI has generated the resume package.
 - `wiki-ingest-brief.json`.
-- `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`.
+- `paper.pdf`, `metadata.json`, `mineru/<slug>.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`.
 - `reader/evidence-map.json` and `reader/claim-support.json`.
 - `critic/*.json` and `briefs/reading-report.md`.
 - Target vault `AGENTS.md` and `_meta/*` contract files.
@@ -51,7 +51,7 @@ Keep the target vault contract authoritative. When it allows inline provenance, 
 ```markdown
 - Claim: <paper-backed statement>
   Support: source-grounded; stance=author-claim
-  Evidence: reader/claim-support.json#claim-014; mineru/paper.md#experiments; Table 2
+  Evidence: reader/claim-support.json#claim-014; mineru/<slug>.md#experiments; Table 2
 ```
 
 For inferred synthesis:

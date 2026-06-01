@@ -52,7 +52,7 @@ def _ready_instruction(
         "Continue as the current wiki ingest agent. Load epi-wiki-deposition and wiki-ingest before writing "
         "formal pages; use wiki-provenance for claim support. EPI artifacts are source/evidence handoff only "
         "and EPI itself may write only internal underscore folders. Re-read the source bundle before writing: "
-        "paper.pdf, metadata.json, mineru/paper.md, mineru/paper.tex, mineru/images/*, and "
+        "paper.pdf, metadata.json, mineru/<slug>.md, mineru/paper.tex, mineru/images/*, and "
         "mineru/mineru-manifest.json. Compare this paper with the current batch or neighboring EPI source "
         "bundles before creating reusable concept or synthesis pages. Preserve support status and evidence-map "
         "addresses in final pages. Write or stage the final Markdown pages under the target vault contract, "

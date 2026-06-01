@@ -4,6 +4,8 @@ import json
 import re
 from pathlib import Path
 
+from epi.source_artifacts import resolve_mineru_markdown_path
+
 
 IDENTITY_FIELDS = (
     "doi",
@@ -317,7 +319,7 @@ def review_paper_quality(
     reproducibility_text: str,
 ) -> dict:
     metadata_path = paper_root / "metadata.json"
-    mineru_path = paper_root / "mineru" / "paper.md"
+    mineru_path = resolve_mineru_markdown_path(paper_root)
     paper_pdf_exists = (paper_root / "paper.pdf").exists()
     metadata_exists = metadata_path.exists()
     metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_exists else {}

@@ -26,10 +26,10 @@ def test_reader_outputs_module_writes_role_artifacts_and_claim_records(tmp_path)
     research = (reader_dir / "research-notes.md").read_text(encoding="utf-8")
 
     assert "## Central Claim" in editorial
-    assert "Evidence: source=mineru/paper.md; heading=Abstract" in editorial
+    assert "Evidence: source=mineru/<slug>.md; heading=Abstract" in editorial
     assert "Evidence: source=metadata.json; field=venue" in editorial
     assert "## Method Decomposition" in technical
-    assert "Evidence: source=mineru/paper.md; heading=Method" in technical
+    assert "Evidence: source=mineru/<slug>.md; heading=Method" in technical
     assert "code, dataset, simulator" in technical
     assert "## Fit To Research Direction" in research
     assert "Evidence: source=inference; basis=research-fit" in research

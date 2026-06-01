@@ -4,16 +4,15 @@ import json
 from pathlib import Path
 
 from epi.artifacts import staging_paper_root, utc_now, wiki_batch_pending_root, write_json_atomic, write_text_atomic
+from epi.source_artifacts import canonical_source_first_artifacts
 
 
-SOURCE_FIRST_ARTIFACTS = [
-    "paper.pdf",
-    "metadata.json",
-    "mineru/paper.md",
-    "mineru/paper.tex",
-    "mineru/images/*",
-    "mineru/mineru-manifest.json",
-]
+def _source_first_artifacts(slug: str) -> list[str]:
+    return canonical_source_first_artifacts(slug)
+
+
+def _source_markdown_artifact(slug: str) -> str:
+    return _source_first_artifacts(slug)[2]
 
 
 def _frontmatter_value(value: object) -> str:
@@ -326,7 +325,7 @@ def _method_idea(metadata: dict, title: str) -> str:
         return "论文围绕移动机器人（Mobile Robot）的导航控制（Navigation Control）组织方法，将规划、感知或反馈控制（Feedback Control）作为主要技术线索。"
     if abstract:
         return f"根据摘要，论文主题是：{_compact_text(abstract, limit=300)}"
-    return "当前 metadata 未给出足够摘要；正式沉淀前需要回到 mineru/paper.md 与 paper.tex 复核核心方法。"
+    return "当前 metadata 未给出足够摘要；正式沉淀前需要回到 canonical MinerU Markdown 与 paper.tex 复核核心方法。"
 
 
 def _validation_setup(metadata: dict) -> str:
@@ -526,12 +525,12 @@ def _wiki_rule_source_model() -> dict:
     }
 
 
-def _final_source_review_contract() -> dict:
+def _final_source_review_contract(slug: str) -> dict:
     return {
         "schema_version": "epi-final-source-review-contract-v1",
         "required": True,
         "suggested_output_path": "final-source-review.json",
-        "required_artifacts": SOURCE_FIRST_ARTIFACTS,
+        "required_artifacts": _source_first_artifacts(slug),
         "must_record": [
             "reviewed_artifacts[] with artifact, status, and sha256 for file artifacts",
             "mineru/images/* file_count plus per-image relative_path and sha256 when images exist",
@@ -560,6 +559,8 @@ def _build_wiki_ingest_brief(
     research_decision: dict,
     reproduction_plan: dict,
 ) -> dict:
+    source_first_artifacts = _source_first_artifacts(slug)
+    source_markdown = _source_markdown_artifact(slug)
     claims = evidence_map.get("claims") if isinstance(evidence_map.get("claims"), list) else []
     roles = evidence_map.get("reader_roles") if isinstance(evidence_map.get("reader_roles"), list) else []
     quick_take = (
@@ -601,7 +602,7 @@ def _build_wiki_ingest_brief(
                 "role": "personalized vault-contract and wiki-skill rules",
             },
         ],
-        "final_source_review_contract": _final_source_review_contract(),
+        "final_source_review_contract": _final_source_review_contract(slug),
         "wiki_rule_source_model": _wiki_rule_source_model(),
         "ingest_policy": {
             "authority": "Resolve the target vault contract first; local skills are helpers, not sole authority.",
@@ -617,7 +618,7 @@ def _build_wiki_ingest_brief(
             "provenance_policy": "Keep extracted, inferred, and ambiguous claims distinguishable.",
             "source_of_truth": "Markdown vault plus EPI source bundle; QMD/search indexes are retrieval aids only.",
             "source_first_policy": (
-                "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json "
+                f"Read {source_markdown}, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json "
                 "before final wiki writing; reader and critic outputs are navigation and quality signals, "
                 "not substitutes for the source paper."
             ),
@@ -682,7 +683,7 @@ def _build_wiki_ingest_brief(
         },
         "source_bundle": {
             "raw_artifacts": [
-                *SOURCE_FIRST_ARTIFACTS,
+                *source_first_artifacts,
                 "reader/evidence-map.json",
                 "reader/claim-support.json",
                 "reader/figures.md",
@@ -691,7 +692,7 @@ def _build_wiki_ingest_brief(
             ],
             "primary_source_reading_order": [
                 "metadata.json",
-                "mineru/paper.md",
+                source_markdown,
                 "mineru/paper.tex",
                 "mineru/images/*",
                 "mineru/mineru-manifest.json",
@@ -703,7 +704,7 @@ def _build_wiki_ingest_brief(
             ],
             "formula_figure_review": {
                 "formulas": (
-                    "Review central formulas in mineru/paper.md and mineru/paper.tex; preserve important "
+                    f"Review central formulas in {source_markdown} and mineru/paper.tex; preserve important "
                     "definitions, assumptions, derivation steps, and notation rather than reducing them to prose."
                 ),
                 "figures_tables_images": (

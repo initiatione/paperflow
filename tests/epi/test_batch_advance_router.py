@@ -363,7 +363,8 @@ def test_prepare_ranked_papers_from_run_acquires_and_parses_then_stops(tmp_path)
     assert batch["next_actions"] == ["read"]
     paper_root = vault / "_epi" / "raw" / "papers" / "prepared-alpha"
     assert (paper_root / "paper.pdf").is_file()
-    assert (paper_root / "mineru" / "paper.md").is_file()
+    assert (paper_root / "mineru" / "prepared-alpha.md").is_file()
+    assert not (paper_root / "mineru" / "paper.md").exists()
     assert not (paper_root / "reader" / "reader.md").exists()
     assert not (paper_root / "critic" / "critic-report.json").exists()
     assert json.loads((vault / "_epi" / "runs" / batch["run_id"] / "batch-advance-record.json").read_text(encoding="utf-8"))[
@@ -449,7 +450,8 @@ def test_prepare_ranked_papers_records_failed_candidate_and_continues(tmp_path, 
     assert batch["results"][0]["stage_record"]["status"] == "failed"
     assert "simulated download timeout" in batch["results"][0]["stage_record"]["error"]
     assert batch["results"][1]["state"] == "parsed"
-    assert (vault / "_epi" / "raw" / "papers" / "after-timeout" / "mineru" / "paper.md").is_file()
+    assert (vault / "_epi" / "raw" / "papers" / "after-timeout" / "mineru" / "after-timeout.md").is_file()
+    assert not (vault / "_epi" / "raw" / "papers" / "after-timeout" / "mineru" / "paper.md").exists()
 
     report_json = json.loads((vault / "_epi" / "runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
     assert report_json["failed_papers"] == [
@@ -509,7 +511,8 @@ def test_prepare_ranked_papers_can_skip_existing_parsed_candidates_when_resuming
     ]
     assert batch["results"][0]["paper_slug"] == "resume-new"
     assert batch["results"][0]["state"] == "parsed"
-    assert (vault / "_epi" / "raw" / "papers" / "resume-new" / "mineru" / "paper.md").is_file()
+    assert (vault / "_epi" / "raw" / "papers" / "resume-new" / "mineru" / "resume-new.md").is_file()
+    assert not (vault / "_epi" / "raw" / "papers" / "resume-new" / "mineru" / "paper.md").exists()
 
     report_json = json.loads((vault / "_epi" / "runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
     assert report_json["skip_existing"] is True
