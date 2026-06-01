@@ -33,7 +33,9 @@ Initialization is idempotent:
 python scripts\init_paper_wiki.py --vault <vault>
 ```
 
-Expected structure includes paper raw/staging/quarantine roots, `_runs`, `_evolution`, `_meta`, wiki roots, `.obsidian`, `index.md`, `log.md`, `hot.md`, and `.manifest.json`. Summarize created paths and preserved files.
+Initialization must ensure the vault is a git repository. `init_paper_wiki.py` runs `git init` when `<vault>\.git` is missing, records `.git` in the created path list, and does not create a first commit. If `.git` already exists, preserve the existing repository.
+
+Expected structure includes paper raw/staging/quarantine roots, `_runs`, `_evolution`, `_meta`, wiki roots, `.obsidian`, `.git`, `index.md`, `log.md`, `hot.md`, and `.manifest.json`. Summarize created paths and preserved files.
 
 Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`. These defaults are source-first for paper research: final wiki pages must read `mineru\paper.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`, then use reader/critic outputs as evidence aids.
 

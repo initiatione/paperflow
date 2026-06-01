@@ -374,7 +374,7 @@ python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-pa
 | Skill | 何时使用 | 不负责什么 |
 | --- | --- | --- |
 | `config-setup` | 首次配置、修改 profile、runtime 或确认门 | 不跑论文流程 |
-| `wiki-setup` | 初始化、检查、修复、重置目标 paper wiki vault | 不检索论文、不写最终知识页 |
+| `wiki-setup` | 初始化、检查、修复、重置目标 paper wiki vault；初始化会自动 `git init` 但不自动 commit | 不检索论文、不写最终知识页 |
 | `paper-discovery` | 单轮检索、query plan、排序、报告 | 不维护长期主题账本 |
 | `topic-tracking` | 持续追踪、增量发现、coverage/backlog | 不替代底层检索/ranking |
 | `mineru-paper-parser` | PDF 到 Markdown/TeX/images/manifest | 不做学术结论判断 |

@@ -72,6 +72,8 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "name: wiki-setup" in text
     assert "scripts\\init_paper_wiki.py" in text
     assert "Initialization is idempotent" in text
+    assert "git init" in text
+    assert "does not create a first commit" in text
     assert "AGENTS.md" in text
     assert "_meta\\agent-operating-contract.md" in text
     assert "_meta\\directory-structure.md" in text

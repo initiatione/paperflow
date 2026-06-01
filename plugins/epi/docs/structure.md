@@ -39,7 +39,7 @@ python scripts\orchestrator.py <command>
 当前命令分组：
 
 - 安装与配置：`doctor`、`config-status`、`init-config`、`propose-config-update`、`apply-config-update`。
-- Wiki 库初始化/重置：`wiki-setup` skill 负责初始化和重置流程；初始化只补缺失结构，重置必须先盘点、备份计划并要求用户二次确认 `确认重置 EPI wiki`。`wiki-reset --preview` 先列出会备份、删除、保留的路径；`wiki-reset` 是执行器，默认备份内容并保留 `_meta\epi-config.yaml`、`_meta\epi-config-state.json`、config history 目录，且不得触碰用户级 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。如需同时重置配置，必须另行确认 `确认同时重置 EPI config` 并显式传入 `--reset-config-confirmed-by`。若出现误删或误操作，先停止后续论文流程，用 `wiki-repair` 单入口检查恢复状态，或用 `config-recover` 查找候选配置，再用 `config-restore` 在确认后恢复。
+- Wiki 库初始化/重置：`wiki-setup` skill 负责初始化和重置流程；初始化只补缺失结构，并在 `<vault>\.git` 缺失时自动 `git init`，但不自动创建首个 commit。重置必须先盘点、备份计划并要求用户二次确认 `确认重置 EPI wiki`。`wiki-reset --preview` 先列出会备份、删除、保留的路径；`wiki-reset` 是执行器，默认备份内容并保留 `_meta\epi-config.yaml`、`_meta\epi-config-state.json`、config history 目录，且不得触碰用户级 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。如需同时重置配置，必须另行确认 `确认同时重置 EPI config` 并显式传入 `--reset-config-confirmed-by`。若出现误删或误操作，先停止后续论文流程，用 `wiki-repair` 单入口检查恢复状态，或用 `config-recover` 查找候选配置，再用 `config-restore` 在确认后恢复。
 - 发现与推进：`dry-run`、`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`acquire-paper`。
 - 解析与修复：`parse-paper`、`redo-acquire`、`redo-parse`、`redo-read`、`recritic`。
 - Reader/Critic/Gate：推进命令内部生成 reader 和 critic；只读检查用 `paper-gate`。
@@ -136,7 +136,7 @@ skills/
 - `mineru-paper-parser`：低层 PDF -> Markdown/TeX/images/manifest 解析能力；成功后最终产物只放在 `mineru/`，`paper.tex` 必须非空，必要时使用 Markdown fallback。
 - `wiki-provenance`：final wiki 页 provenance、claim support status、evidence address 和 round-trip retrieval hook；它承接“最终页上的这句话到底来自哪里”这类问题，`paper-ingest` 只保留 source-first handoff。
 - `skill-aware-evolve`：根据 evidence 和验证结果提出受控变更；配置问题必须走配置 proposal。
-- `wiki-setup`：初始化、检查、修复和重置 paper wiki vault。入口只保留边界和命令，详细恢复与误删清单见 `skills/wiki-setup/references/reset-recovery.md`。初始化会创建 `AGENTS.md` 和 `_meta/agent-operating-contract.md`、`_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`，默认要求 source-first paper ingest：最终 wiki 写入先读 `mineru/paper.md`、`mineru/paper.tex`、`mineru/images/*` 和 manifest。
+- `wiki-setup`：初始化、检查、修复和重置 paper wiki vault。入口只保留边界和命令，详细恢复与误删清单见 `skills/wiki-setup/references/reset-recovery.md`。初始化会创建或保留 vault-local git repository，写入 `AGENTS.md` 和 `_meta/agent-operating-contract.md`、`_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`，默认要求 source-first paper ingest：最终 wiki 写入先读 `mineru/paper.md`、`mineru/paper.tex`、`mineru/images/*` 和 manifest。
 - `zotero-sync`：Zotero 记录和可选同步，默认安全边界是本地记录优先；`record-wiki-ingest` 和 legacy `promote-to-wiki` 会自动写 record-only sidecar 并把结果带入 report。
 
 ## Vault Artifact 结构

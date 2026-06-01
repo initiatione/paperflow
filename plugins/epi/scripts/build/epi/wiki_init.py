@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 
@@ -95,6 +96,10 @@ REQUIRED_DIRS = [
 def initialize_paper_wiki(vault_path: Path) -> list[str]:
     vault_path = vault_path.resolve()
     created: list[str] = []
+    git_dir = vault_path / ".git"
+    if not git_dir.exists():
+        subprocess.run(["git", "init", str(vault_path)], check=True, capture_output=True, text=True)
+        created.append(".git")
     for relative_dir in REQUIRED_DIRS:
         path = vault_path / relative_dir
         if not path.exists():
@@ -116,6 +121,9 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
                 "schema": "raw source -> evidence handoff -> agent-mediated wiki -> vault schema",
                 "wiki_write_model": "agent-mediated-vault-contract",
                 "source_first_wiki_ingest": True,
+                "git_repository_required": True,
+                "git_auto_init": True,
+                "git_initial_commit": False,
                 "must_read_source_artifacts": [
                     "mineru/paper.md",
                     "mineru/paper.tex",

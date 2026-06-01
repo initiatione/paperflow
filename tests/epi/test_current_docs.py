@@ -98,6 +98,8 @@ def test_structure_doc_covers_current_plugin_boundaries():
     assert "record-human-approval" in text
     assert "wiki-ingest-trigger" in text
     assert "record-wiki-ingest" in text
+    assert "git init" in text
+    assert "不自动创建首个 commit" in text
     assert "`report`" in text
     assert "run report" in text
     assert "wiki_ingest_record.py" in text
