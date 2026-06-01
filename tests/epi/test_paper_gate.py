@@ -3,6 +3,7 @@ import sys
 
 from epi.orchestrator import main, record_human_approval
 from epi.paper_gate import build_paper_gate, render_paper_gate
+from epi.stage_wiki import _build_wiki_ingest_brief
 
 
 def _write_json(path, payload):
@@ -10,9 +11,9 @@ def _write_json(path, payload):
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def _seed_paper_gate_fixture(vault, slug, *, critic_outcome="pass", staged=True, promoted=False, agent_handoff=False):
-    paper_root = vault / "_raw" / "papers" / slug
-    staging_root = vault / "_staging" / "papers" / slug
+def _seed_paper_gate_fixture(vault, slug, *, critic_outcome="pass", staged=True, promoted=False, legacy_compiled=False):
+    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    staging_root = vault / "_epi" / "staging" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
     _write_json(
@@ -42,94 +43,70 @@ def _seed_paper_gate_fixture(vault, slug, *, critic_outcome="pass", staged=True,
         },
     )
     if staged:
-        reference_path = staging_root / "references" / f"{slug}.md"
-        concept_path = staging_root / "concepts" / f"{slug}-concept.md"
-        synthesis_path = staging_root / "synthesis" / f"{slug}-synthesis.md"
-        report_path = staging_root / "reports" / f"{slug}-reading-report.md"
-        for path in [reference_path, concept_path, synthesis_path, report_path]:
+        source_reader_path = staging_root / "evidence" / "source-reader.md"
+        report_path = staging_root / "briefs" / "reading-report.md"
+        for path in [source_reader_path, report_path]:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(f"# {path.stem}\n", encoding="utf-8")
+        brief_path = staging_root / "wiki-ingest-brief.json"
+        batch_path = vault / "_epi" / "staging" / "wiki-batches" / "pending" / "wiki-batch-ingest-brief.json"
+        wiki_ingest_brief = _build_wiki_ingest_brief(
+            slug=slug,
+            title="Fixture Paper",
+            source_reader_target="evidence/source-reader.md",
+            reading_report_target="briefs/reading-report.md",
+            editorial_summary_text="",
+            technical_reading_text="",
+            research_notes_text="",
+            evidence_map={},
+            research_decision={},
+            reproduction_plan={},
+        )
+        _write_json(brief_path, wiki_ingest_brief)
+        _write_json(
+            batch_path,
+            {
+                "schema_version": "epi-wiki-batch-ingest-brief-v1",
+                "handoff_type": "wiki-skill-batch-distillation",
+                "epi_write_scope": "internal-underscore-artifacts-only",
+                "formal_routes_suggested": False,
+                "paper_slugs": [slug],
+                "papers": [{"paper_slug": slug, "wiki_ingest_brief": str(brief_path)}],
+            },
+        )
         plan = {
             "paper_slug": slug,
             "critic_outcome": critic_outcome,
-            "staged_reference": str(reference_path),
-            "staged_concepts": [str(concept_path)],
-            "staged_synthesis": [str(synthesis_path)],
+            "handoff_type": "agent-mediated-wiki-ingest",
+            "wiki_write_model": "wiki-skill-batch-distillation",
+            "final_page_authority": "wiki-skill-batch-distillation",
+            "epi_write_scope": "internal-underscore-artifacts-only",
+            "formal_routes_suggested": False,
+            "wiki_batch_handoff_required": True,
+            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "staged_evidence": [str(source_reader_path)],
             "staged_reports": [str(report_path)],
+            "wiki_ingest_brief_path": str(brief_path),
+            "wiki_batch_ingest_brief_path": str(batch_path),
+            "agent_handoff_paths": [str(brief_path), str(batch_path), str(report_path), str(source_reader_path)],
+            "suggested_route_targets": [],
         }
-        if agent_handoff:
-            brief_path = staging_root / "wiki-ingest-brief.json"
-            _write_json(
-                brief_path,
-                {
-                    "schema_version": "epi-wiki-ingest-brief-v1",
-                    "handoff_type": "agent-mediated-wiki-ingest",
-                    "wiki_framework_references": [
-                        {"name": "Ar9av/obsidian-wiki"},
-                        {"name": "kepano/obsidian-skills"},
-                        {"name": "initiatione/obsidian-wiki-dev"},
-                    ],
-            "wiki_rule_source_model": {
-                "execution_agent_policy": {
-                    "allowed_executors": [
-                        "Claude",
-                        "Codex",
-                        "other wiki-capable agents",
-                    ],
-                    "brand_neutrality": (
-                        "Any wiki-capable agent may execute final writes if it follows the target vault "
-                        "contract, source-first review, human approval, and final-source-review gates."
-                    ),
-                    "local_skills_role": "helpers, not authority",
-                },
-                "resolution_order": [
-                            {"source": "target vault AGENTS.md", "role": "vault owner contract"},
-                            {"source": "_meta/schema.md", "role": "routing and schema"},
-                            {"source": "Ar9av/obsidian-wiki", "role": "wiki framework"},
-                            {"source": "kepano/obsidian-skills", "role": "Obsidian syntax"},
-                            {"source": "initiatione/obsidian-wiki-dev", "role": "personalized rules"},
-                            {
-                                "source": "local llm-wiki / wiki-ingest / obsidian-markdown skills",
-                                "role": "installed adapters",
-                            },
-                        ],
-                        "write_contract_requirements": [
-                            "Keep Markdown vault files as the source of truth.",
-                            "Final wiki pages must be grounded in the source paper artifacts, not reader summaries alone.",
-                            "Review central formulas, figures, tables, and image evidence before distilling reusable wiki claims.",
-                        ],
-                    },
-                    "ingest_policy": {
-                        "suggested_routes_only": True,
-                        "source_first_policy": "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
-                    },
-                    "source_bundle": {
-                        "raw_artifacts": [
-                            "paper.pdf",
-                            "metadata.json",
-                            "mineru/paper.md",
-                            "mineru/paper.tex",
-                            "mineru/images/*",
-                            "mineru/mineru-manifest.json",
-                        ],
-                        "formula_figure_review": {
-                            "formulas": "Review central formulas before distilling claims.",
-                            "figures_tables_images": "Interpret figures/tables/images from mineru/images/*.",
-                            "parse_uncertainty": "Inspect paper.pdf when parse limitations appear.",
-                        },
-                    },
-                },
-            )
-            plan.update(
-                {
-                    "handoff_type": "agent-mediated-wiki-ingest",
-                    "wiki_write_model": "agent-mediated-vault-contract",
-                    "final_page_authority": "target-vault-contract-and-wiki-ingest-agent",
-                    "wiki_ingest_brief_path": str(brief_path),
-                    "agent_handoff_paths": [str(brief_path), str(report_path)],
-                }
-            )
-        else:
+        if legacy_compiled:
+            reference_path = staging_root / "references" / f"{slug}.md"
+            concept_path = staging_root / "concepts" / f"{slug}-concept.md"
+            synthesis_path = staging_root / "synthesis" / f"{slug}-synthesis.md"
+            legacy_report_path = staging_root / "reports" / f"{slug}-reading-report.md"
+            for path in [reference_path, concept_path, synthesis_path, legacy_report_path]:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(f"# {path.stem}\n", encoding="utf-8")
+            plan = {
+                "paper_slug": slug,
+                "critic_outcome": critic_outcome,
+                "staged_reference": str(reference_path),
+                "staged_concepts": [str(concept_path)],
+                "staged_synthesis": [str(synthesis_path)],
+                "staged_reports": [str(legacy_report_path)],
+            }
             plan["compiled_targets"] = [
                 f"references/{slug}.md",
                 f"concepts/{slug}-concept.md",
@@ -164,26 +141,28 @@ def test_paper_gate_reports_ready_paper_waiting_for_human_approval(tmp_path):
 
     assert gate["status"] == "waiting_for_human_gate"
     assert gate["check_suite"]["conclusion"] == "action_required"
-    assert gate["next_action"] == "promote-to-wiki"
+    assert gate["next_action"] == "run-wiki-ingest-agent"
     checks = {run["name"]: run["conclusion"] for run in gate["check_suite"]["check_runs"]}
     assert checks["critic-report"] == "success"
     assert checks["critic-outcome"] == "success"
     assert checks["critic-quorum"] == "success"
     assert checks["promotion-plan"] == "success"
     assert checks["staged-drafts"] == "success"
-    assert checks["compiled-targets"] == "success"
+    assert checks["wiki-ingest-brief"] == "success"
+    assert checks["final-wiki-authority"] == "success"
+    assert "compiled-targets" not in checks
     assert checks["human-approval"] == "action_required"
 
     rendered = render_paper_gate(gate)
     assert "# EPI Paper Gate - fixture-paper" in rendered
-    assert "next: promote-to-wiki" in rendered
+    assert "next: run-wiki-ingest-agent" in rendered
     assert "human-approval: action_required" in rendered
 
 
 def test_paper_gate_reports_agent_handoff_ready_for_wiki_ingest(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    _seed_paper_gate_fixture(vault, slug, agent_handoff=True)
+    _seed_paper_gate_fixture(vault, slug)
 
     gate = build_paper_gate(vault, slug)
 
@@ -200,7 +179,7 @@ def test_paper_gate_reports_agent_handoff_ready_for_wiki_ingest(tmp_path):
 def test_paper_gate_marks_agent_handoff_approved_before_wiki_ingest(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    _seed_paper_gate_fixture(vault, slug, agent_handoff=True)
+    _seed_paper_gate_fixture(vault, slug)
 
     approval = record_human_approval(
         vault,
@@ -225,8 +204,8 @@ def test_paper_gate_marks_agent_handoff_approved_before_wiki_ingest(tmp_path):
 def test_paper_gate_blocks_agent_handoff_without_wiki_rule_source_model(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    _seed_paper_gate_fixture(vault, slug, agent_handoff=True)
-    brief_path = vault / "_staging" / "papers" / slug / "wiki-ingest-brief.json"
+    _seed_paper_gate_fixture(vault, slug)
+    brief_path = vault / "_epi" / "staging" / "papers" / slug / "wiki-ingest-brief.json"
     brief = json.loads(brief_path.read_text(encoding="utf-8"))
     del brief["wiki_rule_source_model"]
     brief_path.write_text(json.dumps(brief), encoding="utf-8")
@@ -244,8 +223,8 @@ def test_paper_gate_blocks_agent_handoff_without_wiki_rule_source_model(tmp_path
 def test_paper_gate_blocks_agent_handoff_without_execution_agent_policy(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    _seed_paper_gate_fixture(vault, slug, agent_handoff=True)
-    brief_path = vault / "_staging" / "papers" / slug / "wiki-ingest-brief.json"
+    _seed_paper_gate_fixture(vault, slug)
+    brief_path = vault / "_epi" / "staging" / "papers" / slug / "wiki-ingest-brief.json"
     brief = json.loads(brief_path.read_text(encoding="utf-8"))
     del brief["wiki_rule_source_model"]["execution_agent_policy"]
     brief_path.write_text(json.dumps(brief), encoding="utf-8")
@@ -261,8 +240,8 @@ def test_paper_gate_blocks_agent_handoff_without_execution_agent_policy(tmp_path
 def test_paper_gate_blocks_agent_handoff_without_source_first_artifacts(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    _seed_paper_gate_fixture(vault, slug, agent_handoff=True)
-    brief_path = vault / "_staging" / "papers" / slug / "wiki-ingest-brief.json"
+    _seed_paper_gate_fixture(vault, slug)
+    brief_path = vault / "_epi" / "staging" / "papers" / slug / "wiki-ingest-brief.json"
     brief = json.loads(brief_path.read_text(encoding="utf-8"))
     brief["source_bundle"]["raw_artifacts"].remove("mineru/images/*")
     brief_path.write_text(json.dumps(brief), encoding="utf-8")
@@ -279,8 +258,8 @@ def test_paper_gate_blocks_agent_handoff_without_source_first_artifacts(tmp_path
 def test_paper_gate_blocks_plan_without_compiled_targets(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    _seed_paper_gate_fixture(vault, slug)
-    plan_path = vault / "_staging" / "papers" / slug / "promotion-plan.json"
+    _seed_paper_gate_fixture(vault, slug, legacy_compiled=True)
+    plan_path = vault / "_epi" / "staging" / "papers" / slug / "promotion-plan.json"
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
     del plan["compiled_targets"]
     plan_path.write_text(json.dumps(plan), encoding="utf-8")
@@ -292,7 +271,7 @@ def test_paper_gate_blocks_plan_without_compiled_targets(tmp_path):
     assert gate["next_action"] == "repair-gate-failures"
     checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
     assert checks["compiled-targets"]["conclusion"] == "failure"
-    assert "compiled_targets" in checks["compiled-targets"]["output"]["summary"]
+    assert "legacy compiled-draft" in checks["compiled-targets"]["output"]["summary"]
     assert "human-approval" not in checks
 
 

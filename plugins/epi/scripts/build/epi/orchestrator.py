@@ -7,14 +7,18 @@ from pathlib import Path
 
 from epi.acquire_papers import acquire_paper, acquire_paper_from_url
 from epi.artifacts import (
+    existing_run_dir,
     file_sha256,
     json_sha256,
     raw_paper_root,
+    runs_root,
+    staging_paper_root,
     utc_now,
     write_json_atomic,
     write_text_atomic,
 )
 from epi.config import load_config, load_wiki_config
+from epi.epi_repository import cleanup_epi_repository, ensure_epi_repository, refresh_epi_manifest
 from epi.feedback import record_feedback
 from epi.evaluation_loop import build_improvement_brief, render_improvement_brief, write_improvement_brief
 from epi.filter_candidates import default_discovery_exclusion_terms, filter_candidates, filter_candidates_with_report
@@ -62,11 +66,18 @@ def _refresh_run_index(vault_path: Path) -> None:
 
 
 def _auto_manage_run_lifecycle(vault_path: Path) -> dict:
-    return auto_prune_run_lifecycle(
+    result = auto_prune_run_lifecycle(
         vault_path.resolve(),
         keep_latest=15,
         keep_per_workflow=2,
     )
+    repository_cleanup = cleanup_epi_repository(vault_path)
+    if repository_cleanup.get("deleted_count"):
+        result["repository_cleanup"] = repository_cleanup
+        result["deleted_count"] = int(result.get("deleted_count", 0)) + int(repository_cleanup.get("deleted_count", 0))
+    else:
+        refresh_epi_manifest(vault_path)
+    return result
 
 
 def _hash_existing_outputs(paths: dict[str, Path]) -> dict[str, str]:
@@ -97,7 +108,8 @@ def _tool_versions(*tool_names: str) -> dict[str, str]:
 
 
 def _new_run_dir(vault_path: Path, prefix: str | None = None) -> tuple[str, Path]:
-    runs_dir = vault_path.resolve() / "_runs"
+    ensure_epi_repository(vault_path)
+    runs_dir = runs_root(vault_path)
     runs_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     run_id = f"{prefix}-{timestamp}" if prefix else timestamp
@@ -393,8 +405,8 @@ def _write_wiki_ingest_record_report(
     page_paths = record.get("relative_page_paths") or record.get("page_paths") or []
     human_gate = record.get("human_gate_decision") or {}
     changed_artifacts = [
-        f"_raw/papers/{slug}/wiki-ingest-record.json",
-        f"_staging/papers/{slug}/wiki-ingest-record.json",
+        f"_epi/raw/papers/{slug}/wiki-ingest-record.json",
+        f"_epi/staging/papers/{slug}/wiki-ingest-record.json",
     ]
     report_paper_states = [
         {
@@ -563,7 +575,7 @@ def record_wiki_ingest(
         source_review_path=source_review_path,
     )
     paper_root = raw_paper_root(vault_path, slug)
-    staging_root = vault_path / "_staging" / "papers" / slug
+    staging_root = staging_paper_root(vault_path, slug)
     raw_record_path = paper_root / "wiki-ingest-record.json"
     staging_record_path = staging_root / "wiki-ingest-record.json"
     plan_path = staging_root / "promotion-plan.json"
@@ -1310,7 +1322,7 @@ def advance_paper_once(
     paper_pdf = paper_root / "paper.pdf"
     reader_md = paper_root / "reader" / "reader.md"
     critic_report_path = paper_root / "critic" / "critic-report.json"
-    promotion_plan = vault_path / "_staging" / "papers" / slug / "promotion-plan.json"
+    promotion_plan = staging_paper_root(vault_path, slug) / "promotion-plan.json"
 
     if not paper_pdf.exists():
         record = acquire_paper_from_candidate(vault_path, candidate)
@@ -1756,7 +1768,7 @@ def advance_paper_batch_from_run(
     mineru_timeout: int | None = None,
 ) -> dict:
     vault_path = vault_path.resolve()
-    rank_path = vault_path / "_runs" / run_id / "rank.json"
+    rank_path = existing_run_dir(vault_path, run_id) / "rank.json"
     if not rank_path.exists():
         raise FileNotFoundError(f"missing ranked candidates: {rank_path}")
     candidates = json.loads(rank_path.read_text(encoding="utf-8"))
@@ -1914,7 +1926,7 @@ def prepare_ranked_papers_from_run(
 ) -> dict:
     vault_path = vault_path.resolve()
     initialize_paper_wiki(vault_path)
-    rank_path = vault_path / "_runs" / run_id / "rank.json"
+    rank_path = existing_run_dir(vault_path, run_id) / "rank.json"
     if not rank_path.exists():
         raise FileNotFoundError(f"missing ranked candidates: {rank_path}")
     candidates = json.loads(rank_path.read_text(encoding="utf-8"))

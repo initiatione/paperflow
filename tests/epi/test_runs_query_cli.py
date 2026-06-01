@@ -6,6 +6,7 @@ import pytest
 from epi.orchestrator import main, record_human_approval
 from epi.report_run import load_run_report
 from epi.run_index import _paper_gate_allows_promotion, refresh_run_index
+from epi.stage_wiki import _build_wiki_ingest_brief
 
 
 def _write_json(path, payload):
@@ -50,8 +51,8 @@ def _seed_run(
 
 
 def _seed_ready_paper_gate(vault, slug):
-    paper_root = vault / "_raw" / "papers" / slug
-    staging_root = vault / "_staging" / "papers" / slug
+    paper_root = vault / "_epi/raw" / "papers" / slug
+    staging_root = vault / "_epi/staging" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
     _write_json(paper_root / "metadata.json", {"slug": slug, "title": "Ready Paper"})
@@ -75,35 +76,62 @@ def _seed_ready_paper_gate(vault, slug):
             "reviewer_quorum_path": str(critic_root / "critic-quorum.json"),
         },
     )
-    staged_reference = staging_root / "references" / f"{slug}.md"
-    staged_concept = staging_root / "concepts" / f"{slug}-concept.md"
-    staged_synthesis = staging_root / "synthesis" / f"{slug}-synthesis.md"
-    staged_report = staging_root / "reports" / f"{slug}-reading-report.md"
-    for staged_path in [staged_reference, staged_concept, staged_synthesis, staged_report]:
+    staged_source_reader = staging_root / "evidence" / "source-reader.md"
+    staged_report = staging_root / "briefs" / "reading-report.md"
+    for staged_path in [staged_source_reader, staged_report]:
         staged_path.parent.mkdir(parents=True, exist_ok=True)
         staged_path.write_text(f"# {staged_path.stem}\n", encoding="utf-8")
+    brief_path = staging_root / "wiki-ingest-brief.json"
+    batch_path = vault / "_epi/staging/wiki-batches/pending/wiki-batch-ingest-brief.json"
+    wiki_ingest_brief = _build_wiki_ingest_brief(
+        slug=slug,
+        title="Ready Paper",
+        source_reader_target="evidence/source-reader.md",
+        reading_report_target="briefs/reading-report.md",
+        editorial_summary_text="",
+        technical_reading_text="",
+        research_notes_text="",
+        evidence_map={},
+        research_decision={},
+        reproduction_plan={},
+    )
+    _write_json(brief_path, wiki_ingest_brief)
+    _write_json(
+        batch_path,
+        {
+            "schema_version": "epi-wiki-batch-ingest-brief-v1",
+            "handoff_type": "wiki-skill-batch-distillation",
+            "epi_write_scope": "internal-underscore-artifacts-only",
+            "formal_routes_suggested": False,
+            "paper_slugs": [slug],
+            "papers": [{"paper_slug": slug, "wiki_ingest_brief": str(brief_path)}],
+        },
+    )
     _write_json(
         staging_root / "promotion-plan.json",
         {
             "paper_slug": slug,
             "critic_outcome": "pass",
-            "staged_reference": str(staged_reference),
-            "staged_concepts": [str(staged_concept)],
-            "staged_synthesis": [str(staged_synthesis)],
+            "handoff_type": "agent-mediated-wiki-ingest",
+            "wiki_write_model": "wiki-skill-batch-distillation",
+            "final_page_authority": "wiki-skill-batch-distillation",
+            "epi_write_scope": "internal-underscore-artifacts-only",
+            "formal_routes_suggested": False,
+            "wiki_batch_handoff_required": True,
+            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "staged_evidence": [str(staged_source_reader)],
             "staged_reports": [str(staged_report)],
-            "compiled_targets": [
-                f"references/{slug}.md",
-                f"concepts/{slug}-concept.md",
-                f"synthesis/{slug}-synthesis.md",
-                f"reports/{slug}-reading-report.md",
-            ],
+            "wiki_ingest_brief_path": str(brief_path),
+            "wiki_batch_ingest_brief_path": str(batch_path),
+            "agent_handoff_paths": [str(brief_path), str(batch_path), str(staged_report), str(staged_source_reader)],
+            "suggested_route_targets": [],
         },
     )
 
 
 def _seed_failed_paper_gate(vault, slug):
     _seed_ready_paper_gate(vault, slug)
-    paper_root = vault / "_raw" / "papers" / slug
+    paper_root = vault / "_epi/raw" / "papers" / slug
     critic_root = paper_root / "critic"
     _write_json(
         critic_root / "critic-quorum.json",
@@ -128,7 +156,7 @@ def _seed_failed_paper_gate(vault, slug):
 
 
 def _seed_unstaged_paper_gate(vault, slug):
-    paper_root = vault / "_raw" / "papers" / slug
+    paper_root = vault / "_epi/raw" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
     _write_json(paper_root / "metadata.json", {"slug": slug, "title": "Unstaged Paper"})
@@ -156,83 +184,6 @@ def _seed_unstaged_paper_gate(vault, slug):
 
 def _seed_agent_handoff_paper_gate(vault, slug):
     _seed_ready_paper_gate(vault, slug)
-    staging_root = vault / "_staging" / "papers" / slug
-    brief_path = staging_root / "wiki-ingest-brief.json"
-    _write_json(
-        brief_path,
-        {
-            "schema_version": "epi-wiki-ingest-brief-v1",
-            "handoff_type": "agent-mediated-wiki-ingest",
-            "wiki_framework_references": [
-                {"name": "Ar9av/obsidian-wiki"},
-                {"name": "kepano/obsidian-skills"},
-                {"name": "initiatione/obsidian-wiki-dev"},
-            ],
-            "wiki_rule_source_model": {
-                "execution_agent_policy": {
-                    "allowed_executors": [
-                        "Claude",
-                        "Codex",
-                        "other wiki-capable agents",
-                    ],
-                    "brand_neutrality": (
-                        "Any wiki-capable agent may execute final writes if it follows the target vault "
-                        "contract, source-first review, human approval, and final-source-review gates."
-                    ),
-                    "local_skills_role": "helpers, not authority",
-                },
-                "resolution_order": [
-                    {"source": "target vault AGENTS.md", "role": "owner contract"},
-                    {"source": "_meta/schema.md", "role": "routing"},
-                    {"source": "Ar9av/obsidian-wiki", "role": "framework"},
-                    {"source": "kepano/obsidian-skills", "role": "format"},
-                    {"source": "initiatione/obsidian-wiki-dev", "role": "personalized rules"},
-                    {
-                        "source": "local llm-wiki / wiki-ingest / obsidian-markdown skills",
-                        "role": "execution adapters",
-                    },
-                ],
-                "write_contract_requirements": [
-                    "Keep Markdown vault files as the source of truth.",
-                ],
-            },
-            "ingest_policy": {
-                "suggested_routes_only": True,
-                "source_first_policy": (
-                    "Final wiki ingest must read the source paper; reader and critic outputs "
-                    "are navigation aids, not substitutes."
-                ),
-            },
-            "source_bundle": {
-                "raw_artifacts": [
-                    "paper.pdf",
-                    "metadata.json",
-                    "mineru/paper.md",
-                    "mineru/paper.tex",
-                    "mineru/images/*",
-                    "mineru/mineru-manifest.json",
-                ],
-                "formula_figure_review": {
-                    "formulas": "Review central formulas and notation.",
-                    "figures_tables_images": "Review figures, tables, and image interpretations.",
-                    "parse_uncertainty": "Record parse uncertainty from images and formulas.",
-                },
-            },
-        },
-    )
-    plan_path = staging_root / "promotion-plan.json"
-    plan = json.loads(plan_path.read_text(encoding="utf-8"))
-    plan.pop("compiled_targets", None)
-    plan.update(
-        {
-            "handoff_type": "agent-mediated-wiki-ingest",
-            "wiki_write_model": "agent-mediated-vault-contract",
-            "final_page_authority": "target-vault-contract-and-wiki-ingest-agent",
-            "wiki_ingest_brief_path": str(brief_path),
-            "agent_handoff_paths": [str(brief_path)],
-        }
-    )
-    _write_json(plan_path, plan)
 
 
 def _run_orchestrator_cli(monkeypatch, capsys, *args):
@@ -244,7 +195,7 @@ def _run_orchestrator_cli(monkeypatch, capsys, *args):
 
 def test_report_cli_prints_existing_run_markdown(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     run_dir = _seed_run(
         runs_root,
         "20260528T120000Z-report",
@@ -271,7 +222,7 @@ def test_report_cli_prints_existing_run_markdown(tmp_path, monkeypatch, capsys):
 
 def test_report_cli_json_returns_paths_and_report_payload(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     run_dir = _seed_run(
         runs_root,
         "20260528T121000Z-report",
@@ -313,7 +264,7 @@ def test_report_cli_json_returns_paths_and_report_payload(tmp_path, monkeypatch,
 
 def test_report_cli_text_falls_back_to_json_when_markdown_missing(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T122000Z-report",
@@ -342,7 +293,7 @@ def test_report_cli_text_falls_back_to_json_when_markdown_missing(tmp_path, monk
 
 def test_report_cli_json_allows_markdown_only_report(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    run_dir = vault / "_runs" / "20260528T123000Z-report"
+    run_dir = vault / "_epi/runs" / "20260528T123000Z-report"
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "report.md").write_text("# Markdown Only\n", encoding="utf-8")
 
@@ -372,15 +323,15 @@ def test_report_loader_errors_when_run_dir_missing(tmp_path):
 
 def test_report_loader_errors_when_report_artifacts_missing(tmp_path):
     vault = tmp_path / "vault"
-    (vault / "_runs" / "empty-report-run").mkdir(parents=True)
+    (vault / "_epi/runs" / "empty-report-run").mkdir(parents=True)
 
     with pytest.raises(FileNotFoundError, match="missing report artifacts"):
         load_run_report(vault, "empty-report-run")
 
 
-def test_research_queue_cli_actions_puts_paper_gate_before_promotion(tmp_path, monkeypatch, capsys):
+def test_research_queue_cli_actions_puts_paper_gate_before_wiki_ingest_handoff(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     slug = "ready-paper"
     _seed_ready_paper_gate(vault, slug)
     _seed_run(
@@ -390,7 +341,7 @@ def test_research_queue_cli_actions_puts_paper_gate_before_promotion(tmp_path, m
         state="staging_ready",
         status="waiting_for_human_gate",
         paper_slug=slug,
-        next_actions=["promote-to-wiki"],
+        next_actions=["run-wiki-ingest-agent"],
         human_gate={"status": "required"},
     )
     refresh_run_index(vault)
@@ -412,17 +363,20 @@ def test_research_queue_cli_actions_puts_paper_gate_before_promotion(tmp_path, m
     assert exit_code == 0
     assert [action["action"] for action in actions] == [
         "inspect-paper-gate",
-        "promote-to-wiki",
+        "wiki-ingest-handoff",
+        "record-human-approval",
     ]
     assert f"paper-gate --slug {slug}" in actions[0]["command"]
     assert actions[0]["human_gate_required"] is True
-    assert f"promote-to-wiki --slug {slug} --approved-by <name>" in actions[1]["command"]
+    assert f"wiki-ingest-handoff --slug {slug}" in actions[1]["command"]
     assert actions[1]["human_gate_required"] is True
+    assert f"record-human-approval --slug {slug}" in actions[2]["command"]
+    assert actions[2]["uses"] == "human-approval.json"
 
 
 def test_research_queue_cli_actions_blocks_promotion_when_current_paper_gate_fails(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     slug = "stale-ready-paper"
     _seed_failed_paper_gate(vault, slug)
     _seed_run(
@@ -432,7 +386,7 @@ def test_research_queue_cli_actions_blocks_promotion_when_current_paper_gate_fai
         state="staging_ready",
         status="waiting_for_human_gate",
         paper_slug=slug,
-        next_actions=["promote-to-wiki"],
+        next_actions=["run-wiki-ingest-agent"],
         human_gate={"status": "required"},
     )
     refresh_run_index(vault)
@@ -460,7 +414,7 @@ def test_research_queue_cli_actions_blocks_promotion_when_current_paper_gate_fai
 
 def test_research_queue_cli_actions_rechecks_stale_cached_ready_gate(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     slug = "stale-cached-ready-paper"
     _seed_ready_paper_gate(vault, slug)
     _seed_run(
@@ -470,7 +424,7 @@ def test_research_queue_cli_actions_rechecks_stale_cached_ready_gate(tmp_path, m
         state="staging_ready",
         status="waiting_for_human_gate",
         paper_slug=slug,
-        next_actions=["promote-to-wiki"],
+        next_actions=["run-wiki-ingest-agent"],
         human_gate={"status": "required"},
     )
     refresh_run_index(vault)
@@ -503,7 +457,7 @@ def test_research_queue_cli_actions_rechecks_stale_cached_ready_gate(tmp_path, m
 
 def test_research_queue_cli_actions_blocks_promotion_when_gate_requires_non_human_action(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     slug = "unstaged-ready-paper"
     _seed_unstaged_paper_gate(vault, slug)
     _seed_run(
@@ -541,7 +495,7 @@ def test_research_queue_cli_actions_blocks_promotion_when_gate_requires_non_huma
 
 def test_research_queue_cli_actions_points_agent_handoff_to_handoff_command(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     slug = "agent-handoff-paper"
     _seed_agent_handoff_paper_gate(vault, slug)
     _seed_run(
@@ -586,7 +540,7 @@ def test_research_queue_cli_actions_points_agent_handoff_to_handoff_command(tmp_
 
 def test_research_queue_cli_actions_points_approved_agent_handoff_to_trigger_command(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     slug = "approved-agent-handoff-paper"
     _seed_agent_handoff_paper_gate(vault, slug)
     _seed_run(
@@ -684,7 +638,7 @@ def test_research_queue_does_not_promote_when_gate_action_required_checks_are_mi
 
 def test_runs_query_failed_filters_failed_runs_only(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T100000Z-promote",
@@ -712,7 +666,7 @@ def test_runs_query_failed_filters_failed_runs_only(tmp_path, monkeypatch, capsy
 
 def test_runs_query_human_gate_filters_pending_runs(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T102000Z-ranked",
@@ -743,7 +697,7 @@ def test_runs_query_human_gate_filters_pending_runs(tmp_path, monkeypatch, capsy
 
 def test_runs_query_latest_success_returns_only_latest_successful_workflow_run(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T090000Z-promote-old",
@@ -779,7 +733,7 @@ def test_runs_query_latest_success_returns_only_latest_successful_workflow_run(t
 
 def test_runs_query_workflow_filters_recent_runs(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T100000Z-ranked",
@@ -815,7 +769,7 @@ def test_runs_query_workflow_filters_recent_runs(tmp_path, monkeypatch, capsys):
 
 def test_research_queue_cli_filters_bucket_and_shows_checks(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T140000Z-ready",
@@ -868,7 +822,7 @@ def test_research_queue_cli_filters_bucket_and_shows_checks(tmp_path, monkeypatc
 
 def test_research_queue_cli_json_returns_bucket_items(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T141000Z-repair",
@@ -911,7 +865,7 @@ def test_research_queue_cli_json_returns_bucket_items(tmp_path, monkeypatch, cap
 
 def test_research_queue_cli_actions_suggest_reader_repair_command(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T141000Z-repair",
@@ -928,7 +882,7 @@ def test_research_queue_cli_actions_suggest_reader_repair_command(tmp_path, monk
                     "next_action": "revise-reader",
                     "blocking_count": 2,
                     "warning_count": 1,
-                    "plan_path": str(vault / "_raw" / "papers" / "repair-paper" / "critic" / "reader-revision-plan.json"),
+                    "plan_path": str(vault / "_epi/raw" / "papers" / "repair-paper" / "critic" / "reader-revision-plan.json"),
                 }
             ],
         },
@@ -955,7 +909,7 @@ def test_research_queue_cli_actions_suggest_reader_repair_command(tmp_path, monk
 
 def test_research_queue_cli_json_actions_describe_reproduction_plan(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    runs_root = vault / "_runs"
+    runs_root = vault / "_epi/runs"
     _seed_run(
         runs_root,
         "20260528T142000Z-recritic",
@@ -1009,3 +963,4 @@ def test_research_agenda_cli_is_not_available(tmp_path, monkeypatch, capsys):
         assert exc.code != 0
     else:
         raise AssertionError("research-agenda should not be available after narrowing EPI scope")
+

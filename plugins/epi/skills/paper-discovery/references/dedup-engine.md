@@ -26,7 +26,7 @@ Do not silently discard useful fields from duplicates. Preserve alternate source
 
 ## Wiki Library Dedup
 
-Before recommending, compare candidates against `<vault>\_raw\papers\*\metadata.json`.
+Before recommending, compare candidates against `<vault>\_epi\raw\papers\*\metadata.json`.
 
 Reject already downloaded papers with:
 

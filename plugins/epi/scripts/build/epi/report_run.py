@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from epi.artifacts import write_json_atomic, write_text_atomic
+from epi.artifacts import existing_run_dir, write_json_atomic, write_text_atomic
 
 
 def _load_dict_json(path: Path) -> dict | None:
@@ -17,7 +17,7 @@ def _load_dict_json(path: Path) -> dict | None:
 
 
 def load_run_report(vault_path: Path, run_id: str) -> dict:
-    run_dir = vault_path.resolve() / "_runs" / run_id
+    run_dir = existing_run_dir(vault_path, run_id)
     if not run_dir.is_dir():
         raise FileNotFoundError(f"missing EPI run directory: {run_dir}")
 

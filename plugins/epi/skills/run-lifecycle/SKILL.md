@@ -1,6 +1,6 @@
 ---
 name: run-lifecycle
-description: "Use when inspecting, cleaning, pruning, or archiving transient EPI _runs dashboards, queues, and logs."
+description: "Use when inspecting, cleaning, pruning, or archiving transient EPI _epi/runs dashboards, queues, and logs."
 ---
 
 # EPI Run Lifecycle
@@ -21,19 +21,19 @@ Add `--apply` only after explicit approval:
 python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 15 --keep-per-workflow 2 --apply --json
 ```
 
-The EPI workflow may auto-apply lifecycle cleanup after runs when `_runs` exceeds 15 single-run directories. Manual operation remains approval-first.
+The EPI workflow may auto-apply lifecycle cleanup after runs when `_epi/runs` exceeds 15 single-run directories. Manual operation remains approval-first.
 
 ## Cleanup Boundary
 
-Clean only terminal single-run directories under `_runs`.
+Clean only terminal single-run directories under `_epi/runs`.
 
 Never delete:
 
-- `_runs/index.json`, dashboards, research queue, feedback logs
-- `_raw`, `_staging`, final wiki pages, Zotero records, config history
+- `_epi/runs/index.json`, dashboards, research queue, feedback logs
+- `_epi/raw`, `_epi/staging`, final wiki pages, Zotero records, config history
 - active runs, human-gate-pending runs, or protected non-terminal failures
 
-The command writes a manifest under `_meta\run-lifecycle\`.
+The command writes a manifest under `_epi\meta\run-lifecycle\`.
 
 ## Optional Delegation
 
@@ -41,4 +41,4 @@ If subagents are available, delegate lifecycle inventory to a small worker. The 
 
 ## Discovery Coordination
 
-Discovery must deduplicate against `_raw\papers`: already downloaded papers should be rejected as `already_in_library:<slug>` rather than recommended again. This keeps lifecycle cleanup separate from library identity.
+Discovery must deduplicate against `_epi\raw\papers`: already downloaded papers should be rejected as `already_in_library:<slug>` rather than recommended again. This keeps lifecycle cleanup separate from library identity.

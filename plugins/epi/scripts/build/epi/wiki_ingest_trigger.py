@@ -49,11 +49,14 @@ def _ready_instruction(
     source_review_path: str,
 ) -> str:
     return (
-        "Continue as the current wiki ingest agent, using wiki-provenance plus the target vault wiki skill "
-        "or contract. Re-read the source bundle before writing: paper.pdf, metadata.json, mineru/paper.md, "
-        "mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json. Preserve support status and "
-        "evidence-map addresses in final pages. Write or stage the final Markdown pages under the target "
-        "vault contract, then create "
+        "Continue as the current wiki ingest agent. Load epi-wiki-deposition and wiki-ingest before writing "
+        "formal pages; use wiki-provenance for claim support. EPI artifacts are source/evidence handoff only "
+        "and EPI itself may write only internal underscore folders. Re-read the source bundle before writing: "
+        "paper.pdf, metadata.json, mineru/paper.md, mineru/paper.tex, mineru/images/*, and "
+        "mineru/mineru-manifest.json. Compare this paper with the current batch or neighboring EPI source "
+        "bundles before creating reusable concept or synthesis pages. Preserve support status and evidence-map "
+        "addresses in final pages. Write or stage the final Markdown pages under the target vault contract, "
+        "then create "
         + source_review_path
         + " and run record-wiki-ingest --slug "
         + slug
@@ -98,9 +101,17 @@ def _base_payload(
             "trigger": str(trigger_path),
         },
         "executor_policy": handoff.get("execution_agent_policy") or {},
+        "epi_write_scope": handoff.get("epi_write_scope"),
+        "formal_routes_suggested": bool(handoff.get("formal_routes_suggested")),
+        "wiki_batch_handoff_required": bool(handoff.get("wiki_batch_handoff_required")),
+        "required_wiki_skills": handoff.get("required_wiki_skills") or [],
+        "handoff_artifacts": handoff.get("handoff_artifacts") or [],
+        "candidate_topics": handoff.get("candidate_topics") or [],
+        "candidate_clusters": handoff.get("candidate_clusters") or [],
         "final_source_review_contract": contract,
         "agent_checklist": list(handoff.get("agent_checklist") or []),
         "writes_final_wiki_pages": False,
+        "calls_wiki_skill_for_final_pages": True,
     }
 
 
@@ -192,6 +203,10 @@ def render_wiki_ingest_trigger(trigger: dict[str, Any]) -> str:
         "final_source_review",
     ]:
         lines.append(f"- {key}: {paths.get(key) or '-'}")
+    lines.extend(["", "## Wiki Skill Boundary", ""])
+    lines.append(f"- epi_write_scope: {trigger.get('epi_write_scope') or '-'}")
+    lines.append(f"- wiki_batch_handoff_required: {str(bool(trigger.get('wiki_batch_handoff_required'))).lower()}")
+    lines.append("- required_skills: " + (", ".join(str(item) for item in trigger.get("required_wiki_skills") or []) or "-"))
     lines.extend(["", "## Instruction", "", str(trigger.get("instruction") or "")])
     lines.extend(["", "## Agent Checklist", ""])
     for item in trigger.get("agent_checklist") or []:

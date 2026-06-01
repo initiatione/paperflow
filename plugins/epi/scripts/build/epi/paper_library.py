@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from epi.artifacts import raw_papers_root
 from epi.schemas import canonical_key, slugify_title
 
 
@@ -30,7 +31,7 @@ def _index_key(record: dict[str, Any]) -> list[str]:
 
 
 def load_existing_paper_index(vault_path: Path) -> dict[str, Any]:
-    papers_root = Path(vault_path) / "_raw" / "papers"
+    papers_root = raw_papers_root(Path(vault_path))
     by_key: dict[str, dict[str, Any]] = {}
     entries: list[dict[str, Any]] = []
     if not papers_root.exists():

@@ -36,7 +36,7 @@ def test_dry_run_parser_accepts_json_output():
 
 
 def test_dry_run_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatch, capsys):
-    run_dir = tmp_path / "_runs" / "run-json-001"
+    run_dir = tmp_path / "_epi" / "runs" / "run-json-001"
     run_dir.mkdir(parents=True)
     for name in [
         "query-plan.json",
@@ -239,7 +239,7 @@ def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatc
 
     output = capsys.readouterr().out
     payload = __import__("json").loads(output)
-    run_dir = tmp_path / "_runs" / "prepare-ranked-001"
+    run_dir = tmp_path / "_epi" / "runs" / "prepare-ranked-001"
     assert exit_code == 0
     assert payload["run_id"] == "prepare-ranked-001"
     assert payload["source_run_id"] == "run-001"
@@ -429,7 +429,7 @@ def test_record_wiki_ingest_parser_accepts_pages_approval_notes_and_json():
             "--notes",
             "agent applied target vault contract",
             "--source-review",
-            "_staging/papers/fixture-paper/final-source-review.json",
+            "_epi/staging/papers/fixture-paper/final-source-review.json",
             "--json",
         ]
     )
@@ -439,7 +439,7 @@ def test_record_wiki_ingest_parser_accepts_pages_approval_notes_and_json():
     assert args.page == ["papers/fixture-paper.md", "concepts/fixture-concept.md"]
     assert args.approved_by == "codex-test"
     assert args.notes == "agent applied target vault contract"
-    assert args.source_review == "_staging/papers/fixture-paper/final-source-review.json"
+    assert args.source_review == "_epi/staging/papers/fixture-paper/final-source-review.json"
     assert args.json is True
 
 
@@ -632,7 +632,7 @@ def test_propose_evolution_parser_accepts_skillopt_control_metadata():
             "--proposed-change-json",
             "{\"weights\":{\"topic_relevance\":0.39}}",
             "--evidence",
-            "_runs/index.json#1",
+            "_epi/runs/index.json#1",
             "--evidence-type",
             "plugin_eval_warning",
             "--before-metrics-json",

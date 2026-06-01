@@ -9,8 +9,19 @@ from epi.paper_gate import build_paper_gate
 from epi.wiki_ingest_approval import human_approval_record_path, validate_human_approval_record
 
 
-_INTERNAL_VAULT_ROOTS = {"_raw", "_staging", "_runs", "_quarantine", ".git", ".obsidian"}
+_INTERNAL_VAULT_ROOTS = {"_epi", "_raw", "_staging", "_runs", "_quarantine", ".git", ".obsidian"}
 FINAL_SOURCE_REVIEW_SCHEMA_VERSION = "epi-final-source-review-v1"
+_AUDIT_PAGE_MARKERS = [
+    "Source-Grounded Claim Cards",
+    "Support status summary",
+    "reader/claim-support.json",
+    "reader/evidence-map.json",
+    "Evidence claims tracked:",
+    "Suggested Wiki Routes",
+    "Wiki Ingest Brief",
+    "stage: staging",
+    "formal_page: false",
+]
 REQUIRED_FINAL_SOURCE_ARTIFACTS = [
     "paper.pdf",
     "metadata.json",
@@ -87,6 +98,8 @@ def _resolve_page(vault_path: Path, page: str) -> dict[str, Any]:
         raise ValueError(f"recorded final wiki page must be a Markdown file: {page}")
     if not resolved.is_file():
         raise FileNotFoundError(f"recorded final wiki page does not exist: {resolved}")
+    text = resolved.read_text(encoding="utf-8", errors="ignore")
+    _validate_formal_page_shape(relative_path.as_posix(), text)
 
     return {
         "path": str(resolved),
@@ -94,6 +107,33 @@ def _resolve_page(vault_path: Path, page: str) -> dict[str, Any]:
         "sha256": file_sha256(resolved),
         "size_bytes": resolved.stat().st_size,
     }
+
+
+def _slug_pseudo_route_patterns(slug: str) -> set[str]:
+    return {
+        f"references/{slug}.md",
+        f"concepts/{slug}-concept.md",
+        f"synthesis/{slug}-synthesis.md",
+        f"reports/{slug}-reading-report.md",
+    }
+
+
+def _validate_formal_page_shape(relative_path: str, text: str) -> None:
+    normalized = relative_path.replace("\\", "/")
+    marker_hits = [marker for marker in _AUDIT_PAGE_MARKERS if marker in text]
+    if marker_hits:
+        raise ValueError(
+            "recorded final wiki page looks like an EPI audit/staging artifact: "
+            + normalized
+            + " markers="
+            + ", ".join(marker_hits[:3])
+        )
+    if normalized.startswith("reports/") and normalized.endswith("-reading-report.md"):
+        raise ValueError("recorded final wiki page must not be an EPI reading report: " + normalized)
+    if normalized.startswith("concepts/") and normalized.endswith("-concept.md"):
+        raise ValueError("recorded final wiki page must not be an EPI per-paper routes or pseudo concept page: " + normalized)
+    if normalized.startswith("synthesis/") and normalized.endswith("-synthesis.md"):
+        raise ValueError("recorded final wiki page must not be an EPI per-paper routes or pseudo synthesis page: " + normalized)
 
 
 def _source_first_confirmed(brief: dict[str, Any]) -> bool:
@@ -120,7 +160,7 @@ def _resolve_review_candidate(value: str, *, vault_path: Path, staging_root: Pat
     candidate = Path(value)
     if candidate.is_absolute():
         return candidate
-    if candidate.parts and candidate.parts[0] in {"_staging", "_raw"}:
+    if candidate.parts and candidate.parts[0] in {"_epi", "_staging", "_raw"}:
         return vault_path / candidate
     staging_candidate = staging_root / candidate
     if staging_candidate.exists() or len(candidate.parts) == 1:
@@ -275,6 +315,32 @@ def _validate_final_page_provenance(
             failures.append(f"final page provenance sha256 mismatch: {relative_path}")
 
 
+def _validate_wiki_batch_ingest_section(payload: dict[str, Any], slug: str, failures: list[str]) -> None:
+    section = payload.get("wiki_batch_ingest") if isinstance(payload.get("wiki_batch_ingest"), dict) else {}
+    if section.get("status") != "completed":
+        failures.append("final source review wiki_batch_ingest must be status=completed")
+    skills = "\n".join(str(item) for item in section.get("wiki_skill_used") or section.get("skills_used") or [])
+    if "wiki-ingest" not in skills:
+        failures.append("final source review wiki_batch_ingest must record wiki-ingest skill usage")
+    paper_slugs = [str(item) for item in section.get("paper_slugs") or []]
+    if slug not in paper_slugs:
+        failures.append("final source review wiki_batch_ingest must include the recorded paper slug")
+
+
+def _validate_formal_content_quality_section(payload: dict[str, Any], failures: list[str]) -> None:
+    section = (
+        payload.get("formal_content_quality")
+        if isinstance(payload.get("formal_content_quality"), dict)
+        else {}
+    )
+    if section.get("status") != "reviewed":
+        failures.append("final source review formal_content_quality must be status=reviewed")
+    if section.get("audit_pages_excluded") is not True:
+        failures.append("final source review formal_content_quality must set audit_pages_excluded=true")
+    if not str(section.get("summary") or "").strip():
+        failures.append("final source review formal_content_quality must include a summary")
+
+
 def _validate_final_source_review(
     *,
     source_review_path: Path,
@@ -309,6 +375,8 @@ def _validate_final_source_review(
     _validate_review_section(payload, "formula_review", failures)
     _validate_review_section(payload, "figure_table_image_review", failures)
     _validate_pdf_fallback_section(payload, failures)
+    _validate_wiki_batch_ingest_section(payload, slug, failures)
+    _validate_formal_content_quality_section(payload, failures)
     _validate_final_page_provenance(payload=payload, page_records=page_records, failures=failures)
 
     if failures:
@@ -330,6 +398,18 @@ def create_wiki_ingest_record(
         raise ValueError("human gate approval is required for record-wiki-ingest")
     if not pages:
         raise ValueError("at least one final wiki page must be recorded")
+    pseudo_routes = _slug_pseudo_route_patterns(slug)
+    requested_relative_pages = {
+        str(page).replace("\\", "/").strip()
+        for page in pages
+        if str(page).replace("\\", "/").strip()
+    }
+    blocked_requested_routes = sorted(pseudo_routes.intersection(requested_relative_pages))
+    if blocked_requested_routes:
+        raise ValueError(
+            "recorded final wiki pages must come from wiki-skill batch deposition, not EPI per-paper routes: "
+            + ", ".join(blocked_requested_routes)
+        )
 
     paper_root = raw_paper_root(vault_path, slug)
     staging_root = staging_paper_root(vault_path, slug)
@@ -358,6 +438,14 @@ def create_wiki_ingest_record(
     assert approval_record is not None
 
     page_records = [_resolve_page(vault_path, page) for page in pages]
+    blocked_resolved_routes = sorted(
+        pseudo_routes.intersection(str(record["relative_path"]).replace("\\", "/") for record in page_records)
+    )
+    if blocked_resolved_routes:
+        raise ValueError(
+            "recorded final wiki pages must come from wiki-skill batch deposition, not EPI per-paper routes: "
+            + ", ".join(blocked_resolved_routes)
+        )
     seen: set[str] = set()
     duplicates = []
     for record in page_records:

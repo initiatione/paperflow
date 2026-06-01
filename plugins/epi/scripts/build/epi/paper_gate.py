@@ -5,6 +5,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any
 
+from epi.artifacts import existing_raw_paper_root, existing_staging_paper_root
 from epi.run_critic import HARD_RULE
 from epi.wiki_ingest_approval import (
     HUMAN_APPROVAL_SCOPE,
@@ -51,7 +52,7 @@ def _staged_paths_from_plan(plan: dict[str, Any]) -> list[Path]:
     paths = []
     if plan.get("staged_reference"):
         paths.append(Path(plan["staged_reference"]))
-    for key in ["staged_concepts", "staged_synthesis", "staged_reports"]:
+    for key in ["staged_evidence", "staged_concepts", "staged_synthesis", "staged_reports"]:
         paths.extend(Path(path) for path in plan.get(key, []))
     return paths
 
@@ -60,6 +61,7 @@ def _is_agent_handoff_plan(plan: dict[str, Any]) -> bool:
     return (
         plan.get("handoff_type") == "agent-mediated-wiki-ingest"
         or plan.get("wiki_write_model") == "agent-mediated-vault-contract"
+        or plan.get("wiki_write_model") == "wiki-skill-batch-distillation"
     )
 
 
@@ -141,8 +143,20 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
     issues = []
     if brief.get("handoff_type") != "agent-mediated-wiki-ingest":
         issues.append("handoff_type is not agent-mediated-wiki-ingest")
-    if not ingest_policy.get("suggested_routes_only"):
-        issues.append("brief must mark suggested routes as non-authoritative")
+    if ingest_policy.get("epi_write_scope") != "internal-underscore-artifacts-only":
+        issues.append("brief must restrict EPI writes to internal underscore artifacts")
+    if ingest_policy.get("formal_routes_suggested") is not False or brief.get("formal_routes_suggested") is not False:
+        issues.append("brief must not suggest formal wiki routes")
+    if ingest_policy.get("wiki_batch_handoff_required") is not True:
+        issues.append("brief must require wiki skill batch handoff")
+    required_wiki_skills = "\n".join(str(item) for item in ingest_policy.get("required_wiki_skills") or [])
+    if "wiki-ingest" not in required_wiki_skills:
+        issues.append("brief must require the wiki-ingest skill for final pages")
+    if brief.get("suggested_routes"):
+        issues.append("suggested_routes must be empty for EPI internal handoff")
+    handoff_artifacts = brief.get("handoff_artifacts")
+    if not isinstance(handoff_artifacts, list) or not handoff_artifacts:
+        issues.append("handoff_artifacts are missing")
     source_first_policy = str(ingest_policy.get("source_first_policy") or "")
     if "source paper" not in source_first_policy or "not substitutes" not in source_first_policy:
         issues.append("source-first ingest policy is missing")
@@ -226,26 +240,54 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
 
 
 def _final_wiki_authority_check(plan: dict[str, Any]) -> dict[str, Any]:
-    if plan.get("final_page_authority") != "target-vault-contract-and-wiki-ingest-agent":
+    if plan.get("final_page_authority") not in {
+        "target-vault-contract-and-wiki-ingest-agent",
+        "wiki-skill-batch-distillation",
+    }:
         return _check_run(
             "final-wiki-authority",
             "failure",
-            "Final wiki authority must be the target vault contract and wiki ingest agent.",
+            "Final wiki authority must be wiki-skill batch distillation under the target vault contract.",
+        )
+    if plan.get("epi_write_scope") != "internal-underscore-artifacts-only":
+        return _check_run(
+            "final-wiki-authority",
+            "failure",
+            "EPI staging plans must restrict writes to internal underscore artifacts.",
+        )
+    if plan.get("formal_routes_suggested") is not False or plan.get("suggested_route_targets"):
+        return _check_run(
+            "final-wiki-authority",
+            "failure",
+            "EPI staging plans must not suggest formal wiki page routes.",
+        )
+    if plan.get("wiki_batch_handoff_required") is not True:
+        return _check_run(
+            "final-wiki-authority",
+            "failure",
+            "Final wiki pages must be produced through wiki-skill batch deposition.",
         )
     return _check_run(
         "final-wiki-authority",
         "success",
-        "Final page paths, schema, taxonomy, links, and staged writes are delegated to the target vault contract.",
+        "Final page paths, schema, taxonomy, links, and staged writes are delegated to wiki-skill batch deposition.",
     )
 
 
 def _compiled_targets_check(plan: dict[str, Any], staged_paths: list[Path]) -> dict[str, Any]:
     compiled_targets = plan.get("compiled_targets")
+    if compiled_targets:
+        return _check_run(
+            "compiled-targets",
+            "failure",
+            "Legacy compiled_targets are deprecated: EPI may only write internal underscore artifacts; use wiki-ingest handoff and wiki-skill batch deposition.",
+            details={"staged_count": len(staged_paths), "compiled_target_count": len(compiled_targets)},
+        )
     if not isinstance(compiled_targets, list) or not compiled_targets:
         return _check_run(
             "compiled-targets",
             "failure",
-            "Promotion plan compiled_targets are missing; compiled wiki targets must come from the staging plan.",
+            "Promotion plan is legacy compiled-draft shaped; repair staging to an agent-mediated wiki ingest handoff.",
             details={"staged_count": len(staged_paths), "compiled_target_count": 0},
         )
 
@@ -381,8 +423,8 @@ def _prewrite_human_approval_check(vault_path: Path, slug: str) -> dict[str, Any
 
 def build_paper_gate(vault_path: Path, slug: str) -> dict[str, Any]:
     vault_path = vault_path.resolve()
-    paper_root = vault_path / "_raw" / "papers" / slug
-    staging_root = vault_path / "_staging" / "papers" / slug
+    paper_root = existing_raw_paper_root(vault_path, slug)
+    staging_root = existing_staging_paper_root(vault_path, slug)
     metadata = _read_json(paper_root / "metadata.json") or {}
     check_runs: list[dict[str, Any]] = []
 
@@ -511,7 +553,7 @@ def _next_action(
         return "repair-gate-failures"
     if _is_agent_handoff_plan(plan):
         return "run-wiki-ingest-agent"
-    return "promote-to-wiki"
+    return "repair-staging-to-wiki-handoff"
 
 
 def _gate_status(conclusion: str, next_action: str, promotion_check: dict[str, Any] | None) -> str:
@@ -524,7 +566,7 @@ def _gate_status(conclusion: str, next_action: str, promotion_check: dict[str, A
         return "blocked"
     if next_action == "run-wiki-ingest-agent" and conclusion == "success":
         return "ready_for_wiki_ingest_agent"
-    if next_action in {"promote-to-wiki", "run-wiki-ingest-agent"}:
+    if next_action == "run-wiki-ingest-agent":
         return "waiting_for_human_gate"
     return "action_required"
 

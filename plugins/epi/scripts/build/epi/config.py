@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from epi.artifacts import utc_now, write_json_atomic, write_text_atomic
+from epi.artifacts import epi_meta_root, legacy_meta_root, runs_root, utc_now, write_json_atomic, write_text_atomic
 from epi.config_protection import CONFIG_RESTORE_CONFIRMATION
 
 
@@ -85,7 +85,7 @@ _MISSING = object()
 
 def config_paths(vault_path: Path) -> EpiConfigPaths:
     vault_path = vault_path.resolve()
-    meta_dir = vault_path / "_meta"
+    meta_dir = epi_meta_root(vault_path)
     return EpiConfigPaths(
         vault_path=vault_path,
         meta_dir=meta_dir,
@@ -330,23 +330,33 @@ def _write_history_snapshot(paths: EpiConfigPaths, content: str, *, action: str)
 
 def load_wiki_config(vault_path: Path) -> dict[str, Any] | None:
     paths = config_paths(vault_path)
-    if not paths.config_path.exists():
-        return None
-    return _parse_simple_yaml(paths.config_path)
+    if paths.config_path.exists():
+        return _parse_simple_yaml(paths.config_path)
+    legacy_config_path = legacy_meta_root(vault_path) / "epi-config.yaml"
+    if legacy_config_path.exists():
+        return _parse_simple_yaml(legacy_config_path)
+    return None
 
 
 def config_status(vault_path: Path) -> dict[str, Any]:
     paths = config_paths(vault_path)
+    legacy_config_path = legacy_meta_root(vault_path) / "epi-config.yaml"
+    legacy_state_path = legacy_meta_root(vault_path) / "epi-config-state.json"
+    config_path = paths.config_path if paths.config_path.exists() or not legacy_config_path.exists() else legacy_config_path
+    state_path = paths.state_path if paths.state_path.exists() or not legacy_state_path.exists() else legacy_state_path
     state: dict[str, Any] = {}
-    if paths.state_path.exists():
-        state = json.loads(paths.state_path.read_text(encoding="utf-8"))
-    configured = paths.config_path.exists() and state.get("configured", True) is not False
+    if state_path.exists():
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+    configured = config_path.exists() and state.get("configured", True) is not False
     return {
         "configured": configured,
         "needs_onboarding": not configured,
-        "config_path": str(paths.config_path),
-        "state_path": str(paths.state_path),
+        "config_path": str(config_path),
+        "state_path": str(state_path),
         "history_dir": str(paths.history_dir),
+        "current_config_path": str(paths.config_path),
+        "legacy_config_path": str(legacy_config_path),
+        "legacy_config_present": legacy_config_path.exists(),
         "state": state,
     }
 
@@ -573,7 +583,7 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
     return PipelineConfig(
         plugin_root=plugin_root,
         vault_path=vault_path,
-        runs_dir=vault_path / "_runs",
+        runs_dir=runs_root(vault_path),
         max_results=max_results if max_results is not None else configured_max,
         profile=str(interests.get("profile", "general_academic_research")),
         domains=[str(domain) for domain in _as_list(interests.get("domains"))],

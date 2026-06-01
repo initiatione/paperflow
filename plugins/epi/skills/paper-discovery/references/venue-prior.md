@@ -12,7 +12,7 @@ Use venue prior to improve ranking and recall for whatever field the user's EPI 
 
 ## Practical Prior From Config
 
-Start with `venue_prior` in `_meta\epi-config.yaml`. The user can list journals, conferences, publishers, societies, field databases, or curated pages that matter in their discipline. If `venue_prior` is empty, use only generic metadata verification until the user config is improved.
+Start with `venue_prior` in `_epi\meta\epi-config.yaml`. The user can list journals, conferences, publishers, societies, field databases, or curated pages that matter in their discipline. If `venue_prior` is empty, use only generic metadata verification until the user config is improved.
 
 Domain examples, not defaults:
 

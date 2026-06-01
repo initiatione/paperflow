@@ -15,7 +15,7 @@ When run evidence is needed, prefer the public Report surface:
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault> --json
 ```
 
-This reads existing `_runs/<run-id>/report.json` and `report.md`; it does not rerun the workflow or apply changes. The internal module is `report_run.py`, not a separate `run-report` command.
+This reads existing `_epi/runs/<run-id>/report.json` and `report.md`; it does not rerun the workflow or apply changes. The internal module is `report_run.py`, not a separate `run-report` command.
 
 ## Acceptance Gates
 

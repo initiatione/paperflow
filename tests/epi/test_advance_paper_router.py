@@ -126,12 +126,12 @@ def test_advance_paper_once_routes_one_safe_stage_at_a_time(tmp_path):
     assert records[-1]["next_action"] == "run-wiki-ingest-agent"
     assert records[-1]["human_gate_required"] is True
 
-    paper_root = vault / "_raw" / "papers" / "routed-paper"
+    paper_root = vault / "_epi" / "raw" / "papers" / "routed-paper"
     assert (paper_root / "paper.pdf").is_file()
     assert (paper_root / "mineru" / "paper.md").is_file()
     assert (paper_root / "reader" / "reader.md").is_file()
     assert (paper_root / "critic" / "critic-report.json").is_file()
-    assert (vault / "_staging" / "papers" / "routed-paper" / "promotion-plan.json").is_file()
+    assert (vault / "_epi" / "staging" / "papers" / "routed-paper" / "promotion-plan.json").is_file()
     assert not (vault / "references" / "routed-paper.md").exists()
 
     run_state = json.loads((paper_root / "run-state.json").read_text(encoding="utf-8"))
@@ -141,7 +141,7 @@ def test_advance_paper_once_routes_one_safe_stage_at_a_time(tmp_path):
 def test_advance_paper_once_reparses_incomplete_existing_parse_outputs(tmp_path):
     vault = tmp_path / "vault"
     candidate = _candidate("https://example.org/routed.pdf")
-    paper_root = vault / "_raw" / "papers" / "routed-paper"
+    paper_root = vault / "_epi" / "raw" / "papers" / "routed-paper"
     mineru_root = paper_root / "mineru"
     mineru_root.mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nstale parse fixture\n")

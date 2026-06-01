@@ -6,7 +6,7 @@
 
 EPI 是 Codex 插件源码包，位于 `<plugin-root>`。插件的目标链路是：按用户画像/config 衍生高质量论文发现和排序 -> raw artifact 留痕 -> Reader/Critic 证据审查 -> staging evidence package -> wiki-ingest handoff -> 由 agent 按目标 Obsidian/LLM Wiki vault contract 写入最终知识库。它是通用学术论文插件，不把任何单一学科写成默认方向。
 
-EPI 自身不应该把最终 Obsidian 页面路径、标签、合并策略或 staged writes 固定死。最终写入规则来自目标 vault 的 `AGENTS.md` 和 `_meta/*`，并参考个性化 `obsidian-wiki-dev`、`Ar9av/obsidian-wiki`、`kepano/obsidian-skills`。本插件只准备证据、报告、候选草稿和 handoff。
+EPI 自身不应该把最终 Obsidian 页面路径、标签、合并策略或 staged writes 固定死。最终写入规则来自目标 vault 的 `AGENTS.md` 和根 `_meta/*` contract 文件，并参考个性化 `obsidian-wiki-dev`、`Ar9av/obsidian-wiki`、`kepano/obsidian-skills`。本插件只准备 `_epi/` 内部仓库中的证据、报告、审计记录和 handoff。
 
 ## 插件包目录
 
@@ -39,7 +39,7 @@ python scripts\orchestrator.py <command>
 当前命令分组：
 
 - 安装与配置：`doctor`、`config-status`、`init-config`、`propose-config-update`、`apply-config-update`。
-- Wiki 库初始化/重置：`wiki-setup` skill 负责初始化和重置流程；初始化只补缺失结构，并在 `<vault>\.git` 缺失时自动 `git init`，但不自动创建首个 commit。重置必须先盘点、备份计划并要求用户二次确认 `确认重置 EPI wiki`。`wiki-reset --preview` 先列出会备份、删除、保留的路径；`wiki-reset` 是执行器，默认备份内容并保留 `_meta\epi-config.yaml`、`_meta\epi-config-state.json`、config history 目录，且不得触碰用户级 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。如需同时重置配置，必须另行确认 `确认同时重置 EPI config` 并显式传入 `--reset-config-confirmed-by`。若出现误删或误操作，先停止后续论文流程，用 `wiki-repair` 单入口检查恢复状态，或用 `config-recover` 查找候选配置，再用 `config-restore` 在确认后恢复。
+- Wiki 库初始化/重置：`wiki-setup` skill 负责初始化和重置流程；初始化只补缺失结构，并在 `<vault>\.git` 缺失时自动 `git init`，但不自动创建首个 commit。初始化后的 EPI 内部产物只在 `_epi/` 下展开，根 `_meta/` 只保留 wiki contract 文件。重置必须先盘点、备份计划并要求用户二次确认 `确认重置 EPI wiki`。`wiki-reset --preview` 先列出会备份、删除、保留的路径；`wiki-reset` 是执行器，默认备份内容并保留 `_epi\meta\epi-config.yaml`、`_epi\meta\epi-config-state.json`、config history 目录，且不得触碰用户级 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。如需同时重置配置，必须另行确认 `确认同时重置 EPI config` 并显式传入 `--reset-config-confirmed-by`。若出现误删或误操作，先停止后续论文流程，用 `wiki-repair` 单入口检查恢复状态，或用 `config-recover` 查找候选配置，再用 `config-restore` 在确认后恢复。
 - 发现与推进：`dry-run`、`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`acquire-paper`。
 - 解析与修复：`parse-paper`、`redo-acquire`、`redo-parse`、`redo-read`、`recritic`。
 - Reader/Critic/Gate：推进命令内部生成 reader 和 critic；只读检查用 `paper-gate`。
@@ -87,7 +87,7 @@ scripts/build/epi/
 
 - `cli.py` 只负责参数解析、JSON/Markdown 输出和调度到内部模块。
 - `orchestrator.py` 是兼容入口和流程编排层，负责 dry-run、one-paper ingest、batch advance、redo/recritic 等阶段串联。
-- `config.py` 负责 `_meta/epi-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。
+- `config.py` 负责 `_epi/meta/epi-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。旧 `_meta/epi-config.yaml` 只作为迁移/兼容读取来源。
 - `config_protection.py` 负责共享确认口令和 config 保护白名单，供 reset、repair、restore 复用。
 - `wiki_reset.py` 负责 wiki reset 执行器：preview、确认口令、备份/删除、config 默认保护、初始化和 reset manifest。
 - `doctor.py` 负责只读健康检查；外部依赖缺失是 warning，插件结构缺失才 error。
@@ -98,17 +98,17 @@ scripts/build/epi/
 - `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization；默认 7200 秒超时，可由 `--mineru-timeout` 或 `EPI_MINERU_TIMEOUT` 覆盖。
 - `generate_reader.py`、`reader_outputs.py`、`reader_evidence.py`、`reader_protocol.py` 负责多角色 reader、evidence map 和证据地址校验；reader 会把 TeX、MinerU manifest 和 PDF fallback 作为 source-first 证据写入 evidence/claim-support，而不是只输出摘要。
 - `run_critic.py`、`paper_quality.py`、`role_critics.py` 负责 critic quorum、学术论文可靠性检查和三角色质量门；其中 `parse-quality-critic` 会检查 MinerU Markdown、TeX、images、manifest 和 `parse-record.json`，避免原文公式/图像证据在进入 reader/wiki 前被静默抹掉。
-- `report_run.py` 负责生成 `_runs/<run-id>/report.md` 和 `report.json`，并提供 `report --run-id` 的只读 loader；该 CLI 会展示 run report artifact 和 `run-state.json` payload，但不刷新 index、queue、raw、staging、Zotero 或 wiki。
+- `report_run.py` 负责生成 `_epi/runs/<run-id>/report.md` 和 `report.json`，并提供 `report --run-id` 的只读 loader；该 CLI 会展示 run report artifact 和 `run-state.json` payload，但不刷新 index、queue、raw、staging、Zotero 或 wiki。
 - `research_decision.py`、`reader_revision_plan.py`、`reader_revision_guidance.py`、`reproduction_plan.py` 把 critic 结果翻译成决策、修复建议和紧凑复现 caveat。
-- `stage_wiki.py` 负责 `_staging` 草稿、轻阅读报告、`wiki-ingest-brief.json`、`final_source_review_contract` 和 `promotion-plan.json`。
+- `stage_wiki.py` 负责 `_epi/staging` 内部证据包、轻阅读报告、`wiki-ingest-brief.json`、`final_source_review_contract` 和 `promotion-plan.json`；它不得把审计页当成正式 wiki 页写到根目录。
 - `paper_gate.py` 是只读质量门面板，决定当前 slug 是 failure、waiting for human gate，还是允许进入下一动作。
 - `wiki_ingest_handoff.py` 是只读 handoff 渲染器，给最终 wiki ingest agent 提供路径、规则优先级、final-source-review 合同和 checklist。
-- `wiki_ingest_approval.py` 是 agent-mediated 前置人类批准 helper：写入并校验 `_staging/papers/<slug>/human-approval.json`，要求当前 gate 只有 `human-approval` 待办。
-- `wiki_ingest_trigger.py` 是批准后的继续/触发 helper：写入 `_staging/papers/<slug>/wiki-agent-trigger.json`，让当前 Claude、Codex 或其他 wiki-capable agent 按同一 target vault contract 继续最终页写入；它不写最终 wiki 页面。
+- `wiki_ingest_approval.py` 是 agent-mediated 前置人类批准 helper：写入并校验 `_epi/staging/papers/<slug>/human-approval.json`，要求当前 gate 只有 `human-approval` 待办。
+- `wiki_ingest_trigger.py` 是批准后的继续/触发 helper：写入 `_epi/staging/papers/<slug>/wiki-agent-trigger.json`，让当前 Claude、Codex 或其他 wiki-capable agent 按同一 target vault contract 继续最终页写入；它不写最终 wiki 页面。
 - `wiki_ingest_record.py` 是 agent-mediated 完成态记录器：只读取最终 Markdown 页面、前置 `human-approval.json` 和 `final-source-review.json`，校验路径在 vault 内且不在 EPI 内部目录，验证源工件 hash、公式/图片/PDF 复核和 final page provenance，记录 hash 和 human approval，不写最终页面。
 - `promote_to_wiki.py` 只保留 legacy compiled-draft promotion 和 rollback，不能替代 agent-mediated wiki ingest。
 - `zotero_sync.py` 负责本地 record-only Zotero sidecar：读取论文 metadata 和 wiki ingest record，写 `zotero-record.json`，不调用外部 Zotero API。
-- `run_index.py` 负责 `_runs/index.json`、dashboard 和 `research-queue.json`，并在 ready queue 里嵌入当前 paper-gate 摘要；record/promote routed runs 会把 `zotero_results` 带入 index 和 dashboard。
+- `run_index.py` 负责 `_epi/runs/index.json`、dashboard 和 `research-queue.json`，并在 ready queue 里嵌入当前 paper-gate 摘要；record/promote routed runs 会把 `zotero_results` 带入 index 和 dashboard。
 - `wiki_query.py` 只查询 legacy manifest/index 视角，不能代表目标 vault 的全部知识图谱。
 - `skill_aware_evolve.py` 负责 proposal-based 自进化，默认不直接修改插件代码、用户配置或 compiled wiki。
 - `evaluation_loop.py` 负责插件开发质量环：合并 Plugin Eval、`epi-quality-gates`、benchmark、before/after metrics，写出 `epi-improvement-brief-v1` JSON/Markdown 和 `proposed_evolution` payload。默认输出目录是 `.plugin-eval/improvement-briefs/`，属于本地开发产物。
@@ -141,63 +141,85 @@ skills/
 
 ## Vault Artifact 结构
 
-EPI 默认 vault 形态：
+EPI 默认 vault 形态。除根 `_meta/` wiki contract 文件外，EPI 的运行、审计、raw、staging、evolution、cleanup 产物都收拢在单一 `_epi/` 内部仓库中：
 
 ```text
 <vault>/
+  _epi/
+    README.md
+    manifest.json
+    policies/
+      retention.json
+    meta/
+      epi-config.yaml
+      epi-config-state.json
+      config-history/
+      run-lifecycle/
+      repository-maintenance/
+      migrations/
+    runs/
+      <run-id>/
+        normalized.json
+        rank.json
+        report.md
+        report.json
+        run-state.json
+      index.json
+      research-queue.json
+    raw/
+      papers/<slug>/
+        paper.pdf
+        metadata.json
+        acquire-record.json
+        zotero-record.json
+        mineru/
+        reader/
+        critic/
+        run-state.json
+    staging/
+      papers/<slug>/
+        evidence/
+        briefs/
+        wiki-ingest-brief.json
+        human-approval.json
+        wiki-agent-trigger.json
+        promotion-plan.json
+      wiki-batches/
+        pending/
+          wiki-batch-ingest-brief.json
+    quarantine/
+      papers/
+    evolution/
+      proposals/
+      pending/
+      active/
+      archive/
+      rejected/
   _meta/
-    epi-config.yaml
-    epi-config-state.json
-    epi-config-history/
-    config-history/
-  _runs/
-    <run-id>/
-      normalized.json
-      rank.json
-      report.md
-      report.json
-      run-state.json
-    index.json
-    research-queue.json
-  _raw/
-    papers/<slug>/
-      paper.pdf
-      metadata.json
-      acquire-record.json
-      zotero-record.json
-      mineru/
-      reader/
-      critic/
-      run-state.json
-  _staging/
-    papers/<slug>/
-      references/
-      concepts/
-      synthesis/
-      reports/
-      wiki-ingest-brief.json
-      human-approval.json
-      wiki-agent-trigger.json
-      promotion-plan.json
+    agent-operating-contract.md
+    schema.md
+    taxonomy.md
+    directory-structure.md
   AGENTS.md
-  _meta/agent-operating-contract.md
-  _meta/schema.md
-  _meta/taxonomy.md
-  _meta/directory-structure.md
+  references/
+  concepts/
+  synthesis/
+  reports/
 ```
 
 写入边界：
 
-- `dry-run` 只写 `_runs`。
-- raw 阶段写 `_raw/papers/<slug>`，不写 `_staging` 或最终 wiki。
-- critic pass 后才允许写 `_staging/papers/<slug>`。
+- `dry-run` 只写 `_epi/runs`。
+- raw 阶段写 `_epi/raw/papers/<slug>`，不写 `_epi/staging` 或最终 wiki。
+- critic pass 后才允许写 `_epi/staging/papers/<slug>`。
 - `wiki-ingest-handoff` 和 `paper-gate` 都是只读。
 - 当前默认 agent-mediated plan 不写 compiled wiki。
-- agent-mediated wiki ingest 前，必须先用 `record-human-approval --scope run-wiki-ingest-agent` 写 `_staging/papers/<slug>/human-approval.json`；`wiki-ingest-handoff` 只有在该 artifact 有效时才显示 `ready_for_agent=true`。
-- 批准后可用 `wiki-ingest-trigger --slug <slug>` 写 `_staging/papers/<slug>/wiki-agent-trigger.json`，作为当前 agent 或下一次 `@EPI` 的继续写入指令；该触发包不等于最终 wiki 写入。
-- agent-mediated wiki ingest 完成后，先由 wiki agent 写 `final-source-review.json`，再用 `record-wiki-ingest --source-review ...` 只写 `_raw/papers/<slug>/wiki-ingest-record.json` 和 `_staging/papers/<slug>/wiki-ingest-record.json`，记录目标 vault agent 已写出的最终 Markdown 页、source review、pre-write approval 及其 sha256；它不得修改最终页、manifest、index、log 或 hot。
-- Zotero 集成只写 `_raw/papers/<slug>/zotero-record.json` 和 run report 中的 `zotero_results`；它不得调用外部 API、改 final wiki 页或删除 Zotero 数据。
+- agent-mediated wiki ingest 前，必须先用 `record-human-approval --scope run-wiki-ingest-agent` 写 `_epi/staging/papers/<slug>/human-approval.json`；`wiki-ingest-handoff` 只有在该 artifact 有效时才显示 `ready_for_agent=true`。
+- 批准后可用 `wiki-ingest-trigger --slug <slug>` 写 `_epi/staging/papers/<slug>/wiki-agent-trigger.json`，作为当前 agent 或下一次 `@EPI` 的继续写入指令；该触发包不等于最终 wiki 写入。
+- agent-mediated wiki ingest 完成后，先由 wiki agent 写 `final-source-review.json`，再用 `record-wiki-ingest --source-review ...` 只写 `_epi/raw/papers/<slug>/wiki-ingest-record.json` 和 `_epi/staging/papers/<slug>/wiki-ingest-record.json`，记录目标 vault agent 已写出的最终 Markdown 页、source review、pre-write approval 及其 sha256；它不得修改最终页、manifest、index、log 或 hot。
+- Zotero 集成只写 `_epi/raw/papers/<slug>/zotero-record.json` 和 run report 中的 `zotero_results`；它不得调用外部 API、改 final wiki 页或删除 Zotero 数据。
 - legacy `promote-to-wiki` 只处理显式 compiled targets，并要求 `approved-by`。
+- 旧顶层 `_raw`、`_staging`、`_runs`、`_quarantine`、`_evolution` 只作为 legacy migration 输入存在；新初始化不得创建这些顶层目录。
 
 ## 测试与发布结构
 

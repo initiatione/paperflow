@@ -123,7 +123,7 @@ def test_doctor_json_reports_structured_checks(tmp_path, monkeypatch, capsys):
     assert config_check["status"] == "warning"
     assert config_check["configured"] is False
     assert config_check["needs_onboarding"] is True
-    assert config_check["config_path"] == str((tmp_path / "vault" / "_meta" / "epi-config.yaml").resolve())
+    assert config_check["config_path"] == str((tmp_path / "vault" / "_epi" / "meta" / "epi-config.yaml").resolve())
     assert "init-config" in config_check["message"]
     assert payload["setup_required"] is True
     setup_by_check = {check["name"]: check.get("setup") for check in payload["checks"]}

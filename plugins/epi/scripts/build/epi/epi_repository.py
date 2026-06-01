@@ -1,0 +1,384 @@
+from __future__ import annotations
+
+import shutil
+from pathlib import Path
+from typing import Any
+
+from epi.artifacts import (
+    epi_meta_root,
+    epi_root,
+    evolution_root,
+    policies_root,
+    quarantine_root,
+    raw_papers_root,
+    runs_root,
+    staging_papers_root,
+    utc_now,
+    wiki_batch_pending_root,
+    write_json_atomic,
+    write_text_atomic,
+)
+
+
+DEFAULT_RETENTION_POLICY: dict[str, Any] = {
+    "schema_version": "epi-retention-policy-v1",
+    "auto_cleanup_enabled": True,
+    "max_total_files": 12000,
+    "max_total_bytes": 5 * 1024 * 1024 * 1024,
+    "runs": {
+        "keep_latest": 15,
+        "keep_per_workflow": 2,
+    },
+    "staging": {
+        "keep_pending_wiki_batches": 8,
+    },
+    "protected": [
+        "raw/papers",
+        "meta/epi-config.yaml",
+        "meta/epi-config-state.json",
+        "meta/config-history",
+        "README.md",
+        "manifest.json",
+        "policies/retention.json",
+    ],
+    "notes": [
+        "Default cleanup is conservative: raw paper sources and MinerU artifacts are not deleted.",
+        "Cleanup prefers terminal run directories and stale generated handoff bundles.",
+    ],
+}
+
+
+EPI_REPOSITORY_README = """# EPI Internal Repository
+
+This `_epi` folder is the only place where EPI writes operational paper artifacts. Obsidian graph views should ignore this folder. Formal wiki pages live outside `_epi` and are written by the wiki skill after source-first batch deposition.
+
+## Navigation
+
+- `_epi/raw/papers/<slug>/`: source paper repository. Keep `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json` here.
+- `_epi/staging/papers/<slug>/`: per-paper internal evidence handoff. These files are not formal wiki pages.
+- `_epi/staging/wiki-batches/pending/wiki-batch-ingest-brief.json`: batch handoff for the wiki skill.
+- `_epi/runs/`: workflow reports, dashboards, query plans, and transient execution state.
+- `_epi/quarantine/`: rejected, failed, or isolated paper artifacts.
+- `_epi/evolution/`: controlled skill/profile/template evolution proposals.
+- `_epi/meta/`: EPI config, config history, lifecycle manifests, migration records, and repository maintenance records.
+- `_epi/policies/retention.json`: repository cleanup policy.
+
+## Agent Contract
+
+1. Start here, then read `AGENTS.md` and root `_meta/*` before final wiki writing.
+2. Use EPI reader/critic/staging outputs as navigation and quality signals only.
+3. Final wiki pages must be distilled from original paper artifacts, formulas, figures, images, and batch-level comparison.
+4. Never promote `_epi/staging` reports, audit pages, or per-paper pseudo routes as formal wiki pages.
+5. New EPI writes must stay under `_epi`; root `references/`, `concepts/`, `synthesis/`, and `reports/` are wiki-skill-owned.
+"""
+
+
+REQUIRED_EPI_DIRS = [
+    "raw/papers",
+    "staging/papers",
+    "staging/wiki-batches/pending",
+    "quarantine/papers",
+    "runs",
+    "evolution/proposals",
+    "evolution/pending",
+    "evolution/active",
+    "evolution/archive",
+    "evolution/rejected",
+    "evolution/backups",
+    "meta/config-history",
+    "meta/run-lifecycle",
+    "meta/repository-maintenance",
+    "meta/migrations",
+    "policies",
+]
+
+
+LEGACY_INTERNAL_ROOTS = {
+    "_raw": "raw",
+    "_staging": "staging",
+    "_runs": "runs",
+    "_quarantine": "quarantine",
+    "_evolution": "evolution",
+}
+
+
+def ensure_epi_repository(vault_path: Path) -> list[str]:
+    vault_path = vault_path.resolve()
+    created: list[str] = []
+    root = epi_root(vault_path)
+    if not root.exists():
+        created.append("_epi")
+    root.mkdir(parents=True, exist_ok=True)
+    for relative_dir in REQUIRED_EPI_DIRS:
+        path = root / relative_dir
+        if not path.exists():
+            created.append(f"_epi/{relative_dir}")
+        path.mkdir(parents=True, exist_ok=True)
+
+    files = {
+        "README.md": EPI_REPOSITORY_README,
+        "policies/retention.json": DEFAULT_RETENTION_POLICY,
+    }
+    for relative_file, payload in files.items():
+        path = root / relative_file
+        if path.exists():
+            continue
+        if isinstance(payload, str):
+            write_text_atomic(path, payload)
+        else:
+            write_json_atomic(path, payload)
+        created.append(f"_epi/{relative_file}")
+    refresh_epi_manifest(vault_path)
+    return created
+
+
+def _dir_stats(path: Path) -> dict[str, int]:
+    file_count = 0
+    total_bytes = 0
+    if not path.exists():
+        return {"file_count": 0, "total_bytes": 0}
+    for item in path.rglob("*"):
+        if item.is_file():
+            file_count += 1
+            try:
+                total_bytes += item.stat().st_size
+            except OSError:
+                pass
+    return {"file_count": file_count, "total_bytes": total_bytes}
+
+
+def refresh_epi_manifest(vault_path: Path) -> dict[str, Any]:
+    vault_path = vault_path.resolve()
+    root = epi_root(vault_path)
+    manifest = {
+        "schema_version": "epi-internal-repository-manifest-v1",
+        "updated_at": utc_now(),
+        "root": "_epi",
+        "write_scope": "EPI writes only under _epi; formal wiki pages are wiki-skill-owned.",
+        "graph_visibility": "ignore _epi in Obsidian graph; use _epi/README.md for agent navigation.",
+        "sections": {
+            "raw": "raw/papers/<slug>/ source PDFs, MinerU markdown, TeX, images, manifests",
+            "staging": "staging/papers/<slug>/ internal evidence and wiki handoff",
+            "wiki_batches": "staging/wiki-batches/pending/ batch handoff for wiki skill",
+            "runs": "runs/ workflow reports, dashboards, query records, transient state",
+            "quarantine": "quarantine/ failed or isolated artifacts",
+            "evolution": "evolution/ controlled EPI profile/template/skill changes",
+            "meta": "meta/ config, migrations, lifecycle, repository maintenance",
+            "policies": "policies/ retention and cleanup policy",
+        },
+        "stats": {
+            "raw": _dir_stats(raw_papers_root(vault_path)),
+            "staging": _dir_stats(staging_papers_root(vault_path).parent),
+            "runs": _dir_stats(runs_root(vault_path)),
+            "quarantine": _dir_stats(quarantine_root(vault_path)),
+            "evolution": _dir_stats(evolution_root(vault_path)),
+            "meta": _dir_stats(epi_meta_root(vault_path)),
+        },
+    }
+    write_json_atomic(root / "manifest.json", manifest)
+    return manifest
+
+
+def _unique_collision_path(path: Path) -> Path:
+    counter = 1
+    while True:
+        candidate = path.with_name(f"{path.stem}-legacy-{counter}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
+
+def _move_path_merge(source: Path, target: Path, actions: list[dict[str, Any]], *, dry_run: bool) -> None:
+    if not source.exists():
+        return
+    if source.is_file():
+        destination = target
+        if destination.exists():
+            destination = _unique_collision_path(destination)
+        actions.append({"action": "move", "from": str(source), "to": str(destination)})
+        if not dry_run:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(source), str(destination))
+        return
+    _merge_move_contents(source, target, actions, dry_run=dry_run)
+
+
+def _merge_move_contents(source: Path, target: Path, actions: list[dict[str, Any]], *, dry_run: bool) -> None:
+    if not source.exists():
+        return
+    if source.is_file():
+        _move_path_merge(source, target, actions, dry_run=dry_run)
+        return
+    target.mkdir(parents=True, exist_ok=True)
+    for child in sorted(source.iterdir(), key=lambda item: item.name):
+        destination = target / child.name
+        if destination.exists():
+            if child.is_dir() and destination.is_dir():
+                _merge_move_contents(child, destination, actions, dry_run=dry_run)
+                if not dry_run and child.exists() and not any(child.iterdir()):
+                    child.rmdir()
+                continue
+            destination = _unique_collision_path(destination)
+        actions.append({"action": "move", "from": str(child), "to": str(destination)})
+        if not dry_run:
+            shutil.move(str(child), str(destination))
+    if not dry_run and source.exists() and not any(source.iterdir()):
+        source.rmdir()
+
+
+def migrate_legacy_epi_roots(vault_path: Path, *, dry_run: bool = False) -> dict[str, Any]:
+    vault_path = vault_path.resolve()
+    ensure_epi_repository(vault_path)
+    actions: list[dict[str, Any]] = []
+    for legacy_name, new_relative in LEGACY_INTERNAL_ROOTS.items():
+        source = vault_path / legacy_name
+        target = epi_root(vault_path) / new_relative
+        _merge_move_contents(source, target, actions, dry_run=dry_run)
+
+    legacy_meta = vault_path / "_meta"
+    if legacy_meta.exists():
+        internal_meta_names = {
+            "epi-config.yaml",
+            "epi-config-state.json",
+            "epi-config-history",
+            "config-history",
+            "run-lifecycle",
+            "wiki-reset",
+        }
+        for name in sorted(internal_meta_names):
+            source = legacy_meta / name
+            if source.exists():
+                _move_path_merge(source, epi_meta_root(vault_path) / name, actions, dry_run=dry_run)
+
+    result = {
+        "schema_version": "epi-repository-migration-v1",
+        "status": "preview" if dry_run else "migrated",
+        "migrated_at": utc_now(),
+        "vault_path": str(vault_path),
+        "epi_root": str(epi_root(vault_path)),
+        "actions": actions,
+    }
+    if not dry_run:
+        manifest_path = epi_meta_root(vault_path) / "migrations" / f"{utc_now().replace(':', '').replace('+', 'Z')}-legacy-roots.json"
+        write_json_atomic(manifest_path, result)
+        result["manifest_path"] = str(manifest_path)
+        refresh_epi_manifest(vault_path)
+    return result
+
+
+def load_retention_policy(vault_path: Path) -> dict[str, Any]:
+    ensure_epi_repository(vault_path)
+    policy_path = policies_root(vault_path) / "retention.json"
+    try:
+        import json
+
+        payload = json.loads(policy_path.read_text(encoding="utf-8"))
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    policy = dict(DEFAULT_RETENTION_POLICY)
+    for key, value in payload.items():
+        if isinstance(value, dict) and isinstance(policy.get(key), dict):
+            merged = dict(policy[key])
+            merged.update(value)
+            policy[key] = merged
+        else:
+            policy[key] = value
+    return policy
+
+
+def _path_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _remove_tree(path: Path) -> tuple[int, int]:
+    stats = _dir_stats(path)
+    if path.is_dir():
+        shutil.rmtree(path)
+    elif path.exists():
+        stats = {"file_count": 1, "total_bytes": path.stat().st_size}
+        path.unlink()
+    return stats["file_count"], stats["total_bytes"]
+
+
+def _is_terminal_run_dir(path: Path) -> bool:
+    if not path.is_dir():
+        return False
+    try:
+        import json
+
+        state = json.loads((path / "run-state.json").read_text(encoding="utf-8"))
+    except Exception:
+        return True
+    status = str(state.get("status") or state.get("state") or "").lower()
+    return status not in {"running", "waiting_for_human_gate"}
+
+
+def cleanup_epi_repository(vault_path: Path, *, dry_run: bool = False) -> dict[str, Any]:
+    vault_path = vault_path.resolve()
+    ensure_epi_repository(vault_path)
+    policy = load_retention_policy(vault_path)
+    before = refresh_epi_manifest(vault_path)
+    root_stats = _dir_stats(epi_root(vault_path))
+    max_files = int(policy.get("max_total_files") or DEFAULT_RETENTION_POLICY["max_total_files"])
+    max_bytes = int(policy.get("max_total_bytes") or DEFAULT_RETENTION_POLICY["max_total_bytes"])
+    actions: list[dict[str, Any]] = []
+
+    over_budget = root_stats["file_count"] > max_files or root_stats["total_bytes"] > max_bytes
+    if bool(policy.get("auto_cleanup_enabled", True)) and over_budget:
+        run_dirs = [
+            path
+            for path in runs_root(vault_path).iterdir()
+            if path.is_dir() and _is_terminal_run_dir(path)
+        ] if runs_root(vault_path).exists() else []
+        run_dirs.sort(key=_path_mtime)
+        keep_latest = int((policy.get("runs") or {}).get("keep_latest", 15))
+        removable = run_dirs[:-keep_latest] if keep_latest > 0 else run_dirs
+        for run_dir in removable:
+            file_count, total_bytes = _dir_stats(run_dir)
+            actions.append(
+                {
+                    "action": "remove-terminal-run-dir",
+                    "path": str(run_dir),
+                    "file_count": file_count,
+                    "total_bytes": total_bytes,
+                }
+            )
+            if not dry_run:
+                _remove_tree(run_dir)
+            root_stats["file_count"] -= file_count
+            root_stats["total_bytes"] -= total_bytes
+            if root_stats["file_count"] <= max_files and root_stats["total_bytes"] <= max_bytes:
+                break
+
+    after = refresh_epi_manifest(vault_path) if not dry_run else before
+    result = {
+        "schema_version": "epi-repository-cleanup-v1",
+        "status": "preview" if dry_run else "cleaned",
+        "checked_at": utc_now(),
+        "vault_path": str(vault_path),
+        "epi_root": str(epi_root(vault_path)),
+        "policy": {
+            "max_total_files": max_files,
+            "max_total_bytes": max_bytes,
+            "auto_cleanup_enabled": bool(policy.get("auto_cleanup_enabled", True)),
+        },
+        "over_budget": over_budget,
+        "actions": actions,
+        "deleted_count": len(actions),
+        "before_stats": before.get("stats", {}),
+        "after_stats": after.get("stats", {}),
+    }
+    if not dry_run and (over_budget or actions):
+        manifest_path = (
+            epi_meta_root(vault_path)
+            / "repository-maintenance"
+            / f"{utc_now().replace(':', '').replace('+', 'Z')}-cleanup.json"
+        )
+        write_json_atomic(manifest_path, result)
+        result["manifest_path"] = str(manifest_path)
+    return result

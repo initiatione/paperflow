@@ -4,7 +4,7 @@ import json
 import uuid
 from pathlib import Path
 
-from epi.artifacts import utc_now, write_json_atomic
+from epi.artifacts import runs_root, utc_now, write_json_atomic
 
 
 def record_feedback(
@@ -26,7 +26,7 @@ def record_feedback(
     }
     if run_id is not None:
         feedback["run_id"] = run_id
-    log_path = vault_path.resolve() / "_runs" / "feedback.jsonl"
+    log_path = runs_root(vault_path) / "feedback.jsonl"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(feedback, ensure_ascii=False) + "\n")

@@ -52,7 +52,7 @@ def test_config_status_reports_missing_config(tmp_path, monkeypatch, capsys):
     assert exit_code == 1
     assert payload["configured"] is False
     assert payload["needs_onboarding"] is True
-    assert payload["config_path"].endswith("_meta\\epi-config.yaml") or payload["config_path"].endswith("_meta/epi-config.yaml")
+    assert payload["config_path"].replace("\\", "/").endswith("_epi/meta/epi-config.yaml")
 
 
 def test_config_status_can_include_values_and_fast_runtime_status(tmp_path, monkeypatch, capsys):
@@ -107,9 +107,9 @@ def test_init_config_writes_wiki_config_state_and_history(tmp_path, monkeypatch,
         str(answers_path),
     )
 
-    config_path = vault / "_meta" / "epi-config.yaml"
-    state_path = vault / "_meta" / "epi-config-state.json"
-    history_files = list((vault / "_meta" / "config-history").glob("*.yaml"))
+    config_path = vault / "_epi/meta" / "epi-config.yaml"
+    state_path = vault / "_epi/meta" / "epi-config-state.json"
+    history_files = list((vault / "_epi/meta" / "config-history").glob("*.yaml"))
     state = json.loads(state_path.read_text(encoding="utf-8"))
 
     assert exit_code == 0
@@ -170,7 +170,7 @@ def test_propose_config_update_does_not_write_until_apply(tmp_path, monkeypatch,
         },
     )
     _run_orchestrator_cli(monkeypatch, capsys, "init-config", "--vault", str(vault), "--answers-json", str(answers_path))
-    before = (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
+    before = (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
 
     propose_exit, propose_output = _run_orchestrator_cli(
         monkeypatch,
@@ -182,7 +182,7 @@ def test_propose_config_update_does_not_write_until_apply(tmp_path, monkeypatch,
         str(proposal_path),
         "--json",
     )
-    after_propose = (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
+    after_propose = (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
 
     assert propose_exit == 0
     assert after_propose == before
@@ -202,8 +202,8 @@ def test_propose_config_update_does_not_write_until_apply(tmp_path, monkeypatch,
         "--confirmed-by",
         "tester",
     )
-    config_text = (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
-    history_files = list((vault / "_meta" / "config-history").glob("*.yaml"))
+    config_text = (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
+    history_files = list((vault / "_epi/meta" / "config-history").glob("*.yaml"))
 
     assert apply_exit == 0
     assert "config_updated=true" in apply_output
@@ -215,9 +215,9 @@ def test_propose_config_update_does_not_write_until_apply(tmp_path, monkeypatch,
 def test_reset_update_preserves_existing_wiki_artifacts(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
     for relative in [
-        "_raw/papers/keep/paper.pdf",
-        "_runs/keep-run/run-state.json",
-        "_staging/papers/keep/promotion-plan.json",
+        "_epi/raw/papers/keep/paper.pdf",
+        "_epi/runs/keep-run/run-state.json",
+        "_epi/staging/papers/keep/promotion-plan.json",
         "references/keep.md",
     ]:
         path = vault / relative
@@ -249,10 +249,10 @@ def test_reset_update_preserves_existing_wiki_artifacts(tmp_path, monkeypatch, c
     )
 
     assert exit_code == 0
-    assert "profile: reset_profile" in (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
-    assert (vault / "_raw/papers/keep/paper.pdf").read_text(encoding="utf-8") == "keep"
-    assert (vault / "_runs/keep-run/run-state.json").read_text(encoding="utf-8") == "keep"
-    assert (vault / "_staging/papers/keep/promotion-plan.json").read_text(encoding="utf-8") == "keep"
+    assert "profile: reset_profile" in (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
+    assert (vault / "_epi/raw/papers/keep/paper.pdf").read_text(encoding="utf-8") == "keep"
+    assert (vault / "_epi/runs/keep-run/run-state.json").read_text(encoding="utf-8") == "keep"
+    assert (vault / "_epi/staging/papers/keep/promotion-plan.json").read_text(encoding="utf-8") == "keep"
     assert (vault / "references/keep.md").read_text(encoding="utf-8") == "keep"
 
 
@@ -262,10 +262,10 @@ def test_wiki_reset_preserves_config_by_default_and_backs_up_content(tmp_path, m
     answers_path = tmp_path / "answers.json"
     _write_json(answers_path, _answers(profile="kept_profile"))
     _run_orchestrator_cli(monkeypatch, capsys, "init-config", "--vault", str(vault), "--answers-json", str(answers_path))
-    raw_paper = vault / "_raw" / "papers" / "paper-a" / "paper.pdf"
+    raw_paper = vault / "_epi/raw" / "papers" / "paper-a" / "paper.pdf"
     raw_paper.parent.mkdir(parents=True)
     raw_paper.write_text("paper", encoding="utf-8")
-    transient_meta = vault / "_meta" / "temporary.json"
+    transient_meta = vault / "_epi/meta" / "temporary.json"
     transient_meta.write_text("temporary", encoding="utf-8")
 
     exit_code, output = _run_orchestrator_cli(
@@ -284,11 +284,11 @@ def test_wiki_reset_preserves_config_by_default_and_backs_up_content(tmp_path, m
 
     assert exit_code == 0
     assert payload["preserved_config"] is True
-    assert "profile: kept_profile" in (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
+    assert "profile: kept_profile" in (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
     assert not raw_paper.exists()
-    assert (backup_root / "_raw" / "papers" / "paper-a" / "paper.pdf").read_text(encoding="utf-8") == "paper"
-    assert (backup_root / "_meta" / "temporary.json").read_text(encoding="utf-8") == "temporary"
-    assert (vault / "_meta" / "wiki-reset").is_dir()
+    assert (backup_root / "_epi/raw" / "papers" / "paper-a" / "paper.pdf").read_text(encoding="utf-8") == "paper"
+    assert (backup_root / "_epi/meta" / "temporary.json").read_text(encoding="utf-8") == "temporary"
+    assert (vault / "_epi/meta" / "wiki-reset").is_dir()
 
 
 def test_wiki_reset_preview_lists_actions_without_mutating(tmp_path, monkeypatch, capsys):
@@ -296,7 +296,7 @@ def test_wiki_reset_preview_lists_actions_without_mutating(tmp_path, monkeypatch
     answers_path = tmp_path / "answers.json"
     _write_json(answers_path, _answers(profile="preview_profile"))
     _run_orchestrator_cli(monkeypatch, capsys, "init-config", "--vault", str(vault), "--answers-json", str(answers_path))
-    raw_paper = vault / "_raw" / "papers" / "paper-a" / "paper.pdf"
+    raw_paper = vault / "_epi/raw" / "papers" / "paper-a" / "paper.pdf"
     raw_paper.parent.mkdir(parents=True)
     raw_paper.write_text("paper", encoding="utf-8")
 
@@ -316,7 +316,7 @@ def test_wiki_reset_preview_lists_actions_without_mutating(tmp_path, monkeypatch
     assert payload["preserve_config"] is True
     assert any(action["action"] == "would_backup" for action in payload["actions"])
     assert raw_paper.exists()
-    assert "profile: preview_profile" in (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
+    assert "profile: preview_profile" in (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
 
 
 def test_wiki_reset_requires_separate_config_confirmation(tmp_path, monkeypatch, capsys):
@@ -343,14 +343,14 @@ def test_wiki_reset_requires_separate_config_confirmation(tmp_path, monkeypatch,
     assert exit_code == 0
     assert payload["reset_config"] is True
     assert payload["after_config"]["configured"] is False
-    assert not (vault / "_meta" / "epi-config.yaml").exists()
-    assert (vault / "_raw" / "papers").is_dir()
+    assert not (vault / "_epi/meta" / "epi-config.yaml").exists()
+    assert (vault / "_epi/raw" / "papers").is_dir()
 
 
 def test_config_recover_lists_backup_candidates_and_restore_requires_confirmation(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
     backup_root = tmp_path / "reset-backups"
-    backup_config = backup_root / "old-run" / "_meta" / "epi-config.yaml"
+    backup_config = backup_root / "old-run" / "_epi/meta" / "epi-config.yaml"
     backup_config.parent.mkdir(parents=True)
     backup_config.write_text("profile: recovered_profile\nbudget:\n  max_results: 9\n", encoding="utf-8")
 
@@ -387,16 +387,16 @@ def test_config_recover_lists_backup_candidates_and_restore_requires_confirmatio
 
     assert restore_exit == 0
     assert restore_payload["status"] == "restored"
-    assert "profile: recovered_profile" in (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
-    state = json.loads((vault / "_meta" / "epi-config-state.json").read_text(encoding="utf-8"))
+    assert "profile: recovered_profile" in (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
+    state = json.loads((vault / "_epi/meta" / "epi-config-state.json").read_text(encoding="utf-8"))
     assert state["last_action"] == "config-restore"
 
 
 def test_config_recover_prioritizes_current_and_history_before_backups(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
-    current = vault / "_meta" / "epi-config.yaml"
-    history = vault / "_meta" / "config-history" / "old.yaml"
-    backup = tmp_path / "reset-backups" / "old-run" / "_meta" / "epi-config.yaml"
+    current = vault / "_epi/meta" / "epi-config.yaml"
+    history = vault / "_epi/meta" / "config-history" / "old.yaml"
+    backup = tmp_path / "reset-backups" / "old-run" / "_epi/meta" / "epi-config.yaml"
     current.parent.mkdir(parents=True)
     history.parent.mkdir(parents=True)
     backup.parent.mkdir(parents=True)
@@ -427,7 +427,7 @@ def test_config_recover_prioritizes_current_and_history_before_backups(tmp_path,
 def test_wiki_repair_can_restore_missing_config_from_backup(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
     backup_root = tmp_path / "reset-backups"
-    backup_config = backup_root / "old-run" / "_meta" / "epi-config.yaml"
+    backup_config = backup_root / "old-run" / "_epi/meta" / "epi-config.yaml"
     backup_config.parent.mkdir(parents=True)
     backup_config.write_text("profile: repair_profile\nbudget:\n  max_results: 13\n", encoding="utf-8")
 
@@ -466,4 +466,5 @@ def test_wiki_repair_can_restore_missing_config_from_backup(tmp_path, monkeypatc
     assert repair_exit == 0
     assert repair_payload["status"] == "repaired"
     assert repair_payload["after_config"]["configured"] is True
-    assert "profile: repair_profile" in (vault / "_meta" / "epi-config.yaml").read_text(encoding="utf-8")
+    assert "profile: repair_profile" in (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
+

@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from epi.artifacts import utc_now, write_json_atomic
+from epi.artifacts import epi_meta_root, legacy_meta_root, utc_now, write_json_atomic
 from epi.config import config_status
 from epi.config_protection import CONFIG_RESET_CONFIRMATION, PROTECTED_META_NAMES, WIKI_RESET_CONFIRMATION
 from epi.wiki_init import initialize_paper_wiki
@@ -52,7 +52,13 @@ def _action_record(action: str, path: Path, backup_path: Path | None = None) -> 
     return record
 
 
-def _reset_meta_dir(meta_dir: Path, backup_root: Path | None, *, preserve_config: bool) -> list[dict[str, Any]]:
+def _reset_meta_dir(
+    meta_dir: Path,
+    backup_root: Path | None,
+    *,
+    preserve_config: bool,
+    backup_relative_root: Path | None = None,
+) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
     if not meta_dir.exists():
         return actions
@@ -65,7 +71,8 @@ def _reset_meta_dir(meta_dir: Path, backup_root: Path | None, *, preserve_config
             _remove_path(child)
             actions.append(_action_record("remove", child))
         else:
-            moved_to = _move_path(child, backup_root / "_meta")
+            relative_root = backup_relative_root or Path("_meta")
+            moved_to = _move_path(child, backup_root / relative_root)
             actions.append(_action_record("backup", child, moved_to))
     return actions
 
@@ -87,6 +94,30 @@ def preview_wiki_reset(
     actions: list[dict[str, Any]] = []
     if vault_path.exists() and vault_path.is_dir():
         for child in sorted(vault_path.iterdir(), key=lambda item: item.name):
+            if child.name == "_epi":
+                meta_dir = epi_meta_root(vault_path)
+                if meta_dir.exists():
+                    for meta_child in sorted(meta_dir.iterdir(), key=lambda item: item.name):
+                        if preserve_config and meta_child.name in PROTECTED_META_NAMES:
+                            actions.append(_action_record("would_preserve", meta_child))
+                        elif effective_backup_root is None:
+                            actions.append(_action_record("would_remove", meta_child))
+                        else:
+                            actions.append(
+                                _action_record(
+                                    "would_backup",
+                                    meta_child,
+                                    effective_backup_root / "_epi" / "meta" / meta_child.name,
+                                )
+                            )
+                for epi_child in sorted(child.iterdir(), key=lambda item: item.name):
+                    if epi_child.name == "meta":
+                        continue
+                    if effective_backup_root is None:
+                        actions.append(_action_record("would_remove", epi_child))
+                    else:
+                        actions.append(_action_record("would_backup", epi_child, effective_backup_root / "_epi" / epi_child.name))
+                continue
             if child.name == "_meta":
                 for meta_child in sorted(child.iterdir(), key=lambda item: item.name) if child.exists() else []:
                     if preserve_config and meta_child.name in PROTECTED_META_NAMES:
@@ -148,7 +179,28 @@ def reset_wiki_vault(
     before_config = config_status(vault_path)
     actions: list[dict[str, Any]] = []
     for child in sorted(vault_path.iterdir(), key=lambda item: item.name):
-        if child.name == "_meta":
+        if child.name in {"_meta", "_epi"}:
+            if child.name == "_epi":
+                meta_dir = epi_meta_root(vault_path)
+                if meta_dir.exists():
+                    actions.extend(
+                        _reset_meta_dir(
+                            meta_dir,
+                            backup_root,
+                            preserve_config=preserve_config,
+                            backup_relative_root=Path("_epi") / "meta",
+                        )
+                    )
+                for epi_child in sorted(child.iterdir(), key=lambda item: item.name):
+                    if epi_child.name == "meta":
+                        continue
+                    if backup_root is None:
+                        _remove_path(epi_child)
+                        actions.append(_action_record("remove", epi_child))
+                    else:
+                        moved_to = _move_path(epi_child, backup_root / "_epi")
+                        actions.append(_action_record("backup", epi_child, moved_to))
+                continue
             actions.extend(_reset_meta_dir(child, backup_root, preserve_config=preserve_config))
             continue
         if backup_root is None:
@@ -160,7 +212,7 @@ def reset_wiki_vault(
 
     created = initialize_paper_wiki(vault_path)
     after_config = config_status(vault_path)
-    manifest_dir = vault_path / "_meta" / "wiki-reset"
+    manifest_dir = epi_meta_root(vault_path) / "wiki-reset"
     manifest_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = manifest_dir / f"{_safe_timestamp()}-wiki-reset.json"
     result = {

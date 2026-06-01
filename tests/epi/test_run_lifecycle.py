@@ -10,7 +10,7 @@ def _write_json(path, payload):
 
 
 def _seed_run(vault, run_id, workflow="paper-discovery-dry-run", status="success"):
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi/runs" / run_id
     _write_json(
         run_dir / "run-state.json",
         {
@@ -27,7 +27,7 @@ def _seed_run(vault, run_id, workflow="paper-discovery-dry-run", status="success
 
 
 def _seed_stale_running_run(vault, run_id):
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi/runs" / run_id
     _write_json(
         run_dir / "run-state.json",
         {
@@ -42,7 +42,7 @@ def _seed_stale_running_run(vault, run_id):
 
 
 def _seed_active_running_run(vault, run_id):
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi/runs" / run_id
     _write_json(
         run_dir / "run-state.json",
         {
@@ -67,7 +67,7 @@ def test_run_lifecycle_dry_run_keeps_files_and_reports_candidates(tmp_path):
     assert result["dry_run"] is True
     assert result["candidate_count"] == 2
     assert old_run.exists()
-    assert (vault / "_meta" / "run-lifecycle").is_dir()
+    assert (vault / "_epi/meta" / "run-lifecycle").is_dir()
 
 
 def test_run_lifecycle_apply_removes_only_terminal_candidates_and_refreshes_index(tmp_path):
@@ -83,7 +83,7 @@ def test_run_lifecycle_apply_removes_only_terminal_candidates_and_refreshes_inde
     assert not removable.exists()
     assert kept_recent.exists()
     assert protected.exists()
-    index = json.loads((vault / "_runs" / "index.json").read_text(encoding="utf-8"))
+    index = json.loads((vault / "_epi/runs" / "index.json").read_text(encoding="utf-8"))
     assert index["summary"]["total_runs"] == 2
 
 
@@ -96,9 +96,9 @@ def test_auto_run_lifecycle_skips_until_threshold_then_applies(tmp_path):
 
     assert skipped["skipped"] is True
     assert skipped["deleted_count"] == 0
-    assert len([path for path in (vault / "_runs").iterdir() if path.is_dir()]) == 15
+    assert len([path for path in (vault / "_epi/runs").iterdir() if path.is_dir()]) == 15
 
-    oldest_run = vault / "_runs" / "run-00"
+    oldest_run = vault / "_epi/runs" / "run-00"
     newest_run = _seed_run(vault, "run-99")
     applied = auto_prune_run_lifecycle(vault, keep_latest=15, keep_per_workflow=0)
 
@@ -107,13 +107,13 @@ def test_auto_run_lifecycle_skips_until_threshold_then_applies(tmp_path):
     assert applied["deleted_count"] == 1
     assert not oldest_run.exists()
     assert newest_run.exists()
-    assert (vault / "_meta" / "run-lifecycle").is_dir()
+    assert (vault / "_epi/meta" / "run-lifecycle").is_dir()
 
 
 def test_run_lifecycle_can_prune_failed_invalid_and_stale_running_runs(tmp_path):
     vault = tmp_path / "vault"
     failed = _seed_run(vault, "run-failed", status="failed")
-    invalid = vault / "_runs" / "run-invalid"
+    invalid = vault / "_epi/runs" / "run-invalid"
     invalid.mkdir(parents=True)
     stale_running = _seed_stale_running_run(vault, "run-stale-running")
     active = _seed_active_running_run(vault, "run-active")
@@ -128,3 +128,4 @@ def test_run_lifecycle_can_prune_failed_invalid_and_stale_running_runs(tmp_path)
     assert not stale_running.exists()
     assert active.exists()
     assert protected.exists()
+

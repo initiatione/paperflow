@@ -94,7 +94,7 @@ def _candidate(slug, title, pdf_url):
 
 
 def _seed_critic_ready_paper(vault, candidate, *, sources=None):
-    paper_root = vault / "_raw" / "papers" / candidate["slug"]
+    paper_root = vault / "_epi" / "raw" / "papers" / candidate["slug"]
     mineru_dir = paper_root / "mineru"
     mineru_dir.mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\ncritic ready fixture\n")
@@ -175,7 +175,7 @@ def test_advance_paper_batch_routes_candidates_once_and_records_run_state(tmp_pa
     assert [result["last_action"] for result in batch["results"]] == ["acquire", "acquire"]
     assert [result["next_action"] for result in batch["results"]] == ["parse", "parse"]
 
-    run_dir = vault / "_runs" / batch["run_id"]
+    run_dir = vault / "_epi" / "runs" / batch["run_id"]
     assert run_dir.is_dir()
     assert json.loads((run_dir / "run-state.json").read_text(encoding="utf-8")) == batch
     record = json.loads((run_dir / "batch-advance-record.json").read_text(encoding="utf-8"))
@@ -184,15 +184,15 @@ def test_advance_paper_batch_routes_candidates_once_and_records_run_state(tmp_pa
     assert record["results"] == batch["results"]
     assert record["tool_versions"] == batch["tool_versions"]
     assert record["output_artifact_hashes"]["paper:batch-alpha:run-state.json"] == file_sha256(
-        vault / "_raw" / "papers" / "batch-alpha" / "run-state.json"
+        vault / "_epi" / "raw" / "papers" / "batch-alpha" / "run-state.json"
     )
     assert record["output_artifact_hashes"]["paper:batch-beta:run-state.json"] == file_sha256(
-        vault / "_raw" / "papers" / "batch-beta" / "run-state.json"
+        vault / "_epi" / "raw" / "papers" / "batch-beta" / "run-state.json"
     )
     report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
     report_md = (run_dir / "report.md").read_text(encoding="utf-8")
-    index_payload = json.loads((vault / "_runs" / "index.json").read_text(encoding="utf-8"))
-    dashboard_text = (vault / "_runs" / "dashboard.md").read_text(encoding="utf-8")
+    index_payload = json.loads((vault / "_epi" / "runs" / "index.json").read_text(encoding="utf-8"))
+    dashboard_text = (vault / "_epi" / "runs" / "dashboard.md").read_text(encoding="utf-8")
     assert report_json["processed_count"] == 2
     assert report_json["skipped_count"] == 0
     assert report_json["paper_states"] == [
@@ -209,8 +209,8 @@ def test_advance_paper_batch_routes_candidates_once_and_records_run_state(tmp_pa
     assert batch["run_id"] in dashboard_text
 
     for slug in ("batch-alpha", "batch-beta"):
-        assert (vault / "_raw" / "papers" / slug / "paper.pdf").is_file()
-        assert (vault / "_raw" / "papers" / slug / "run-state.json").is_file()
+        assert (vault / "_epi" / "raw" / "papers" / slug / "paper.pdf").is_file()
+        assert (vault / "_epi" / "raw" / "papers" / slug / "run-state.json").is_file()
         assert not (vault / "references" / f"{slug}.md").exists()
 
 
@@ -221,10 +221,10 @@ def test_advance_paper_batch_reports_research_decisions_after_critic(tmp_path):
 
     batch = advance_paper_batch(vault, [candidate])
 
-    run_dir = vault / "_runs" / batch["run_id"]
+    run_dir = vault / "_epi" / "runs" / batch["run_id"]
     report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
     report_md = (run_dir / "report.md").read_text(encoding="utf-8")
-    index_payload = json.loads((vault / "_runs" / "index.json").read_text(encoding="utf-8"))
+    index_payload = json.loads((vault / "_epi" / "runs" / "index.json").read_text(encoding="utf-8"))
 
     assert batch["results"][0]["state"] == "critic_passed"
     assert report_json["research_decisions"][0]["slug"] == "decision-paper"
@@ -254,10 +254,10 @@ def test_advance_paper_batch_reports_reproducibility_caveats_after_critic(tmp_pa
 
     batch = advance_paper_batch(vault, [candidate])
 
-    run_dir = vault / "_runs" / batch["run_id"]
+    run_dir = vault / "_epi" / "runs" / batch["run_id"]
     report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
     report_md = (run_dir / "report.md").read_text(encoding="utf-8")
-    index_payload = json.loads((vault / "_runs" / "index.json").read_text(encoding="utf-8"))
+    index_payload = json.loads((vault / "_epi" / "runs" / "index.json").read_text(encoding="utf-8"))
 
     assert batch["results"][0]["state"] == "critic_passed"
     assert report_json["reproduction_plans"][0]["slug"] == "repro-plan-paper"
@@ -288,11 +288,11 @@ def test_advance_paper_batch_respects_max_papers_budget_and_records_skips(tmp_pa
     assert batch["input_artifact_hashes"]["candidates"] == json_sha256([candidates[0]])
     assert [result["paper_slug"] for result in batch["results"]] == ["budget-alpha"]
     record = json.loads(
-        (vault / "_runs" / batch["run_id"] / "batch-advance-record.json").read_text(encoding="utf-8")
+        (vault / "_epi" / "runs" / batch["run_id"] / "batch-advance-record.json").read_text(encoding="utf-8")
     )
     assert record["input_artifact_hashes"]["candidates"] == json_sha256([candidates[0]])
-    assert (vault / "_raw" / "papers" / "budget-alpha" / "paper.pdf").is_file()
-    assert not (vault / "_raw" / "papers" / "budget-beta" / "paper.pdf").exists()
+    assert (vault / "_epi" / "raw" / "papers" / "budget-alpha" / "paper.pdf").is_file()
+    assert not (vault / "_epi" / "raw" / "papers" / "budget-beta" / "paper.pdf").exists()
 
 
 def test_advance_paper_batch_from_run_uses_ranked_candidates_without_manual_copy(tmp_path):
@@ -301,7 +301,7 @@ def test_advance_paper_batch_from_run_uses_ranked_candidates_without_manual_copy
     (server_root / "ranked.pdf").write_bytes(b"%PDF-1.4\nranked fixture\n")
     vault = tmp_path / "vault"
     run_id = "20260527T120000Z"
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi" / "runs" / run_id
     run_dir.mkdir(parents=True)
 
     with _LocalServer(server_root) as base_url:
@@ -322,7 +322,7 @@ def test_advance_paper_batch_from_run_uses_ranked_candidates_without_manual_copy
     assert batch["input_artifact_hashes"]["candidate_source"] == file_sha256(run_dir / "rank.json")
     assert batch["results"][0]["paper_slug"] == "ranked-alpha"
     assert batch["results"][0]["last_action"] == "acquire"
-    batch_run_dir = vault / "_runs" / batch["run_id"]
+    batch_run_dir = vault / "_epi" / "runs" / batch["run_id"]
     routed_report = json.loads((batch_run_dir / "report.json").read_text(encoding="utf-8"))
     assert routed_report["processed_count"] == 1
     assert routed_report["skipped_count"] == 0
@@ -334,7 +334,7 @@ def test_advance_paper_batch_from_run_uses_ranked_candidates_without_manual_copy
     assert routed_report["wiki_pages_written"] == []
     assert batch["source_run_id"] == run_id
     assert json.loads((batch_run_dir / "batch-advance-record.json").read_text(encoding="utf-8"))["source_run_id"] == run_id
-    assert (vault / "_raw" / "papers" / "ranked-alpha" / "paper.pdf").is_file()
+    assert (vault / "_epi" / "raw" / "papers" / "ranked-alpha" / "paper.pdf").is_file()
 
 
 def test_prepare_ranked_papers_from_run_acquires_and_parses_then_stops(tmp_path):
@@ -343,7 +343,7 @@ def test_prepare_ranked_papers_from_run_acquires_and_parses_then_stops(tmp_path)
     (server_root / "ranked.pdf").write_bytes(b"%PDF-1.4\nranked fixture\n")
     vault = tmp_path / "vault"
     run_id = "20260527T121500Z"
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi" / "runs" / run_id
     run_dir.mkdir(parents=True)
     mineru_command = _write_success_mineru_command(tmp_path)
 
@@ -361,12 +361,12 @@ def test_prepare_ranked_papers_from_run_acquires_and_parses_then_stops(tmp_path)
     assert batch["results"][0]["last_action"] == "parse"
     assert batch["results"][0]["next_action"] == "read"
     assert batch["next_actions"] == ["read"]
-    paper_root = vault / "_raw" / "papers" / "prepared-alpha"
+    paper_root = vault / "_epi" / "raw" / "papers" / "prepared-alpha"
     assert (paper_root / "paper.pdf").is_file()
     assert (paper_root / "mineru" / "paper.md").is_file()
     assert not (paper_root / "reader" / "reader.md").exists()
     assert not (paper_root / "critic" / "critic-report.json").exists()
-    assert json.loads((vault / "_runs" / batch["run_id"] / "batch-advance-record.json").read_text(encoding="utf-8"))[
+    assert json.loads((vault / "_epi" / "runs" / batch["run_id"] / "batch-advance-record.json").read_text(encoding="utf-8"))[
         "workflow_type"
     ] == "prepare-ranked"
 
@@ -374,12 +374,12 @@ def test_prepare_ranked_papers_from_run_acquires_and_parses_then_stops(tmp_path)
 def test_prepare_ranked_papers_repairs_incomplete_existing_parse_outputs(tmp_path):
     vault = tmp_path / "vault"
     run_id = "20260527T122000Z"
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi" / "runs" / run_id
     run_dir.mkdir(parents=True)
     candidate = _candidate("incomplete-parse", "Incomplete Parse", "https://example.org/incomplete.pdf")
     candidate["ranking_protocol"] = {"decision": "advance-candidate"}
     (run_dir / "rank.json").write_text(json.dumps([candidate]), encoding="utf-8")
-    paper_root = vault / "_raw" / "papers" / "incomplete-parse"
+    paper_root = vault / "_epi" / "raw" / "papers" / "incomplete-parse"
     mineru_dir = paper_root / "mineru"
     mineru_dir.mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nexisting fixture\n")
@@ -403,7 +403,7 @@ def test_prepare_ranked_papers_records_failed_candidate_and_continues(tmp_path, 
     (server_root / "good.pdf").write_bytes(b"%PDF-1.4\ngood fixture\n")
     vault = tmp_path / "vault"
     run_id = "20260527T122500Z"
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi" / "runs" / run_id
     run_dir.mkdir(parents=True)
     mineru_command = _write_success_mineru_command(tmp_path)
 
@@ -449,9 +449,9 @@ def test_prepare_ranked_papers_records_failed_candidate_and_continues(tmp_path, 
     assert batch["results"][0]["stage_record"]["status"] == "failed"
     assert "simulated download timeout" in batch["results"][0]["stage_record"]["error"]
     assert batch["results"][1]["state"] == "parsed"
-    assert (vault / "_raw" / "papers" / "after-timeout" / "mineru" / "paper.md").is_file()
+    assert (vault / "_epi" / "raw" / "papers" / "after-timeout" / "mineru" / "paper.md").is_file()
 
-    report_json = json.loads((vault / "_runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
+    report_json = json.loads((vault / "_epi" / "runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
     assert report_json["failed_papers"] == [
         {"paper_slug": "download-timeout", "state": "prepare_failed", "next_action": None}
     ]
@@ -468,13 +468,13 @@ def test_prepare_ranked_papers_can_skip_existing_parsed_candidates_when_resuming
     (server_root / "new.pdf").write_bytes(b"%PDF-1.4\nnew fixture\n")
     vault = tmp_path / "vault"
     run_id = "20260527T123000Z"
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi" / "runs" / run_id
     run_dir.mkdir(parents=True)
     mineru_command = _write_success_mineru_command(tmp_path)
 
     existing = _candidate("already-parsed", "Already Parsed", "https://example.org/already.pdf")
     existing["ranking_protocol"] = {"decision": "advance-candidate"}
-    existing_root = vault / "_raw" / "papers" / "already-parsed"
+    existing_root = vault / "_epi" / "raw" / "papers" / "already-parsed"
     existing_mineru = existing_root / "mineru"
     existing_mineru.mkdir(parents=True)
     (existing_root / "paper.pdf").write_bytes(b"%PDF-1.4\nexisting fixture\n")
@@ -509,9 +509,9 @@ def test_prepare_ranked_papers_can_skip_existing_parsed_candidates_when_resuming
     ]
     assert batch["results"][0]["paper_slug"] == "resume-new"
     assert batch["results"][0]["state"] == "parsed"
-    assert (vault / "_raw" / "papers" / "resume-new" / "mineru" / "paper.md").is_file()
+    assert (vault / "_epi" / "raw" / "papers" / "resume-new" / "mineru" / "paper.md").is_file()
 
-    report_json = json.loads((vault / "_runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
+    report_json = json.loads((vault / "_epi" / "runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
     assert report_json["skip_existing"] is True
     assert report_json["skipped_existing_candidates"] == batch["skipped_existing_candidates"]
 
@@ -521,7 +521,7 @@ def test_prepare_ranked_papers_reparses_when_parse_record_missing_or_unsuccessfu
     server_root.mkdir()
     vault = tmp_path / "vault"
     run_id = "20260527T124500Z"
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi" / "runs" / run_id
     run_dir.mkdir(parents=True)
     mineru_command = _write_success_mineru_command(tmp_path)
 
@@ -530,7 +530,7 @@ def test_prepare_ranked_papers_reparses_when_parse_record_missing_or_unsuccessfu
     # --skip-existing must NOT treat this as done; it must reparse.
     stale = _candidate("stale-parse", "Stale Parse", "https://example.org/stale.pdf")
     stale["ranking_protocol"] = {"decision": "advance-candidate"}
-    stale_root = vault / "_raw" / "papers" / "stale-parse"
+    stale_root = vault / "_epi" / "raw" / "papers" / "stale-parse"
     stale_mineru = stale_root / "mineru"
     stale_mineru.mkdir(parents=True)
     (stale_root / "paper.pdf").write_bytes(b"%PDF-1.4\nstale fixture\n")
@@ -565,7 +565,7 @@ def test_advance_paper_batch_from_run_skips_review_candidates_by_default(tmp_pat
     (server_root / "review.pdf").write_bytes(b"%PDF-1.4\nreview fixture\n")
     vault = tmp_path / "vault"
     run_id = "20260527T130000Z"
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi" / "runs" / run_id
     run_dir.mkdir(parents=True)
 
     with _LocalServer(server_root) as base_url:
@@ -595,8 +595,8 @@ def test_advance_paper_batch_from_run_skips_review_candidates_by_default(tmp_pat
             "reason": "decision_not_selected",
         }
     ]
-    assert (vault / "_raw" / "papers" / "ranked-advance" / "paper.pdf").is_file()
-    assert not (vault / "_raw" / "papers" / "ranked-review" / "paper.pdf").exists()
+    assert (vault / "_epi" / "raw" / "papers" / "ranked-advance" / "paper.pdf").is_file()
+    assert not (vault / "_epi" / "raw" / "papers" / "ranked-review" / "paper.pdf").exists()
 
 
 def test_advance_paper_batch_from_run_can_include_review_candidates_explicitly(tmp_path):
@@ -606,7 +606,7 @@ def test_advance_paper_batch_from_run_can_include_review_candidates_explicitly(t
     (server_root / "review.pdf").write_bytes(b"%PDF-1.4\nreview fixture\n")
     vault = tmp_path / "vault"
     run_id = "20260527T140000Z"
-    run_dir = vault / "_runs" / run_id
+    run_dir = vault / "_epi" / "runs" / run_id
     run_dir.mkdir(parents=True)
 
     with _LocalServer(server_root) as base_url:
@@ -626,8 +626,8 @@ def test_advance_paper_batch_from_run_can_include_review_candidates_explicitly(t
     assert batch["processed_count"] == 2
     assert batch["skipped_count"] == 0
     assert batch["skipped_ranked_candidates"] == []
-    assert (vault / "_raw" / "papers" / "include-advance" / "paper.pdf").is_file()
-    assert (vault / "_raw" / "papers" / "include-review" / "paper.pdf").is_file()
+    assert (vault / "_epi" / "raw" / "papers" / "include-advance" / "paper.pdf").is_file()
+    assert (vault / "_epi" / "raw" / "papers" / "include-review" / "paper.pdf").is_file()
 
 
 def test_advance_paper_batch_from_run_fails_closed_when_rank_file_missing(tmp_path):

@@ -121,6 +121,19 @@ def _copy_tree_contents(source_dir: Path, target_dir: Path) -> int:
     return count
 
 
+def _materialize_display_markdown(mineru_dir: Path, source_path: Path, paper_slug: str) -> Path:
+    display_path = mineru_dir / f"{paper_slug}.md"
+    if display_path.resolve() == source_path.resolve():
+        return source_path
+    if display_path.exists() or display_path.is_symlink():
+        display_path.unlink()
+    try:
+        os.link(source_path, display_path)
+    except OSError:
+        shutil.copyfile(source_path, display_path)
+    return display_path
+
+
 def _escape_latex_text(value: str) -> str:
     replacements = {
         "\\": r"\textbackslash{}",
@@ -354,7 +367,9 @@ def run_mineru_command(
 
     mineru_dir = paper_root / "mineru"
     mineru_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(markdown_path, mineru_dir / "paper.md")
+    mineru_markdown_path = mineru_dir / "paper.md"
+    shutil.copyfile(markdown_path, mineru_markdown_path)
+    display_markdown_path = _materialize_display_markdown(mineru_dir, mineru_markdown_path, paper_root.name)
     tex_candidates = sorted(path for path in markdown_path.parent.glob("*.tex") if path.stat().st_size > 0)
     if tex_candidates:
         shutil.copyfile(tex_candidates[0], mineru_dir / "paper.tex")
@@ -363,7 +378,7 @@ def run_mineru_command(
         tex_source = "markdown-fallback"
         write_text_atomic(
             mineru_dir / "paper.tex",
-            _markdown_to_latex((mineru_dir / "paper.md").read_text(encoding="utf-8")),
+            _markdown_to_latex(mineru_markdown_path.read_text(encoding="utf-8")),
         )
     image_dir = markdown_path.parent / "images"
     image_count = _copy_tree_contents(image_dir, mineru_dir / "images")
@@ -386,7 +401,8 @@ def run_mineru_command(
         "batch_id": _batch_id_from(completed.stdout, manifest),
         "stdout_path": str(stdout_path),
         "stderr_path": str(stderr_path),
-        "markdown_path": str(mineru_dir / "paper.md"),
+        "markdown_path": str(mineru_markdown_path),
+        "display_markdown_path": str(display_markdown_path),
         "tex_path": str(mineru_dir / "paper.tex"),
         "tex_source": tex_source,
         "manifest_path": str(mineru_dir / "mineru-manifest.json") if manifest_path else None,
@@ -398,6 +414,7 @@ def run_mineru_command(
     }
     output_hashes = {
         "paper.md": file_sha256(mineru_dir / "paper.md"),
+        f"{paper_root.name}.md": file_sha256(display_markdown_path),
         "paper.tex": file_sha256(mineru_dir / "paper.tex"),
         "stdout.txt": file_sha256(stdout_path),
         "stderr.txt": file_sha256(stderr_path),
@@ -418,7 +435,9 @@ def materialize_mineru_fixture(
     started_at = utc_now()
     mineru_dir = paper_root / "mineru"
     mineru_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(markdown_path, mineru_dir / "paper.md")
+    mineru_markdown_path = mineru_dir / "paper.md"
+    shutil.copyfile(markdown_path, mineru_markdown_path)
+    display_markdown_path = _materialize_display_markdown(mineru_dir, mineru_markdown_path, paper_root.name)
     if tex_path:
         shutil.copyfile(tex_path, mineru_dir / "paper.tex")
         tex_source = "fixture-native"
@@ -426,7 +445,7 @@ def materialize_mineru_fixture(
         tex_source = "markdown-fallback"
         write_text_atomic(
             mineru_dir / "paper.tex",
-            _markdown_to_latex((mineru_dir / "paper.md").read_text(encoding="utf-8")),
+            _markdown_to_latex(mineru_markdown_path.read_text(encoding="utf-8")),
         )
     (mineru_dir / "images").mkdir(exist_ok=True)
     image_count = 0
@@ -459,7 +478,8 @@ def materialize_mineru_fixture(
         "finished_at": utc_now(),
         "parsed_at": utc_now(),
         "exit_status": 0,
-        "markdown_path": str(mineru_dir / "paper.md"),
+        "markdown_path": str(mineru_markdown_path),
+        "display_markdown_path": str(display_markdown_path),
         "tex_path": str(mineru_dir / "paper.tex"),
         "manifest_path": str(manifest_path),
         "tex_source": tex_source,
@@ -473,6 +493,7 @@ def materialize_mineru_fixture(
     parse_record["input_artifact_hashes"] = input_hashes
     parse_record["output_artifact_hashes"] = {
         "paper.md": file_sha256(mineru_dir / "paper.md"),
+        f"{paper_root.name}.md": file_sha256(display_markdown_path),
         "paper.tex": file_sha256(mineru_dir / "paper.tex"),
         "mineru-manifest.json": file_sha256(manifest_path),
     }

@@ -13,7 +13,7 @@ Before running the first query:
 7. Apply the `domain_focus_terms` hard anchor gate before ranking when the query plan provides it. A paper that only matches a broad method term, such as reinforcement learning, graph neural network, or deep learning, but not the requested object/task/domain anchor should be rejected as `outside_domain`.
 8. Apply `venue-prior.md` as a recall/ranking prior from user config. Check whether the user's configured flagship venues, journals, conferences, or field databases are missing before accepting the result set.
 9. Deduplicate across variants by DOI first, then normalized title.
-10. Deduplicate against the downloaded wiki library under `_raw\papers`. A paper already present in `_raw\papers\<slug>\metadata.json` must be rejected with `already_in_library:<slug>` and should not be recommended again unless the user explicitly asks to repair or reprocess that existing paper.
+10. Deduplicate against the downloaded wiki library under `_epi\raw\papers`. A paper already present in `_epi\raw\papers\<slug>\metadata.json` must be rejected with `already_in_library:<slug>` and should not be recommended again unless the user explicitly asks to repair or reprocess that existing paper.
 11. For strong seed papers, use `citation-graph.md` to check journal versions, related papers, references, and recent cited-by papers.
 
 For any narrow field, do not let the query planner blur the target into generic AI/science terms. If the first planned run broadens away from the user's configured profile or current request, rerun with `--no-query-plan` and exact phrases from the user's wording, or update config before rerunning.

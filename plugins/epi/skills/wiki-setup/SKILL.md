@@ -13,10 +13,10 @@ wiki structure reset and EPI config reset are separate operations. Default reset
 
 Preserve:
 
-- `_meta\epi-config.yaml`
-- `_meta\epi-config-state.json`
-- `_meta\epi-config-history\`
-- `_meta\config-history\`
+- `_epi\meta\epi-config.yaml`
+- `_epi\meta\epi-config-state.json`
+- `_epi\meta\epi-config-history\`
+- `_epi\meta\config-history\`
 - `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`
 
 Before and after destructive actions, report non-secret config state only:
@@ -35,9 +35,37 @@ python scripts\init_paper_wiki.py --vault <vault>
 
 Initialization must ensure the vault is a git repository. `init_paper_wiki.py` runs `git init` when `<vault>\.git` is missing, records `.git` in the created path list, and does not create a first commit. If `.git` already exists, preserve the existing repository.
 
-Expected structure includes paper raw/staging/quarantine roots, `_runs`, `_evolution`, `_meta`, wiki roots, `.obsidian`, `.git`, `index.md`, `log.md`, `hot.md`, and `.manifest.json`. Summarize created paths and preserved files.
+Expected structure includes one EPI internal repository root `_epi`, wiki contract root `_meta`, wiki roots, `.obsidian`, `.git`, `index.md`, `log.md`, `hot.md`, and `.manifest.json`. New initialization must not create top-level `_raw`, `_staging`, `_runs`, `_quarantine`, or `_evolution`.
+
+`_epi` must include navigation, manifest, and repository policy:
+
+- `_epi\README.md`
+- `_epi\manifest.json`
+- `_epi\policies\retention.json`
+- `_epi\raw\papers\`
+- `_epi\staging\papers\`
+- `_epi\staging\wiki-batches\pending\`
+- `_epi\runs\`
+- `_epi\quarantine\papers\`
+- `_epi\evolution\`
+- `_epi\meta\`
+
+Obsidian graph views should ignore `_epi`; `_epi/raw/papers/<slug>/mineru/paper.md` remains source material, not a formal wiki page.
 
 Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`. These defaults are source-first for paper research: final wiki pages must read `mineru\paper.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`, then use reader/critic outputs as evidence aids.
+
+For existing vaults with old top-level operational roots, migrate before or after initialization:
+
+```powershell
+python scripts\orchestrator.py epi-repository-migrate --vault <vault> --preview --json
+python scripts\orchestrator.py epi-repository-migrate --vault <vault> --json
+```
+
+Then run cleanup preview:
+
+```powershell
+python scripts\orchestrator.py epi-repository-cleanup --vault <vault> --preview --json
+```
 
 ## Reset
 
@@ -68,7 +96,7 @@ Do not infer config reset from "reset wiki", "clean everything", "no backup", or
 python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 EPI wiki" --reset-config-confirmed-by "确认同时重置 EPI config" --json
 ```
 
-After reset, initialize, rerun `config-status`, and stop if config unexpectedly needs onboarding.
+After reset, initialize, rerun `config-status`, and stop if config unexpectedly needs onboarding. To reset or compact old operational roots, use `epi-repository-migrate` and `epi-repository-cleanup`; do not manually delete source paper artifacts.
 
 ## Misdelete Recovery
 

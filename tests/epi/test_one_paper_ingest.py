@@ -114,30 +114,30 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
         assert reviewer["scope"]
         assert reviewer["evidence"]
 
-    assert (staging_root / "references" / f"{slug}.md").is_file()
-    concept_path = staging_root / "concepts" / f"{slug}-concept.md"
-    synthesis_path = staging_root / "synthesis" / f"{slug}-synthesis.md"
-    reading_report_path = staging_root / "reports" / f"{slug}-reading-report.md"
-    assert concept_path.is_file()
-    assert synthesis_path.is_file()
+    assert not (staging_root / "references" / f"{slug}.md").exists()
+    assert not (staging_root / "concepts" / f"{slug}-concept.md").exists()
+    assert not (staging_root / "synthesis" / f"{slug}-synthesis.md").exists()
+    source_reader_path = staging_root / "evidence" / "source-reader.md"
+    reading_report_path = staging_root / "briefs" / "reading-report.md"
+    assert source_reader_path.is_file()
     assert reading_report_path.is_file()
-    assert f"reference_page: references/{slug}.md" in concept_path.read_text(encoding="utf-8")
-    assert f"reference_page: references/{slug}.md" in synthesis_path.read_text(encoding="utf-8")
+    assert "formal_page: false" in source_reader_path.read_text(encoding="utf-8")
     reading_report_text = reading_report_path.read_text(encoding="utf-8")
     assert "page_type: reading_report" in reading_report_text
+    assert "formal_page: false" in reading_report_text
     assert "## Quick Take" in reading_report_text
     assert "## Reading Trust Status" in reading_report_text
     assert "- Status: accepted-with-caveats" in reading_report_text
     assert "- Warning reviewers: paper-quality-critic" in reading_report_text
-    assert "Read `Quick Take`, `Reading Trust Status`, `Quality Gates`, and `Suggested Wiki Routes` first." in reading_report_text
+    assert "Read `Quick Take`, `Reading Trust Status`, `Quality Gates`, and `Wiki Skill Handoff` first." in reading_report_text
     assert "## What To Read If You Only Have 5 Minutes" in reading_report_text
     assert "## Wiki Ingest Brief" in reading_report_text
     assert "- Ingest brief: `wiki-ingest-brief.json`" in reading_report_text
     assert "- Trust status: accepted-with-caveats" in reading_report_text
-    assert "- Final wiki pages: created by the wiki-ingest agent, not fixed by EPI staging." in reading_report_text
+    assert "- Final wiki pages: created by wiki skill batch distillation, not fixed by EPI staging." in reading_report_text
     assert "## Theory And Experiment Ideas" in reading_report_text
     assert "## Evidence Map" in reading_report_text
-    assert "## Suggested Wiki Routes" in reading_report_text
+    assert "## Wiki Skill Handoff" in reading_report_text
     assert "## Quality Gates" in reading_report_text
     assert "## Reproducibility Caveats" in reading_report_text
     assert reading_report_text.index("## Theory And Experiment Ideas") < reading_report_text.index(
@@ -151,8 +151,11 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert wiki_ingest_brief["handoff_type"] == "agent-mediated-wiki-ingest"
     assert wiki_ingest_brief["paper_slug"] == slug
     assert wiki_ingest_brief["trust_status"]["status"] == "accepted-with-caveats"
-    assert "not fixed by EPI staging" in wiki_ingest_brief["ingest_policy"]["final_page_authority"]
-    assert wiki_ingest_brief["ingest_policy"]["suggested_routes_only"] is True
+    assert "wiki skill batch distillation" in wiki_ingest_brief["ingest_policy"]["final_page_authority"]
+    assert wiki_ingest_brief["ingest_policy"]["epi_write_scope"] == "internal-underscore-artifacts-only"
+    assert wiki_ingest_brief["ingest_policy"]["formal_routes_suggested"] is False
+    assert wiki_ingest_brief["ingest_policy"]["wiki_batch_handoff_required"] is True
+    assert "wiki-ingest" in wiki_ingest_brief["ingest_policy"]["required_wiki_skills"]
     assert "target vault contract" in wiki_ingest_brief["ingest_policy"]["authority"]
     assert "Markdown vault" in wiki_ingest_brief["ingest_policy"]["source_of_truth"]
     assert "mineru/paper.md" in wiki_ingest_brief["ingest_policy"]["source_first_policy"]
@@ -193,14 +196,18 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     )
     assert "Claude" in wiki_ingest_brief["ingest_policy"]["executor_policy"]
     assert "Codex" in wiki_ingest_brief["ingest_policy"]["executor_policy"]
-    assert wiki_ingest_brief["entrypoints"]["reading_report"] == f"reports/{slug}-reading-report.md"
-    assert [target["page_type"] for target in wiki_ingest_brief["suggested_routes"]] == [
-        "reference",
-        "concept",
-        "synthesis",
+    assert wiki_ingest_brief["entrypoints"]["reading_report"] == "briefs/reading-report.md"
+    assert wiki_ingest_brief["entrypoints"]["source_reader"] == "evidence/source-reader.md"
+    assert wiki_ingest_brief["formal_routes_suggested"] is False
+    assert wiki_ingest_brief["suggested_routes"] == []
+    assert [target["artifact_type"] for target in wiki_ingest_brief["handoff_artifacts"]] == [
+        "source_reader",
         "reading_report",
     ]
-    assert {target["route_status"] for target in wiki_ingest_brief["suggested_routes"]} == {"suggested-by-epi"}
+    assert {target["route_status"] for target in wiki_ingest_brief["handoff_artifacts"]} == {
+        "internal-evidence-only"
+    }
+    assert wiki_ingest_brief["wiki_skill_handoff"]["batch_required"] is True
     assert wiki_ingest_brief["source_bundle"]["raw_artifacts"] == [
         "paper.pdf",
         "metadata.json",
@@ -235,9 +242,20 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     promotion_plan = json.loads((staging_root / "promotion-plan.json").read_text(encoding="utf-8"))
     assert promotion_plan["critic_outcome"] == "pass"
     assert promotion_plan["handoff_type"] == "agent-mediated-wiki-ingest"
-    assert promotion_plan["wiki_write_model"] == "agent-mediated-vault-contract"
-    assert promotion_plan["final_page_authority"] == "target-vault-contract-and-wiki-ingest-agent"
+    assert promotion_plan["wiki_write_model"] == "wiki-skill-batch-distillation"
+    assert promotion_plan["final_page_authority"] == "wiki-skill-batch-distillation"
+    assert promotion_plan["epi_write_scope"] == "internal-underscore-artifacts-only"
+    assert promotion_plan["formal_routes_suggested"] is False
+    assert promotion_plan["wiki_batch_handoff_required"] is True
     assert promotion_plan["wiki_ingest_brief_path"] == str(wiki_ingest_brief_path)
+    batch_handoff_path = tmp_path / "vault" / "_epi" / "staging" / "wiki-batches" / "pending" / "wiki-batch-ingest-brief.json"
+    assert promotion_plan["wiki_batch_ingest_brief_path"] == str(batch_handoff_path)
+    assert batch_handoff_path.is_file()
+    batch_handoff = json.loads(batch_handoff_path.read_text(encoding="utf-8"))
+    assert batch_handoff["schema_version"] == "epi-wiki-batch-ingest-brief-v1"
+    assert slug in batch_handoff["paper_slugs"]
+    assert batch_handoff["epi_write_scope"] == "internal-underscore-artifacts-only"
+    assert batch_handoff["formal_routes_suggested"] is False
     assert promotion_plan["suggested_final_source_review_path"] == str(staging_root / "final-source-review.json")
     assert promotion_plan["final_source_review_contract"]["required"] is True
     assert str(reading_report_path) in promotion_plan["agent_handoff_paths"]
@@ -252,36 +270,31 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
         "senior-domain-researcher",
     ]
     assert all(item["action"] == "preserve" for item in promotion_plan["role_assessments"])
-    assert promotion_plan["staged_reference"] == str(staging_root / "references" / f"{slug}.md")
-    assert promotion_plan["staged_concepts"] == [str(concept_path)]
-    assert promotion_plan["staged_synthesis"] == [str(synthesis_path)]
+    assert "staged_reference" not in promotion_plan
+    assert "staged_concepts" not in promotion_plan
+    assert "staged_synthesis" not in promotion_plan
+    assert promotion_plan["staged_evidence"] == [str(source_reader_path)]
     assert promotion_plan["staged_reports"] == [str(reading_report_path)]
-    assert promotion_plan["suggested_route_targets"] == [
-        f"references/{slug}.md",
-        f"concepts/{slug}-concept.md",
-        f"synthesis/{slug}-synthesis.md",
-        f"reports/{slug}-reading-report.md",
-    ]
-    staged_reference = (staging_root / "references" / f"{slug}.md").read_text(encoding="utf-8")
-    assert 'epi_recommendation: "stage-for-promotion-review"' in staged_reference
-    assert 'epi_panel_consensus: "approve-for-staging"' in staged_reference
-    assert 'epi_nature_sci_editor_verdict: "pass"' in staged_reference
-    assert 'epi_peer_reviewer_verdict: "pass"' in staged_reference
-    assert 'epi_senior_domain_researcher_verdict: "pass"' in staged_reference
-    assert "epi_blocking_lenses: []" in staged_reference
-    assert "epi_warning_reviewers:" in staged_reference
-    assert "## Research Decision" in staged_reference
-    assert "Consensus: approve-for-staging" in staged_reference
-    assert "nature-sci-editor: pass -> preserve" in staged_reference
-    assert "peer-reviewer: pass -> preserve" in staged_reference
-    assert "senior-domain-researcher: pass -> preserve" in staged_reference
-    assert "## Promotion Review Inputs" in concept_path.read_text(encoding="utf-8")
-    assert "## Promotion Review Inputs" in synthesis_path.read_text(encoding="utf-8")
+    assert promotion_plan["suggested_route_targets"] == []
+    source_reader = source_reader_path.read_text(encoding="utf-8")
+    assert 'epi_recommendation: "stage-for-promotion-review"' in source_reader
+    assert 'epi_panel_consensus: "approve-for-staging"' in source_reader
+    assert 'epi_nature_sci_editor_verdict: "pass"' in source_reader
+    assert 'epi_peer_reviewer_verdict: "pass"' in source_reader
+    assert 'epi_senior_domain_researcher_verdict: "pass"' in source_reader
+    assert "epi_blocking_lenses: []" in source_reader
+    assert "epi_warning_reviewers:" in source_reader
+    assert "## Research Decision" in source_reader
+    assert "Consensus: approve-for-staging" in source_reader
+    assert "nature-sci-editor: pass -> preserve" in source_reader
+    assert "peer-reviewer: pass -> preserve" in source_reader
+    assert "senior-domain-researcher: pass -> preserve" in source_reader
+    assert "## Promotion Review Inputs" in source_reader
     assert not (tmp_path / "vault" / "references" / f"{slug}.md").exists()
 
 
 def test_stage_paper_rejects_nonpassing_critic(tmp_path):
-    paper_root = tmp_path / "_raw" / "papers" / "paper"
+    paper_root = tmp_path / "_epi" / "raw" / "papers" / "paper"
     critic_dir = paper_root / "critic"
     reader_dir = paper_root / "reader"
     critic_dir.mkdir(parents=True)
@@ -295,13 +308,13 @@ def test_stage_paper_rejects_nonpassing_critic(tmp_path):
     with pytest.raises(ValueError, match="critic outcome"):
         stage_paper(tmp_path, "paper", paper_root)
 
-    assert not (tmp_path / "_staging" / "papers" / "paper").exists()
+    assert not (tmp_path / "_epi" / "staging" / "papers" / "paper").exists()
 
 
 def test_critic_quorum_records_reviewer_failure_without_staging(tmp_path):
     vault = tmp_path / "vault"
     slug = "paper"
-    paper_root = vault / "_raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / "papers" / slug
     (paper_root / "mineru").mkdir(parents=True)
     (paper_root / "reader").mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\n")
@@ -333,12 +346,12 @@ def test_critic_quorum_records_reviewer_failure_without_staging(tmp_path):
     with pytest.raises(ValueError, match="critic outcome"):
         stage_paper(vault, slug, paper_root)
 
-    assert not (vault / "_staging" / "papers" / slug).exists()
+    assert not (vault / "_epi" / "staging" / "papers" / slug).exists()
 
 
 def test_critic_quorum_records_missing_reader_as_reviewer_failure(tmp_path):
     slug = "paper"
-    paper_root = tmp_path / "_raw" / "papers" / slug
+    paper_root = tmp_path / "_epi" / "raw" / "papers" / slug
     (paper_root / "mineru").mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\n")
     (paper_root / "metadata.json").write_text(

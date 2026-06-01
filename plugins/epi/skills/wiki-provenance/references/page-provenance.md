@@ -1,6 +1,6 @@
 # Page Provenance Reference
 
-Use this reference to keep EPI-extracted knowledge traceable after it leaves `_raw` and `_staging`.
+Use this reference to keep EPI-extracted knowledge traceable after it leaves `_epi/raw` and `_epi/staging`.
 
 ## Minimum Page-Level Provenance
 

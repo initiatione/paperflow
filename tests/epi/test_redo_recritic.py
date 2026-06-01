@@ -60,7 +60,7 @@ def _run_orchestrator_cli(monkeypatch, *args):
 
 
 def _single_run_dir(vault):
-    run_dirs = [path for path in (vault / "_runs").iterdir() if path.is_dir()]
+    run_dirs = [path for path in (vault / "_epi" / "runs").iterdir() if path.is_dir()]
     assert len(run_dirs) == 1
     return run_dirs[0]
 
@@ -275,8 +275,8 @@ def test_redo_acquire_cli_writes_routed_report_with_changed_artifacts(tmp_path, 
     run_dir = _single_run_dir(vault)
     report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
     report_md = (run_dir / "report.md").read_text(encoding="utf-8")
-    index_payload = json.loads((vault / "_runs" / "index.json").read_text(encoding="utf-8"))
-    dashboard_text = (vault / "_runs" / "dashboard.md").read_text(encoding="utf-8")
+    index_payload = json.loads((vault / "_epi" / "runs" / "index.json").read_text(encoding="utf-8"))
+    dashboard_text = (vault / "_epi" / "runs" / "dashboard.md").read_text(encoding="utf-8")
 
     assert report_json["workflow_type"] == "redo-acquire"
     assert report_json["paper_states"] == [

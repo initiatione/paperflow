@@ -82,9 +82,14 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "mineru\\images\\*" in text
     assert "Reset is destructive" in text
     assert "wiki structure reset and EPI config reset are separate operations" in text
-    assert "_meta\\epi-config.yaml" in text
-    assert "_meta\\epi-config-state.json" in text
-    assert "_meta\\config-history\\" in text
+    assert "_epi\\meta\\epi-config.yaml" in text
+    assert "_epi\\meta\\epi-config-state.json" in text
+    assert "_epi\\meta\\config-history\\" in text
+    assert "_epi\\README.md" in text
+    assert "_epi\\manifest.json" in text
+    assert "_epi\\policies\\retention.json" in text
+    assert "epi-repository-migrate --vault <vault> --preview --json" in text
+    assert "epi-repository-cleanup --vault <vault> --preview --json" in text
     assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
     assert "config-status --vault <vault> --json --include-values --include-runtime" in text
     assert "确认重置 EPI wiki" in text

@@ -43,7 +43,7 @@ def _read_json(path: Path) -> dict:
 
 
 def test_zotero_sync_disabled_writes_skip_record(tmp_path):
-    paper_root = tmp_path / "_raw" / "papers" / "paper"
+    paper_root = tmp_path / "_epi" / "raw" / "papers" / "paper"
     paper_root.mkdir(parents=True)
 
     record = sync_zotero_record(paper_root, enabled=False, collection="EPI")
@@ -70,7 +70,7 @@ def test_record_feedback_appends_jsonl(tmp_path):
         source="plugin-eval",
     )
 
-    feedback_log = tmp_path / "_runs" / "feedback.jsonl"
+    feedback_log = tmp_path / "_epi" / "runs" / "feedback.jsonl"
     rows = [json.loads(line) for line in feedback_log.read_text(encoding="utf-8").splitlines()]
     assert [row["id"] for row in rows] == [first["id"], second["id"]]
     assert rows[0]["type"] == "reader-correction"
@@ -95,11 +95,11 @@ def test_record_feedback_updates_run_local_summary_when_run_id_is_provided(tmp_p
         run_id="run-123",
     )
 
-    feedback_log = tmp_path / "_runs" / "feedback.jsonl"
+    feedback_log = tmp_path / "_epi" / "runs" / "feedback.jsonl"
     rows = [json.loads(line) for line in feedback_log.read_text(encoding="utf-8").splitlines()]
     assert [row["run_id"] for row in rows] == ["run-123", "run-123"]
 
-    summary = _read_json(tmp_path / "_runs" / "run-123" / "feedback-summary.json")
+    summary = _read_json(tmp_path / "_epi" / "runs" / "run-123" / "feedback-summary.json")
     assert summary["run_id"] == "run-123"
     assert summary["feedback_count"] == 2
     assert summary["feedback_ids"] == [first["id"], second["id"]]
@@ -114,10 +114,10 @@ def test_evolution_proposal_requires_approval_and_validation_before_applying_whi
         target_asset="templates/ranking.example.yaml",
         rationale="Boost reproducibility signal after repeated user feedback.",
         proposed_change={"weights": {"reproducibility_signal": 0.12}},
-        evidence=["_runs/feedback.jsonl#1"],
+        evidence=["_epi/runs/feedback.jsonl#1"],
     )
 
-    proposal_path = tmp_path / "_evolution" / "proposals" / f"{proposal['id']}.json"
+    proposal_path = tmp_path / "_epi" / "evolution" / "proposals" / f"{proposal['id']}.json"
     assert proposal_path.is_file()
 
     with pytest.raises(PermissionError, match="approval"):
@@ -134,7 +134,7 @@ def test_evolution_proposal_requires_approval_and_validation_before_applying_whi
     assert "reproducibility_signal: 0.06" in (
         tmp_path / "templates" / "ranking.example.yaml"
     ).read_text(encoding="utf-8")
-    assert (tmp_path / "_evolution" / "pending" / f"{proposal['id']}.json").is_file()
+    assert (tmp_path / "_epi" / "evolution" / "pending" / f"{proposal['id']}.json").is_file()
 
     activated = activate_evolution(
         tmp_path,
@@ -150,7 +150,7 @@ def test_evolution_proposal_requires_approval_and_validation_before_applying_whi
     assert all(run["conclusion"] in {"success", "skipped", "neutral"} for run in activated["check_suite"]["check_runs"])
     assert activated["code_modified"] is False
     assert activated["asset_application"]["status"] == "applied"
-    assert (tmp_path / "_evolution" / "active" / f"{proposal['id']}.json").is_file()
+    assert (tmp_path / "_epi" / "evolution" / "active" / f"{proposal['id']}.json").is_file()
     assert "reproducibility_signal: 0.12" in (
         tmp_path / "templates" / "ranking.example.yaml"
     ).read_text(encoding="utf-8")
@@ -165,7 +165,7 @@ def test_evolution_proposal_records_skillopt_and_embodiskill_control_contract(tm
         target_asset="templates/ranking.example.yaml",
         rationale="Use run outcomes to tune paper ranking without touching runtime code.",
         proposed_change={"weights": {"topic_relevance": 0.39}},
-        evidence=["_runs/index.json#latest_success_by_workflow"],
+        evidence=["_epi/runs/index.json#latest_success_by_workflow"],
         evidence_type="plugin_eval_warning",
         before_metrics={"plugin_eval_score": 91, "coverage_percent": 94.39},
         acceptance_gates=[
@@ -198,7 +198,7 @@ def test_execution_lapse_evolution_is_record_only_and_preserves_whitelisted_asse
         target_asset="templates/ranking.example.yaml",
         rationale="The agent ignored an existing instruction; the skill itself is still correct.",
         proposed_change={"weights": {"topic_relevance": 0.99}},
-        evidence=["_runs/run-123/report.md#missed-existing-instruction"],
+        evidence=["_epi/runs/run-123/report.md#missed-existing-instruction"],
         evidence_type="missed_existing_instruction",
     )
 
@@ -227,7 +227,7 @@ def test_configuration_change_evolution_is_record_only_and_preserves_whitelisted
         target_asset="templates/ranking.example.yaml",
         rationale="The user's topic profile needs a config update, not a skill template edit.",
         proposed_change={"weights": {"topic_relevance": 0.99}},
-        evidence=["_runs/run-123/report.md#profile-mismatch"],
+        evidence=["_epi/runs/run-123/report.md#profile-mismatch"],
         evidence_type="configuration_change",
     )
 
@@ -281,7 +281,7 @@ def test_activate_evolution_records_rejected_edit_when_validation_gate_fails(tmp
     assert plugin_eval_check["conclusion"] == "failure"
     assert rejected["asset_application"]["status"] == "record_only"
     assert rejected["asset_application"]["reason"] == "validation_gate_failed"
-    assert (tmp_path / "_evolution" / "rejected" / f"{proposal['id']}.json").is_file()
+    assert (tmp_path / "_epi" / "evolution" / "rejected" / f"{proposal['id']}.json").is_file()
     assert target_path.read_text(encoding="utf-8") == original
 
 
@@ -449,7 +449,7 @@ def test_activate_evolution_keeps_non_whitelisted_assets_record_only(tmp_path):
         target_asset="templates/filter-rules.example.yaml",
         rationale="This asset is intentionally outside the whitelist.",
         proposed_change={"rules": {"min_score": 0.55}},
-        evidence=["_runs/feedback.jsonl#2"],
+        evidence=["_epi/runs/feedback.jsonl#2"],
     )
 
     activated = activate_evolution(
@@ -472,7 +472,7 @@ def test_propose_evolution_rejects_unbounded_target_asset_paths(tmp_path):
             target_asset="../plugins/epi/scripts/build/epi/orchestrator.py",
             rationale="Do not allow path traversal evolution targets.",
             proposed_change={"anything": True},
-            evidence=["_runs/feedback.jsonl#4"],
+            evidence=["_epi/runs/feedback.jsonl#4"],
         )
 
 
@@ -486,7 +486,7 @@ def test_activate_evolution_records_backup_and_rollback_metadata(tmp_path):
         target_asset="templates/ranking.example.yaml",
         rationale="Track rollback metadata for applied template changes.",
         proposed_change={"weights": {"topic_relevance": 0.33}},
-        evidence=["_runs/feedback.jsonl#3"],
+        evidence=["_epi/runs/feedback.jsonl#3"],
     )
 
     activated = activate_evolution(
@@ -495,7 +495,7 @@ def test_activate_evolution_records_backup_and_rollback_metadata(tmp_path):
         approved=True,
         validation_result={"passed": True, "summary": "rollback metadata smoke passed"},
     )
-    active_record = _read_json(tmp_path / "_evolution" / "active" / f"{proposal['id']}.json")
+    active_record = _read_json(tmp_path / "_epi" / "evolution" / "active" / f"{proposal['id']}.json")
 
     backup_path = Path(active_record["rollback"]["backup_path"])
     assert activated["asset_application"]["backup_created"] is True
@@ -528,7 +528,7 @@ def test_query_evolution_summarizes_pending_rejected_and_active_records(tmp_path
         target_asset="templates/ranking.example.yaml",
         rationale="Record an execution lapse without changing valid guidance.",
         proposed_change={"weights": {"topic_relevance": 0.99}},
-        evidence=["_runs/run-1/report.md#missed-instruction"],
+        evidence=["_epi/runs/run-1/report.md#missed-instruction"],
         evidence_type="missed_existing_instruction",
     )
 

@@ -15,7 +15,7 @@ For ongoing topic monitoring, "what is new since last run/date", backlog priorit
 
 - Discovery is profile-driven. Do not treat `paper_search_mcp` result order as quality.
 - EPI is field-agnostic. Do not hardcode robotics, AUV, AI, medicine, or any other discipline unless present in config/request.
-- Derive query plan, `domain_focus_terms`, exclusions, `venue_prior`, and recommendations from `_meta\epi-config.yaml` plus the current request.
+- Derive query plan, `domain_focus_terms`, exclusions, `venue_prior`, and recommendations from `_epi\meta\epi-config.yaml` plus the current request.
 - Use `research_mode`, `paper_classification`, and `ranking_rubric` as routing/explanation contracts, not as final scholarly truth.
 - If config is missing, stop and use `config-setup`. See `docs\config.md`.
 
@@ -55,7 +55,7 @@ python skills\paper-discovery\scripts\query-planner.py --topic "<topic>" --domai
 python skills\paper-discovery\scripts\query-planner.py --topic "<review topic>" --domain auto --include-reviews --max-queries 8
 ```
 
-Default `dry-run` writes `_runs/<run-id>/query-plan.json`, records `research_mode`, runs variants, and excludes review/survey/meta unless reviews are requested.
+Default `dry-run` writes `_epi/runs/<run-id>/query-plan.json`, records `research_mode`, runs variants, and excludes review/survey/meta unless reviews are requested.
 
 ```powershell
 python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault>
@@ -89,6 +89,6 @@ Use `--max-papers 10 --skip-existing` for real runs; `--max-papers 1` is a smoke
 
 ## Evidence Check
 
-Before reporting success, inspect `search-record.json`, `rank.json`, `_runs\<run-id>\report.md`, `_runs\<run-id>\report.json`, `acquire-record.json`, `parse-record.json`, `paper.pdf`, `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Track `paper_type`, `classification_confidence`, `ranking_confidence`, and per-paper `acquire_failed`, `parse_failed`, or `prepare_failed`.
+Before reporting success, inspect `search-record.json`, `rank.json`, `_epi\runs\<run-id>\report.md`, `_epi\runs\<run-id>\report.json`, `acquire-record.json`, `parse-record.json`, `paper.pdf`, `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Track `paper_type`, `classification_confidence`, `ranking_confidence`, and per-paper `acquire_failed`, `parse_failed`, or `prepare_failed`.
 
-Safety: `dry-run` writes only `_runs/<run-id>/`; `prepare-ranked` writes only `_raw\papers\<slug>\...`; neither path enters reader, critic, staging, or wiki writing.
+Safety: `dry-run` writes only `_epi/runs/<run-id>/`; `prepare-ranked` writes only `_epi\raw\papers\<slug>\...`; neither path enters reader, critic, staging, or wiki writing.

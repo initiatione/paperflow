@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from epi.artifacts import staging_paper_root, utc_now, write_json_atomic, write_text_atomic
+from epi.artifacts import staging_paper_root, utc_now, wiki_batch_pending_root, write_json_atomic, write_text_atomic
 
 
 SOURCE_FIRST_ARTIFACTS = [
@@ -41,39 +41,6 @@ def _decision_frontmatter_lines(decision: dict) -> list[str]:
     return lines
 
 
-def _draft_lines(
-    *,
-    slug: str,
-    title: str,
-    page_type: str,
-    suggested_route_target: str,
-    reference_target: str,
-    promotion_review_lines: list[str] | None = None,
-    decision_frontmatter_lines: list[str] | None = None,
-) -> list[str]:
-    heading_suffix = "Concept Draft" if page_type == "concept" else "Synthesis Draft"
-    lines = [
-        "---",
-        f"paper_slug: {slug}",
-        f"title: {json.dumps(title, ensure_ascii=False)}",
-        "stage: staging",
-        f"page_type: {page_type}",
-        f"suggested_route_target: {suggested_route_target}",
-        f"reference_page: {reference_target}",
-        *(decision_frontmatter_lines or []),
-        "---",
-        "",
-        f"# {title} {heading_suffix}",
-        "",
-        f"Source reference: [{slug}]({reference_target})",
-        "",
-        f"Minimal {page_type} draft staged for promotion review.",
-    ]
-    if promotion_review_lines:
-        lines.extend(["", *promotion_review_lines])
-    return lines
-
-
 def _load_research_decision(paper_root: Path, critic_report: dict) -> tuple[dict, str | None]:
     decision = critic_report.get("research_decision") if isinstance(critic_report.get("research_decision"), dict) else {}
     decision_path_value = critic_report.get("research_decision_path")
@@ -97,6 +64,66 @@ def _load_evidence_map(paper_root: Path) -> dict:
     if not evidence_map_path.exists():
         return {}
     return json.loads(evidence_map_path.read_text(encoding="utf-8"))
+
+
+def _write_batch_handoff(
+    *,
+    vault_path: Path,
+    slug: str,
+    title: str,
+    staging_root: Path,
+    wiki_ingest_brief_path: Path,
+    reading_report_path: Path,
+    source_reader_path: Path,
+    wiki_ingest_brief: dict,
+) -> Path:
+    batch_root = wiki_batch_pending_root(vault_path)
+    batch_path = batch_root / "wiki-batch-ingest-brief.json"
+    try:
+        existing = json.loads(batch_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        existing = {}
+    if not isinstance(existing, dict) or existing.get("schema_version") != "epi-wiki-batch-ingest-brief-v1":
+        existing = {
+            "schema_version": "epi-wiki-batch-ingest-brief-v1",
+            "batch_id": "pending",
+            "created_at": utc_now(),
+            "handoff_type": "wiki-skill-batch-distillation",
+            "epi_write_scope": "internal-underscore-artifacts-only",
+            "formal_routes_suggested": False,
+            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "paper_slugs": [],
+            "papers": [],
+        }
+    papers = [
+        item
+        for item in existing.get("papers", [])
+        if isinstance(item, dict) and item.get("paper_slug") != slug
+    ]
+    papers.append(
+        {
+            "paper_slug": slug,
+            "title": title,
+            "staging_root": str(staging_root),
+            "wiki_ingest_brief": str(wiki_ingest_brief_path),
+            "reading_report": str(reading_report_path),
+            "source_reader": str(source_reader_path),
+            "source_bundle": wiki_ingest_brief.get("source_bundle", {}),
+            "candidate_topics": wiki_ingest_brief.get("candidate_topics", []),
+            "candidate_clusters": wiki_ingest_brief.get("candidate_clusters", []),
+        }
+    )
+    papers.sort(key=lambda item: str(item.get("paper_slug", "")))
+    existing["updated_at"] = utc_now()
+    existing["paper_slugs"] = [str(item["paper_slug"]) for item in papers]
+    existing["papers"] = papers
+    existing["wiki_skill_instruction"] = (
+        "Load wiki-ingest and epi-wiki-deposition. Distill formal pages from the source papers, "
+        "formulas, figures, images, and compact EPI evidence aids. Do not promote EPI staging reports "
+        "or per-paper audit pages as formal wiki pages."
+    )
+    write_json_atomic(batch_path, existing)
+    return batch_path
 
 
 def _research_decision_lines(decision: dict) -> list[str]:
@@ -193,40 +220,24 @@ def _reading_trust_lines(research_decision: dict, reproduction_plan: dict) -> li
     ]
 
 
-def _wiki_target_records(
+def _wiki_handoff_records(
     *,
-    reference_target: str,
-    concept_target: str,
-    synthesis_target: str,
+    source_reader_target: str,
     reading_report_target: str,
 ) -> list[dict]:
     return [
         {
-            "page_type": "reference",
-            "target": reference_target,
-            "route_status": "suggested-by-epi",
-            "purpose": "Evidence-grounded full-paper reader and source reference.",
+            "artifact_type": "source_reader",
+            "target": source_reader_target,
+            "route_status": "internal-evidence-only",
+            "purpose": "EPI source-grounded reader artifact for the wiki skill to inspect.",
             "primary_reader": "all",
         },
         {
-            "page_type": "concept",
-            "target": concept_target,
-            "route_status": "suggested-by-epi",
-            "purpose": "Atomic concepts worth reusing across the Obsidian/LLM Wiki.",
-            "primary_reader": "senior-domain-researcher",
-        },
-        {
-            "page_type": "synthesis",
-            "target": synthesis_target,
-            "route_status": "suggested-by-epi",
-            "purpose": "Cross-paper synthesis hooks and links to related research directions.",
-            "primary_reader": "nature-sci-editor",
-        },
-        {
-            "page_type": "reading_report",
+            "artifact_type": "reading_report",
             "target": reading_report_target,
-            "route_status": "suggested-by-epi",
-            "purpose": "Low-reading-burden entrypoint for human review and recall.",
+            "route_status": "internal-evidence-only",
+            "purpose": "Low-reading-burden entrypoint for human review before wiki skill deposition.",
             "primary_reader": "peer-reviewer",
         },
     ]
@@ -328,6 +339,8 @@ def _final_source_review_contract() -> dict:
             "formula_review with status=reviewed and a summary of formulas, notation, assumptions, or parse gaps",
             "figure_table_image_review with status=reviewed and a summary of figures, tables, image evidence, and uncertainty",
             "pdf_fallback_review with status=reviewed or not-needed and a summary of PDF fallback decisions",
+            "wiki_batch_ingest with status=completed, wiki_skill_used including wiki-ingest, and paper_slugs[]",
+            "formal_content_quality with status=reviewed and audit_pages_excluded=true",
             "final_page_provenance[] mapping every final wiki page to source_grounded=true",
         ],
         "record_command_flag": "--source-review <final-source-review.json>",
@@ -339,9 +352,7 @@ def _build_wiki_ingest_brief(
     *,
     slug: str,
     title: str,
-    reference_target: str,
-    concept_target: str,
-    synthesis_target: str,
+    source_reader_target: str,
     reading_report_target: str,
     editorial_summary_text: str,
     technical_reading_text: str,
@@ -362,7 +373,7 @@ def _build_wiki_ingest_brief(
     )
     domain_note = (
         _first_bullet_after_heading(research_notes_text, "## Fit To Research Direction")
-        or "Use suggested concept and synthesis routes to connect this paper to the research direction."
+        or "Identify reusable concepts and cross-paper synthesis targets before the wiki skill writes final pages."
     )
     experiment_note = (
         _first_bullet_after_heading(research_notes_text, "## Follow-up Experiments")
@@ -395,8 +406,12 @@ def _build_wiki_ingest_brief(
         "wiki_rule_source_model": _wiki_rule_source_model(),
         "ingest_policy": {
             "authority": "Resolve the target vault contract first; local skills are helpers, not sole authority.",
-            "final_page_authority": "Final wiki pages are created by the wiki-ingest agent, not fixed by EPI staging.",
-            "write_model": "Agent-mediated distillation and merge from the EPI evidence bundle.",
+            "final_page_authority": "Final wiki pages are created by wiki skill batch distillation, not by EPI staging.",
+            "write_model": "Wiki-skill batch distillation and merge from multiple EPI evidence bundles.",
+            "epi_write_scope": "internal-underscore-artifacts-only",
+            "formal_routes_suggested": False,
+            "wiki_batch_handoff_required": True,
+            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
             "executor_policy": "Claude, Codex, or any other wiki-capable agent may perform the final write if they respect the same contract.",
             "merge_policy": "Search existing pages first; update or merge before creating duplicates.",
             "staged_writes_policy": "Respect the target vault staged-write convention when present.",
@@ -407,7 +422,7 @@ def _build_wiki_ingest_brief(
                 "before final wiki writing; reader and critic outputs are navigation and quality signals, "
                 "not substitutes for the source paper."
             ),
-            "suggested_routes_only": True,
+            "suggested_routes_only": False,
         },
         "vault_contract_resolution": [
             "target vault AGENTS.md",
@@ -426,18 +441,40 @@ def _build_wiki_ingest_brief(
         },
         "entrypoints": {
             "reading_report": reading_report_target,
-            "reference": reference_target,
-            "concept": concept_target,
-            "synthesis": synthesis_target,
+            "source_reader": source_reader_target,
             "wiki_ingest_brief": "wiki-ingest-brief.json",
             "evidence_map": "reader/evidence-map.json",
         },
-        "suggested_routes": _wiki_target_records(
-            reference_target=reference_target,
-            concept_target=concept_target,
-            synthesis_target=synthesis_target,
+        "formal_routes_suggested": False,
+        "suggested_routes": [],
+        "handoff_artifacts": _wiki_handoff_records(
+            source_reader_target=source_reader_target,
             reading_report_target=reading_report_target,
         ),
+        "candidate_topics": [
+            {
+                "source": "reader/research-notes.md",
+                "hint": domain_note,
+                "routing_policy": "wiki skill decides reusable concept pages after comparing multiple papers",
+            }
+        ],
+        "candidate_clusters": [
+            {
+                "cluster_basis": "method, task, benchmark, limitation, contradiction, or formula family",
+                "routing_policy": "create or update synthesis pages only after batch-level comparison",
+            }
+        ],
+        "wiki_skill_handoff": {
+            "required": True,
+            "batch_required": True,
+            "minimum_role": "The current agent must load the wiki-ingest skill before writing final pages.",
+            "required_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "formal_page_rule": (
+                "Do not promote EPI audit artifacts or per-paper pseudo concept/synthesis/report pages. "
+                "Final pages are readable wiki pages produced by the wiki skill from source papers, formulas, "
+                "figures, images, and compact EPI evidence aids."
+            ),
+        },
         "role_lenses": {
             "nature_sci_editor": quick_take,
             "peer_reviewer": peer_note,
@@ -518,19 +555,20 @@ def _wiki_ingest_brief_report_lines(wiki_ingest_brief: dict) -> list[str]:
     trust = wiki_ingest_brief.get("trust_status") or {}
     source_bundle = wiki_ingest_brief.get("source_bundle") or {}
     evidence = source_bundle.get("evidence") or {}
-    targets = wiki_ingest_brief.get("suggested_routes") or []
-    target_summary = ", ".join(str(target.get("page_type")) for target in targets) or "None"
+    handoff_artifacts = wiki_ingest_brief.get("handoff_artifacts") or []
+    artifact_summary = ", ".join(str(item.get("artifact_type")) for item in handoff_artifacts) or "None"
     return [
         "## Wiki Ingest Brief",
         "",
         "- Ingest brief: `wiki-ingest-brief.json`",
         f"- Trust status: {trust.get('status', '')}",
-        f"- Suggested wiki routes: {target_summary}",
+        f"- Internal handoff artifacts: {artifact_summary}",
         f"- Evidence claims tracked: {evidence.get('claim_count', 0)}",
-        "- Final wiki pages: created by the wiki-ingest agent, not fixed by EPI staging.",
+        "- Final wiki pages: created by wiki skill batch distillation, not fixed by EPI staging.",
+        "- EPI writes only internal underscore artifacts; it does not write formal graph pages.",
         "- Final routing, frontmatter, tags, links, merge policy, and staged writes come from the target vault contract.",
         "- Wiki write rules are resolved from target vault contracts plus Ar9av/obsidian-wiki, kepano/obsidian-skills, and personalized wiki-skills references; local skills are adapters.",
-        "- Use this brief as the evidence handoff from paper reading to Obsidian/LLM Wiki distillation.",
+        "- Use this brief as the evidence handoff from paper reading to wiki-ingest skill deposition.",
     ]
 
 
@@ -538,8 +576,7 @@ def _reading_report_lines(
     *,
     slug: str,
     title: str,
-    suggested_route_target: str,
-    reference_target: str,
+    source_reader_target: str,
     reader_text: str,
     editorial_summary_text: str,
     technical_reading_text: str,
@@ -572,14 +609,14 @@ def _reading_report_lines(
         f"title: {json.dumps(title, ensure_ascii=False)}",
         "stage: staging",
         "page_type: reading_report",
-        f"suggested_route_target: {suggested_route_target}",
-        f"reference_page: {reference_target}",
+        "formal_page: false",
+        f"source_reader: {source_reader_target}",
         *(decision_frontmatter_lines or []),
         "---",
         "",
         f"# {title} Reading Report",
         "",
-        f"Source reference: [{slug}]({reference_target})",
+        f"Source reader: `{source_reader_target}`",
         "",
         "## Quick Take",
         "",
@@ -587,7 +624,7 @@ def _reading_report_lines(
         "",
         "## What To Read If You Only Have 5 Minutes",
         "",
-        "- Read `Quick Take`, `Reading Trust Status`, `Quality Gates`, and `Suggested Wiki Routes` first.",
+        "- Read `Quick Take`, `Reading Trust Status`, `Quality Gates`, and `Wiki Skill Handoff` first.",
         "- Open the full reader only if you need method details, figures, or exact evidence lines.",
         "",
         *_reading_trust_lines(research_decision, reproduction_plan),
@@ -612,13 +649,12 @@ def _reading_report_lines(
         f"- Reader roles covered: {', '.join(str(role) for role in roles) or 'None recorded'}",
         "- Use `reader/evidence-map.json` for exact source addresses and `reader/claim-support.json` for extracted/metadata/inferred support status.",
         "",
-        "## Suggested Wiki Routes",
+        "## Wiki Skill Handoff",
         "",
-        f"- Suggested reference draft: `{reference_target}`",
-        f"- Suggested concept draft: `concepts/{slug}-concept.md`",
-        f"- Suggested synthesis draft: `synthesis/{slug}-synthesis.md`",
-        "- Final page paths and page types are decided by the target vault contract and wiki ingest agent.",
-        "- This report is the lightweight user-facing entrypoint for human review and wiki ingest.",
+        "- EPI does not suggest formal page paths for this paper.",
+        "- Use this report, the source reader, and the raw paper artifacts as inputs to the wiki-ingest skill.",
+        "- Final page paths and page types are decided by the target vault contract and wiki skill batch deposition.",
+        "- This report is an internal lightweight entrypoint for human review and wiki ingest; it is not a formal graph page.",
         "",
         "## Quality Gates",
         "",
@@ -646,10 +682,8 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path) -> Path:
         raise ValueError(f"critic outcome must be pass before staging, got {outcome}")
 
     staging_root = staging_paper_root(vault_path, slug)
-    reference_dir = staging_root / "references"
-    concept_dir = staging_root / "concepts"
-    synthesis_dir = staging_root / "synthesis"
-    reports_dir = staging_root / "reports"
+    evidence_dir = staging_root / "evidence"
+    briefs_dir = staging_root / "briefs"
     reader_text = (paper_root / "reader" / "reader.md").read_text(encoding="utf-8")
     editorial_summary_path = paper_root / "reader" / "editorial-summary.md"
     technical_reading_path = paper_root / "reader" / "technical-reading.md"
@@ -663,14 +697,10 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path) -> Path:
     reproducibility_text = reproducibility_path.read_text(encoding="utf-8") if reproducibility_path.exists() else ""
     metadata = json.loads((paper_root / "metadata.json").read_text(encoding="utf-8"))
     title = metadata.get("title", "")
-    reference_target = f"references/{slug}.md"
-    concept_target = f"concepts/{slug}-concept.md"
-    synthesis_target = f"synthesis/{slug}-synthesis.md"
-    reading_report_target = f"reports/{slug}-reading-report.md"
-    reference_path = reference_dir / f"{slug}.md"
-    concept_path = concept_dir / f"{slug}-concept.md"
-    synthesis_path = synthesis_dir / f"{slug}-synthesis.md"
-    reading_report_path = reports_dir / f"{slug}-reading-report.md"
+    source_reader_target = "evidence/source-reader.md"
+    reading_report_target = "briefs/reading-report.md"
+    source_reader_path = evidence_dir / "source-reader.md"
+    reading_report_path = briefs_dir / "reading-report.md"
     wiki_ingest_brief_path = staging_root / "wiki-ingest-brief.json"
     research_decision, research_decision_path = _load_research_decision(paper_root, critic_report)
     reproduction_plan, reproduction_plan_path = _load_reproduction_plan(paper_root, critic_report)
@@ -681,9 +711,7 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path) -> Path:
     wiki_ingest_brief = _build_wiki_ingest_brief(
         slug=slug,
         title=title,
-        reference_target=reference_target,
-        concept_target=concept_target,
-        synthesis_target=synthesis_target,
+        source_reader_target=source_reader_target,
         reading_report_target=reading_report_target,
         editorial_summary_text=editorial_summary_text,
         technical_reading_text=technical_reading_text,
@@ -692,47 +720,23 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path) -> Path:
         research_decision=research_decision,
         reproduction_plan=reproduction_plan,
     )
-    reference = [
+    source_reader = [
         "---",
         f"paper_slug: {slug}",
         f"title: {json.dumps(title, ensure_ascii=False)}",
         "stage: staging",
+        "formal_page: false",
+        "artifact_type: source_reader",
         *decision_frontmatter_lines,
         "---",
         "",
         reader_text,
     ]
     if research_decision_lines:
-        reference.extend(["", *research_decision_lines, ""])
-    write_text_atomic(reference_path, "\n".join(reference))
-    write_text_atomic(
-        concept_path,
-        "\n".join(
-            _draft_lines(
-                slug=slug,
-                title=title,
-                page_type="concept",
-                suggested_route_target=concept_target,
-                reference_target=reference_target,
-                promotion_review_lines=promotion_review_lines,
-                decision_frontmatter_lines=decision_frontmatter_lines,
-            )
-        ),
-    )
-    write_text_atomic(
-        synthesis_path,
-        "\n".join(
-            _draft_lines(
-                slug=slug,
-                title=title,
-                page_type="synthesis",
-                suggested_route_target=synthesis_target,
-                reference_target=reference_target,
-                promotion_review_lines=promotion_review_lines,
-                decision_frontmatter_lines=decision_frontmatter_lines,
-            )
-        ),
-    )
+        source_reader.extend(["", *research_decision_lines, ""])
+    if promotion_review_lines:
+        source_reader.extend(["", *promotion_review_lines, ""])
+    write_text_atomic(source_reader_path, "\n".join(source_reader))
     write_json_atomic(wiki_ingest_brief_path, wiki_ingest_brief)
     write_text_atomic(
         reading_report_path,
@@ -740,8 +744,7 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path) -> Path:
             _reading_report_lines(
                 slug=slug,
                 title=title,
-                suggested_route_target=reading_report_target,
-                reference_target=reference_target,
+                source_reader_target=source_reader_target,
                 reader_text=reader_text,
                 editorial_summary_text=editorial_summary_text,
                 technical_reading_text=technical_reading_text,
@@ -756,29 +759,43 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path) -> Path:
             )
         ),
     )
+    batch_handoff_path = _write_batch_handoff(
+        vault_path=vault_path,
+        slug=slug,
+        title=title,
+        staging_root=staging_root,
+        wiki_ingest_brief_path=wiki_ingest_brief_path,
+        reading_report_path=reading_report_path,
+        source_reader_path=source_reader_path,
+        wiki_ingest_brief=wiki_ingest_brief,
+    )
     agent_handoff_paths = [
         str(wiki_ingest_brief_path),
+        str(batch_handoff_path),
         str(reading_report_path),
-        str(reference_path),
-        str(concept_path),
-        str(synthesis_path),
+        str(source_reader_path),
     ]
     plan = {
         "paper_slug": slug,
         "created_at": utc_now(),
         "critic_outcome": outcome,
         "handoff_type": "agent-mediated-wiki-ingest",
-        "wiki_write_model": "agent-mediated-vault-contract",
-        "final_page_authority": "target-vault-contract-and-wiki-ingest-agent",
-        "staged_reference": str(reference_path),
-        "staged_concepts": [str(concept_path)],
-        "staged_synthesis": [str(synthesis_path)],
+        "wiki_write_model": "wiki-skill-batch-distillation",
+        "final_page_authority": "wiki-skill-batch-distillation",
+        "epi_write_scope": "internal-underscore-artifacts-only",
+        "formal_routes_suggested": False,
+        "wiki_batch_handoff_required": True,
+        "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+        "staged_evidence": [str(source_reader_path)],
         "staged_reports": [str(reading_report_path)],
         "wiki_ingest_brief_path": str(wiki_ingest_brief_path),
+        "wiki_batch_ingest_brief_path": str(batch_handoff_path),
         "final_source_review_contract": wiki_ingest_brief["final_source_review_contract"],
         "suggested_final_source_review_path": str(staging_root / "final-source-review.json"),
         "agent_handoff_paths": agent_handoff_paths,
-        "suggested_route_targets": [reference_target, concept_target, synthesis_target, reading_report_target],
+        "suggested_route_targets": [],
+        "candidate_topics": wiki_ingest_brief["candidate_topics"],
+        "candidate_clusters": wiki_ingest_brief["candidate_clusters"],
     }
     if reproduction_plan:
         plan["reproduction_plan_path"] = reproduction_plan_path

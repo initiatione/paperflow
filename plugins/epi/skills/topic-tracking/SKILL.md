@@ -9,7 +9,7 @@ Use this as the topic-level layer above per-paper EPI stages. The goal is not "f
 
 ## Core Rule
 
-Treat every `dry-run`, `rank.json`, `report.json`, `_raw/papers/*/metadata.json`, and wiki-ingest record as part of a longitudinal topic ledger. A topic update should separate net-new papers from already-known papers, then show breadth coverage and the next best reading actions.
+Treat every `dry-run`, `rank.json`, `report.json`, `_epi/raw/papers/*/metadata.json`, and wiki-ingest record as part of a longitudinal topic ledger. A topic update should separate net-new papers from already-known papers, then show breadth coverage and the next best reading actions.
 
 ## When To Pair Skills
 
@@ -23,7 +23,7 @@ Treat every `dry-run`, `rank.json`, `report.json`, `_raw/papers/*/metadata.json`
 ## Workflow
 
 1. Identify the topic boundary: user question, profile/config terms, must-include and must-exclude concepts, and the last covered run/date if available.
-2. Inspect prior state before searching: `_runs/index.json`, recent `_runs/<run-id>/report.json`, `rank.json`, `_raw/papers/*/metadata.json`, and existing `research-queue` buckets.
+2. Inspect prior state before searching: `_epi/runs/index.json`, recent `_epi/runs/<run-id>/report.json`, `rank.json`, `_epi/raw/papers/*/metadata.json`, and existing `research-queue` buckets.
 3. Run or inspect discovery. Surface `research_mode`, query variants, source route, `domain_focus_terms`, and `recall_gap_checks`; do not hide query drift behind a ranked list.
 4. Build the delta: separate `net_new`, `already_known`, `already_in_library:<slug>`, repeated candidates, and lower-confidence review/survey candidates.
 5. Rank the backlog by `quality_tier`, profile/topic fit, stable identity, PDF availability, ranking confidence, novelty against the existing topic ledger, and parse/acquisition readiness.
@@ -40,7 +40,7 @@ python scripts\orchestrator.py research-queue --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json
 ```
 
-If this plugin version has no explicit `--since`, emulate since semantics by comparing the current run against prior run artifacts and `_raw/papers/*/metadata.json`. Use `already_in_library:<slug>` as a hard dedupe signal, not as a hidden filter.
+If this plugin version has no explicit `--since`, emulate since semantics by comparing the current run against prior run artifacts and `_epi/raw/papers/*/metadata.json`. Use `already_in_library:<slug>` as a hard dedupe signal, not as a hidden filter.
 
 ## Output Contract
 

@@ -58,7 +58,7 @@ python scripts\orchestrator.py research-queue --bucket reproducibility_caveats -
 
 After critic pass, staging prepares evidence drafts, `wiki-ingest-brief.json`, and `reports/<slug>-reading-report.md`. The report should emphasize theory insight, experiment design, Reading Trust Status, evidence strength, suggested wiki routes, and reproducibility caveats.
 
-The workflow image's Report step is read-only: use `report --run-id` to display an existing `_runs/<run-id>/report.md` or `report.json`. The internal module is `report_run.py`; do not invent a `run-report` command.
+The workflow image's Report step is read-only: use `report --run-id` to display an existing `_epi/runs/<run-id>/report.md` or `report.json`. The internal module is `report_run.py`; do not invent a `run-report` command.
 
 ## Source-First Wiki Handoff
 
@@ -75,7 +75,7 @@ If the handoff lacks these fields, repair staging or rerun the relevant EPI step
 
 Final Obsidian/LLM Wiki pages are agent-mediated under the target vault contract. The final wiki executor may be Claude, Codex, or another wiki-capable agent. Before final writing, run `wiki-ingest-handoff`, resolve `AGENTS.md` and `_meta/*`, use the framework references named in `docs\epi-linkage.md`, keep local wiki skills as adapters, and require `wiki_rule_source_model`. Then record pre-write approval with `record-human-approval --scope run-wiki-ingest-agent`; do not let the wiki ingest agent write final or staged vault pages until the handoff reports `ready_for_agent=true`.
 
-When the user has read the lightweight report and calls `@EPI` again to continue wiki writing, run `research-queue --bucket ready_to_promote --actions --json` or the known slug's `wiki-ingest-trigger --slug <slug> --json`. The trigger writes `_staging/papers/<slug>/wiki-agent-trigger.json` only after approval and gives the current Claude, Codex, or other wiki-capable agent the source-first instruction bundle. It does not spawn a hidden background agent and does not write final pages by itself.
+When the user has read the lightweight report and calls `@EPI` again to continue wiki writing, run `research-queue --bucket ready_to_promote --actions --json` or the known slug's `wiki-ingest-trigger --slug <slug> --json`. The trigger writes `_epi/staging/papers/<slug>/wiki-agent-trigger.json` only after approval and gives the current Claude, Codex, or other wiki-capable agent the source-first instruction bundle. It does not spawn a hidden background agent and does not write final pages by itself.
 
 If the user asks for claim labels, provenance blocks, evidence-address preservation, or later round-trip retrieval from final pages, switch to `wiki-provenance` instead of expanding this skill.
 

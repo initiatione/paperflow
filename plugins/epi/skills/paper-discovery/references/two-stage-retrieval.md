@@ -24,7 +24,7 @@ EPI `dry-run` now performs this by default: it writes `query-plan.json`, searche
 Filter and rank after the pool exists:
 
 1. Deduplicate by DOI, arXiv ID, stable URL, normalized title, and title+first-author+year.
-2. Deduplicate against `_raw/papers/*/metadata.json`.
+2. Deduplicate against `_epi/raw/papers/*/metadata.json`.
 3. Remove hard exclusions such as review/survey when requested.
 4. Enforce `domain_focus_terms` when present. This is the hard anchor gate for the current request; broad config or method terms should not let method-only papers pass.
 5. Classify paper type from title/abstract using `paper-type-taxonomy.md`.

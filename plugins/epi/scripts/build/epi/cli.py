@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from epi import orchestrator as workflows
-from epi.artifacts import file_sha256, raw_paper_root, utc_now
+from epi.artifacts import file_sha256, raw_paper_root, runs_root, utc_now
 from epi.config import (
     apply_config_update,
     config_status as get_config_status,
@@ -18,6 +18,7 @@ from epi.config import (
     restore_config_from_file,
 )
 from epi.doctor import collect_doctor_report, open_setup_links, render_doctor_report
+from epi.epi_repository import cleanup_epi_repository, migrate_legacy_epi_roots
 from epi.report_run import load_run_report
 from epi.runtime_config import apply_runtime_config
 from epi.run_index import RESEARCH_QUEUE_BUCKETS
@@ -104,6 +105,16 @@ def build_parser() -> argparse.ArgumentParser:
     wiki_repair.add_argument("--restore-from", type=Path, default=None)
     wiki_repair.add_argument("--confirmed-by", default=None)
     wiki_repair.add_argument("--json", action="store_true")
+
+    epi_migrate = subparsers.add_parser("epi-repository-migrate")
+    _add_common_vault(epi_migrate)
+    epi_migrate.add_argument("--preview", action="store_true")
+    epi_migrate.add_argument("--json", action="store_true")
+
+    epi_cleanup = subparsers.add_parser("epi-repository-cleanup")
+    _add_common_vault(epi_cleanup)
+    epi_cleanup.add_argument("--preview", action="store_true")
+    epi_cleanup.add_argument("--json", action="store_true")
 
     dry_run = subparsers.add_parser("dry-run")
     dry_run.add_argument("--query", required=True)
@@ -488,7 +499,7 @@ def _handle_advance_batch(args: argparse.Namespace) -> int:
         max_papers=args.max_papers,
         mineru_timeout=args.mineru_timeout,
     )
-    print(f"run_dir={args.vault.resolve() / '_runs' / batch['run_id']}")
+    print(f"run_dir={runs_root(args.vault) / batch['run_id']}")
     print(f"batch_state={batch['state']}")
     print(f"processed_count={batch['processed_count']}")
     return 0 if batch["state"] != "batch_failed" else 1
@@ -503,7 +514,7 @@ def _handle_advance_ranked(args: argparse.Namespace) -> int:
         include_review_candidates=args.include_review_candidates,
         mineru_timeout=args.mineru_timeout,
     )
-    print(f"run_dir={args.vault.resolve() / '_runs' / batch['run_id']}")
+    print(f"run_dir={runs_root(args.vault) / batch['run_id']}")
     print(f"batch_state={batch['state']}")
     print(f"processed_count={batch['processed_count']}")
     return 0 if batch["state"] != "batch_failed" else 1
@@ -519,7 +530,7 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
         skip_existing=args.skip_existing,
         mineru_timeout=args.mineru_timeout,
     )
-    run_dir = args.vault.resolve() / "_runs" / batch["run_id"]
+    run_dir = runs_root(args.vault) / batch["run_id"]
     if args.json:
         print(
             json.dumps(
@@ -544,7 +555,7 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
             )
         )
         return 0 if batch["state"] != "prepare_failed" else 1
-    print(f"run_dir={args.vault.resolve() / '_runs' / batch['run_id']}")
+    print(f"run_dir={runs_root(args.vault) / batch['run_id']}")
     print(f"batch_state={batch['state']}")
     print(f"processed_count={batch['processed_count']}")
     print("stops_after=parse")
@@ -565,7 +576,65 @@ def _handle_promote_to_wiki(args: argparse.Namespace) -> int:
     vault_path = args.vault.resolve()
     run_id, run_dir = workflows._new_run_dir(vault_path, "promote-to-wiki")
     started_at = utc_now()
-    record = workflows.promote_paper(args.vault, args.slug, approved_by=args.approved_by)
+    try:
+        record = workflows.promote_paper(args.vault, args.slug, approved_by=args.approved_by)
+    except ValueError as exc:
+        report_md = run_dir / "report.md"
+        report_json = run_dir / "report.json"
+        message = str(exc)
+        report_md.write_text(
+            "\n".join(
+                [
+                    f"# EPI Promote To Wiki Deprecated - {args.slug}",
+                    "",
+                    "- workflow_type: promote-to-wiki",
+                    "- status: failed",
+                    f"- reason: {message}",
+                    "- next_action: wiki-ingest-handoff",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        report_json.write_text(
+            json.dumps(
+                {
+                    "workflow_type": "promote-to-wiki",
+                    "run_id": run_id,
+                    "status": "failed",
+                    "paper_slug": args.slug,
+                    "error": message,
+                    "wiki_pages_written": [],
+                    "next_actions": ["wiki-ingest-handoff"],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        workflows._write_json(
+            run_dir / "run-state.json",
+            {
+                "stage": "promote-to-wiki",
+                "run_id": run_id,
+                "workflow_type": "promote-to-wiki",
+                "state": "deprecated",
+                "status": "failed",
+                "paper_slug": args.slug,
+                "vault_path": str(vault_path),
+                "compiled_wiki_write": False,
+                "record_only": True,
+                "started_at": started_at,
+                "finished_at": utc_now(),
+                "exit_status": 1,
+                "error": message,
+            },
+        )
+        workflows._refresh_run_index(vault_path)
+        print(f"promotion_status=deprecated")
+        print(f"reason={message}")
+        print(f"run_dir={run_dir}")
+        return 1
     paper_root = raw_paper_root(vault_path, args.slug)
     promotion_record_path = paper_root / "promotion-record.json"
     zotero_results = workflows._zotero_record_only(vault_path, paper_root)
@@ -940,6 +1009,32 @@ def _handle_run_lifecycle(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_epi_repository_migrate(args: argparse.Namespace) -> int:
+    result = migrate_legacy_epi_roots(args.vault, dry_run=args.preview)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"epi_repository_migrate_status={result['status']}")
+        print(f"epi_root={result['epi_root']}")
+        print(f"actions={len(result['actions'])}")
+        if result.get("manifest_path"):
+            print(f"manifest_path={result['manifest_path']}")
+    return 0
+
+
+def _handle_epi_repository_cleanup(args: argparse.Namespace) -> int:
+    result = cleanup_epi_repository(args.vault, dry_run=args.preview)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"epi_repository_cleanup_status={result['status']}")
+        print(f"over_budget={str(bool(result['over_budget'])).lower()}")
+        print(f"actions={len(result['actions'])}")
+        if result.get("manifest_path"):
+            print(f"manifest_path={result['manifest_path']}")
+    return 0
+
+
 def _handle_research_queue(args: argparse.Namespace) -> int:
     result = workflows.query_research_queue(
         args.vault.resolve(),
@@ -1046,6 +1141,8 @@ HANDLERS: dict[str, Handler] = {
     "config-restore": _handle_config_restore,
     "wiki-reset": _handle_wiki_reset,
     "wiki-repair": _handle_wiki_repair,
+    "epi-repository-migrate": _handle_epi_repository_migrate,
+    "epi-repository-cleanup": _handle_epi_repository_cleanup,
     "dry-run": _handle_dry_run,
     "ingest-one": _handle_ingest_one,
     "acquire-paper": _handle_acquire_paper,

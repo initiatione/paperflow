@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from epi.artifacts import staging_paper_root
 from epi.paper_gate import build_paper_gate
 from epi.wiki_ingest_approval import human_approval_record_path
 
@@ -76,6 +77,8 @@ def _agent_checklist(
         "Read the EPI evidence handoff: "
         + ", ".join(str(path) for path in handoff_paths)
         + ".",
+        "Load the wiki-ingest skill before writing final pages; use EPI artifacts only as source/evidence inputs.",
+        "Batch deposition rule: compare this paper with the current batch or neighboring EPI source bundles before creating reusable concept or synthesis pages.",
         "source-first rule: read the source paper artifacts before any final wiki write: "
         + ", ".join(str(item) for item in raw_artifacts or primary_order)
         + ".",
@@ -103,7 +106,7 @@ def _agent_checklist(
         "Merge or update existing notes before creating duplicates.",
         "Preserve source provenance and distinguish extracted, inferred, and ambiguous claims.",
         "Respect vault-local staged writes, link format, language policy, taxonomy, and frontmatter schema.",
-        "Do not write final pages from EPI suggested routes directly.",
+        "Do not write final pages from EPI suggested routes directly; EPI must only write internal underscore artifacts.",
     ]
     brand_neutrality = execution_agent_policy.get("brand_neutrality")
     if brand_neutrality:
@@ -134,7 +137,7 @@ def _agent_checklist(
 
 def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
     vault_path = vault_path.resolve()
-    staging_root = vault_path / "_staging" / "papers" / slug
+    staging_root = staging_paper_root(vault_path, slug)
     plan_path = staging_root / "promotion-plan.json"
     plan = _read_json(plan_path)
     brief_path = _brief_path_from_plan(plan, staging_root)
@@ -179,6 +182,12 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
         "wiki_write_model": plan.get("wiki_write_model") or "agent-mediated-vault-contract",
         "handoff_type": plan.get("handoff_type") or brief.get("handoff_type"),
         "local_skill_policy": "helpers-not-authority",
+        "epi_write_scope": plan.get("epi_write_scope") or ingest_policy.get("epi_write_scope"),
+        "formal_routes_suggested": bool(brief.get("formal_routes_suggested", True)),
+        "wiki_batch_handoff_required": bool(
+            plan.get("wiki_batch_handoff_required") or ingest_policy.get("wiki_batch_handoff_required")
+        ),
+        "required_wiki_skills": ingest_policy.get("required_wiki_skills") or plan.get("required_wiki_skills") or [],
         "ready_for_agent": ready_for_agent,
         "ready_after_human_approval": ready_after_human_approval,
         "paper_gate": {
@@ -207,8 +216,11 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
             if isinstance(rule_source_model.get("execution_agent_policy"), dict)
             else {}
         ),
-        "suggested_routes_only": bool(ingest_policy.get("suggested_routes_only")),
         "suggested_routes": brief.get("suggested_routes") or [],
+        "handoff_artifacts": brief.get("handoff_artifacts") or [],
+        "candidate_topics": brief.get("candidate_topics") or [],
+        "candidate_clusters": brief.get("candidate_clusters") or [],
+        "wiki_skill_handoff": brief.get("wiki_skill_handoff") or {},
         "entrypoints": brief.get("entrypoints") or {},
         "trust_status": brief.get("trust_status") or {},
         "agent_checklist": _agent_checklist(gate=gate, plan=plan, brief=brief),
@@ -225,6 +237,9 @@ def render_wiki_ingest_handoff(handoff: dict[str, Any]) -> str:
         f"ready_for_agent: {str(handoff.get('ready_for_agent')).lower()}",
         f"ready_after_human_approval: {str(handoff.get('ready_after_human_approval')).lower()}",
         f"local skills: {handoff.get('local_skill_policy')}",
+        f"epi_write_scope: {handoff.get('epi_write_scope')}",
+        f"wiki_batch_handoff_required: {str(bool(handoff.get('wiki_batch_handoff_required'))).lower()}",
+        f"formal_routes_suggested: {str(bool(handoff.get('formal_routes_suggested'))).lower()}",
         "",
         "## Paper Gate",
         "",
@@ -255,9 +270,20 @@ def render_wiki_ingest_handoff(handoff: dict[str, Any]) -> str:
     lines.extend(["", "## Framework References", ""])
     for item in handoff.get("framework_references") or []:
         lines.append(f"- {item.get('name')}")
-    lines.extend(["", "## Suggested Routes", ""])
-    for item in handoff.get("suggested_routes") or []:
-        lines.append(f"- {item.get('page_type')}: {item.get('target')}")
+    lines.extend(["", "## Internal Handoff Artifacts", ""])
+    for item in handoff.get("handoff_artifacts") or []:
+        lines.append(f"- {item.get('artifact_type')}: {item.get('target')}")
+    if not handoff.get("handoff_artifacts"):
+        lines.append("- missing")
+    lines.extend(["", "## Formal Routes", ""])
+    if handoff.get("suggested_routes"):
+        for item in handoff.get("suggested_routes") or []:
+            lines.append(f"- blocked legacy route: {item.get('page_type')}: {item.get('target')}")
+    else:
+        lines.append("- none; wiki skill decides final pages after batch distillation")
+    lines.extend(["", "## Required Wiki Skills", ""])
+    for skill in handoff.get("required_wiki_skills") or []:
+        lines.append(f"- {skill}")
     contract = handoff.get("final_source_review_contract") or {}
     paths = handoff.get("paths") if isinstance(handoff.get("paths"), dict) else {}
     lines.extend(["", "## Human Approval", ""])

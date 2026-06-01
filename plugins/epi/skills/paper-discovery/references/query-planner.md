@@ -29,7 +29,7 @@ Use it when the user gives a compact request. The helper output is a starting po
 
 ## Planning Rules
 
-1. Start from `_meta\epi-config.yaml`: profile, domains, positive_keywords, negative_keywords, and venue_prior.
+1. Start from `_epi\meta\epi-config.yaml`: profile, domains, positive_keywords, negative_keywords, and venue_prior.
 2. Generate both broad and narrow queries: broad queries catch recall, narrow queries catch precision.
 3. Include evidence terms appropriate to the user's field, such as benchmark, experiment, dataset, field study, code, replication, or domain-specific validation terms.
 4. Default discovery is non-review: append `-review -survey` to every query and still enforce review exclusion in filtering. Skip this only when the user explicitly asks for review or survey papers.

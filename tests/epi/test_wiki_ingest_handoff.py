@@ -12,8 +12,8 @@ def _write_json(path, payload):
 
 
 def _seed_agent_handoff(vault, slug="fixture-paper"):
-    paper_root = vault / "_raw" / "papers" / slug
-    staging_root = vault / "_staging" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    staging_root = vault / "_epi" / "staging" / "papers" / slug
     paper_root.mkdir(parents=True, exist_ok=True)
     staging_root.mkdir(parents=True, exist_ok=True)
     _write_json(
@@ -43,10 +43,8 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
         },
     )
     for relative in [
-        "references/fixture-paper.md",
-        "concepts/fixture-paper-concept.md",
-        "synthesis/fixture-paper-synthesis.md",
-        "reports/fixture-paper-reading-report.md",
+        "evidence/source-reader.md",
+        "briefs/reading-report.md",
     ]:
         path = staging_root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -122,8 +120,11 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 ],
             },
             "ingest_policy": {
-                "suggested_routes_only": True,
                 "authority": "Resolve the target vault contract first.",
+                "epi_write_scope": "internal-underscore-artifacts-only",
+                "formal_routes_suggested": False,
+                "wiki_batch_handoff_required": True,
+                "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
                 "source_first_policy": "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
             },
             "source_bundle": {
@@ -148,12 +149,17 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "parse_uncertainty": "Inspect paper.pdf when MinerU parse limitations or missing figure/formula signals appear.",
                 },
             },
-            "suggested_routes": [
-                {"page_type": "reference", "target": "references/fixture-paper.md"},
-                {"page_type": "concept", "target": "concepts/fixture-paper-concept.md"},
+            "formal_routes_suggested": False,
+            "suggested_routes": [],
+            "handoff_artifacts": [
+                {"artifact_type": "source_reader", "target": "evidence/source-reader.md"},
+                {"artifact_type": "reading_report", "target": "briefs/reading-report.md"},
             ],
+            "candidate_topics": [],
+            "candidate_clusters": [],
+            "wiki_skill_handoff": {"batch_required": True},
             "entrypoints": {
-                "reading_report": "reports/fixture-paper-reading-report.md",
+                "reading_report": "briefs/reading-report.md",
                 "evidence_map": "reader/evidence-map.json",
             },
         },
@@ -164,17 +170,21 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
             "paper_slug": slug,
             "critic_outcome": "pass",
             "handoff_type": "agent-mediated-wiki-ingest",
-            "wiki_write_model": "agent-mediated-vault-contract",
-            "final_page_authority": "target-vault-contract-and-wiki-ingest-agent",
+            "wiki_write_model": "wiki-skill-batch-distillation",
+            "final_page_authority": "wiki-skill-batch-distillation",
+            "epi_write_scope": "internal-underscore-artifacts-only",
+            "formal_routes_suggested": False,
+            "wiki_batch_handoff_required": True,
+            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
             "wiki_ingest_brief_path": str(brief_path),
             "agent_handoff_paths": [
                 str(brief_path),
-                str(staging_root / "reports" / "fixture-paper-reading-report.md"),
+                str(staging_root / "briefs" / "reading-report.md"),
+                str(staging_root / "evidence" / "source-reader.md"),
             ],
-            "staged_reference": str(staging_root / "references" / "fixture-paper.md"),
-            "staged_concepts": [str(staging_root / "concepts" / "fixture-paper-concept.md")],
-            "staged_synthesis": [str(staging_root / "synthesis" / "fixture-paper-synthesis.md")],
-            "staged_reports": [str(staging_root / "reports" / "fixture-paper-reading-report.md")],
+            "staged_evidence": [str(staging_root / "evidence" / "source-reader.md")],
+            "staged_reports": [str(staging_root / "briefs" / "reading-report.md")],
+            "suggested_route_targets": [],
         },
     )
     (vault / "AGENTS.md").write_text("# Vault Contract\n", encoding="utf-8")
@@ -199,7 +209,7 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
 
     assert handoff["paper_slug"] == slug
     assert handoff["paper_gate"]["next_action"] == "run-wiki-ingest-agent"
-    assert handoff["wiki_write_model"] == "agent-mediated-vault-contract"
+    assert handoff["wiki_write_model"] == "wiki-skill-batch-distillation"
     assert handoff["ready_for_agent"] is False
     assert handoff["ready_after_human_approval"] is True
     assert handoff["paper_gate"]["action_required_checks"] == ["human-approval"]
@@ -207,7 +217,7 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["contract_files"]["_meta/schema.md"]["present"] is True
     assert handoff["contract_files"]["_meta/directory-structure.md"]["present"] is False
     assert handoff["local_skill_policy"] == "helpers-not-authority"
-    assert handoff["suggested_routes_only"] is True
+    assert handoff["formal_routes_suggested"] is False
     assert handoff["final_source_review_contract"]["required"] is True
     assert handoff["final_source_review_contract"]["suggested_output_path"] == "final-source-review.json"
     assert handoff["execution_agent_policy"]["allowed_executors"][:2] == ["Claude", "Codex"]
@@ -255,7 +265,7 @@ def test_wiki_ingest_trigger_requires_human_approval_before_agent_start(tmp_path
     assert trigger["ready_after_human_approval"] is True
     assert trigger["next_action"] == "record-human-approval"
     assert "record-human-approval" in trigger["instruction"]
-    assert not (vault / "_staging" / "papers" / slug / "wiki-agent-trigger.json").exists()
+    assert not (vault / "_epi" / "staging" / "papers" / slug / "wiki-agent-trigger.json").exists()
 
 
 def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_path):
@@ -269,7 +279,7 @@ def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_pat
     )
 
     trigger = build_wiki_ingest_trigger(vault, slug)
-    trigger_path = vault / "_staging" / "papers" / slug / "wiki-agent-trigger.json"
+    trigger_path = vault / "_epi" / "staging" / "papers" / slug / "wiki-agent-trigger.json"
     stored = json.loads(trigger_path.read_text(encoding="utf-8"))
 
     assert trigger["schema_version"] == "epi-wiki-agent-trigger-v1"
@@ -284,8 +294,8 @@ def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_pat
     assert "wiki-provenance" in trigger["instruction"]
     assert "final-source-review.json" in trigger["instruction"]
     assert "record-wiki-ingest" in trigger["instruction"]
-    assert "reports" in trigger["paths"]["reading_report"]
-    assert "fixture-paper-reading-report.md" in trigger["paths"]["reading_report"]
+    assert "briefs" in trigger["paths"]["reading_report"]
+    assert "reading-report.md" in trigger["paths"]["reading_report"]
     assert trigger["paths"]["wiki_ingest_brief"].endswith("wiki-ingest-brief.json")
     assert any("evidence-map.json" in item for item in trigger["agent_checklist"])
     assert not (vault / "references").exists()
@@ -328,7 +338,7 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
     assert "Ar9av/obsidian-wiki" in output
     assert "kepano/obsidian-skills" in output
     assert "local llm-wiki / wiki-ingest / obsidian-markdown skills" in output
-    assert "Do not write final pages from EPI suggested routes directly." in output
+    assert "Do not write final pages from EPI suggested routes directly" in output
     assert "## Final Source Review" in output
     assert "suggested_output_path: final-source-review.json" in output
     assert "mineru/paper.md" in output

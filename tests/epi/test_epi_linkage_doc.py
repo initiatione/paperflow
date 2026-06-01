@@ -19,8 +19,8 @@ def test_epi_linkage_doc_defines_scope_pipeline_and_sync_rule():
     assert "SkillOpt" in text
     assert "EmbodiSkill" in text
     assert "execution_lapse" in text
-    assert "_evolution/pending" in text
-    assert "_evolution/rejected" in text
+    assert "_epi/evolution/pending" in text
+    assert "_epi/evolution/rejected" in text
     assert "action_required" in text
     assert "configuration_change 必须 record-only" in text
     assert "metric" in text
@@ -57,7 +57,7 @@ def test_epi_linkage_doc_defines_scope_pipeline_and_sync_rule():
 def test_epi_linkage_doc_matches_current_dry_run_artifact_names():
     text = LINKAGE_DOC.read_text(encoding="utf-8")
 
-    assert "_runs/<run-id>/normalized.json" in text
-    assert "_runs/<run-id>/rank.json" in text
-    assert "_runs/<run-id>/candidates.normalized.json" not in text
-    assert "_runs/<run-id>/candidates.ranked.json" not in text
+    assert "_epi/runs/<run-id>/normalized.json" in text
+    assert "_epi/runs/<run-id>/rank.json" in text
+    assert "_epi/runs/<run-id>/candidates.normalized.json" not in text
+    assert "_epi/runs/<run-id>/candidates.ranked.json" not in text

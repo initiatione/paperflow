@@ -1,6 +1,7 @@
 import json
 
 from epi.run_index import refresh_run_index
+from epi.stage_wiki import _build_wiki_ingest_brief
 
 
 def _write_json(path, payload):
@@ -19,8 +20,8 @@ def _seed_run(runs_root, run_id, run_state=None, report=None):
 
 
 def _seed_ready_paper_gate(vault_path, slug):
-    paper_root = vault_path / "_raw" / "papers" / slug
-    staging_root = vault_path / "_staging" / "papers" / slug
+    paper_root = vault_path / "_epi/raw" / "papers" / slug
+    staging_root = vault_path / "_epi/staging" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
     _write_json(paper_root / "metadata.json", {"slug": slug, "title": "Ready Paper"})
@@ -44,37 +45,79 @@ def _seed_ready_paper_gate(vault_path, slug):
             "reviewer_quorum_path": str(critic_root / "critic-quorum.json"),
         },
     )
-    staged_reference = staging_root / "references" / f"{slug}.md"
-    staged_concept = staging_root / "concepts" / f"{slug}-concept.md"
-    staged_synthesis = staging_root / "synthesis" / f"{slug}-synthesis.md"
-    staged_report = staging_root / "reports" / f"{slug}-reading-report.md"
-    for staged_path in [staged_reference, staged_concept, staged_synthesis, staged_report]:
+    staged_source_reader = staging_root / "evidence" / "source-reader.md"
+    staged_report = staging_root / "briefs" / "reading-report.md"
+    for staged_path in [staged_source_reader, staged_report]:
         staged_path.parent.mkdir(parents=True, exist_ok=True)
         staged_path.write_text(f"# {staged_path.stem}\n", encoding="utf-8")
+    brief_path = staging_root / "wiki-ingest-brief.json"
+    batch_path = vault_path / "_epi/staging/wiki-batches/pending/wiki-batch-ingest-brief.json"
+    wiki_ingest_brief = _build_wiki_ingest_brief(
+        slug=slug,
+        title="Ready Paper",
+        source_reader_target="evidence/source-reader.md",
+        reading_report_target="briefs/reading-report.md",
+        editorial_summary_text="",
+        technical_reading_text="",
+        research_notes_text="",
+        evidence_map={},
+        research_decision={},
+        reproduction_plan={},
+    )
+    _write_json(brief_path, wiki_ingest_brief)
+    _write_json(
+        batch_path,
+        {
+            "schema_version": "epi-wiki-batch-ingest-brief-v1",
+            "handoff_type": "wiki-skill-batch-distillation",
+            "epi_write_scope": "internal-underscore-artifacts-only",
+            "formal_routes_suggested": False,
+            "paper_slugs": [slug],
+            "papers": [{"paper_slug": slug, "wiki_ingest_brief": str(brief_path)}],
+        },
+    )
     _write_json(
         staging_root / "promotion-plan.json",
         {
             "paper_slug": slug,
             "critic_outcome": "pass",
-            "staged_reference": str(staged_reference),
-            "staged_concepts": [str(staged_concept)],
-            "staged_synthesis": [str(staged_synthesis)],
+            "handoff_type": "agent-mediated-wiki-ingest",
+            "wiki_write_model": "wiki-skill-batch-distillation",
+            "final_page_authority": "wiki-skill-batch-distillation",
+            "epi_write_scope": "internal-underscore-artifacts-only",
+            "formal_routes_suggested": False,
+            "wiki_batch_handoff_required": True,
+            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "staged_evidence": [str(staged_source_reader)],
             "staged_reports": [str(staged_report)],
-            "compiled_targets": [
-                f"references/{slug}.md",
-                f"concepts/{slug}-concept.md",
-                f"synthesis/{slug}-synthesis.md",
-                f"reports/{slug}-reading-report.md",
-            ],
+            "wiki_ingest_brief_path": str(brief_path),
+            "wiki_batch_ingest_brief_path": str(batch_path),
+            "agent_handoff_paths": [str(brief_path), str(batch_path), str(staged_report), str(staged_source_reader)],
+            "suggested_route_targets": [],
         },
     )
 
 
-def _seed_failed_paper_gate(vault_path, slug):
+def _seed_legacy_compiled_target_failure(vault_path, slug):
     _seed_ready_paper_gate(vault_path, slug)
-    staging_root = vault_path / "_staging" / "papers" / slug
+    staging_root = vault_path / "_epi/staging" / "papers" / slug
     plan_path = staging_root / "promotion-plan.json"
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    for key in [
+        "handoff_type",
+        "wiki_write_model",
+        "final_page_authority",
+        "epi_write_scope",
+        "formal_routes_suggested",
+        "wiki_batch_handoff_required",
+        "required_wiki_skills",
+        "wiki_ingest_brief_path",
+        "wiki_batch_ingest_brief_path",
+        "agent_handoff_paths",
+        "suggested_route_targets",
+    ]:
+        plan.pop(key, None)
+    plan["staged_reference"] = plan.pop("staged_evidence")[0]
     plan["compiled_targets"] = [
         f"references/{slug}.md",
         "../unsafe.md",
@@ -84,7 +127,7 @@ def _seed_failed_paper_gate(vault_path, slug):
 
 def test_refresh_run_index_enriches_ready_queue_with_paper_gate(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
     slug = "ready-paper"
     _seed_ready_paper_gate(vault_path, slug)
@@ -112,7 +155,7 @@ def test_refresh_run_index_enriches_ready_queue_with_paper_gate(tmp_path):
     assert item["paper_gate"] == {
         "status": "waiting_for_human_gate",
         "conclusion": "action_required",
-        "next_action": "promote-to-wiki",
+        "next_action": "run-wiki-ingest-agent",
         "action_required_checks": ["human-approval"],
         "failure_checks": [],
     }
@@ -120,10 +163,10 @@ def test_refresh_run_index_enriches_ready_queue_with_paper_gate(tmp_path):
 
 def test_refresh_run_index_marks_ready_queue_reason_blocked_when_current_paper_gate_fails(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
     slug = "unsafe-ready-paper"
-    _seed_failed_paper_gate(vault_path, slug)
+    _seed_legacy_compiled_target_failure(vault_path, slug)
     _seed_run(
         runs_root,
         "20260529T101000Z-stale-ready",
@@ -152,7 +195,7 @@ def test_refresh_run_index_marks_ready_queue_reason_blocked_when_current_paper_g
 
 def test_refresh_run_index_writes_sorted_index_entries(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -312,7 +355,7 @@ def test_refresh_run_index_writes_sorted_index_entries(tmp_path):
 
 def test_refresh_run_index_writes_dashboard_and_skips_broken_runs(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -429,7 +472,7 @@ def test_refresh_run_index_writes_dashboard_and_skips_broken_runs(tmp_path):
 
 def test_refresh_run_index_surfaces_research_decisions(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -474,7 +517,7 @@ def test_refresh_run_index_surfaces_research_decisions(tmp_path):
 
 def test_refresh_run_index_surfaces_zotero_results_in_index_and_dashboard(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -533,7 +576,7 @@ def test_refresh_run_index_surfaces_zotero_results_in_index_and_dashboard(tmp_pa
 
 def test_refresh_run_index_writes_research_queue_from_decisions_revision_plans_and_delta(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -574,7 +617,7 @@ def test_refresh_run_index_writes_research_queue_from_decisions_revision_plans_a
                     "next_action": "revise-reader",
                     "blocking_count": 2,
                     "warning_count": 1,
-                    "plan_path": "D:\\vault\\_raw\\papers\\repair-paper\\critic\\reader-revision-plan.json",
+                    "plan_path": "D:\\vault\\_epi/raw\\papers\\repair-paper\\critic\\reader-revision-plan.json",
                 }
             ],
             "research_decisions": [
@@ -646,7 +689,7 @@ def test_refresh_run_index_writes_research_queue_from_decisions_revision_plans_a
 
 def test_refresh_run_index_treats_waiting_human_gate_as_ready_not_failed(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -677,7 +720,7 @@ def test_refresh_run_index_treats_waiting_human_gate_as_ready_not_failed(tmp_pat
 
 def test_refresh_run_index_adds_reproducibility_caveat_items_to_research_queue(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -698,7 +741,7 @@ def test_refresh_run_index_adds_reproducibility_caveat_items_to_research_queue(t
                 {
                     "slug": "repro-paper",
                     "title": "Repro Paper",
-                    "plan_path": "D:\\vault\\_raw\\papers\\repro-paper\\critic\\reproduction-plan.json",
+                    "plan_path": "D:\\vault\\_epi/raw\\papers\\repro-paper\\critic\\reproduction-plan.json",
                     "next_action": "prepare-reproduction-plan",
                     "missing_count": 2,
                     "human_gate_required": True,
@@ -718,7 +761,7 @@ def test_refresh_run_index_adds_reproducibility_caveat_items_to_research_queue(t
 
 def test_refresh_run_index_does_not_write_research_agenda_outputs(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -772,7 +815,7 @@ def test_refresh_run_index_does_not_write_research_agenda_outputs(tmp_path):
                     "next_action": "revise-reader",
                     "blocking_count": 1,
                     "warning_count": 0,
-                    "plan_path": "D:\\vault\\_raw\\papers\\repair-paper\\critic\\reader-revision-plan.json",
+                    "plan_path": "D:\\vault\\_epi/raw\\papers\\repair-paper\\critic\\reader-revision-plan.json",
                 }
             ],
             "research_decisions": [
@@ -808,7 +851,7 @@ def test_refresh_run_index_does_not_write_research_agenda_outputs(tmp_path):
                 {
                     "slug": "repro-paper",
                     "title": "Repro Paper",
-                    "plan_path": "D:\\vault\\_raw\\papers\\repro-paper\\critic\\reproduction-plan.json",
+                    "plan_path": "D:\\vault\\_epi/raw\\papers\\repro-paper\\critic\\reproduction-plan.json",
                     "next_action": "prepare-reproduction-plan",
                     "missing_count": 2,
                     "human_gate_required": True,
@@ -832,7 +875,7 @@ def test_refresh_run_index_does_not_write_research_agenda_outputs(tmp_path):
 
 def test_refresh_run_index_writes_empty_filtered_views_when_no_matches(tmp_path):
     vault_path = tmp_path / "vault"
-    runs_root = vault_path / "_runs"
+    runs_root = vault_path / "_epi/runs"
     runs_root.mkdir(parents=True, exist_ok=True)
 
     _seed_run(
@@ -870,3 +913,4 @@ def test_refresh_run_index_writes_empty_filtered_views_when_no_matches(tmp_path)
     assert "No failed runs." in dashboard_text
     assert "## Pending Human Gate" in dashboard_text
     assert "No runs waiting on a human gate." in dashboard_text
+

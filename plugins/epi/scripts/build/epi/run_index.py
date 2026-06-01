@@ -4,6 +4,7 @@ from pathlib import Path
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
+from epi.artifacts import epi_meta_root, runs_root
 from epi.paper_gate import build_paper_gate
 
 
@@ -27,11 +28,11 @@ _ROLE_DISPLAY_NAMES = {
 
 
 def _runs_root(vault_path):
-    return Path(vault_path) / "_runs"
+    return runs_root(Path(vault_path))
 
 
 def _lifecycle_root(vault_path):
-    return Path(vault_path) / "_meta" / "run-lifecycle"
+    return epi_meta_root(Path(vault_path)) / "run-lifecycle"
 
 
 def _load_json(path):

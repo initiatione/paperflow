@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from pathlib import PurePosixPath
 
-from epi.artifacts import utc_now, write_json_atomic, write_text_atomic
+from epi.artifacts import raw_paper_root, staging_paper_root, utc_now, write_json_atomic, write_text_atomic
 from epi.run_critic import HARD_RULE
 
 
@@ -17,11 +17,11 @@ def _read_json(path: Path) -> dict:
 
 
 def _paper_root(vault_path: Path, slug: str) -> Path:
-    return vault_path.resolve() / "_raw" / "papers" / slug
+    return raw_paper_root(vault_path, slug)
 
 
 def _staging_root(vault_path: Path, slug: str) -> Path:
-    return vault_path.resolve() / "_staging" / "papers" / slug
+    return staging_paper_root(vault_path, slug)
 
 
 def _manifest_path(vault_path: Path) -> Path:
@@ -367,6 +367,11 @@ def promote_paper(vault_path: Path, slug: str, approved_by: str | None = None) -
         raise ValueError("critic report does not preserve the hard gate invariant")
     if not approved_by:
         raise ValueError("human gate approval required before promotion")
+    raise ValueError(
+        "promote-to-wiki is deprecated: EPI may only write internal underscore artifacts. "
+        "Use wiki-ingest-handoff, record-human-approval, wiki-ingest-trigger, then the wiki-ingest skill "
+        "for batch deposition and record-wiki-ingest."
+    )
 
     page_transactions = _page_transactions(vault_path, staging_root, slug)
     staged_reference = Path(page_transactions[0]["staged_path"])

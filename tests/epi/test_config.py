@@ -34,7 +34,7 @@ def test_load_config_uses_relative_defaults(tmp_path):
 
     assert config.plugin_root == plugin_root
     assert config.vault_path == tmp_path / "vault"
-    assert config.runs_dir == tmp_path / "vault" / "_runs"
+    assert config.runs_dir == tmp_path / "vault" / "_epi" / "runs"
     assert config.max_results == 12
     assert config.profile == "robotics_ai_control"
     assert config.positive_keywords == ["humanoid", "sim2real"]

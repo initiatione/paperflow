@@ -6,8 +6,8 @@ Use this reference when a user wants breadth, increments, or a reading plan for 
 
 Build a delta table with these buckets:
 
-- `net_new`: stable DOI/arXiv/title not seen in prior runs and not present in `_raw/papers`.
-- `already_in_library`: candidate rejected by `already_in_library:<slug>` or matching `_raw/papers/*/metadata.json`.
+- `net_new`: stable DOI/arXiv/title not seen in prior runs and not present in `_epi/raw/papers`.
+- `already_in_library`: candidate rejected by `already_in_library:<slug>` or matching `_epi/raw/papers/*/metadata.json`.
 - `seen_in_prior_run`: candidate appeared in an earlier `rank.json` or `report.json` but was not acquired.
 - `changed_status`: known paper whose PDF, parse, critic, or wiki-ingest state changed.
 - `uncertain_identity`: title-only or weak metadata match; ask for human review before suppressing.
@@ -19,7 +19,7 @@ If a future CLI has `--since <last-run|date>`, prefer it. Otherwise compare curr
 Sort reading backlog by:
 
 1. Hard identity and availability: DOI/arXiv/title match, PDF URL, open access.
-2. Topic fit: current request and `_meta/epi-config.yaml`, not broad recall terms alone.
+2. Topic fit: current request and `_epi/meta/epi-config.yaml`, not broad recall terms alone.
 3. Quality: `quality_tier`, `quality_gate`, venue/source confidence, verified metrics if present.
 4. Incremental value: fills a missing method/task/benchmark/citation cluster.
 5. Readiness: acquisition status, parse status, parse fidelity, critic state, handoff state.

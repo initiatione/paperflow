@@ -180,7 +180,7 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert index_payload["runs"][0]["run_id"] == run_dir.name
     assert index_payload["runs"][0]["workflow_type"] == "paper-discovery-dry-run"
     assert run_dir.name in dashboard_text
-    assert sorted(path.name for path in (tmp_path / "vault").iterdir()) == ["_runs"]
+    assert sorted(path.name for path in (tmp_path / "vault").iterdir()) == ["_epi"]
 
 
 def test_dry_run_query_plan_searches_variants_and_merges_candidate_pool(tmp_path):

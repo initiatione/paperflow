@@ -9,10 +9,10 @@ Parse local PDFs into reader-ready EPI artifacts: Markdown text, TeX/formulas, e
 
 ## Contract
 
-Final outputs live only under `_raw\papers\<slug>\mineru\`:
+Final outputs live only under `_epi\raw\papers\<slug>\mineru\`:
 
 ```text
-_raw\papers\<slug>\mineru\
+_epi\raw\papers\<slug>\mineru\
 |-- paper.md
 |-- paper.tex
 |-- images\...

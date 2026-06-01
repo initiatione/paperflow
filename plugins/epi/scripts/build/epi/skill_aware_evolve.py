@@ -8,6 +8,8 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any
 
+from epi.artifacts import evolution_root
+
 from epi.artifacts import utc_now, write_json_atomic, write_text_atomic
 
 
@@ -394,7 +396,7 @@ def propose_evolution(
         "activation_requires_human_approval": True,
         "rollback_instructions": "Move active record to archive and restore the previous controlled asset version.",
     }
-    path = vault_path.resolve() / "_evolution" / "proposals" / f"{proposal_id}.json"
+    path = evolution_root(vault_path) / "proposals" / f"{proposal_id}.json"
     write_json_atomic(path, proposal)
     return proposal
 
@@ -409,7 +411,7 @@ def activate_evolution(
     if not approved:
         raise PermissionError("human approval is required before activating evolution proposals")
     vault_path = vault_path.resolve()
-    proposal_path = vault_path / "_evolution" / "proposals" / f"{proposal_id}.json"
+    proposal_path = evolution_root(vault_path) / "proposals" / f"{proposal_id}.json"
     proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
     target_asset = _validate_target_asset(proposal["target_asset"])
     normalized_target_asset = _normalize_asset_key(target_asset)
@@ -434,7 +436,7 @@ def activate_evolution(
             "reason": "validation_required_before_skill_change",
             "backup_created": False,
         }
-        pending_path = vault_path / "_evolution" / "pending" / f"{proposal_id}.json"
+        pending_path = evolution_root(vault_path) / "pending" / f"{proposal_id}.json"
         write_json_atomic(pending_path, activated)
         return activated
 
@@ -447,9 +449,9 @@ def activate_evolution(
             "reason": "validation_gate_failed",
             "backup_created": False,
         }
-        rejected_path = vault_path / "_evolution" / "rejected" / f"{proposal_id}.json"
+        rejected_path = evolution_root(vault_path) / "rejected" / f"{proposal_id}.json"
         write_json_atomic(rejected_path, activated)
-        archive_dir = vault_path / "_evolution" / "archive"
+        archive_dir = evolution_root(vault_path) / "archive"
         archive_dir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(proposal_path, archive_dir / f"{proposal_id}.proposed.json")
         return activated
@@ -477,7 +479,7 @@ def activate_evolution(
         }
     else:
         asset_path = vault_path / Path(target_asset)
-        backup_dir = vault_path / "_evolution" / "backups" / proposal_id
+        backup_dir = evolution_root(vault_path) / "backups" / proposal_id
         backup_dir.mkdir(parents=True, exist_ok=True)
         backup_path = backup_dir / asset_path.name
         shutil.copyfile(asset_path, backup_path)
@@ -494,20 +496,20 @@ def activate_evolution(
             "backup_path": str(backup_path),
             "restore_action": "restore_file_copy",
         }
-    active_path = vault_path / "_evolution" / "active" / f"{proposal_id}.json"
+    active_path = evolution_root(vault_path) / "active" / f"{proposal_id}.json"
     write_json_atomic(active_path, activated)
-    archive_dir = vault_path / "_evolution" / "archive"
+    archive_dir = evolution_root(vault_path) / "archive"
     archive_dir.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(proposal_path, archive_dir / f"{proposal_id}.proposed.json")
     return activated
 
 
 def _load_evolution_records(vault_path: Path) -> list[dict[str, Any]]:
-    evolution_root = vault_path.resolve() / "_evolution"
+    evolution_root_path = evolution_root(vault_path)
     records_by_id: dict[str, dict[str, Any]] = {}
     precedence = {"proposals": 0, "pending": 1, "rejected": 2, "active": 3}
     for bucket in ["proposals", "pending", "rejected", "active"]:
-        bucket_root = evolution_root / bucket
+        bucket_root = evolution_root_path / bucket
         if not bucket_root.exists():
             continue
         for path in sorted(bucket_root.glob("*.json")):
