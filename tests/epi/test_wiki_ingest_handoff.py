@@ -6,12 +6,44 @@ from epi.wiki_ingest_handoff import build_wiki_ingest_handoff, render_wiki_inges
 from epi.wiki_ingest_trigger import build_wiki_ingest_trigger, render_wiki_ingest_trigger
 
 
+EXPECTED_RESEARCH_WIKI_SKILLS = [
+    "epi-wiki-deposition",
+    "wiki-ingest",
+    "wiki-provenance",
+    "tag-taxonomy",
+]
+
+EXPECTED_FORMAL_PAGE_FAMILIES = [
+    "references",
+    "concepts",
+    "derivations",
+    "experiments",
+    "synthesis",
+    "reports",
+    "opportunities",
+]
+
+EXPECTED_RESEARCH_REVIEW_FIELDS = [
+    "theory_reconstruction",
+    "formula_derivation",
+    "figure_table_evidence",
+    "novelty_type",
+    "implementability",
+    "reproducibility_risk",
+    "research_gap",
+    "cost_level",
+]
+
+EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "source-reviewed", "under-review", "verified"]
+
+
 def _write_json(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def _seed_agent_handoff(vault, slug="fixture-paper"):
+    canonical_mineru_md = f"mineru/{slug}.md"
     paper_root = vault / "_epi" / "raw" / "papers" / slug
     staging_root = vault / "_epi" / "staging" / "papers" / slug
     paper_root.mkdir(parents=True, exist_ok=True)
@@ -70,12 +102,16 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "required_artifacts": [
                     "paper.pdf",
                     "metadata.json",
-                    "mineru/paper.md",
+                    canonical_mineru_md,
                     "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
                 ],
                 "record_schema_version": "epi-final-source-review-v1",
+                "required_wiki_skills": EXPECTED_RESEARCH_WIKI_SKILLS,
+                "formal_page_families": EXPECTED_FORMAL_PAGE_FAMILIES,
+                "research_review_fields": EXPECTED_RESEARCH_REVIEW_FIELDS,
+                "page_lifecycle_states": EXPECTED_PAGE_LIFECYCLE_STATES,
             },
             "wiki_rule_source_model": {
                 "execution_agent_policy": {
@@ -124,27 +160,30 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "epi_write_scope": "internal-underscore-artifacts-only",
                 "formal_routes_suggested": False,
                 "wiki_batch_handoff_required": True,
-                "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
-                "source_first_policy": "Read mineru/paper.md, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
+                "required_wiki_skills": EXPECTED_RESEARCH_WIKI_SKILLS,
+                "source_first_policy": f"Read {canonical_mineru_md}, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
             },
+            "formal_page_families": EXPECTED_FORMAL_PAGE_FAMILIES,
+            "research_review_fields": EXPECTED_RESEARCH_REVIEW_FIELDS,
+            "page_lifecycle_states": EXPECTED_PAGE_LIFECYCLE_STATES,
             "source_bundle": {
                 "raw_artifacts": [
                     "paper.pdf",
                     "metadata.json",
-                    "mineru/paper.md",
+                    canonical_mineru_md,
                     "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
                 ],
                 "primary_source_reading_order": [
                     "metadata.json",
-                    "mineru/paper.md",
+                    canonical_mineru_md,
                     "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
                 ],
                 "formula_figure_review": {
-                    "formulas": "Review central formulas from mineru/paper.md and mineru/paper.tex before distilling claims.",
+                    "formulas": f"Review central formulas from {canonical_mineru_md} and mineru/paper.tex before distilling claims.",
                     "figures_tables_images": "Interpret figures, tables, and images from mineru/images/* instead of collapsing them into reader summary prose.",
                     "parse_uncertainty": "Inspect paper.pdf when MinerU parse limitations or missing figure/formula signals appear.",
                 },
@@ -157,7 +196,12 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
             ],
             "candidate_topics": [],
             "candidate_clusters": [],
-            "wiki_skill_handoff": {"batch_required": True},
+            "wiki_skill_handoff": {
+                "batch_required": True,
+                "required_skills": EXPECTED_RESEARCH_WIKI_SKILLS,
+                "formal_page_families": EXPECTED_FORMAL_PAGE_FAMILIES,
+                "page_lifecycle_states": EXPECTED_PAGE_LIFECYCLE_STATES,
+            },
             "entrypoints": {
                 "reading_report": "briefs/reading-report.md",
                 "evidence_map": "reader/evidence-map.json",
@@ -175,7 +219,10 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
             "epi_write_scope": "internal-underscore-artifacts-only",
             "formal_routes_suggested": False,
             "wiki_batch_handoff_required": True,
-            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "required_wiki_skills": EXPECTED_RESEARCH_WIKI_SKILLS,
+            "formal_page_families": EXPECTED_FORMAL_PAGE_FAMILIES,
+            "research_review_fields": EXPECTED_RESEARCH_REVIEW_FIELDS,
+            "page_lifecycle_states": EXPECTED_PAGE_LIFECYCLE_STATES,
             "wiki_ingest_brief_path": str(brief_path),
             "agent_handoff_paths": [
                 str(brief_path),
@@ -218,6 +265,10 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["contract_files"]["_meta/directory-structure.md"]["present"] is False
     assert handoff["local_skill_policy"] == "helpers-not-authority"
     assert handoff["formal_routes_suggested"] is False
+    assert handoff["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert handoff["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
+    assert handoff["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
+    assert handoff["page_lifecycle_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
     assert handoff["final_source_review_contract"]["required"] is True
     assert handoff["final_source_review_contract"]["suggested_output_path"] == "final-source-review.json"
     assert handoff["execution_agent_policy"]["allowed_executors"][:2] == ["Claude", "Codex"]
@@ -225,7 +276,7 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["agent_checklist"][0].startswith("Execution agent is neutral")
     assert any(item.startswith("Read target vault contract") for item in handoff["agent_checklist"])
     assert any("source-first rule" in item for item in handoff["agent_checklist"])
-    assert any("mineru/paper.md" in item for item in handoff["agent_checklist"])
+    assert any("mineru/fixture-paper.md" in item for item in handoff["agent_checklist"])
     assert any("mineru/images/*" in item for item in handoff["agent_checklist"])
     assert any("source paper artifacts" in item for item in handoff["agent_checklist"])
     assert any("figures, tables, and images" in item for item in handoff["agent_checklist"])
@@ -291,7 +342,11 @@ def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_pat
     assert stored["next_action"] == "run-current-agent-as-wiki-ingest-agent"
     assert "Claude" in trigger["executor_policy"]["allowed_executors"]
     assert "Codex" in trigger["executor_policy"]["allowed_executors"]
+    assert trigger["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert "tag-taxonomy" in trigger["instruction"]
     assert "wiki-provenance" in trigger["instruction"]
+    for family in ["derivations/", "experiments/", "opportunities/"]:
+        assert family in trigger["instruction"]
     assert "final-source-review.json" in trigger["instruction"]
     assert "record-wiki-ingest" in trigger["instruction"]
     assert "briefs" in trigger["paths"]["reading_report"]
@@ -317,6 +372,10 @@ def test_render_wiki_ingest_trigger_shows_resume_command_after_approval(tmp_path
     assert "ready_for_agent: true" in output
     assert "next_action: run-current-agent-as-wiki-ingest-agent" in output
     assert "wiki-provenance" in output
+    assert "tag-taxonomy" in output
+    assert "derivations/" in output
+    assert "experiments/" in output
+    assert "opportunities/" in output
     assert "record-wiki-ingest" in output
 
 
@@ -338,12 +397,16 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
     assert "Ar9av/obsidian-wiki" in output
     assert "kepano/obsidian-skills" in output
     assert "local llm-wiki / wiki-ingest / obsidian-markdown skills" in output
+    assert "tag-taxonomy" in output
     assert "Do not write final pages from EPI suggested routes directly" in output
     assert "## Final Source Review" in output
     assert "suggested_output_path: final-source-review.json" in output
-    assert "mineru/paper.md" in output
+    assert "mineru/fixture-paper.md" in output
     assert "mineru/images/*" in output
     assert "source paper artifacts" in output
+    assert "derivations/" in output
+    assert "experiments/" in output
+    assert "opportunities/" in output
 
 
 def test_wiki_ingest_handoff_cli_outputs_json(tmp_path, monkeypatch, capsys):

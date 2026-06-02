@@ -26,7 +26,7 @@ For final wiki-page provenance, support labels, and claim-to-evidence round-trip
 
 ## Path A: Raw Artifacts Only
 
-Stops after `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`.
+Stops after `mineru\<slug>.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`.
 
 ```powershell
 python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 10 --skip-existing --include-review-candidates --vault <vault>
@@ -70,7 +70,7 @@ The approval report must be Chinese-first and dense but short. For a batch, use 
 
 `reader/` and critic outputs reduce reading cost; they are not the source of truth for final wiki writing. Before final wiki ingest, load `references/source-first-reading.md`, run `wiki-ingest-handoff`, and verify the handoff requires:
 
-- source artifacts: `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`
+- source artifacts: `paper.pdf`, `metadata.json`, `mineru/<slug>.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`
 - evidence aids: `reader/evidence-map.json`, `reader/claim-support.json`, `reader/figures.md`, `critic/*.json`
 - formula/figure review: preserve central formulas, notation, derivation cues, figures, tables, image interpretations, parse uncertainty, and source provenance
 - final source review: require `final-source-review.json` with source artifact hashes, formula review, figure/image review, PDF fallback decision, and final page provenance
@@ -88,3 +88,9 @@ If the user asks for claim labels, provenance blocks, evidence-address preservat
 After the wiki ingest agent has written or staged the final Markdown pages, create `final-source-review.json`, then run `record-wiki-ingest --page ... --approved-by ... --source-review ...`. This command is record-only: it rechecks `paper-gate`, requires matching pre-write `human-approval.json`, validates final source review, verifies each final page is inside the vault and outside EPI internal folders, records sha256 hashes in raw/staging, and marks the paper `wiki_ingest_recorded`. It must not rewrite final pages or replace the target vault's ingest agent.
 
 Safety: raw/staging writes are allowed. Compiled wiki writes require critic pass, handoff, pre-write human approval, and final source review.
+
+## Literature Wiki Contract
+
+Final deposition may land in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`, chosen by the target vault contract and the wiki agent. EPI does not write these pages directly; it prepares source bundles, approval, trigger, and record artifacts.
+
+The handoff should require `epi-wiki-deposition`, `wiki-ingest`, `wiki-provenance`, and `tag-taxonomy`. `final-source-review.json` must cover `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`. Page lifecycle is `draft -> source-reviewed -> under-review -> verified`.

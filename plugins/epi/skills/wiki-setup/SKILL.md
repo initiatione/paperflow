@@ -50,9 +50,9 @@ Expected structure includes one EPI internal repository root `_epi`, wiki contra
 - `_epi\evolution\`
 - `_epi\meta\`
 
-Obsidian graph views should ignore `_epi`; `_epi/raw/papers/<slug>/mineru/paper.md` remains source material, not a formal wiki page.
+Obsidian graph views should ignore `_epi`; `_epi/raw/papers/<slug>/mineru/<slug>.md` remains source material, not a formal wiki page.
 
-Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`. These defaults are source-first for paper research: final wiki pages must read `mineru\paper.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`, then use reader/critic outputs as evidence aids.
+Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`. These defaults are source-first for paper research: final wiki pages must read `mineru\<slug>.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`, then use reader/critic outputs as evidence aids.
 
 For existing vaults with old top-level operational roots, migrate before or after initialization:
 
@@ -110,3 +110,9 @@ python scripts\orchestrator.py wiki-repair --vault <vault> --restore-from <backu
 ```
 
 Never reset/delete without the exact second confirmation, without preserving EPI config unless `确认同时重置 EPI config` was also provided, outside the intended vault, in unrelated paths, or while ingest/MinerU/promotion/wiki ingest is running.
+
+## Literature Wiki Contract
+
+Initialization seeds formal wiki page families for paper research: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. EPI itself still writes only `_epi/`; final pages are written by a wiki-capable agent after handoff and approval.
+
+The vault contract should expect `epi-wiki-deposition`, `wiki-ingest`, `wiki-provenance`, and `tag-taxonomy`. Final source review fields are `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`; lifecycle is `draft -> source-reviewed -> under-review -> verified`.

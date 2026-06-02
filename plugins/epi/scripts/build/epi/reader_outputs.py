@@ -6,6 +6,7 @@ from typing import Any
 from epi.artifacts import write_text_atomic
 from epi.reader_protocol import claim_record, evidence_line, first_section
 from epi.reader_revision_guidance import render_role_revision_focus_section
+from epi.source_artifacts import MINERU_MARKDOWN_ARTIFACT_LABEL
 
 
 def _sources_text(metadata: dict) -> str:
@@ -60,6 +61,7 @@ def write_role_reader_outputs(
     metadata: dict,
     sections: list[tuple[str, str]],
     first_claim_index: int,
+    mineru_markdown_source: str = MINERU_MARKDOWN_ARTIFACT_LABEL,
     revision_guidance: str = "",
     paper_tex_text: str = "",
     mineru_manifest: dict[str, Any] | None = None,
@@ -95,7 +97,7 @@ def write_role_reader_outputs(
         "",
         "## Central Claim",
         f"- {abstract_claim}",
-        f"  {evidence_line('mineru/paper.md', 'heading', abstract_heading)}",
+        f"  {evidence_line(mineru_markdown_source, 'heading', abstract_heading)}",
         "",
         "## Why It Matters",
         f"- Venue/context: {venue or 'unspecified'}",
@@ -112,7 +114,7 @@ def write_role_reader_outputs(
         reader_role="nature-sci-editor",
         reader_artifact="reader/editorial-summary.md",
         claim=abstract_claim,
-        source="mineru/paper.md",
+        source=mineru_markdown_source,
         locator={"heading": abstract_heading},
     )
     add_claim(
@@ -135,7 +137,7 @@ def write_role_reader_outputs(
         "",
         "## Method Decomposition",
         f"- {method_claim}",
-        f"  {evidence_line('mineru/paper.md', 'heading', method_heading)}",
+        f"  {evidence_line(mineru_markdown_source, 'heading', method_heading)}",
         "",
         "## Reproducibility Hooks",
         f"- Code/data/model/config references: {sources_text or 'unspecified'}",
@@ -202,7 +204,7 @@ def write_role_reader_outputs(
         reader_role="peer-reviewer",
         reader_artifact="reader/technical-reading.md",
         claim=method_claim,
-        source="mineru/paper.md",
+        source=mineru_markdown_source,
         locator={"heading": method_heading},
     )
     add_claim(

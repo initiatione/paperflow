@@ -18,7 +18,7 @@ Before writing or reviewing final pages, load:
 - `wiki-ingest-handoff` output.
 - `wiki-agent-trigger.json` when the handoff has already been approved and EPI has generated the resume package.
 - `wiki-ingest-brief.json`.
-- `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`.
+- `paper.pdf`, `metadata.json`, `mineru/<slug>.md`, `mineru/paper.tex`, `mineru/images/*`, `mineru/mineru-manifest.json`.
 - `reader/evidence-map.json` and `reader/claim-support.json`.
 - `critic/*.json` and `briefs/reading-report.md`.
 - Target vault `AGENTS.md` and `_meta/*` contract files.
@@ -51,7 +51,7 @@ Keep the target vault contract authoritative. When it allows inline provenance, 
 ```markdown
 - Claim: <paper-backed statement>
   Support: source-grounded; stance=author-claim
-  Evidence: reader/claim-support.json#claim-014; mineru/paper.md#experiments; Table 2
+  Evidence: reader/claim-support.json#claim-014; mineru/<slug>.md#experiments; Table 2
 ```
 
 For inferred synthesis:
@@ -70,3 +70,9 @@ Load `references/page-provenance.md` for a fuller page and final-source-review c
 - Do not let unsupported claims enter main factual sections.
 - Do not omit evidence addresses from final pages just because `record-wiki-ingest` stores hashes.
 - Do not write final pages from EPI suggested routes directly; the target vault contract decides paths, links, tags, merge policy, and staged writes.
+
+## Literature Wiki Contract
+
+Apply provenance across the seven EPI paper wiki families: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. Use `wiki-provenance` with `tag-taxonomy` so evidence status and tags do not drift between single-paper pages, derivation pages, experiment pages, synthesis pages, and opportunity pages.
+
+`final-source-review.json` must preserve `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`. Keep author-claimed novelty separate from EPI-confirmed novelty, and only mark pages `verified` after source reread, formula/figure review, and complete evidence paths.

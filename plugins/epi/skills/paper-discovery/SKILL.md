@@ -90,6 +90,6 @@ Use `--max-papers 10 --skip-existing` for real runs; `--max-papers 1` is a smoke
 
 ## Evidence Check
 
-Before reporting success, inspect `search-record.json`, `rank.json`, `_epi\runs\<run-id>\report.md`, `_epi\runs\<run-id>\report.json`, `acquire-record.json`, `parse-record.json`, `paper.pdf`, `mineru\paper.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Track `paper_type`, `classification_confidence`, `ranking_confidence`, and per-paper `acquire_failed`, `parse_failed`, or `prepare_failed`.
+Before reporting success, inspect `search-record.json`, `rank.json`, `_epi\runs\<run-id>\report.md`, `_epi\runs\<run-id>\report.json`, `acquire-record.json`, `parse-record.json`, `paper.pdf`, `mineru\<slug>.md`, `mineru\paper.tex`, `mineru\images`, and `mineru\mineru-manifest.json`. Track `paper_type`, `classification_confidence`, `ranking_confidence`, and per-paper `acquire_failed`, `parse_failed`, or `prepare_failed`.
 
 Safety: `dry-run` writes only `_epi/runs/<run-id>/`; `prepare-ranked` writes only `_epi\raw\papers\<slug>\...`; neither path enters reader, critic, staging, or wiki writing.

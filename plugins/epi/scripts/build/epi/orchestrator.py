@@ -45,6 +45,7 @@ from epi.run_index import (
 from epi.run_critic import run_critics
 from epi.run_mineru_parse import materialize_mineru_fixture, run_mineru_command
 from epi.skill_aware_evolve import activate_evolution, propose_evolution, query_evolution, render_evolution_query
+from epi.source_artifacts import canonical_mineru_markdown_relative_path, resolve_mineru_markdown_path
 from epi.stage_wiki import stage_paper
 from epi.wiki_ingest_approval import create_human_approval_record, human_approval_record_path
 from epi.wiki_ingest_handoff import build_wiki_ingest_handoff, render_wiki_ingest_handoff
@@ -802,7 +803,7 @@ def _repair_report_contract(vault_path: Path, slug: str, record: dict) -> tuple[
                 "next_action": "redo-read",
                 "human_gate_required": False,
             },
-            ["mineru/paper.md", "mineru/paper.tex"],
+            [canonical_mineru_markdown_relative_path(slug), "mineru/paper.tex"],
             ["redo-read the reparsed paper"],
         )
     if stage == "redo-read":
@@ -1802,7 +1803,6 @@ def _prepare_candidate_until_parsed(
     paper_root = raw_paper_root(vault_path, slug)
     paper_pdf = paper_root / "paper.pdf"
     mineru_dir = paper_root / "mineru"
-    mineru_md = mineru_dir / "paper.md"
     mineru_tex = mineru_dir / "paper.tex"
     mineru_manifest = mineru_dir / "mineru-manifest.json"
     mineru_images = mineru_dir / "images"
@@ -1868,7 +1868,7 @@ def _parse_record_status(paper_root: Path) -> str | None:
 def _has_complete_mineru_parse(paper_root: Path) -> bool:
     paper_pdf = paper_root / "paper.pdf"
     mineru_dir = paper_root / "mineru"
-    mineru_md = mineru_dir / "paper.md"
+    mineru_md = resolve_mineru_markdown_path(paper_root)
     mineru_tex = mineru_dir / "paper.tex"
     mineru_manifest = mineru_dir / "mineru-manifest.json"
     mineru_images = mineru_dir / "images"

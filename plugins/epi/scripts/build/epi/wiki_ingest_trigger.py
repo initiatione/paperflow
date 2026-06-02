@@ -6,6 +6,7 @@ from typing import Any
 from epi.artifacts import staging_paper_root, utc_now, write_json_atomic
 from epi.wiki_ingest_approval import load_human_approval_record
 from epi.wiki_ingest_handoff import build_wiki_ingest_handoff
+from epi.wiki_contracts import formal_page_family_paths, page_lifecycle_states, research_review_fields
 
 
 WIKI_AGENT_TRIGGER_SCHEMA_VERSION = "epi-wiki-agent-trigger-v1"
@@ -42,20 +43,45 @@ def _approved_by(vault_path: Path, slug: str) -> str:
     return str(record.get("approved_by") or "<same-approved-by>")
 
 
+def _family_paths(values: object) -> list[str]:
+    records = values if isinstance(values, list) else []
+    paths: list[str] = []
+    for item in records:
+        value = str(item.get("path") or item.get("name") or "") if isinstance(item, dict) else str(item or "")
+        value = value.strip()
+        if not value:
+            continue
+        if not value.endswith("/"):
+            value += "/"
+        paths.append(value)
+    return paths or formal_page_family_paths()
+
+
 def _ready_instruction(
     *,
     slug: str,
     approved_by: str,
     source_review_path: str,
+    required_skills: list[str],
+    formal_page_families: list[str],
+    research_fields: list[str],
 ) -> str:
     return (
-        "Continue as the current wiki ingest agent. Load epi-wiki-deposition and wiki-ingest before writing "
-        "formal pages; use wiki-provenance for claim support. EPI artifacts are source/evidence handoff only "
+        "Continue as the current wiki ingest agent. Load "
+        + ", ".join(required_skills)
+        + " before writing formal pages; use wiki-provenance for claim support and tag-taxonomy for final tags. "
+        "EPI artifacts are source/evidence handoff only "
         "and EPI itself may write only internal underscore folders. Re-read the source bundle before writing: "
-        "paper.pdf, metadata.json, mineru/paper.md, mineru/paper.tex, mineru/images/*, and "
+        "paper.pdf, metadata.json, mineru/<slug>.md, mineru/paper.tex, mineru/images/*, and "
         "mineru/mineru-manifest.json. Compare this paper with the current batch or neighboring EPI source "
-        "bundles before creating reusable concept or synthesis pages. Preserve support status and evidence-map "
-        "addresses in final pages. Write or stage the final Markdown pages under the target vault contract, "
+        "bundles before creating reusable concept or synthesis pages. Route final knowledge into these page "
+        "families when useful: "
+        + ", ".join(formal_page_families)
+        + ". Preserve support status and evidence-map "
+        "addresses in final pages. Reconstruct theory and formulas instead of copying equations blindly, and "
+        "record final-source-review research fields: "
+        + ", ".join(research_fields)
+        + ". Write or stage the final Markdown pages under the target vault contract, "
         "then create "
         + source_review_path
         + " and run record-wiki-ingest --slug "
@@ -105,6 +131,9 @@ def _base_payload(
         "formal_routes_suggested": bool(handoff.get("formal_routes_suggested")),
         "wiki_batch_handoff_required": bool(handoff.get("wiki_batch_handoff_required")),
         "required_wiki_skills": handoff.get("required_wiki_skills") or [],
+        "formal_page_families": handoff.get("formal_page_families") or [],
+        "research_review_fields": handoff.get("research_review_fields") or research_review_fields(),
+        "page_lifecycle_states": handoff.get("page_lifecycle_states") or page_lifecycle_states(),
         "handoff_artifacts": handoff.get("handoff_artifacts") or [],
         "candidate_topics": handoff.get("candidate_topics") or [],
         "candidate_clusters": handoff.get("candidate_clusters") or [],
@@ -138,6 +167,9 @@ def build_wiki_ingest_trigger(vault_path: Path, slug: str) -> dict[str, Any]:
                     slug=slug,
                     approved_by=approved_by,
                     source_review_path=str(payload["paths"]["final_source_review"]),
+                    required_skills=[str(item) for item in payload.get("required_wiki_skills") or []],
+                    formal_page_families=_family_paths(payload.get("formal_page_families")),
+                    research_fields=[str(item) for item in payload.get("research_review_fields") or []],
                 ),
             }
         )
@@ -207,6 +239,16 @@ def render_wiki_ingest_trigger(trigger: dict[str, Any]) -> str:
     lines.append(f"- epi_write_scope: {trigger.get('epi_write_scope') or '-'}")
     lines.append(f"- wiki_batch_handoff_required: {str(bool(trigger.get('wiki_batch_handoff_required'))).lower()}")
     lines.append("- required_skills: " + (", ".join(str(item) for item in trigger.get("required_wiki_skills") or []) or "-"))
+    lines.extend(["", "## Formal Page Families", ""])
+    for family in _family_paths(trigger.get("formal_page_families")):
+        lines.append(f"- {family}")
+    lines.extend(["", "## Research Review Fields", ""])
+    for field in trigger.get("research_review_fields") or []:
+        lines.append(f"- {field}")
+    lifecycle_states = trigger.get("page_lifecycle_states") or []
+    if lifecycle_states:
+        lines.append("")
+        lines.append("page_lifecycle: " + " -> ".join(str(state) for state in lifecycle_states))
     lines.extend(["", "## Instruction", "", str(trigger.get("instruction") or "")])
     lines.extend(["", "## Agent Checklist", ""])
     for item in trigger.get("agent_checklist") or []:

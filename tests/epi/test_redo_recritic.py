@@ -127,7 +127,7 @@ def test_redo_parse_and_redo_read_refresh_outputs_and_record_events(tmp_path):
 
     assert parse_record["stage"] == "redo-parse"
     assert read_record["stage"] == "redo-read"
-    assert "Revised embodied control summary" in (paper_root / "mineru" / "paper.md").read_text(encoding="utf-8")
+    assert "Revised embodied control summary" in (paper_root / "mineru" / f"{slug}.md").read_text(encoding="utf-8")
     assert "Revised embodied control summary" in (paper_root / "reader" / "reader.md").read_text(encoding="utf-8")
     assert [event["stage"] for event in _redo_events(paper_root)[-2:]] == ["redo-parse", "redo-read"]
     assert not (vault / "references" / f"{slug}.md").exists()
@@ -237,7 +237,7 @@ def test_redo_read_consumes_reader_revision_plan_as_role_guidance(tmp_path):
 def test_recritic_refreshes_critic_report_and_records_event(tmp_path):
     vault, slug, paper_root = _ingest_fixture(tmp_path)
     (paper_root / "reader" / "reader.md").write_text(
-        "# Reader\n\n- Claim 1: repaired reader.\n  Evidence: source=mineru/paper.md; heading=Abstract\n",
+        f"# Reader\n\n- Claim 1: repaired reader.\n  Evidence: source=mineru/{slug}.md; heading=Abstract\n",
         encoding="utf-8",
     )
 
@@ -334,7 +334,8 @@ def test_redo_parse_cli_writes_routed_report_with_changed_artifacts(tmp_path, mo
     assert report_json["paper_states"] == [
         {"paper_slug": slug, "state": "reparsed", "next_action": "redo-read"}
     ]
-    assert report_json["changed_artifacts"] == ["mineru/paper.md", "mineru/paper.tex"]
+    canonical_mineru_md = f"mineru/{slug}.md"
+    assert report_json["changed_artifacts"] == [canonical_mineru_md, "mineru/paper.tex"]
     assert report_json["next_actions"] == ["redo-read the reparsed paper"]
     assert report_json["wiki_pages_written"] == []
     assert "mineru/paper.tex" in report_md
@@ -345,7 +346,7 @@ def test_redo_parse_cli_writes_routed_report_with_changed_artifacts(tmp_path, mo
         slug=slug,
         vault=vault,
         required_input_hash_keys=["input_markdown"],
-        required_output_hash_keys=["mineru/paper.md", "mineru/paper.tex", "redo-records.jsonl"],
+        required_output_hash_keys=[canonical_mineru_md, "mineru/paper.tex", "redo-records.jsonl"],
     )
     run_state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
     assert run_state["input_artifact_hashes"]["input_markdown"] == expected_markdown_hash
@@ -396,13 +397,14 @@ def test_redo_read_cli_writes_routed_report_with_changed_artifacts(tmp_path, mon
     assert report_json["next_actions"] == ["recritic the regenerated reader outputs"]
     assert report_json["wiki_pages_written"] == []
     assert "reader/implementation-ideas.md" in report_md
+    canonical_mineru_md = f"mineru/{slug}.md"
     _assert_repair_run_state_contract(
         run_dir,
         workflow_type="redo-read",
         expected_state="reader_regenerated",
         slug=slug,
         vault=vault,
-        required_input_hash_keys=["mineru/paper.md"],
+        required_input_hash_keys=[canonical_mineru_md],
         required_output_hash_keys=[
             "reader/reader.md",
             "reader/editorial-summary.md",
@@ -514,13 +516,14 @@ def test_redo_read_cli_can_apply_revision_plan_and_recritic_in_one_routed_run(tm
     assert "resolved blocking checks: benchmark_integrity" in report_md
     assert [event["stage"] for event in events[-2:]] == ["redo-read", "redo-read-recritic"]
     assert events[-1]["critic_outcome"] == "pass"
+    canonical_mineru_md = f"mineru/{slug}.md"
     _assert_repair_run_state_contract(
         run_dir,
         workflow_type="redo-read-recritic",
         expected_state="critic_passed",
         slug=slug,
         vault=vault,
-        required_input_hash_keys=["mineru/paper.md", "critic/reader-revision-plan.json"],
+        required_input_hash_keys=[canonical_mineru_md, "critic/reader-revision-plan.json"],
         required_output_hash_keys=[
             "reader/revision-guidance.md",
             "reader/claim-support.json",
@@ -534,7 +537,7 @@ def test_redo_read_cli_can_apply_revision_plan_and_recritic_in_one_routed_run(tm
 def test_recritic_cli_writes_routed_report_with_changed_artifacts(tmp_path, monkeypatch):
     vault, slug, paper_root = _ingest_fixture(tmp_path)
     (paper_root / "reader" / "reader.md").write_text(
-        "# Reader\n\n- Claim 1: repaired reader.\n  Evidence: source=mineru/paper.md; heading=Abstract\n",
+        f"# Reader\n\n- Claim 1: repaired reader.\n  Evidence: source=mineru/{slug}.md; heading=Abstract\n",
         encoding="utf-8",
     )
     expected_reader_hash = file_sha256(paper_root / "reader" / "reader.md")

@@ -136,7 +136,7 @@ skills/
 - `mineru-paper-parser`：低层 PDF -> Markdown/TeX/images/manifest 解析能力；成功后最终产物只放在 `mineru/`，`paper.tex` 必须非空，必要时使用 Markdown fallback。
 - `wiki-provenance`：final wiki 页 provenance、claim support status、evidence address 和 round-trip retrieval hook；它承接“最终页上的这句话到底来自哪里”这类问题，`paper-ingest` 只保留 source-first handoff。
 - `skill-aware-evolve`：根据 evidence 和验证结果提出受控变更；配置问题必须走配置 proposal。
-- `wiki-setup`：初始化、检查、修复和重置 paper wiki vault。入口只保留边界和命令，详细恢复与误删清单见 `skills/wiki-setup/references/reset-recovery.md`。初始化会创建或保留 vault-local git repository，写入 `AGENTS.md` 和 `_meta/agent-operating-contract.md`、`_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`，默认要求 source-first paper ingest：最终 wiki 写入先读 `mineru/paper.md`、`mineru/paper.tex`、`mineru/images/*` 和 manifest。
+- `wiki-setup`：初始化、检查、修复和重置 paper wiki vault。入口只保留边界和命令，详细恢复与误删清单见 `skills/wiki-setup/references/reset-recovery.md`。初始化会创建或保留 vault-local git repository，写入 `AGENTS.md` 和 `_meta/agent-operating-contract.md`、`_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`，默认要求 source-first paper ingest：最终 wiki 写入先读 `mineru/<slug>.md`、`mineru/paper.tex`、`mineru/images/*` 和 manifest。
 - `zotero-sync`：Zotero 记录和可选同步，默认安全边界是本地记录优先；`record-wiki-ingest` 和 legacy `promote-to-wiki` 会自动写 record-only sidecar 并把结果带入 report。
 
 ## Vault Artifact 结构
@@ -238,3 +238,9 @@ python scripts\orchestrator.py evaluation-brief --target-asset <asset> --rationa
 安装副本在 `%USERPROFILE%\.codex\plugins\cache\paper-search\epi\<version>`。源码改动必须先提交并通过 GitHub/marketplace 升级流程进入安装副本；不要把安装 cache 当成开发源。
 
 用户级 runtime 配置不放在安装 cache 版本目录，而放在 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`，用于保存 MCP/CLI/MinerU 命令路径和 `mineru.env` 路径；插件升级 cache 不应覆盖它。
+
+## Literature Wiki Contract
+
+正式论文沉淀页面家族是 `references/`、`concepts/`、`derivations/`、`experiments/`、`synthesis/`、`reports/`、`opportunities/`。EPI 只在 `_epi/` 中生成 evidence bundle、approval、trigger、record；最终页面仍由外部 wiki agent 按 vault contract、`wiki-provenance` 和 `tag-taxonomy` 写入。
+
+科研审阅字段固定为 `theory_reconstruction`、`formula_derivation`、`figure_table_evidence`、`novelty_type`、`implementability`、`reproducibility_risk`、`research_gap`、`cost_level`。页面状态为 `draft -> source-reviewed -> under-review -> verified`，其中 `verified` 需要 source reread、formula/figure review、证据路径完整和 `final-source-review.json` 完整。

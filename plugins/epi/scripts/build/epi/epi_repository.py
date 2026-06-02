@@ -54,7 +54,7 @@ This `_epi` folder is the only place where EPI writes operational paper artifact
 
 ## Navigation
 
-- `_epi/raw/papers/<slug>/`: source paper repository. Keep `paper.pdf`, `metadata.json`, `mineru/paper.md`, `mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json` here.
+- `_epi/raw/papers/<slug>/`: source paper repository. Keep `paper.pdf`, `metadata.json`, `mineru/<slug>.md`, `mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json` here.
 - `_epi/staging/papers/<slug>/`: per-paper internal evidence handoff. These files are not formal wiki pages.
 - `_epi/staging/wiki-batches/pending/wiki-batch-ingest-brief.json`: batch handoff for the wiki skill.
 - `_epi/runs/`: workflow reports, dashboards, query plans, and transient execution state.
@@ -69,7 +69,7 @@ This `_epi` folder is the only place where EPI writes operational paper artifact
 2. Use EPI reader/critic/staging outputs as navigation and quality signals only.
 3. Final wiki pages must be distilled from original paper artifacts, formulas, figures, images, and batch-level comparison.
 4. Never promote `_epi/staging` reports, audit pages, or per-paper pseudo routes as formal wiki pages.
-5. New EPI writes must stay under `_epi`; root `references/`, `concepts/`, `synthesis/`, and `reports/` are wiki-skill-owned.
+5. New EPI writes must stay under `_epi`; root `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/` are wiki-skill-owned.
 """
 
 

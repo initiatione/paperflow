@@ -5,8 +5,8 @@ from epi.orchestrator import parse_paper_with_mineru
 from epi.run_mineru_parse import run_mineru_command
 
 
-def _seed_paper_root(tmp_path):
-    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / "paper"
+def _seed_paper_root(tmp_path, slug="paper"):
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / slug
     paper_root.mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
     return paper_root
@@ -139,7 +139,7 @@ raise SystemExit(1)
 
 
 def test_mineru_command_imports_markdown_images_manifest_and_records_job(tmp_path):
-    paper_root = _seed_paper_root(tmp_path)
+    paper_root = _seed_paper_root(tmp_path, slug="fixture-paper")
     command = [sys.executable, str(_write_success_command(tmp_path))]
 
     record = run_mineru_command(paper_root, command=command)
@@ -153,14 +153,16 @@ def test_mineru_command_imports_markdown_images_manifest_and_records_job(tmp_pat
     assert record["finished_at"]
     assert record["batch_id"] == "fake-batch-001"
     assert record["input_artifact_hashes"]["paper.pdf"]
-    assert record["output_artifact_hashes"]["paper.md"]
+    assert record["output_artifact_hashes"]["fixture-paper.md"]
+    assert "paper.md" not in record["output_artifact_hashes"]
     assert record["output_artifact_hashes"]["paper.tex"]
     assert record["output_artifact_hashes"]["mineru-manifest.json"]
     assert record["tex_source"] == "mineru-native"
-    assert record["markdown_path"] == str(paper_root / "mineru" / "paper.md")
+    assert record["markdown_path"] == str(paper_root / "mineru" / "fixture-paper.md")
     assert record["tex_path"] == str(paper_root / "mineru" / "paper.tex")
     assert record["image_count"] == 1
-    assert (paper_root / "mineru" / "paper.md").read_text(encoding="utf-8").startswith("# Parsed Paper")
+    assert (paper_root / "mineru" / "fixture-paper.md").read_text(encoding="utf-8").startswith("# Parsed Paper")
+    assert not (paper_root / "mineru" / "paper.md").exists()
     assert (paper_root / "mineru" / "paper.tex").read_text(encoding="utf-8").startswith("\\section")
     assert (paper_root / "mineru" / "images" / "figure-1.png").read_bytes() == b"PNG"
     assert json.loads((paper_root / "mineru" / "mineru-manifest.json").read_text(encoding="utf-8"))["batch_id"] == (
@@ -168,6 +170,20 @@ def test_mineru_command_imports_markdown_images_manifest_and_records_job(tmp_pat
     )
     assert "batch_id: fake-batch-001" in (paper_root / "mineru-command" / "stdout.txt").read_text(encoding="utf-8")
     assert json.loads((paper_root / "parse-record.json").read_text(encoding="utf-8")) == record
+
+
+def test_mineru_command_keeps_single_canonical_slug_markdown(tmp_path):
+    paper_root = _seed_paper_root(tmp_path, slug="fixture-paper")
+    command = [sys.executable, str(_write_success_command(tmp_path))]
+
+    record = run_mineru_command(paper_root, command=command)
+
+    markdown_files = sorted(path.name for path in (paper_root / "mineru").glob("*.md"))
+    assert markdown_files == ["fixture-paper.md"]
+    assert record["markdown_path"] == str(paper_root / "mineru" / "fixture-paper.md")
+    assert "fixture-paper.md" in record["output_artifact_hashes"]
+    assert "paper.md" not in record["output_artifact_hashes"]
+    assert not (paper_root / "mineru" / "paper.md").exists()
 
 
 def test_mineru_command_generates_tex_fallback_and_removes_success_work_copies(tmp_path):
@@ -239,16 +255,18 @@ def test_mineru_command_reports_done_without_markdown_as_missing_output(tmp_path
 
 def test_parse_paper_with_mineru_uses_vault_slug_boundary(tmp_path):
     vault = tmp_path / "vault"
-    paper_root = vault / "_epi" / "raw" / "papers" / "paper"
+    slug = "fixture-paper"
+    paper_root = vault / "_epi" / "raw" / "papers" / slug
     paper_root.mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
     command = [sys.executable, str(_write_success_command(tmp_path))]
 
-    record = parse_paper_with_mineru(vault, "paper", mineru_command=command)
+    record = parse_paper_with_mineru(vault, slug, mineru_command=command)
 
     assert record["status"] == "success"
     assert record["batch_id"] == "fake-batch-001"
-    assert (paper_root / "mineru" / "paper.md").is_file()
+    assert (paper_root / "mineru" / f"{slug}.md").is_file()
+    assert not (paper_root / "mineru" / "paper.md").exists()
 
 
 def test_resolve_mineru_timeout_prefers_param_then_env_then_default(monkeypatch):

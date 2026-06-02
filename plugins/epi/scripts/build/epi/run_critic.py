@@ -11,6 +11,7 @@ from epi.reader_revision_plan import write_reader_revision_plan
 from epi.reproduction_plan import write_reproduction_plan
 from epi.research_decision import write_research_decision
 from epi.role_critics import role_check_key, role_reviewer_paths, review_role_artifacts
+from epi.source_artifacts import resolve_mineru_markdown_path, resolved_mineru_markdown_relative_path
 
 
 HARD_RULE = "No critic pass, no compiled wiki write."
@@ -64,7 +65,7 @@ def _image_count(images_dir: Path) -> int:
 
 def _review_parse_materialization(paper_root: Path) -> dict:
     mineru_dir = paper_root / "mineru"
-    markdown_path = mineru_dir / "paper.md"
+    markdown_path = resolve_mineru_markdown_path(paper_root)
     tex_path = mineru_dir / "paper.tex"
     manifest_path = mineru_dir / "mineru-manifest.json"
     images_dir = mineru_dir / "images"
@@ -78,9 +79,12 @@ def _review_parse_materialization(paper_root: Path) -> dict:
     warnings: list[str] = []
 
     if markdown_path.exists() and markdown_path.stat().st_size > 0:
-        evidence.append("mineru/paper.md exists and is non-empty")
+        evidence.append(f"MinerU markdown exists and is non-empty: {markdown_path.relative_to(paper_root)}")
     else:
-        failures.append("mineru_paper_markdown_exists: mineru/paper.md missing or empty")
+        failures.append(
+            "mineru_paper_markdown_exists: canonical MinerU markdown "
+            f"({resolved_mineru_markdown_relative_path(paper_root)}) missing or empty"
+        )
 
     if parse_record_present:
         status = parse_record.get("status", "unknown")
@@ -308,7 +312,7 @@ def run_critics(paper_root: Path) -> dict:
         {
             "paper.pdf": paper_root / "paper.pdf",
             "metadata.json": paper_root / "metadata.json",
-            "mineru/paper.md": paper_root / "mineru" / "paper.md",
+            resolved_mineru_markdown_relative_path(paper_root): resolve_mineru_markdown_path(paper_root),
             "mineru/paper.tex": paper_root / "mineru" / "paper.tex",
             "mineru/mineru-manifest.json": paper_root / "mineru" / "mineru-manifest.json",
             "parse-record.json": paper_root / "parse-record.json",

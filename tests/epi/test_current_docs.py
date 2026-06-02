@@ -231,6 +231,61 @@ def test_human_approval_requires_single_readable_approval_report():
         assert "raw JSON" in text
 
 
+def test_epi_literature_wiki_contract_documents_seven_page_families_and_research_fields():
+    workflow = _read("workflow.md")
+    structure = _read("structure.md")
+    overview = _read("overview.zh.md")
+    paper_ingest = (PLUGIN_ROOT / "skills" / "paper-ingest" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    wiki_provenance = (PLUGIN_ROOT / "skills" / "wiki-provenance" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    wiki_setup = (PLUGIN_ROOT / "skills" / "wiki-setup" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    combined = "\n".join([workflow, structure, overview, paper_ingest, wiki_provenance, wiki_setup])
+
+    for page_family in [
+        "references/",
+        "concepts/",
+        "derivations/",
+        "experiments/",
+        "synthesis/",
+        "reports/",
+        "opportunities/",
+    ]:
+        assert page_family in workflow
+        assert page_family in structure
+        assert page_family in overview
+        assert page_family in paper_ingest
+        assert page_family in wiki_provenance
+        assert page_family in wiki_setup
+
+    for field in [
+        "theory_reconstruction",
+        "formula_derivation",
+        "figure_table_evidence",
+        "novelty_type",
+        "implementability",
+        "reproducibility_risk",
+        "research_gap",
+        "cost_level",
+    ]:
+        assert field in combined
+
+    for phrase in [
+        "draft -> source-reviewed -> under-review -> verified",
+        "tag-taxonomy",
+        "wiki-provenance",
+        "source reread",
+        "formula/figure review",
+        "author-claimed novelty",
+        "EPI-confirmed novelty",
+    ]:
+        assert phrase in combined
+
+
 def test_plugin_project_does_not_embed_local_machine_paths():
     forbidden = [
         "C:\\Users\\liuchf",

@@ -13,13 +13,13 @@ Final outputs live only under `_epi\raw\papers\<slug>\mineru\`:
 
 ```text
 _epi\raw\papers\<slug>\mineru\
-|-- paper.md
+|-- <slug>.md
 |-- paper.tex
 |-- images\...
 `-- mineru-manifest.json
 ```
 
-- `paper.md`: main reader surface.
+- `<slug>.md`: main reader surface. `paper.md` is accepted only as a legacy fallback from older vaults.
 - `paper.tex`: formula/source fallback.
 - `images/`: extracted figure assets.
 - `mineru-manifest.json`: `tex_source`, page/image counts, timing.
@@ -46,7 +46,7 @@ python skills/mineru-paper-parser/scripts/mineru_batch_to_md.py --input-dir pape
 - Native TeX records `tex_source=mineru-native`.
 - Markdown fallback records `tex_source=markdown-fallback`; `paper.tex` should still be non-empty.
 - On failure, inspect `parse-record.json`, `mineru-command\stdout.txt`, then `mineru-command\stderr.txt`.
-- `MinerU reported done but produced no Markdown output` means the upstream job finished but EPI could not locate `paper.md`; keep work folders for diagnosis, then rerun `parse-paper` or repair with `redo-parse`.
+- `MinerU reported done but produced no Markdown output` means the upstream job finished but EPI could not locate usable Markdown for `mineru\<slug>.md`; keep work folders for diagnosis, then rerun `parse-paper` or repair with `redo-parse`.
 - Token errors such as `A0202` or `A0211` usually mean authentication failed.
 
 Read tokens from `MINERU_TOKEN` or `.env/mineru.env`. Never print or persist token values. MinerU API details live in `references/mineru_api.md`.

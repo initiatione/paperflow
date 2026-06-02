@@ -4,6 +4,7 @@ import sys
 from epi.orchestrator import main, record_human_approval
 from epi.paper_gate import build_paper_gate, render_paper_gate
 from epi.stage_wiki import _build_wiki_ingest_brief
+from epi.wiki_contracts import required_wiki_skills
 
 
 def _write_json(path, payload):
@@ -83,7 +84,7 @@ def _seed_paper_gate_fixture(vault, slug, *, critic_outcome="pass", staged=True,
             "epi_write_scope": "internal-underscore-artifacts-only",
             "formal_routes_suggested": False,
             "wiki_batch_handoff_required": True,
-            "required_wiki_skills": ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"],
+            "required_wiki_skills": required_wiki_skills(),
             "staged_evidence": [str(source_reader_path)],
             "staged_reports": [str(report_path)],
             "wiki_ingest_brief_path": str(brief_path),
