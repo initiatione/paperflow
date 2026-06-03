@@ -172,6 +172,47 @@ def test_initialize_paper_wiki_repairs_legacy_contract_files_without_losing_mani
     assert graph["showAttachments"] is True
 
 
+def test_graph_visibility_filter_repairs_overescaped_formal_paths(tmp_path):
+    from epi.graph_visibility import graph_search_filter
+
+    vault = tmp_path / "paper-research-wiki"
+    (vault / ".obsidian").mkdir(parents=True)
+    overescaped = "path:/^index\\.md$/ OR path:/^references\\\\\\\\//"
+    (vault / ".obsidian" / "graph.json").write_text(
+        json.dumps({"search": overescaped, "showTags": True}),
+        encoding="utf-8",
+    )
+
+    created = initialize_paper_wiki(vault)
+
+    graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
+    assert ".obsidian/graph.json" in created
+    assert graph["search"] == graph_search_filter(EXPECTED_RESEARCH_WIKI_DIRS)
+    assert "references\\\\//" in graph["search"]
+    assert "references\\\\\\\\//" not in graph["search"]
+    assert graph["showTags"] is True
+
+
+def test_graph_visibility_filter_repairs_collapse_filter_when_search_is_current(tmp_path):
+    from epi.graph_visibility import graph_search_filter
+
+    vault = tmp_path / "paper-research-wiki"
+    (vault / ".obsidian").mkdir(parents=True)
+    current_search = graph_search_filter(EXPECTED_RESEARCH_WIKI_DIRS)
+    (vault / ".obsidian" / "graph.json").write_text(
+        json.dumps({"search": current_search, "collapse-filter": False, "showTags": True}),
+        encoding="utf-8",
+    )
+
+    created = initialize_paper_wiki(vault)
+
+    graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
+    assert ".obsidian/graph.json" in created
+    assert graph["search"] == current_search
+    assert graph["collapse-filter"] is True
+    assert graph["showTags"] is True
+
+
 def test_initialize_paper_wiki_preserves_existing_git_repo(tmp_path):
     vault = tmp_path / "paper-research-wiki"
     vault.mkdir(parents=True)

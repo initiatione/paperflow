@@ -4,6 +4,16 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 
 中文总览入口见 `docs\overview.zh.md`；中文主链路和维护契约见 `docs\epi-linkage.md`。每次修改或优化 EPI 插件，都必须检查并同步更新这些文档。
 
+## Skill-Based Routing And Task Closure
+
+EPI 依照 `skill-based-architecture` 的路由思路维护插件级轻量变体：`plugins/epi/AGENTS.md` 是 thin shell，只负责指向 `skills/routing.yaml`；`skills/routing.yaml` 是 Always Read、route rematch、task_closure 和 Codex sub-agent permission 的来源；每个 Codex skill 的 `SKILL.md` 保持入口短小，长期规则放入 `docs/`、`references/` 或测试。
+
+EPI 是多 skill 插件，不硬搬单一 `skills/<project>/rules/workflows/references` scaffold；对应关系是：插件级 `skills/routing.yaml` 管路由，多 Codex skills 承接任务入口，`docs/structure.md` / `docs/epi-linkage.md` / 本文件承接 workflow 和 reference。每个新任务都要 re-match route；route 不变且上下文未压缩时，不重复读取无关文件。
+
+Task closure 只适用于代码、文档或 skill 行为变更；纯只读问答不要求 AAR。非平凡变更结束前要 restate original constraints、记录 verification commands and outcomes，并跑一个 30-second AAR，检查本次是否暴露 recurring failures、route drift、缺失激活路径或应固化到 docs/skills/tests 的经验。
+
+Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work. 获得授权后，EPI workflow 应积极把独立的审计、测试、fixture 扫描、互不重叠模块修改交给 fresh-context workers；主 agent 只读 final worker output、changed file list 和 verification result，避免把中间长 transcript 混入主上下文。
+
 本机依赖由 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` 自动加载：优先 paper-search MCP server，CLI 作为 fallback，MinerU token 从环境或 `mineru.env` 读取。MinerU 子进程默认超时 7200 秒，可用 `--mineru-timeout <seconds>` 或 `EPI_MINERU_TIMEOUT` 覆盖。不要把 token 写入 runtime.json，也不要在报告里打印 token 值。
 
 EPI 是通用论文插件，不默认任何学科方向。`dry-run` 会从 `<vault>\_epi\meta\epi-config.yaml` 的 profile、domains、positive/negative keywords、venue prior 和当前请求生成 `query-plan.json`，记录 `research_mode`，再按 query variants 调用 MCP/CLI 搜索、去重、过滤、分类和排序。Query plan 的扩展词用于扩大召回；ranking 的画像匹配词只来自用户 config 和当前请求核心词，避免宽召回词稀释窄主题相关性。`rank.json` 会暴露 `paper_type`、`paper_classification`、`quality_gate`、`quality_tier`、`ranking_rubric` 和 `ranking_confidence`，用于解释阅读优先级，不替代源论文阅读。AUV、机器人、医学等只能来自用户配置、当前请求或显式领域 hint。

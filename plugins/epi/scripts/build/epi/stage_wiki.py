@@ -20,6 +20,7 @@ from epi.wiki_contracts import (
     verified_page_requirements,
     wiki_deposition_quality_gates,
 )
+from epi.wiki_handoff_contracts import agent_context_policy
 
 FAST_INGEST_MODE = "fast-ingest"
 REVIEWED_INGEST_MODE = "reviewed-ingest"
@@ -764,6 +765,7 @@ def _build_wiki_deposition_task(
         "quality_gates": wiki_deposition_quality_gates(),
         "wiki_rule_source_model": wiki_ingest_brief.get("wiki_rule_source_model", {}),
         "final_source_review_contract": wiki_ingest_brief.get("final_source_review_contract", {}),
+        "agent_context_policy": agent_context_policy(),
         "papers": [
             {
                 "title": title,
@@ -868,6 +870,7 @@ def _build_wiki_ingest_brief(
             "compatibility_aliases": deposition_skill_compatibility_aliases(),
             "quality_gates": wiki_deposition_quality_gates(),
         },
+        "agent_context_policy": agent_context_policy(),
         "wiki_framework_references": [
             {
                 "name": "Ar9av/obsidian-wiki",
@@ -976,6 +979,7 @@ def _build_wiki_ingest_brief(
             "quality_gates": wiki_deposition_quality_gates(),
             "research_review_fields": research_review_fields(),
             "page_lifecycle_states": page_lifecycle_states(),
+            "agent_context_policy": agent_context_policy(),
             "formal_page_rule": (
                 "Do not promote EPI audit artifacts or per-paper pseudo concept/synthesis/report pages. "
                 "Final pages are readable wiki pages produced by the wiki skill from source papers, formulas, "

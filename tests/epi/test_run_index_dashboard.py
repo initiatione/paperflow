@@ -25,7 +25,15 @@ def _seed_ready_paper_gate(vault_path, slug):
     staging_root = vault_path / "_epi/staging" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
+    mineru_root = paper_root / "mineru"
+    image_root = mineru_root / "images"
+    image_root.mkdir(parents=True, exist_ok=True)
     _write_json(paper_root / "metadata.json", {"slug": slug, "title": "Ready Paper"})
+    (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nready fixture\n")
+    (mineru_root / f"{slug}.md").write_text("# Ready Paper\n\nMethod and experiments.\n", encoding="utf-8")
+    (mineru_root / "paper.tex").write_text("\\section{Method}\n", encoding="utf-8")
+    (mineru_root / "mineru-manifest.json").write_text(json.dumps({"status": "done"}), encoding="utf-8")
+    (image_root / "figure-1.png").write_bytes(b"image")
     _write_json(
         critic_root / "critic-quorum.json",
         {
@@ -914,4 +922,25 @@ def test_refresh_run_index_writes_empty_filtered_views_when_no_matches(tmp_path)
     assert "No failed runs." in dashboard_text
     assert "## Pending Human Gate" in dashboard_text
     assert "No runs waiting on a human gate." in dashboard_text
+
+
+def test_refresh_run_index_uses_atomic_writer_for_machine_json(tmp_path, monkeypatch):
+    from epi import run_index as run_index_module
+
+    vault_path = tmp_path / "vault"
+    runs_root = vault_path / "_epi/runs"
+    runs_root.mkdir(parents=True, exist_ok=True)
+    calls = []
+
+    def _fake_write_json_atomic(path, payload):
+        calls.append(path.name)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    monkeypatch.setattr(run_index_module, "write_json_atomic", _fake_write_json_atomic)
+
+    run_index_module.refresh_run_index(vault_path)
+
+    assert "index.json" in calls
+    assert "research-queue.json" in calls
 

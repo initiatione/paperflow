@@ -63,6 +63,27 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
             "venue": "IROS",
         },
     )
+    (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture paper\n")
+    mineru_dir = paper_root / "mineru"
+    mineru_dir.mkdir(parents=True, exist_ok=True)
+    (mineru_dir / f"{slug}.md").write_text(
+        "# Abstract\n\nFixture paper abstract.\n\n## Method\n\nFixture paper method.\n",
+        encoding="utf-8",
+    )
+    (mineru_dir / "paper.tex").write_text(
+        "\\section{Method}\n\\begin{equation}y = x + 1\\end{equation}\n",
+        encoding="utf-8",
+    )
+    image_dir = mineru_dir / "images"
+    image_dir.mkdir(parents=True, exist_ok=True)
+    (image_dir / "figure-1.png").write_bytes(b"fixture-image")
+    _write_json(
+        mineru_dir / "mineru-manifest.json",
+        {
+            "outputs": [{"file_name": "paper.pdf", "state": "done", "image_count": 1}],
+            "warnings": [],
+        },
+    )
     _write_json(
         paper_root / "critic" / "critic-report.json",
         {
@@ -279,6 +300,10 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["final_source_review_contract"]["suggested_output_path"] == "final-source-review.json"
     assert handoff["execution_agent_policy"]["allowed_executors"][:2] == ["Claude", "Codex"]
     assert "target vault contract" in handoff["execution_agent_policy"]["brand_neutrality"]
+    assert handoff["agent_context_policy"]["delegation_model"] == "clean-worker-final-artifacts"
+    assert "Codex may use subagents only when the user explicitly authorizes" in (
+        handoff["agent_context_policy"]["codex_permission_note"]
+    )
     assert handoff["agent_checklist"][0].startswith("Execution agent is neutral")
     assert any(item.startswith("Read target vault contract") for item in handoff["agent_checklist"])
     assert any("source-first rule" in item for item in handoff["agent_checklist"])
@@ -348,6 +373,11 @@ def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_pat
     assert stored["next_action"] == "run-current-agent-as-wiki-ingest-agent"
     assert "Claude" in trigger["executor_policy"]["allowed_executors"]
     assert "Codex" in trigger["executor_policy"]["allowed_executors"]
+    assert trigger["agent_context_policy"]["delegation_model"] == "clean-worker-final-artifacts"
+    assert "Codex may use subagents only when the user explicitly authorizes" in (
+        trigger["agent_context_policy"]["codex_permission_note"]
+    )
+    assert stored["agent_context_policy"] == trigger["agent_context_policy"]
     assert trigger["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
     assert "tag-taxonomy" in trigger["instruction"]
     assert "wiki-provenance" in trigger["instruction"]
@@ -384,6 +414,8 @@ def test_render_wiki_ingest_trigger_shows_resume_command_after_approval(tmp_path
     assert "experiments/" in output
     assert "opportunities/" in output
     assert "record-wiki-ingest" in output
+    assert "## Agent Context Policy" in output
+    assert "Codex may use subagents only when the user explicitly authorizes" in output
 
 
 def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
@@ -398,6 +430,9 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
     assert "ready_after_human_approval: true" in output
     assert "## Execution Agent Policy" in output
     assert "allowed_executors: Claude, Codex, other wiki-capable agents" in output
+    assert "## Agent Context Policy" in output
+    assert "clean-worker-final-artifacts" in output
+    assert "Codex may use subagents only when the user explicitly authorizes" in output
     assert "local skills: helpers-not-authority" in output
     assert "- AGENTS.md: present" in output
     assert "- _meta/directory-structure.md: missing" in output

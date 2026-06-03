@@ -56,7 +56,15 @@ def _seed_ready_paper_gate(vault, slug):
     staging_root = vault / "_epi/staging" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
+    mineru_root = paper_root / "mineru"
+    image_root = mineru_root / "images"
+    image_root.mkdir(parents=True, exist_ok=True)
     _write_json(paper_root / "metadata.json", {"slug": slug, "title": "Ready Paper"})
+    (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nready fixture\n")
+    (mineru_root / f"{slug}.md").write_text("# Ready Paper\n\nMethod and experiments.\n", encoding="utf-8")
+    (mineru_root / "paper.tex").write_text("\\section{Method}\n", encoding="utf-8")
+    (mineru_root / "mineru-manifest.json").write_text(json.dumps({"status": "done"}), encoding="utf-8")
+    (image_root / "figure-1.png").write_bytes(b"image")
     _write_json(
         critic_root / "critic-quorum.json",
         {

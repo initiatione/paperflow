@@ -6,15 +6,14 @@ import subprocess
 from pathlib import Path
 
 from epi.epi_repository import ensure_epi_repository
+from epi.graph_visibility import graph_search_filter, sync_graph_json
 from epi.wiki_contracts import formal_page_family_names, formal_page_family_paths
 
 
 FORMAL_PAGE_DIRS = formal_page_family_names()
 FORMAL_PAGE_PATHS = formal_page_family_paths()
 KNOWLEDGE_GRAPH_DIRS = [*FORMAL_PAGE_DIRS]
-GRAPH_SEARCH = "path:/^index\\.md$/ OR " + " OR ".join(
-    f"path:/^{directory}\\\\//" for directory in KNOWLEDGE_GRAPH_DIRS
-)
+GRAPH_SEARCH = graph_search_filter(KNOWLEDGE_GRAPH_DIRS)
 
 
 def _formal_page_taxonomy_lines() -> str:
@@ -266,21 +265,7 @@ def _sync_manifest(path: Path, created: list[str]) -> None:
 
 
 def _sync_graph_json(path: Path, created: list[str]) -> None:
-    payload: dict
-    if path.exists():
-        try:
-            existing = json.loads(path.read_text(encoding="utf-8"))
-            payload = existing if isinstance(existing, dict) else {}
-        except json.JSONDecodeError:
-            payload = {}
-    else:
-        payload = {}
-    previous_search = str(payload.get("search") or "")
-    payload["collapse-filter"] = True
-    payload["search"] = GRAPH_SEARCH
-    if not path.exists() or previous_search != GRAPH_SEARCH:
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        created.append(".obsidian/graph.json")
+    sync_graph_json(path, KNOWLEDGE_GRAPH_DIRS, created)
 
 
 def initialize_paper_wiki(vault_path: Path) -> list[str]:

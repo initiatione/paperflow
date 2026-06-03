@@ -77,6 +77,8 @@ def _posix(value):
 
 
 def test_stage_paper_writes_stable_wiki_deposition_task_contract(tmp_path):
+    from epi.wiki_handoff_contracts import agent_context_policy
+
     vault = tmp_path / "vault"
     slug = "fixture-paper"
     paper_root = _seed_source_bundle(vault, slug)
@@ -96,6 +98,14 @@ def test_stage_paper_writes_stable_wiki_deposition_task_contract(tmp_path):
     assert "epi-wiki-deposition" in task["compatibility_aliases"]
     assert task["handoff_boundary"]["epi_core_role"] == "source-bundle-and-audit-only"
     assert task["handoff_boundary"]["formal_writer_role"] == "obsidian-wiki-skill-layer"
+    assert task["agent_context_policy"] == agent_context_policy()
+    assert task["agent_context_policy"]["delegation_model"] == "clean-worker-final-artifacts"
+    assert task["agent_context_policy"]["main_agent_reads"] == [
+        "final worker output",
+        "changed file list",
+        "verification result",
+    ]
+    assert "large intermediate transcripts" in task["agent_context_policy"]["main_agent_avoids"]
 
     paper = task["papers"][0]
     assert paper["slug"] == slug
@@ -130,6 +140,8 @@ def test_stage_paper_writes_stable_wiki_deposition_task_contract(tmp_path):
     plan = json.loads((staging_root / "promotion-plan.json").read_text(encoding="utf-8"))
     assert brief["wiki_deposition_task"]["task_path"] == str(task_path)
     assert brief["wiki_deposition_task"]["required_skills"] == task["required_skills"]
+    assert brief["agent_context_policy"] == task["agent_context_policy"]
+    assert brief["wiki_skill_handoff"]["agent_context_policy"] == task["agent_context_policy"]
     assert brief["formal_frontmatter_schema"] == frontmatter
     assert plan["wiki_deposition_task_path"] == str(task_path)
     assert str(task_path) in plan["agent_handoff_paths"]

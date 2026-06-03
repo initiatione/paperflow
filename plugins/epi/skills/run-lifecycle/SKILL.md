@@ -37,7 +37,7 @@ The command writes a manifest under `_epi\meta\run-lifecycle\`.
 
 ## Optional Delegation
 
-If subagents are available, delegate lifecycle inventory to a small worker. The worker should run dry-run first, report candidate paths and manifest path, and wait for explicit approval before `--apply`.
+Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work for the task or session. When that permission exists, delegate lifecycle inventory to a small worker. The worker should run dry-run first, report candidate paths and manifest path, and wait for explicit approval before `--apply`.
 
 ## Discovery Coordination
 

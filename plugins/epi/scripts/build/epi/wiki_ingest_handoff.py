@@ -14,6 +14,7 @@ from epi.wiki_contracts import (
     required_wiki_skills,
     research_review_fields,
 )
+from epi.wiki_handoff_contracts import agent_context_policy as default_agent_context_policy
 
 
 CONTRACT_FILES = [
@@ -66,6 +67,21 @@ def _family_paths(values: object) -> list[str]:
             value += "/"
         paths.append(value)
     return paths or formal_page_family_paths()
+
+
+def _agent_context_policy(brief: dict[str, Any]) -> dict[str, Any]:
+    candidates = [
+        brief.get("agent_context_policy"),
+        (
+            brief.get("wiki_skill_handoff", {}).get("agent_context_policy")
+            if isinstance(brief.get("wiki_skill_handoff"), dict)
+            else None
+        ),
+    ]
+    for candidate in candidates:
+        if isinstance(candidate, dict) and candidate:
+            return dict(candidate)
+    return default_agent_context_policy()
 
 
 def _agent_checklist(
@@ -294,6 +310,7 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
         "candidate_topics": brief.get("candidate_topics") or [],
         "candidate_clusters": brief.get("candidate_clusters") or [],
         "wiki_skill_handoff": brief.get("wiki_skill_handoff") or {},
+        "agent_context_policy": _agent_context_policy(brief),
         "entrypoints": brief.get("entrypoints") or {},
         "trust_status": brief.get("trust_status") or {},
         "agent_checklist": _agent_checklist(gate=gate, plan=plan, brief=brief),
@@ -338,6 +355,17 @@ def render_wiki_ingest_handoff(handoff: dict[str, Any]) -> str:
         lines.append(f"- allowed_executors: {allowed}")
         lines.append(f"- brand_neutrality: {execution_policy.get('brand_neutrality')}")
         lines.append(f"- local_skills_role: {execution_policy.get('local_skills_role')}")
+    else:
+        lines.append("- missing")
+    context_policy = handoff.get("agent_context_policy") if isinstance(handoff.get("agent_context_policy"), dict) else {}
+    lines.extend(["", "## Agent Context Policy", ""])
+    if context_policy:
+        lines.append(f"- delegation_model: {context_policy.get('delegation_model')}")
+        lines.append(f"- subagent_policy: {context_policy.get('subagent_policy')}")
+        lines.append(f"- codex_permission_note: {context_policy.get('codex_permission_note')}")
+        for key in ["main_agent_reads", "main_agent_avoids"]:
+            values = ", ".join(str(item) for item in context_policy.get(key) or [])
+            lines.append(f"- {key}: {values or '-'}")
     else:
         lines.append("- missing")
     lines.extend(["", "## Framework References", ""])

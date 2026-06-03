@@ -7,6 +7,7 @@ from typing import Any
 from epi.artifacts import file_sha256, raw_paper_root, staging_paper_root, utc_now, write_json_atomic
 from epi.paper_gate import build_paper_gate
 from epi.source_artifacts import is_mineru_markdown_artifact, source_first_artifacts
+from epi.wiki_language import formal_page_language_issues, language_policy_is_reviewed
 from epi.wiki_ingest_approval import human_approval_record_path, validate_human_approval_record
 from epi.wiki_contracts import (
     formal_frontmatter_schema,
@@ -47,6 +48,13 @@ def _gate_check_names(gate: dict[str, Any], conclusion: str) -> list[str]:
     ]
 
 
+def _gate_check(gate: dict[str, Any], name: str) -> dict[str, Any]:
+    for run in gate.get("check_suite", {}).get("check_runs", []):
+        if run.get("name") == name:
+            return run if isinstance(run, dict) else {}
+    return {}
+
+
 def _ensure_gate_allows_record(gate: dict[str, Any]) -> None:
     failure_checks = _gate_check_names(gate, "failure")
     if failure_checks:
@@ -69,6 +77,7 @@ def _is_agent_mediated_plan(plan: dict[str, Any]) -> bool:
     return (
         plan.get("handoff_type") == "agent-mediated-wiki-ingest"
         or plan.get("wiki_write_model") == "agent-mediated-vault-contract"
+        or plan.get("wiki_write_model") == "wiki-skill-batch-distillation"
     )
 
 
@@ -270,6 +279,7 @@ def _validate_formal_page_shape(relative_path: str, text: str) -> None:
     issues = [
         *_validate_formal_frontmatter(normalized, text),
         *_validate_family_content(normalized, text),
+        *formal_page_language_issues(text),
     ]
     if issues:
         raise ValueError("formal page validation failed for " + normalized + ": " + "; ".join(issues))
@@ -489,6 +499,10 @@ def _validate_formal_content_quality_section(payload: dict[str, Any], failures: 
         failures.append("final source review formal_content_quality must be status=reviewed")
     if section.get("audit_pages_excluded") is not True:
         failures.append("final source review formal_content_quality must set audit_pages_excluded=true")
+    if not language_policy_is_reviewed(section):
+        failures.append(
+            "final source review formal_content_quality must include language_policy.chinese_body_default=true"
+        )
     if not str(section.get("summary") or "").strip():
         failures.append("final source review formal_content_quality must include a summary")
 
@@ -635,6 +649,22 @@ def create_wiki_ingest_record(
             + str(resolved_source_review_path or staging_root / "final-source-review.json")
         )
     source_first_verified_by_source_review = source_review_payload is not None
+    source_bundle_gate = _gate_check(gate, "source-bundle")
+    source_bundle_audit = (
+        source_bundle_gate.get("details")
+        if isinstance(source_bundle_gate.get("details"), dict)
+        else {}
+    )
+    source_bundle_verified_by_gate = (
+        source_bundle_gate.get("conclusion") == "success"
+        and source_bundle_audit.get("complete") is True
+    )
+    if source_first_verified_by_source_review:
+        source_first_verification_method = "final-source-review-json"
+    elif source_bundle_verified_by_gate:
+        source_first_verification_method = "paper-gate-source-bundle-audit"
+    else:
+        source_first_verification_method = "brief-contract-only"
 
     recorded_at = utc_now()
     failure_checks = _gate_check_names(gate, "failure")
@@ -687,12 +717,12 @@ def create_wiki_ingest_record(
         "wiki_write_model": plan.get("wiki_write_model") or "agent-mediated-vault-contract",
         "handoff_type": plan.get("handoff_type") or brief.get("handoff_type"),
         "final_page_authority": plan.get("final_page_authority"),
-        "source_first_confirmed": source_first_verified_by_source_review or _source_first_confirmed(brief),
-        "source_first_verification_method": (
-            "final-source-review-json"
-            if source_first_verified_by_source_review
-            else "brief-contract-only"
+        "source_first_confirmed": (
+            source_first_verified_by_source_review
+            or source_bundle_verified_by_gate
+            or _source_first_confirmed(brief)
         ),
+        "source_first_verification_method": source_first_verification_method,
         "final_source_review": final_source_review_record,
         "human_gate_decision": human_gate_decision,
         "paper_gate": {
@@ -701,6 +731,7 @@ def create_wiki_ingest_record(
             "conclusion": gate.get("check_suite", {}).get("conclusion"),
             "failure_checks": failure_checks,
             "action_required_checks": action_required_checks,
+            "source_bundle": source_bundle_audit,
         },
         "paths": {
             "paper_root": str(paper_root),

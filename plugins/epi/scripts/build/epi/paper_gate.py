@@ -7,6 +7,7 @@ from typing import Any
 
 from epi.artifacts import existing_raw_paper_root, existing_staging_paper_root
 from epi.run_critic import HARD_RULE
+from epi.source_bundle_audit import audit_source_bundle
 from epi.source_artifacts import is_mineru_markdown_artifact
 from epi.wiki_ingest_approval import (
     HUMAN_APPROVAL_SCOPE,
@@ -301,13 +302,6 @@ def _final_wiki_authority_check(plan: dict[str, Any]) -> dict[str, Any]:
 
 def _compiled_targets_check(plan: dict[str, Any], staged_paths: list[Path]) -> dict[str, Any]:
     compiled_targets = plan.get("compiled_targets")
-    if compiled_targets:
-        return _check_run(
-            "compiled-targets",
-            "failure",
-            "Legacy compiled_targets are deprecated: EPI may only write internal underscore artifacts; use wiki-ingest handoff and wiki-skill batch deposition.",
-            details={"staged_count": len(staged_paths), "compiled_target_count": len(compiled_targets)},
-        )
     if not isinstance(compiled_targets, list) or not compiled_targets:
         return _check_run(
             "compiled-targets",
@@ -322,23 +316,39 @@ def _compiled_targets_check(plan: dict[str, Any], staged_paths: list[Path]) -> d
         issues.append("compiled targets include unsafe paths")
     if len(staged_paths) != len(compiled_targets):
         issues.append("compiled target count does not match staged draft count")
-    if issues:
-        return _check_run(
-            "compiled-targets",
-            "failure",
-            "; ".join(issues) + ".",
-            details={
-                "staged_count": len(staged_paths),
-                "compiled_target_count": len(compiled_targets),
-                "unsafe_targets": unsafe_targets,
-            },
-        )
 
+    summary = (
+        "legacy compiled_targets are deprecated: EPI may only write internal underscore artifacts; "
+        "use wiki-ingest handoff and wiki-skill batch deposition."
+    )
+    if issues:
+        summary += " " + "; ".join(issues) + "."
     return _check_run(
         "compiled-targets",
-        "success",
-        "Compiled targets are bounded to wiki page roots and aligned with staged drafts.",
-        details={"count": len(compiled_targets)},
+        "failure",
+        summary,
+        details={
+            "staged_count": len(staged_paths),
+            "compiled_target_count": len(compiled_targets),
+            "unsafe_targets": unsafe_targets,
+        },
+    )
+
+
+def _source_bundle_check(paper_root: Path) -> dict[str, Any]:
+    audit = audit_source_bundle(paper_root)
+    if audit["complete"]:
+        return _check_run(
+            "source-bundle",
+            "success",
+            "Source bundle is complete on disk for source-first wiki handoff.",
+            details=audit,
+        )
+    return _check_run(
+        "source-bundle",
+        "failure",
+        "source bundle is incomplete on disk; repair or rerun acquisition/MinerU before wiki ingest.",
+        details=audit,
     )
 
 
@@ -508,6 +518,7 @@ def build_paper_gate(vault_path: Path, slug: str) -> dict[str, Any]:
             )
         )
         if _is_agent_handoff_plan(plan):
+            check_runs.append(_source_bundle_check(paper_root))
             check_runs.append(_wiki_ingest_brief_check(plan))
             check_runs.append(_final_wiki_authority_check(plan))
         else:

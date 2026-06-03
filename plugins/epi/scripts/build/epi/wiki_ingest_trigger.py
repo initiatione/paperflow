@@ -127,6 +127,7 @@ def _base_payload(
             "trigger": str(trigger_path),
         },
         "executor_policy": handoff.get("execution_agent_policy") or {},
+        "agent_context_policy": handoff.get("agent_context_policy") or {},
         "epi_write_scope": handoff.get("epi_write_scope"),
         "formal_routes_suggested": bool(handoff.get("formal_routes_suggested")),
         "wiki_batch_handoff_required": bool(handoff.get("wiki_batch_handoff_required")),
@@ -239,6 +240,17 @@ def render_wiki_ingest_trigger(trigger: dict[str, Any]) -> str:
     lines.append(f"- epi_write_scope: {trigger.get('epi_write_scope') or '-'}")
     lines.append(f"- wiki_batch_handoff_required: {str(bool(trigger.get('wiki_batch_handoff_required'))).lower()}")
     lines.append("- required_skills: " + (", ".join(str(item) for item in trigger.get("required_wiki_skills") or []) or "-"))
+    context_policy = trigger.get("agent_context_policy") if isinstance(trigger.get("agent_context_policy"), dict) else {}
+    lines.extend(["", "## Agent Context Policy", ""])
+    if context_policy:
+        lines.append(f"- delegation_model: {context_policy.get('delegation_model')}")
+        lines.append(f"- subagent_policy: {context_policy.get('subagent_policy')}")
+        lines.append(f"- codex_permission_note: {context_policy.get('codex_permission_note')}")
+        for key in ["main_agent_reads", "main_agent_avoids"]:
+            values = ", ".join(str(item) for item in context_policy.get(key) or [])
+            lines.append(f"- {key}: {values or '-'}")
+    else:
+        lines.append("- missing")
     lines.extend(["", "## Formal Page Families", ""])
     for family in _family_paths(trigger.get("formal_page_families")):
         lines.append(f"- {family}")

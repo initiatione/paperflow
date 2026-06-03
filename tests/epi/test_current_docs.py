@@ -118,7 +118,7 @@ def test_progress_doc_records_status_verification_and_next_steps():
     text = _read("progress.md")
 
     assert "# EPI 插件进度说明" in text
-    assert "更新时间：2026-06-01" in text
+    assert "更新时间：2026-06-04" in text
     assert "高质量论文收集和整理" in text
     assert "config-setup" in text
     assert "paper-quality-critic" in text
@@ -352,6 +352,43 @@ def test_plugin_project_does_not_embed_local_machine_paths():
             text = path.read_text(encoding="utf-8", errors="ignore")
             for phrase in forbidden:
                 assert phrase not in text, f"{phrase} leaked into {path}"
+
+
+def test_epi_skill_architecture_alignment_documents_routing_and_closure():
+    agents = (PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    routing = (PLUGIN_ROOT / "skills" / "routing.yaml").read_text(encoding="utf-8")
+    structure = _read("structure.md")
+    workflow = _read("workflow.md")
+    paper_ingest = (PLUGIN_ROOT / "skills" / "paper-ingest" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    deposition = (
+        PLUGIN_ROOT / "skills" / "epi-paper-deposition" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    run_lifecycle = (
+        PLUGIN_ROOT / "skills" / "run-lifecycle" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    combined = "\n".join([agents, routing, structure, workflow, paper_ingest, deposition, run_lifecycle])
+
+    assert "skills/routing.yaml" in agents
+    assert "thin shell" in agents
+    assert "re-match" in agents
+    assert "source_bundle_audit.py" in structure
+    assert "wiki_handoff_contracts.py" in structure
+    assert "wiki_language.py" in structure
+    assert "graph_visibility.py" in structure
+    assert "cli_routes.py" in structure
+    assert "wiki_record_workflows.py" in structure
+    assert "write_json_atomic" in structure
+    assert "task_closure" in routing
+    assert "source_bundle_audit" in routing
+    assert "formal_page_language_policy" in routing
+    assert "codex_subagent_permission" in routing
+    assert "Codex may use subagents only when the user explicitly authorizes" in combined
+    assert "formal wiki page body prose defaults to Chinese" in combined
+    assert "source bundle is incomplete" in combined
+    assert "original constraints" in combined
+    assert "30-second AAR" in combined
 
 
 def test_marketplace_and_readme_describe_profile_driven_generic_epi():

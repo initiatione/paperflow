@@ -1,5 +1,43 @@
+import argparse
+import importlib
+
 from epi import cli
 from epi.cli import build_parser
+
+
+def _parser_commands(parser):
+    subparser_action = next(
+        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
+    )
+    return set(subparser_action.choices)
+
+
+def test_cli_build_parser_is_reexported_from_parser_module():
+    cli_parser = importlib.import_module("epi.cli_parser")
+
+    assert cli.build_parser is cli_parser.build_parser
+    assert build_parser is cli_parser.build_parser
+
+
+def test_cli_parser_commands_match_route_registry():
+    cli_parser = importlib.import_module("epi.cli_parser")
+    cli_routes = importlib.import_module("epi.cli_routes")
+
+    assert _parser_commands(cli_parser.build_parser()) == set(cli_routes.COMMAND_ROUTES)
+
+
+def test_cli_routes_dispatches_to_registered_handler():
+    cli_routes = importlib.import_module("epi.cli_routes")
+    calls = []
+
+    def fixture_handler(args):
+        calls.append(args)
+        return 23
+
+    args = argparse.Namespace(command="fixture")
+
+    assert cli_routes.dispatch(args, {"fixture": fixture_handler}) == 23
+    assert calls == [args]
 
 
 def test_dry_run_parser_defaults_to_query_plan_and_accepts_overrides():

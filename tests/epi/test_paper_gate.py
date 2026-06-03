@@ -25,6 +25,15 @@ def _seed_paper_gate_fixture(vault, slug, *, critic_outcome="pass", staged=True,
             "doi": "10.1000/fixture",
         },
     )
+    (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
+    mineru_dir = paper_root / "mineru"
+    mineru_dir.mkdir(parents=True, exist_ok=True)
+    (mineru_dir / f"{slug}.md").write_text("# Fixture\n\n## Method\n\nFixture method.\n", encoding="utf-8")
+    (mineru_dir / "paper.tex").write_text("\\section{Method}\n", encoding="utf-8")
+    (mineru_dir / "mineru-manifest.json").write_text("{}", encoding="utf-8")
+    image_dir = mineru_dir / "images"
+    image_dir.mkdir(parents=True, exist_ok=True)
+    (image_dir / "figure-1.png").write_bytes(b"image")
     quorum = {
         "stage": "critic-quorum",
         "final_outcome": critic_outcome,
@@ -256,6 +265,26 @@ def test_paper_gate_blocks_agent_handoff_without_source_first_artifacts(tmp_path
     assert "human-approval" not in checks
 
 
+def test_paper_gate_blocks_agent_handoff_when_raw_source_bundle_is_incomplete_on_disk(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    paper_root = _seed_paper_gate_fixture(vault, slug)
+    (paper_root / "paper.pdf").unlink()
+    (paper_root / "mineru" / "mineru-manifest.json").unlink()
+
+    gate = build_paper_gate(vault, slug)
+
+    assert gate["status"] == "blocked"
+    checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
+    assert checks["source-bundle"]["conclusion"] == "failure"
+    assert "source bundle is incomplete on disk" in checks["source-bundle"]["output"]["summary"]
+    assert checks["source-bundle"]["details"]["missing_artifacts"] == [
+        "paper.pdf",
+        "mineru/mineru-manifest.json",
+    ]
+    assert "human-approval" not in checks
+
+
 def test_paper_gate_blocks_plan_without_compiled_targets(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
@@ -274,6 +303,26 @@ def test_paper_gate_blocks_plan_without_compiled_targets(tmp_path):
     assert checks["compiled-targets"]["conclusion"] == "failure"
     assert "legacy compiled-draft" in checks["compiled-targets"]["output"]["summary"]
     assert "human-approval" not in checks
+
+
+def test_paper_gate_reports_legacy_compiled_target_details_before_repair(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    _seed_paper_gate_fixture(vault, slug, legacy_compiled=True)
+    plan_path = vault / "_epi" / "staging" / "papers" / slug / "promotion-plan.json"
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    plan["compiled_targets"] = ["../outside.md"]
+    plan_path.write_text(json.dumps(plan), encoding="utf-8")
+
+    gate = build_paper_gate(vault, slug)
+
+    checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
+    assert gate["status"] == "blocked"
+    assert checks["compiled-targets"]["conclusion"] == "failure"
+    assert "legacy compiled_targets are deprecated" in checks["compiled-targets"]["output"]["summary"]
+    assert "compiled targets include unsafe paths" in checks["compiled-targets"]["output"]["summary"]
+    assert "compiled target count does not match staged draft count" in checks["compiled-targets"]["output"]["summary"]
+    assert checks["compiled-targets"]["details"]["unsafe_targets"] == ["../outside.md"]
 
 
 def test_paper_gate_blocks_nonpassing_critic_before_staging_or_promotion(tmp_path):

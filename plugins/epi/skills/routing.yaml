@@ -1,0 +1,95 @@
+schema_version: epi-skill-routing-v1
+source_of_truth: skills/routing.yaml
+session_discipline:
+  re_match_every_task: true
+  re_read_when:
+    - route_changed
+    - context_compacted
+    - unsure
+always_read:
+  - ../AGENTS.md
+  - routing.yaml
+routes:
+  config_setup:
+    triggers:
+      - missing config
+      - initialize EPI
+      - update runtime config
+    skill: config-setup/SKILL.md
+    docs:
+      - ../docs/config.md
+  paper_discovery:
+    triggers:
+      - search papers
+      - latest papers
+      - high-quality papers
+      - dry-run
+    skill: paper-discovery/SKILL.md
+    notes:
+      - use profile-driven query planning, not fixed domain defaults
+  paper_ingest:
+    triggers:
+      - prepare-ranked
+      - advance-paper
+      - source-staging
+      - wiki ingest handoff
+    skill: paper-ingest/SKILL.md
+    notes:
+      - source_bundle_audit blocks final handoff when the source bundle is incomplete
+      - final wiki page body prose defaults to Chinese
+  epi_paper_deposition:
+    triggers:
+      - wiki_deposition_task.json
+      - final paper deposition
+      - formal EPI wiki page writing
+    skill: epi-paper-deposition/SKILL.md
+    notes:
+      - formal_page_language_policy keeps Chinese body prose by default
+      - Codex may use subagents only when the user explicitly authorizes delegation
+  wiki_provenance:
+    triggers:
+      - final-source-review
+      - record-wiki-ingest
+      - claim support
+      - evidence addresses
+    skill: wiki-provenance/SKILL.md
+  run_lifecycle:
+    triggers:
+      - _epi/runs cleanup
+      - run index audit
+      - dashboard pruning
+    skill: run-lifecycle/SKILL.md
+    notes:
+      - index.json and research-queue.json use atomic writes
+  wiki_setup:
+    triggers:
+      - initialize vault
+      - repair vault
+      - reset vault
+      - graph visibility
+    skill: wiki-setup/SKILL.md
+task_closure:
+  applies_to:
+    - code changes
+    - docs changes
+    - skill behavior changes
+  skip_for:
+    - pure read-only Q&A
+  checklist:
+    - restate original constraints
+    - record verification commands and outcomes
+    - run a 30-second AAR for recurring failures, drift, or missing activation paths
+    - route reusable lessons into docs, skills, or tests instead of this manifest when they become durable
+codex_subagent_permission:
+  rule: "Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work."
+  preferred_use:
+    - independent tests or audits
+    - disjoint workflow-module edits
+    - large grep or fixture scans
+  main_agent_reads:
+    - final worker output
+    - changed file list
+    - verification result
+  main_agent_avoids:
+    - large intermediate transcripts
+    - duplicated source-paper summaries

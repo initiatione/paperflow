@@ -1,84 +1,80 @@
 # Paper Search Codex Plugins
 
-This repository publishes a Codex plugin marketplace for paper-search workflows.
+本仓库是 paper-search 工作流的 Codex 插件市场源，目前只发布 `EPI` 插件。
 
-## Add The Marketplace In Codex
+## EPI 是什么
 
-In Codex, open **Plugin Marketplaces** and choose **Add marketplace**.
+EPI 是通用论文智能工作流插件，不默认绑定某个学科方向。它围绕用户画像、当前研究问题、领域关键词、排除词、venue prior 和质量门控来运行，目标是把高质量论文从检索候选推进到可沉淀的知识包。
 
-Use these values:
+A general academic paper intelligence workflow: it searches, ranks, preserves, parses, reads, critic-checks, stages, reports, and hands papers to an agent-mediated Obsidian/LLM Wiki ingest flow.
 
-- Source: `https://github.com/initiatione/paper-search`
-- Git ref: `main`
-- Sparse path: leave empty
+MinerU parsing is an internal EPI helper capability, not as a separate marketplace plugin; in other words, it is not a separate marketplace plugin.
 
-After the marketplace is added, select **Paper Search** from the marketplace dropdown and install `EPI`.
+## 工作链路
 
-## Verify An Installed EPI Plugin
+EPI 的核心链路是 profile-driven high-quality paper collection -> source-first paper bundle -> reader/critic review -> staging -> human approval -> wiki handoff -> provenance record。
 
-After installing from the Codex UI, start a new thread and mention `@epi`. If the CLI marketplace list has not caught up with the UI, check the local cache path instead:
+链路含义如下：
 
-```powershell
-$cacheRoot = Join-Path $env:USERPROFILE ".codex\plugins\cache\paper-search\epi"
-Get-ChildItem $cacheRoot
-```
+- 画像驱动检索：根据研究画像、当前问题和领域配置生成检索意图，避免把插件固定成单一学科工具。
+- 论文候选排序：按主题相关性、来源质量、论文类型、指标证据和可复现性线索筛选候选。
+- source-first 保存：优先保留 PDF、metadata、MinerU Markdown、TeX、图片和 manifest，缺关键来源时不进入正式 wiki。
+- 解析与阅读：用 MinerU 解析论文，再生成结构化阅读、证据地址和 claim-support 信息。
+- critic 复核：对论文身份、方法证据、公式/图表支撑、实验指标、SOTA/性能声明和局限性进行可靠性检查。
+- staging 与人工确认：先进入 EPI staging 和 gate 记录，由人工确认是否继续沉淀。
+- wiki handoff：把通过 gate 的论文交给 Obsidian/LLM Wiki 写作链路，正式正文默认中文，英文仅保留题名、术语、缩写、证据字段和路径。
+- provenance record：记录 final-source-review、页面 hash、artifact hash、source bundle 状态和写入生命周期，确保后续可审计。
 
-Run the read-only doctor command from the installed plugin directory:
+## 功能范围
 
-```powershell
-cd "$env:USERPROFILE\.codex\plugins\cache\paper-search\epi\<version>"
-python scripts\orchestrator.py doctor
-python scripts\orchestrator.py doctor --json
-```
+- 学术论文发现、候选排序和研究队列维护。
+- PDF 获取、metadata 固化、MinerU 解析和 source bundle 完整性审计。
+- reader 输出、claim-support、evidence map 和 critic quorum。
+- paper gate、human approval、wiki-ingest handoff、wiki-ingest trigger 和最终 record。
+- Obsidian/LLM Wiki 目录初始化、graph 可见性修复、formal 页面语言策略和 provenance 约束。
+- run lifecycle、dashboard、研究队列、Zotero 同步和质量演化建议。
+- 基于 skill-based architecture 的轻量路由：插件根入口保持 thin shell，具体任务交给 skill 与模块化脚本，独立子任务可在用户授权后交由 Codex subagents 完成。
 
-`doctor` returns non-zero only when the plugin structure itself is broken. Missing live dependencies such as `paper-search`, `MINERU_TOKEN`, a MinerU command, or an uninitialized EPI vault config are reported as warnings so offline checks remain usable.
+## 依赖
 
-When `paper-search` or `MINERU_TOKEN` is missing, `doctor` prints first-use setup links and PowerShell examples. It does not open a browser unless you explicitly ask it to:
+EPI 依赖以下能力，但安装插件本身不要求一次性全部配置完成：
 
-```powershell
-python scripts\orchestrator.py doctor --open-setup
-```
+- Codex 插件市场：用于发现、安装和更新 EPI。
+- paper-search：用于学术论文搜索、候选返回和可选下载能力。
+- MinerU：用于 PDF 到 Markdown、TeX、图片和 manifest 的解析。
+- EPI vault config：保存研究画像、领域、正负关键词、venue prior、预算和人工确认策略。
+- Obsidian 或 LLM Wiki vault：承载 source-first deposition、formal wiki 页面和 provenance record。
+- Zotero：可选，用于文献库同步和后续引用管理。
 
-Use `--open-setup` when you want EPI to open the paper-search and MinerU setup pages for the currently missing items.
+外部依赖缺失时，EPI 应以 warning 方式提示可补配置项；插件结构损坏才属于安装级错误。
 
-If `doctor` reports `epi_config: warning`, run `config-status` and complete the chat-style initialization described in `plugins\epi\docs\config.md` before starting paper discovery. EPI is profile-driven: research profile, domains, positive/negative keywords, venue prior, and the current request decide query planning, source routing, ranking, and later wiki/reader emphasis.
+## 结构
 
-## Plugins
+仓库根目录承担插件市场源和发布说明职责。EPI 插件主体位于 `plugins/epi/`。
 
-- `epi`: A general academic paper intelligence workflow. It searches, ranks, preserves, parses, reads, critic-checks, stages, reports, and hands papers to an agent-mediated Obsidian/LLM Wiki ingest flow.
+- `.codex-plugin/plugin.json`：Codex marketplace 元数据、版本号、展示文案和 skill 声明。
+- `AGENTS.md`：插件级 thin shell 路由入口，说明如何按任务类型匹配 skill。
+- `skills/`：用户可触发的 EPI skills，包括配置、发现、ingest、MinerU 解析、wiki setup、provenance、run lifecycle、topic tracking 和 Zotero。
+- `skills/routing.yaml`：任务路由、闭环检查和本地约束。
+- `scripts/build/epi/`：插件内部 Python 模块，承载 CLI 路由、source bundle audit、paper gate、wiki handoff、record workflow、graph visibility 和 language gate。
+- `docs/epi-linkage.md`：EPI 总链路契约。
+- `docs/structure.md`：模块、skill、artifact 和边界说明。
+- `docs/workflow.md`：运行闭环、handoff 和 skill-based routing 约定。
+- `docs/progress.md`：当前版本状态、验证结果、风险和下一步。
 
-MinerU parsing is an internal EPI helper capability, not a separate marketplace plugin.
+## 安装方式
 
-## Local Development
+在 Codex 的 Plugin Marketplaces 页面添加本仓库作为 marketplace source。Source 使用 `https://github.com/initiatione/paper-search`，Git ref 使用 `main`，Sparse path 留空。
 
-The canonical marketplace manifest for Codex is:
+添加 marketplace 后，在插件列表中选择 Paper Search，再安装 `EPI`。安装后在新线程中提及 `@epi` 即可让 Codex 读取插件 skill；首次使用时按 config-setup 的中文引导补齐研究画像、vault、paper-search、MinerU 和可选 Zotero 配置。
 
-```text
-.agents/plugins/marketplace.json
-```
+插件更新以 marketplace 版本为准。源码仓库中的修改需要发布到 marketplace 后，安装缓存中的 EPI 才会更新。
 
-The root `marketplace.json` mirrors the same entries for local inspection and compatibility with older local workflows.
+## 使用原则
 
-Development checks:
-
-```powershell
-python -m pip install -r requirements-dev.txt
-python -m pytest tests\epi -q
-python -m coverage run -m pytest tests\epi
-python -m coverage xml -o plugins\epi\coverage\coverage.xml
-```
-
-EPI's source-of-truth chain document is `plugins\epi\docs\epi-linkage.md`. Every plugin change or optimization must check and update that document so the implementation stays aligned with the intended chain: profile-driven high-quality paper collection -> Obsidian/LLM Wiki knowledge deposition -> low-burden reading report.
-
-MinerU parsing is part of the EPI pipeline, but the marketplace now exposes it only through the EPI plugin path rather than as a separate installable plugin.
-
-For an installed or source checkout, the current handoff flow is:
-
-```powershell
-python plugins\epi\scripts\orchestrator.py paper-gate --slug <paper-slug> --vault <vault>
-python plugins\epi\scripts\orchestrator.py wiki-ingest-handoff --slug <paper-slug> --vault <vault>
-```
-
-`wiki-ingest-handoff` is read-only. It renders the paper gate, target-vault contract files, wiki rule source priority, suggested routes, and agent checklist before the final Obsidian/LLM Wiki ingest.
-
-EPI critic development treats `paper-quality-critic` as an academic paper reliability gate, not a file-existence check. It verifies stable paper identity, reader claim support, benchmark context for outperform/SOTA claims, and scope overclaim risk while preserving reproducibility gaps and MinerU parse limitations as warnings. Reader development also emits `reader/evidence-map.json` so editor, reviewer, and senior-researcher claims can be checked as structured evidence before promotion. The critic quorum includes role reviewers for editorial significance, peer-review methods, and fit to the user's configured research profile. Every reviewer now writes a machine-readable `review_protocol` with its lens, consumed artifacts, hard-fail checks, warning checks, and decision boundary so reader and critic responsibilities stay explicit in the run artifact. Critic runs also write `critic/reader-revision-plan.json` and `.md`, translating blocking failures and warnings into role-specific reader repair worklists for the Nature/Sci editor, peer reviewer, and senior domain researcher.
+- 不把不完整 raw bundle 写入正式 wiki。
+- 不绕过 human approval 和 provenance record。
+- 不把 MinerU 当作独立 marketplace 插件发布。
+- 不把安装缓存当作开发源。
+- 不把 formal wiki 正文默认写成英文。
+- 不用 generic summary 替代 source-first、claim-support 和 evidence-addressed deposition。

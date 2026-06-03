@@ -1,9 +1,11 @@
 import json
+import importlib
 import sys
 
 import pytest
 
 from epi.artifacts import file_sha256
+from epi import orchestrator as orchestrator_module
 from epi.orchestrator import main, record_human_approval, record_wiki_ingest
 from epi.paper_gate import build_paper_gate
 from epi.wiki_ingest_record import create_wiki_ingest_record
@@ -44,6 +46,18 @@ EXPECTED_FORMAL_PAGE_FAMILIES = [
 ]
 
 EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "source-reviewed", "under-review", "verified"]
+
+
+def test_orchestrator_reexports_wiki_record_workflow_entrypoints():
+    wiki_record_workflows = importlib.import_module("epi.wiki_record_workflows")
+
+    assert orchestrator_module.record_human_approval is wiki_record_workflows.record_human_approval
+    assert orchestrator_module.record_wiki_ingest is wiki_record_workflows.record_wiki_ingest
+    assert orchestrator_module._write_promotion_or_rollback_run_state is (
+        wiki_record_workflows._write_promotion_or_rollback_run_state
+    )
+    assert orchestrator_module._write_promotion_routed_report is wiki_record_workflows._write_promotion_routed_report
+    assert orchestrator_module._write_rollback_routed_report is wiki_record_workflows._write_rollback_routed_report
 
 
 def _write_json(path, payload):
@@ -240,15 +254,15 @@ def _write_final_page(vault, relative, content):
 def _formal_page_content(family, title, *, body=None):
     body = body or (
         f"# {title}\n\n"
-        "This page links source-backed claims to [[fixture-method-family]] and preserves evidence routes.\n\n"
-        "## Model And Method\n\n"
-        "The page records the method, assumptions, and control variables from the source bundle.\n\n"
-        "## Key Formulas\n\n"
+        "这页把 source-backed claims 连接到 [[fixture-method-family]]，并保留证据路径。\n\n"
+        "## 模型与方法\n\n"
+        "方法部分记录 source bundle 中的 method、assumption 和 control variable。\n\n"
+        "## 关键公式\n\n"
         "$$y = x + 1$$\n\n"
-        "## Experiments And Metrics\n\n"
-        "The experiment section records baselines, metrics, and evaluation settings.\n\n"
-        "## Limitations\n\n"
-        "Limitations and caveats remain tied to the source artifacts.\n"
+        "## 实验与指标\n\n"
+        "实验部分记录 baseline、metric 和 evaluation setting。\n\n"
+        "## 局限\n\n"
+        "局限和 caveat 继续绑定到 source artifacts。\n"
     )
     return (
         "---\n"
@@ -374,6 +388,20 @@ def _write_final_source_review(vault, slug, pages):
         "formal_content_quality": {
             "status": "reviewed",
             "audit_pages_excluded": True,
+            "language_policy": {
+                "body_default_language": "zh",
+                "chinese_body_default": True,
+                "allowed_english": [
+                    "paper titles",
+                    "technical terms",
+                    "abbreviations",
+                    "evidence fields",
+                    "paths",
+                    "code",
+                    "formulas",
+                    "metrics",
+                ],
+            },
             "summary": "Final pages are readable wiki pages, not EPI audit or staging reports.",
         },
         "final_page_provenance": [
@@ -508,6 +536,76 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     assert run_state["zotero_results"]["reason"] == "zotero_not_configured"
     assert paper_state["state"] == "wiki_ingest_recorded"
     assert paper_state["next_action"] == "review-recorded-wiki-pages"
+
+
+def test_create_wiki_ingest_record_accepts_wiki_skill_batch_distillation_plan(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    plan_path = vault / "_epi" / "staging" / "papers" / slug / "promotion-plan.json"
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    plan.pop("handoff_type")
+    plan["wiki_write_model"] = "wiki-skill-batch-distillation"
+    _write_json(plan_path, plan)
+    page = _write_final_page(
+        vault,
+        "references/fixture-paper.md",
+        _formal_page_content("references", "Fixture Paper"),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+
+    record = create_wiki_ingest_record(
+        vault,
+        slug,
+        [str(page)],
+        approved_by="codex-test",
+        source_review_path=str(source_review),
+    )
+
+    assert record["status"] == "recorded"
+    assert record["wiki_write_model"] == "wiki-skill-batch-distillation"
+
+
+def test_create_wiki_ingest_record_uses_paper_gate_source_bundle_audit_without_final_review(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    brief_path = vault / "_epi" / "staging" / "papers" / slug / "wiki-ingest-brief.json"
+    brief = json.loads(brief_path.read_text(encoding="utf-8"))
+    brief["final_source_review_contract"]["required"] = False
+    _write_json(brief_path, brief)
+    page = _write_final_page(
+        vault,
+        "references/fixture-paper.md",
+        _formal_page_content("references", "Fixture Paper"),
+    )
+    _approve_handoff(vault, slug)
+
+    record = create_wiki_ingest_record(vault, slug, [str(page)], approved_by="codex-test")
+
+    assert record["status"] == "recorded"
+    assert record["source_first_confirmed"] is True
+    assert record["source_first_verification_method"] == "paper-gate-source-bundle-audit"
+    assert record["final_source_review"]["status"] == "missing"
+    assert record["final_source_review"]["required"] is False
+    assert record["paper_gate"]["source_bundle"]["status"] == "complete"
+
+
+def test_record_wiki_ingest_validation_failure_does_not_create_empty_run_dir(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/fixture-paper.md",
+        _formal_page_content("references", "Fixture Paper"),
+    )
+    runs_dir = vault / "_epi" / "runs"
+    before = sorted(path.name for path in runs_dir.glob("record-wiki-ingest-*")) if runs_dir.exists() else []
+
+    with pytest.raises(ValueError, match="pre-write human approval"):
+        record_wiki_ingest(vault, slug, [str(page)], approved_by="codex-test")
+
+    after = sorted(path.name for path in runs_dir.glob("record-wiki-ingest-*")) if runs_dir.exists() else []
+    assert after == before
 
 
 def test_record_wiki_ingest_uses_enabled_zotero_config_in_report(tmp_path):
@@ -692,6 +790,82 @@ def test_create_wiki_ingest_record_rejects_audit_shaped_final_page(tmp_path):
     _approve_handoff(vault, slug)
 
     with pytest.raises(ValueError, match="audit/staging artifact"):
+        create_wiki_ingest_record(
+            vault,
+            slug,
+            [str(page)],
+            approved_by="codex-test",
+            source_review_path=str(source_review),
+        )
+
+
+def test_create_wiki_ingest_record_rejects_english_only_formal_page_body(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/english-only.md",
+        _formal_page_content(
+            "references",
+            "English Only Fixture",
+            body=(
+                "# English Only Fixture\n\n"
+                "This page links source-backed claims to [[fixture-method-family]] and preserves evidence routes.\n\n"
+                "## Model And Method\n\n"
+                "The page records the method, assumptions, and control variables from the source bundle.\n\n"
+                "## Key Formulas\n\n"
+                "$$y = x + 1$$\n\n"
+                "## Experiments And Metrics\n\n"
+                "The experiment section records baselines, metrics, and evaluation settings.\n\n"
+                "## Limitations\n\n"
+                "Limitations and caveats remain tied to the source artifacts.\n"
+            ),
+        ),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+
+    with pytest.raises(ValueError, match="Chinese-default"):
+        create_wiki_ingest_record(
+            vault,
+            slug,
+            [str(page)],
+            approved_by="codex-test",
+            source_review_path=str(source_review),
+        )
+
+
+def test_create_wiki_ingest_record_requires_final_source_review_language_policy(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/chinese-fixture.md",
+        _formal_page_content(
+            "references",
+            "Chinese Fixture",
+            body=(
+                "# 中文正文夹具\n\n"
+                "这页用中文正文记录 [[fixture-method-family]] 的来源证据和方法边界。\n\n"
+                "## 模型与方法\n\n"
+                "方法部分保留 model 和 method 等英文术语，但解释默认使用中文。\n\n"
+                "## 公式\n\n"
+                "$$y = x + 1$$\n\n"
+                "## 实验与指标\n\n"
+                "实验部分记录 baseline、metric 和评估设置。\n\n"
+                "## 局限\n\n"
+                "局限和 caveat 需要绑定到来源证据。\n"
+            ),
+        ),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+
+    payload = json.loads(source_review.read_text(encoding="utf-8"))
+    payload["formal_content_quality"].pop("language_policy", None)
+    _write_json(source_review, payload)
+
+    with pytest.raises(ValueError, match="language_policy"):
         create_wiki_ingest_record(
             vault,
             slug,

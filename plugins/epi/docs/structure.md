@@ -54,7 +54,10 @@ python scripts\orchestrator.py <command>
 ```text
 scripts/build/epi/
   cli.py
+  cli_parser.py
+  cli_routes.py
   orchestrator.py
+  artifacts.py
   config.py
   doctor.py
   runtime_config.py
@@ -76,10 +79,15 @@ scripts/build/epi/
   reader_revision_*.py
   stage_wiki.py
   paper_gate.py
+  source_bundle_audit.py
+  graph_visibility.py
+  wiki_language.py
+  wiki_handoff_contracts.py
   wiki_ingest_handoff.py
   wiki_ingest_approval.py
   wiki_ingest_trigger.py
   wiki_ingest_record.py
+  wiki_record_workflows.py
   promote_to_wiki.py
   run_index.py
   wiki_query.py
@@ -87,8 +95,9 @@ scripts/build/epi/
   evaluation_loop.py
 ```
 
-- `cli.py` 只负责参数解析、JSON/Markdown 输出和调度到内部模块。
-- `orchestrator.py` 是兼容入口和流程编排层，负责 dry-run、one-paper ingest、batch advance、redo/recritic 等阶段串联。
+- `cli.py` 保留公开 CLI 入口；`cli_parser.py` 和 `cli_routes.py` 拆出参数定义、JSON/Markdown 输出和命令分发，避免入口继续膨胀。
+- `orchestrator.py` 是兼容入口和流程编排层，负责 dry-run、one-paper ingest、batch advance、redo/recritic 等阶段串联；record/promote 相关 helper 已拆到 `wiki_record_workflows.py`。
+- `artifacts.py` 负责 EPI 路径约定、sha256、时间戳和原子写入；`write_json_atomic` / `write_text_atomic` 用临时文件加 `os.replace` 写 JSON/Markdown，避免 `_epi/runs/index.json`、record 和 report 在异常中写坏。
 - `config.py` 负责 `_epi/meta/epi-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。旧 `_meta/epi-config.yaml` 只作为迁移/兼容读取来源。
 - `config_protection.py` 负责共享确认口令和 config 保护白名单，供 reset、repair、restore 复用。
 - `wiki_reset.py` 负责 wiki reset 执行器：preview、确认口令、备份/删除、config 默认保护、初始化和 reset manifest。
@@ -104,11 +113,16 @@ scripts/build/epi/
 - `research_decision.py`、`reader_revision_plan.py`、`reader_revision_guidance.py`、`reproduction_plan.py` 把 critic 结果翻译成决策、修复建议和紧凑复现 caveat。
 - `wiki_contracts.py` 固定七类正式页面、required wiki skills、frontmatter schema、quality gates 和 legacy alias 等跨模块常量。
 - `stage_wiki.py` 负责 `_epi/staging` 内部证据包、轻阅读报告、`wiki-ingest-brief.json`、`wiki_deposition_task.json`、`final_source_review_contract` 和 `promotion-plan.json`；它不得把审计页当成正式 wiki 页写到根目录。
-- `paper_gate.py` 是只读质量门面板，决定当前 slug 是 failure、waiting for human gate，还是允许进入下一动作。
-- `wiki_ingest_handoff.py` 是只读 handoff 渲染器，给最终 wiki ingest agent 提供路径、规则优先级、final-source-review 合同和 checklist。
+- `paper_gate.py` 是只读质量门面板，决定当前 slug 是 failure、waiting for human gate，还是允许进入下一动作；它调用 `source_bundle_audit.py` 检查 `paper.pdf`、`metadata.json`、MinerU Markdown、`mineru/paper.tex`、`mineru/images/*` 和 `mineru/mineru-manifest.json`，当 source bundle is incomplete 时阻止 final handoff。
+- `source_bundle_audit.py` 负责 raw source bundle 的磁盘完整性审计和 image hash 明细，供 `paper_gate.py` 与 record provenance 复用。
+- `graph_visibility.py` 负责 Obsidian `.obsidian/graph.json` 的正式目录 filter 和 `collapse-filter` 修复，避免过度转义导致图谱只剩 index。
+- `wiki_language.py` 负责 formal page language gate：formal wiki page body prose defaults to Chinese；英文只保留论文题名、术语、缩写、证据字段和路径。
+- `wiki_handoff_contracts.py` 保存 agent context policy：独立 wiki deposition 子任务可交给 fresh-context worker，主 agent 只读最终产物、changed file list 和 verification result；Codex 仍必须先有用户显式授权才可用 subagents。
+- `wiki_ingest_handoff.py` 是只读 handoff 渲染器，给最终 wiki ingest agent 提供路径、规则优先级、final-source-review 合同、agent context policy 和 checklist。
 - `wiki_ingest_approval.py` 是 agent-mediated 前置人类批准 helper：写入并校验 `_epi/staging/papers/<slug>/human-approval.json`，要求当前 gate 只有 `human-approval` 待办。
 - `wiki_ingest_trigger.py` 是批准后的继续/触发 helper：写入 `_epi/staging/papers/<slug>/wiki-agent-trigger.json`，让当前 Claude、Codex 或其他 wiki-capable agent 按同一 target vault contract 继续最终页写入；它不写最终 wiki 页面。
-- `wiki_ingest_record.py` 是 agent-mediated 完成态记录器：只读取最终 Markdown 页面、前置 `human-approval.json` 和 `final-source-review.json`，校验路径在 vault 内且不在 EPI 内部目录，验证源工件 hash、公式/图片/PDF 复核和 final page provenance，检查 formal frontmatter、`category/page_family`、provenance、wikilinks、forbidden formula blocks 和 family-specific quality gates，记录 hash 和 human approval，不写最终页面。
+- `wiki_ingest_record.py` 是 agent-mediated 完成态记录器：只读取最终 Markdown 页面、前置 `human-approval.json` 和 `final-source-review.json`，校验路径在 vault 内且不在 EPI 内部目录，验证源工件 hash、公式/图片/PDF 复核和 final page provenance，检查 formal frontmatter、`category/page_family`、provenance、wikilinks、Chinese-default 正文、forbidden formula blocks 和 family-specific quality gates，记录 hash 和 human approval，不写最终页面。
+- `wiki_record_workflows.py` 承接 `record-human-approval`、`record-wiki-ingest`、legacy promote/rollback run-state/report 写入，先完成 record 校验再创建 `_epi/runs/record-wiki-ingest-*`，避免失败校验留下空 run 目录。
 - `promote_to_wiki.py` 只保留 legacy compiled-draft promotion 和 rollback，不能替代 agent-mediated wiki ingest。
 - `zotero_sync.py` 负责本地 record-only Zotero sidecar：读取论文 metadata 和 wiki ingest record，写 `zotero-record.json`，不调用外部 Zotero API。
 - `run_index.py` 负责 `_epi/runs/index.json`、dashboard 和 `research-queue.json`，并在 ready queue 里嵌入当前 paper-gate 摘要；record/promote routed runs 会把 `zotero_results` 带入 index 和 dashboard。

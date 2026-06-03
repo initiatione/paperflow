@@ -4,7 +4,7 @@ from pathlib import Path
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from epi.artifacts import epi_meta_root, runs_root
+from epi.artifacts import epi_meta_root, runs_root, write_json_atomic
 from epi.paper_gate import build_paper_gate
 
 
@@ -748,7 +748,7 @@ def _with_recommended_actions(bucket, items, vault_path):
 
 
 def _write_json(path, payload):
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    write_json_atomic(path, payload)
 
 
 def _render_dashboard(entries, summary, research_queue=None):
