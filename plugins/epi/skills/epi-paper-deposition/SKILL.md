@@ -13,6 +13,8 @@ Use this skill at the boundary where EPI stops being a paper evidence engine and
 
 Compatibility note: older EPI artifacts may say `epi-wiki-deposition`. Treat that as an alias for this skill.
 
+Preferred user experience: when the `paper-research-wiki` plugin is installed, route formal paper wiki work through `$paper-research-wiki`. Users should be able to ask it to `提取` EPI papers, `检测` the wiki library, `更新` the wiki library, or `重link` paper knowledge without choosing internal workflow names. This EPI skill remains a compatibility bridge for existing `wiki_deposition_task.json` artifacts.
+
 ## Workflow Routing
 
 | Intent | Load |

@@ -8,7 +8,7 @@ __pycache__/
 .coverage
 coverage.xml
 coverage/
-paper-research-wiki/
+/paper-research-wiki/
 plugins/epi/.runtime/
 plugins/epi/.plugin-eval/
 .codex_tmp_refs/

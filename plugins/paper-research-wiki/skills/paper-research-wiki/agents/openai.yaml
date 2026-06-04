@@ -1,0 +1,4 @@
+interface:
+  display_name: "Paper Research Wiki"
+  short_description: "提取并直接沉淀 EPI 论文到 wiki，并检测、更新、重link 论文知识库。"
+  default_prompt: "Use $paper-research-wiki to 提取并直接沉淀 EPI 抓下来的论文、检测 wiki 库、更新和重link 论文知识库。"
