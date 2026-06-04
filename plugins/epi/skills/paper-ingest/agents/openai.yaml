@@ -1,0 +1,4 @@
+interface:
+  display_name: "Paper Ingest"
+  short_description: "Prepare selected papers for source-first ingest"
+  default_prompt: "Use $paper-ingest to prepare selected papers for source-first EPI ingest."

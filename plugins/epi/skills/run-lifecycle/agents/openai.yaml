@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPI Run Lifecycle"
+  short_description: "Inspect and prune transient EPI run artifacts"
+  default_prompt: "Use $run-lifecycle to inspect or prune transient EPI run artifacts."

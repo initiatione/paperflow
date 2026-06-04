@@ -67,7 +67,9 @@ def test_config_setup_skill_owns_initialization_and_update_onboarding():
 
 def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     text = _read(SKILL_DIR / "wiki-setup" / "SKILL.md")
+    reset_workflow = _read(SKILL_DIR / "wiki-setup" / "workflows" / "reset-repair.md")
     recovery = _read(SKILL_DIR / "wiki-setup" / "references" / "reset-recovery.md")
+    combined = "\n".join([text, reset_workflow, recovery])
 
     assert "name: wiki-setup" in text
     assert "scripts\\init_paper_wiki.py" in text
@@ -77,31 +79,32 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "AGENTS.md" in text
     assert "_meta\\agent-operating-contract.md" in text
     assert "_meta\\directory-structure.md" in text
-    assert "source-first for paper research" in text
-    assert "mineru\\<slug>.md" in text
-    assert "mineru\\images\\*" in text
-    assert "Reset is destructive" in text
+    assert "workflows/reset-repair.md" in text
+    assert "source-first for paper research" in combined
+    assert "mineru\\<slug>.md" in combined
+    assert "mineru\\images\\*" in combined
+    assert "Reset is destructive" in reset_workflow
     assert "wiki structure reset and EPI config reset are separate operations" in text
     assert "_epi\\meta\\epi-config.yaml" in text
     assert "_epi\\meta\\epi-config-state.json" in text
     assert "_epi\\meta\\config-history\\" in text
-    assert "_epi\\README.md" in text
-    assert "_epi\\manifest.json" in text
-    assert "_epi\\policies\\retention.json" in text
+    assert "_epi\\README.md" in combined
+    assert "_epi\\manifest.json" in combined
+    assert "_epi\\policies\\retention.json" in combined
     assert "epi-repository-migrate --vault <vault> --preview --json" in text
     assert "epi-repository-cleanup --vault <vault> --preview --json" in text
     assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
-    assert "config-status --vault <vault> --json --include-values --include-runtime" in text
-    assert "确认重置 EPI wiki" in text
-    assert "确认同时重置 EPI config" in text
-    assert "wiki-reset --vault <vault> --preview --json" in text
-    assert "wiki-reset --vault <vault>" in text
-    assert "--reset-config-confirmed-by" in text
-    assert "不需要备份" in text
-    assert "do not back up wiki content" in text
-    assert "Misdelete Recovery" in text
-    assert "误删" in text
-    assert "without the exact second confirmation" in text
+    assert "config-status --vault <vault> --json --include-values --include-runtime" in reset_workflow
+    assert "确认重置 EPI wiki" in reset_workflow
+    assert "确认同时重置 EPI config" in reset_workflow
+    assert "wiki-reset --vault <vault> --preview --json" in reset_workflow
+    assert "wiki-reset --vault <vault>" in reset_workflow
+    assert "--reset-config-confirmed-by" in reset_workflow
+    assert "不需要备份" in reset_workflow
+    assert "do not back up wiki content" in reset_workflow
+    assert "Repair And Recovery" in reset_workflow
+    assert "误删" in reset_workflow
+    assert "without the exact second confirmation" in reset_workflow
     assert "wiki-repair --vault <vault> --json" in recovery
     assert "config-recover --vault <vault> --json" in recovery
     assert "config-restore --vault <vault>" in recovery
@@ -127,27 +130,32 @@ def test_epi_skills_delegate_onboarding_wording_to_config_doc():
 def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
     discovery = _read(SKILL_DIR / "paper-discovery" / "SKILL.md")
     ingest = _read(SKILL_DIR / "paper-ingest" / "SKILL.md")
+    discovery_workflow = _read(SKILL_DIR / "paper-discovery" / "workflows" / "run-discovery.md")
+    ingest_prepare = _read(SKILL_DIR / "paper-ingest" / "workflows" / "prepare-ranked.md")
+    ingest_approval = _read(SKILL_DIR / "paper-ingest" / "workflows" / "approval-and-trigger.md")
     mineru = _read(SKILL_DIR / "mineru-paper-parser" / "SKILL.md")
+    combined = "\n".join([discovery, ingest, discovery_workflow, ingest_prepare, ingest_approval])
 
     assert "prepare-ranked" in discovery
-    assert "--max-papers 10" in discovery
-    assert "--skip-existing" in discovery
-    assert "smoke test" in discovery
-    assert "profile-derived" in discovery
-    assert "source-staging" in discovery
-    assert "acquire-record.json" in discovery
-    assert "parse-record.json" in discovery
-    assert "--max-papers 10" in ingest
-    assert "--skip-existing" in ingest
+    assert "workflows/run-discovery.md" in discovery
+    assert "workflows/prepare-ranked.md" in ingest
+    assert "workflows/approval-and-trigger.md" in ingest
+    assert "--max-papers 10" in ingest_prepare
+    assert "--skip-existing" in ingest_prepare
+    assert "smoke test" in ingest_prepare
+    assert "profile-derived" in discovery_workflow
+    assert "source-staging" in combined
+    assert "acquire-record.json" in ingest_prepare
+    assert "parse-record.json" in ingest_prepare
     assert "fast-ingest" in ingest
     assert "reviewed-ingest" in ingest
     assert "audited-ingest" in ingest
-    assert "Source-First Wiki Handoff" in ingest
-    assert "report --run-id <run-id>" in ingest
-    assert "mineru/<slug>.md" in ingest
-    assert "mineru/images/*" in ingest
-    assert "central formulas" in ingest
-    assert "not the source of truth" in ingest
+    assert "Source-First Handoff Check" in ingest_prepare
+    assert "report --run-id <run-id>" in discovery_workflow
+    assert "mineru/<slug>.md" in ingest_prepare
+    assert "mineru/images/*" in ingest_prepare
+    assert "formula/figure review cues" in ingest_prepare
+    assert "not source authority" in ingest
     assert "tex_source=markdown-fallback" in mineru
     assert "mineru-command\\paper" in mineru
     assert "mineru-command\\parsed" in mineru
@@ -156,6 +164,7 @@ def test_epi_skills_document_precise_one_to_three_prepare_ranked_path():
 
 def test_paper_discovery_skill_documents_quality_first_chat_recommendations():
     discovery = _read(SKILL_DIR / "paper-discovery" / "SKILL.md")
+    discovery_workflow = _read(SKILL_DIR / "paper-discovery" / "workflows" / "run-discovery.md")
 
     assert "references/query-planner.md" in discovery
     assert "references/mode-routing.md" in discovery
@@ -173,14 +182,16 @@ def test_paper_discovery_skill_documents_quality_first_chat_recommendations():
     assert "references/evaluation-set.md" in discovery
     assert "references/workflows/multi-source-discovery.md" in discovery
     assert "references/quality-gate.md" in discovery
-    assert "The full EPI chain stays documented" in discovery
+    assert "The full EPI chain stays documented" in discovery or "docs\\epi-linkage.md" in discovery
+    assert "read-priority reporting" in discovery_workflow
 
 
 def test_paper_discovery_skill_defines_stronger_high_quality_search_protocol():
     discovery = _read(SKILL_DIR / "paper-discovery" / "SKILL.md")
+    discovery_workflow = _read(SKILL_DIR / "paper-discovery" / "workflows" / "run-discovery.md")
 
-    assert "query-planner.py" in discovery
-    assert "--no-query-plan" in discovery
+    assert "query-planner.py" in discovery_workflow
+    assert "--no-query-plan" in discovery_workflow
     assert "references/query-planner.md" in discovery
     assert "references/mode-routing.md" in discovery
     assert "references/paper-type-taxonomy.md" in discovery
@@ -197,7 +208,7 @@ def test_paper_discovery_skill_defines_stronger_high_quality_search_protocol():
     assert "references/quality-gate.md" in discovery
     assert "references/output-format.md" in discovery
     assert "references/anti-patterns.md" in discovery
-    assert "The full EPI chain stays documented" in discovery
+    assert "The full EPI chain stays documented" in discovery or "docs\\epi-linkage.md" in discovery
 
 
 def test_paper_discovery_reference_files_exist_and_hold_split_protocol():

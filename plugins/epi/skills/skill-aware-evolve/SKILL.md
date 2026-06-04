@@ -1,6 +1,9 @@
 ---
 name: skill-aware-evolve
-description: "Use when EPI evidence suggests controlled profile, filter, ranking, template, or routing changes."
+description: >
+  Use when EPI evidence suggests controlled optimization, including "优化 EPI 插件",
+  "根据实测反馈优化", Plugin Eval, quality gates, benchmark evidence, or profile,
+  filter, ranking, template, and routing changes.
 ---
 
 # Skill-Aware Evolve

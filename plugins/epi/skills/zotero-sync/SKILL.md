@@ -1,6 +1,9 @@
 ---
 name: zotero-sync
-description: "Use when recording or running optional EPI Zotero sync."
+description: >
+  Use when recording or running optional EPI Zotero sync, including Zotero,
+  "同步 Zotero", "记录 Zotero 文献", "同步文献库记录", zotero-sync,
+  local record-only sidecars, or post-ingest bibliographic records.
 ---
 
 # Zotero Sync

@@ -11,7 +11,12 @@ always_read:
   - routing.yaml
 routes:
   config_setup:
+    category: primary
     triggers:
+      - 配置 EPI
+      - 查看当前配置
+      - 初始化配置
+      - 修改研究画像
       - missing config
       - initialize EPI
       - update runtime config
@@ -19,42 +24,90 @@ routes:
     docs:
       - ../docs/config.md
   paper_discovery:
+    category: primary
     triggers:
+      - 找最新论文
+      - 找高质量论文
+      - 推荐优先阅读论文
       - search papers
       - latest papers
       - high-quality papers
       - dry-run
     skill: paper-discovery/SKILL.md
+    workflows:
+      - paper-discovery/workflows/run-discovery.md
     notes:
       - use profile-driven query planning, not fixed domain defaults
-  paper_ingest:
+  topic_tracking:
+    category: primary
     triggers:
+      - 持续跟踪方向
+      - 最近有什么新论文
+      - 有没有漏掉关键分支
+      - backlog
+      - coverage gap
+      - what changed since last run
+    skill: topic-tracking/SKILL.md
+    notes:
+      - use paper-discovery as the retrieval layer, not as the topic ledger
+  paper_ingest:
+    category: primary
+    triggers:
+      - 推进论文
+      - 生成阅读报告
+      - 准备 wiki handoff
+      - 沉淀前准备
       - prepare-ranked
       - advance-paper
       - source-staging
       - wiki ingest handoff
     skill: paper-ingest/SKILL.md
+    workflows:
+      - paper-ingest/workflows/prepare-ranked.md
+      - paper-ingest/workflows/approval-and-trigger.md
     notes:
       - source_bundle_audit blocks final handoff when the source bundle is incomplete
       - final wiki page body prose defaults to Chinese
-  epi_paper_deposition:
+  mineru_paper_parser:
+    category: support
     triggers:
+      - parse-paper
+      - MinerU 解析
+      - PDF 转 Markdown
+      - paper.tex
+      - mineru-manifest.json
+    skill: mineru-paper-parser/SKILL.md
+    notes:
+      - support paper-ingest source bundle preparation
+  epi_paper_deposition:
+    category: primary
+    triggers:
+      - 沉淀进 wiki
+      - 写正式论文 wiki 页面
       - wiki_deposition_task.json
       - final paper deposition
       - formal EPI wiki page writing
     skill: epi-paper-deposition/SKILL.md
+    workflows:
+      - epi-paper-deposition/workflows/formal-wiki-write.md
     notes:
       - formal_page_language_policy keeps Chinese body prose by default
       - Codex may use subagents only when the user explicitly authorizes delegation
   wiki_provenance:
+    category: support
     triggers:
+      - claim 能否回溯
+      - 证据地址
+      - provenance
       - final-source-review
       - record-wiki-ingest
       - claim support
       - evidence addresses
     skill: wiki-provenance/SKILL.md
   run_lifecycle:
+    category: maintenance
     triggers:
+      - 清理 runs
       - _epi/runs cleanup
       - run index audit
       - dashboard pruning
@@ -62,12 +115,41 @@ routes:
     notes:
       - index.json and research-queue.json use atomic writes
   wiki_setup:
+    category: primary
     triggers:
+      - 初始化 vault
+      - 修复 vault
+      - 重置 vault
       - initialize vault
       - repair vault
       - reset vault
       - graph visibility
     skill: wiki-setup/SKILL.md
+    workflows:
+      - wiki-setup/workflows/reset-repair.md
+  zotero_sync:
+    category: support
+    triggers:
+      - 同步 Zotero
+      - 记录 Zotero 文献
+      - 同步文献库记录
+      - Zotero
+      - zotero-sync
+      - record-only sidecar
+    skill: zotero-sync/SKILL.md
+    notes:
+      - optional record-only integration unless explicitly configured
+  skill_aware_evolve:
+    category: maintenance
+    triggers:
+      - 优化 EPI 插件
+      - 根据实测反馈优化
+      - plugin eval
+      - quality gates
+      - propose-evolution
+    skill: skill-aware-evolve/SKILL.md
+    notes:
+      - configuration changes stay record-only and route to config proposals
 task_closure:
   applies_to:
     - code changes

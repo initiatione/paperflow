@@ -1,6 +1,9 @@
 ---
 name: config-setup
-description: "Use when EPI config is missing, viewed, initialized, or updated."
+description: >
+  Use when the user asks to configure EPI, "配置 EPI", "查看当前配置",
+  "初始化配置", "修改研究画像", or when EPI config is missing, viewed,
+  initialized, or updated.
 ---
 
 # EPI Config Setup

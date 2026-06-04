@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPI Wiki Setup"
+  short_description: "Initialize and repair EPI paper wiki vaults"
+  default_prompt: "Use $wiki-setup to initialize, inspect, or repair an EPI paper wiki vault."

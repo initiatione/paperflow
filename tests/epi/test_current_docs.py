@@ -420,6 +420,10 @@ def test_epi_skill_architecture_alignment_documents_routing_and_closure():
     assert "source_bundle_audit" in routing
     assert "formal_page_language_policy" in routing
     assert "codex_subagent_permission" in routing
+    assert "agents/openai.yaml" in workflow
+    assert "$skill-name" in workflow
+    assert "workflows/*.md" in workflow
+    assert "workflows` 字段" in workflow
     assert "Codex may use subagents only when the user explicitly authorizes" in combined
     assert "formal wiki page body prose defaults to Chinese" in combined
     assert "source bundle is incomplete" in combined

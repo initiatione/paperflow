@@ -1,11 +1,16 @@
 ---
 name: wiki-setup
-description: "Use when initializing, inspecting, repairing, or resetting an EPI paper wiki vault."
+description: >
+  Use when initializing, inspecting, repairing, or resetting an EPI paper wiki vault,
+  including "初始化 vault", "修复 vault", "重置 vault", graph visibility,
+  destructive reset safety, or misdelete recovery.
 ---
 
 # EPI Wiki Setup
 
-Use only for the target paper research wiki vault structure: initialize, inspect, repair, reset. Do not use for paper search, ingest, MinerU, Zotero, or final wiki writing. Load `references/reset-recovery.md` before reset, `--no-backup`, config reset, or Misdelete Recovery.
+Use only for the target paper research wiki vault structure: initialize, inspect, repair, reset. Do not use for paper search, ingest, MinerU, Zotero, or final wiki writing.
+
+Load `references/reset-recovery.md` and `workflows/reset-repair.md` before reset, `--no-backup`, config reset, or misdelete recovery.
 
 ## Config Boundary
 
@@ -19,11 +24,16 @@ Preserve:
 - `_epi\meta\config-history\`
 - `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`
 
-Before and after destructive actions, report non-secret config state only:
+Before and after destructive actions, report non-secret config state only with `config-status --vault <vault> --json --include-values --include-runtime`.
 
-```powershell
-python scripts\orchestrator.py config-status --vault <vault> --json --include-values --include-runtime
-```
+## Workflow Routing
+
+| Intent | Load |
+| --- | --- |
+| Initialize or inspect a vault structure | This `SKILL.md` |
+| Preview reset, execute reset, decline backup, reset config, repair, restore, or recover from misdelete | `workflows/reset-repair.md` |
+| Understand reset safeguards and recovery sources | `references/reset-recovery.md` |
+| Search, ingest, parse, Zotero sync, or formal wiki writing | Switch to the matching EPI skill |
 
 ## Initialize
 
@@ -37,84 +47,24 @@ Initialization must ensure the vault is a git repository. `init_paper_wiki.py` r
 
 Expected structure includes one EPI internal repository root `_epi`, wiki contract root `_meta`, wiki roots, `.obsidian`, `.git`, `index.md`, `log.md`, `hot.md`, and `.manifest.json`. New initialization must not create top-level `_raw`, `_staging`, `_runs`, `_quarantine`, or `_evolution`.
 
-`_epi` must include navigation, manifest, and repository policy:
+`_epi` must include `_epi\README.md`, `_epi\manifest.json`, `_epi\policies\retention.json`, raw/staging/runs/quarantine/evolution/meta roots, and graph visibility rules. Obsidian graph views should ignore `_epi`; `_epi/raw/papers/<slug>/mineru/<slug>.md` remains source material, not a formal wiki page.
 
-- `_epi\README.md`
-- `_epi\manifest.json`
-- `_epi\policies\retention.json`
-- `_epi\raw\papers\`
-- `_epi\staging\papers\`
-- `_epi\staging\wiki-batches\pending\`
-- `_epi\runs\`
-- `_epi\quarantine\papers\`
-- `_epi\evolution\`
-- `_epi\meta\`
+Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`.
 
-Obsidian graph views should ignore `_epi`; `_epi/raw/papers/<slug>/mineru/<slug>.md` remains source material, not a formal wiki page.
-
-Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`. These defaults are source-first for paper research: final wiki pages must read `mineru\<slug>.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`, then use reader/critic outputs as evidence aids.
+These defaults are source-first for paper research: final wiki pages must read `mineru\<slug>.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`, then use reader/critic outputs as evidence aids.
 
 For existing vaults with old top-level operational roots, migrate before or after initialization:
 
 ```powershell
 python scripts\orchestrator.py epi-repository-migrate --vault <vault> --preview --json
 python scripts\orchestrator.py epi-repository-migrate --vault <vault> --json
-```
-
-Then run cleanup preview:
-
-```powershell
 python scripts\orchestrator.py epi-repository-cleanup --vault <vault> --preview --json
 ```
-
-## Reset
-
-Reset is destructive. Do not reset from one sentence. Read `references/reset-recovery.md`; preview first:
-
-```powershell
-python scripts\orchestrator.py wiki-reset --vault <vault> --preview --json
-python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 EPI wiki" --json
-```
-
-Before reset, inventory the vault, run `config-status`, explain moved/removed/preserved paths, and propose backup outside the active vault such as `<vault-parent>\paper-research-wiki-reset-backups\<timestamp>`. Require exact second confirmation: `确认重置 EPI wiki`. Treat `不需要备份` as do not back up wiki content; it does not authorize config deletion.
-
-If backup is explicitly declined:
-
-```powershell
-python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 EPI wiki" --no-backup --json
-```
-
-To reset config too, require this separate phrase:
-
-```text
-确认同时重置 EPI config
-```
-
-Do not infer config reset from "reset wiki", "clean everything", "no backup", or "重新初始化".
-
-```powershell
-python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 EPI wiki" --reset-config-confirmed-by "确认同时重置 EPI config" --json
-```
-
-After reset, initialize, rerun `config-status`, and stop if config unexpectedly needs onboarding. To reset or compact old operational roots, use `epi-repository-migrate` and `epi-repository-cleanup`; do not manually delete source paper artifacts.
-
-## Misdelete Recovery
-
-Use for accidental deletion, mistaken reset, missing config after preserve reset, or wording such as 误删, 误操作, 配置没了, 为什么要重新初始化 config. See `references/reset-recovery.md` for the recovery checklist.
-
-```powershell
-python scripts\orchestrator.py wiki-repair --vault <vault> --json
-python scripts\orchestrator.py config-recover --vault <vault> --json
-python scripts\orchestrator.py config-restore --vault <vault> --from <backup-config-yaml> --confirmed-by "确认恢复 EPI config" --json
-python scripts\orchestrator.py wiki-repair --vault <vault> --restore-from <backup-config-yaml> --confirmed-by "确认恢复 EPI config" --json
-```
-
-Never reset/delete without the exact second confirmation, without preserving EPI config unless `确认同时重置 EPI config` was also provided, outside the intended vault, in unrelated paths, or while ingest/MinerU/promotion/wiki ingest is running.
 
 ## Literature Wiki Contract
 
 Initialization seeds formal wiki page families for paper research: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. EPI itself still writes only `_epi/`; final pages are written by a wiki-capable agent through `epi-paper-deposition` after handoff and approval.
 
-The vault contract should expect `wiki_deposition_task.json` plus the required skill stack: `epi-paper-deposition`, `llm-wiki`, `wiki-ingest`, `wiki-context-pack`, `wiki-lint`, `wiki-stage-commit`, `wiki-status`, `wiki-query`, `wiki-provenance`, and `tag-taxonomy`. `epi-wiki-deposition` is a legacy compatibility alias, not the primary adapter name. Formal page frontmatter requires `title`, `category`, `page_family`, `tags`, `aliases`, `sources`, `summary`, `provenance`, `base_confidence`, `lifecycle`, `lifecycle_changed`, `tier`, `created`, and `updated`; initial lifecycle is `draft` or `review-needed`, not automatic `source-reviewed` or `verified`.
+The vault contract should expect `wiki_deposition_task.json` plus the required skill stack: `epi-paper-deposition`, `llm-wiki`, `wiki-ingest`, `wiki-context-pack`, `wiki-lint`, `wiki-stage-commit`, `wiki-status`, `wiki-query`, `wiki-provenance`, and `tag-taxonomy`. `epi-wiki-deposition` is a legacy compatibility alias, not the primary adapter name.
 
-Final source review fields remain `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`. Record/lint gates should reject missing provenance, missing wikilinks, `_epi/` formal pages, forbidden formula blocks, derivation pages without variables and derivation chain, references without model/formula/experiment/limits, and synthesis pages without a cross-paper comparison matrix.
+Formal page frontmatter requires `title`, `category`, `page_family`, `tags`, `aliases`, `sources`, `summary`, `provenance`, `base_confidence`, `lifecycle`, `lifecycle_changed`, `tier`, `created`, and `updated`; initial lifecycle is `draft` or `review-needed`, not automatic `source-reviewed` or `verified`.

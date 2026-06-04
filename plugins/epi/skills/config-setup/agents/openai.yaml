@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPI Config Setup"
+  short_description: "Configure and inspect EPI runtime settings"
+  default_prompt: "Use $config-setup to inspect or initialize EPI configuration."

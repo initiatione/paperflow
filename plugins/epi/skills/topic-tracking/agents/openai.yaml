@@ -1,0 +1,4 @@
+interface:
+  display_name: "Topic Tracking"
+  short_description: "Track topic deltas, coverage, and reading backlog"
+  default_prompt: "Use $topic-tracking to monitor topic deltas, coverage, and backlog."

@@ -1,6 +1,8 @@
 ---
 name: run-lifecycle
-description: "Use when inspecting, cleaning, pruning, or archiving transient EPI _epi/runs dashboards, queues, and logs."
+description: >
+  Use when inspecting, cleaning, pruning, or archiving transient EPI run artifacts,
+  including "清理 runs", _epi/runs dashboards, queues, indexes, and logs.
 ---
 
 # EPI Run Lifecycle

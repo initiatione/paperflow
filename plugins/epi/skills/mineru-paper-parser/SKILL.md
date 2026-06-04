@@ -1,6 +1,8 @@
 ---
 name: mineru-paper-parser
-description: "Use when parsing local PDFs in EPI with MinerU into Markdown, TeX, images, and manifests."
+description: >
+  Use when parsing local EPI PDFs with MinerU, including "MinerU 解析",
+  "PDF 转 Markdown", parse-paper, TeX, images, and manifest generation.
 ---
 
 # MinerU Paper Parser

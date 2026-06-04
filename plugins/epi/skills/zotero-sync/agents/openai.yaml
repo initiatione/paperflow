@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zotero Sync"
+  short_description: "Record or run optional Zotero sync for EPI"
+  default_prompt: "Use $zotero-sync to record or run optional Zotero sync for EPI."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "MinerU Paper Parser"
+  short_description: "Parse local PDFs with MinerU into EPI artifacts"
+  default_prompt: "Use $mineru-paper-parser to parse local PDFs into EPI source artifacts."

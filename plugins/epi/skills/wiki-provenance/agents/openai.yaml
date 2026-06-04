@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wiki Provenance"
+  short_description: "Preserve evidence routes for final wiki claims"
+  default_prompt: "Use $wiki-provenance to preserve evidence routes for final wiki claims."

@@ -1,6 +1,9 @@
 ---
 name: wiki-provenance
-description: "Use when final EPI paper knowledge is written to an Obsidian or LLM wiki and claims must preserve provenance, support status, evidence-map addresses, final-source-review links, or round-trip retrieval hooks."
+description: >
+  Use when final EPI paper knowledge is written to an Obsidian or LLM wiki and
+  claims must preserve provenance, including "claim 能否回溯", "证据地址",
+  support status, evidence-map addresses, final-source-review links, or retrieval hooks.
 ---
 
 # Wiki Provenance

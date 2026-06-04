@@ -6,9 +6,11 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 
 ## Skill-Based Routing And Task Closure
 
-EPI 依照 `skill-based-architecture` 的路由思路维护插件级轻量变体：`plugins/epi/AGENTS.md` 是 thin shell，只负责指向 `skills/routing.yaml`；`skills/routing.yaml` 是 Always Read、route rematch、task_closure 和 Codex sub-agent permission 的来源；每个 Codex skill 的 `SKILL.md` 保持入口短小，长期规则放入 `docs/`、`references/` 或测试。
+EPI 依照 `skill-based-architecture` 的路由思路维护插件级轻量变体：`plugins/epi/AGENTS.md` 是 thin shell，只负责指向 `skills/routing.yaml`；`skills/routing.yaml` 是 Always Read、route rematch、task_closure、Codex sub-agent permission 和全部 skill route 分类的来源；每个 Codex skill 的 `SKILL.md` 保持入口短小，长期规则放入 `docs/`、`references/` 或测试。
 
-EPI 是多 skill 插件，不硬搬单一 `skills/<project>/rules/workflows/references` scaffold；对应关系是：插件级 `skills/routing.yaml` 管路由，多 Codex skills 承接任务入口，`docs/structure.md` / `docs/epi-linkage.md` / 本文件承接 workflow 和 reference。每个新任务都要 re-match route；route 不变且上下文未压缩时，不重复读取无关文件。
+EPI 是多 skill 插件，不硬搬单一 `skills/<project>/rules/workflows/references` scaffold；对应关系是：插件级 `skills/routing.yaml` 管路由，多 Codex skills 承接任务入口，`docs/structure.md` / `docs/epi-linkage.md` / 本文件承接跨链路 reference，单个 skill 的 `workflows/` 承接具体步骤。`routing.yaml` 必须覆盖每个 `skills/*/SKILL.md`，并把 route 标为 `primary`、`support` 或 `maintenance`：主任务 skill 面向用户自然请求，support skill 只在主链路需要底层能力或证据边界时进入，maintenance skill 用于清理、评估和受控演化。每个 skill 必须提供 `agents/openai.yaml`，且 `interface.default_prompt` 必须包含对应 `$skill-name`。
+
+核心入口 `SKILL.md` 只保留触发、边界、workflow routing 和必要引用，不承载完整 runbook；`paper-discovery`、`paper-ingest`、`epi-paper-deposition`、`wiki-setup` 的步骤性流程放在各自 `workflows/*.md`，并必须从 `skills/routing.yaml` 的 `workflows` 字段可达。每个新任务都要 re-match route；route 不变且上下文未压缩时，不重复读取无关文件。
 
 Task closure 只适用于代码、文档或 skill 行为变更；纯只读问答不要求 AAR。非平凡变更结束前要 restate original constraints、记录 verification commands and outcomes，并跑一个 30-second AAR，检查本次是否暴露 recurring failures、route drift、缺失激活路径或应固化到 docs/skills/tests 的经验。
 

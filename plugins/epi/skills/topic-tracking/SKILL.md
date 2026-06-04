@@ -1,6 +1,10 @@
 ---
 name: topic-tracking
-description: "Use when tracking an EPI research topic over time, asking what is new since a prior run or date, building a reading backlog, checking breadth coverage, or planning broad-to-deep literature review."
+description: >
+  Use when the user asks to track an EPI research topic over time, such as
+  "持续跟踪这个方向", "最近有什么新论文", "有没有漏掉关键分支",
+  what changed since a prior run/date, reading backlog, breadth coverage,
+  or broad-to-deep literature review planning.
 ---
 
 # Topic Tracking

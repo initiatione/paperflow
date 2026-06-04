@@ -1,0 +1,4 @@
+interface:
+  display_name: "EPI Paper Deposition"
+  short_description: "Stage EPI source bundles into paper wiki pages"
+  default_prompt: "Use $epi-paper-deposition to stage EPI source bundles for wiki deposition."
