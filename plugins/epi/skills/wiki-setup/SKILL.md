@@ -63,8 +63,10 @@ python scripts\orchestrator.py epi-repository-cleanup --vault <vault> --preview 
 
 ## Literature Wiki Contract
 
-Initialization seeds formal wiki page families for paper research: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. EPI itself still writes only `_epi/`; final pages are written by a wiki-capable agent through `epi-paper-deposition` after handoff and approval.
+Initialization seeds formal wiki page families for paper research: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. EPI itself still writes only `_epi/`; final pages are written by PRW `$paper-research-wiki` after handoff and approval. `epi-paper-deposition` is only the compatibility adapter for existing EPI handoff artifacts or legacy records.
 
-The vault contract should expect `wiki_deposition_task.json` plus the required skill stack: `epi-paper-deposition`, `llm-wiki`, `wiki-ingest`, `wiki-context-pack`, `wiki-lint`, `wiki-stage-commit`, `wiki-status`, `wiki-query`, `wiki-provenance`, and `tag-taxonomy`. `epi-wiki-deposition` is a legacy compatibility alias, not the primary adapter name.
+The vault contract should expect `wiki_deposition_task.json` plus the required skill stack: `$paper-research-wiki`, `epi-paper-deposition`, `llm-wiki`, `wiki-ingest`, `wiki-context-pack`, `wiki-lint`, `wiki-stage-commit`, `wiki-status`, `wiki-query`, `wiki-provenance`, and `tag-taxonomy`. `epi-wiki-deposition` is a legacy compatibility alias, not the primary adapter name.
+
+PRW assumes this bootstrap exists. If PRW detects missing `_epi/`, `_meta/`, `.obsidian`, `.git`, or formal page roots, it should report the missing vault structure and send the user back to EPI `wiki-setup`; PRW should not initialize or reset the vault itself.
 
 Formal page frontmatter requires `title`, `category`, `page_family`, `tags`, `aliases`, `sources`, `summary`, `provenance`, `base_confidence`, `lifecycle`, `lifecycle_changed`, `tier`, `created`, and `updated`; initial lifecycle is `draft` or `review-needed`, not automatic `source-reviewed` or `verified`. Frontmatter `sources` must contain only Obsidian wikilinks to original paper PDFs, each displayed as the paper slug: `"[[_epi/raw/papers/<slug>/paper.pdf|<slug>]]"`.

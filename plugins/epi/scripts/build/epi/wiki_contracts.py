@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 
+PRW_CANONICAL_SKILL = "paper-research-wiki"
 EPI_DEPOSITION_SKILL = "epi-paper-deposition"
 
 DEPOSITION_SKILL_COMPATIBILITY_ALIASES: tuple[str, ...] = (
@@ -8,6 +9,7 @@ DEPOSITION_SKILL_COMPATIBILITY_ALIASES: tuple[str, ...] = (
 )
 
 REQUIRED_WIKI_SKILLS: tuple[str, ...] = (
+    PRW_CANONICAL_SKILL,
     EPI_DEPOSITION_SKILL,
     "llm-wiki",
     "wiki-ingest",

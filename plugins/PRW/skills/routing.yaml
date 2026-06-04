@@ -27,6 +27,7 @@ routes:
     notes:
       - read paper-wiki-language before drafting or rewriting formal pages
       - ask one short confirmation question before formal writes
+      - if missing vault structure blocks safe work, point back to EPI wiki-setup instead of initializing from PRW
   check_wiki:
     category: primary
     triggers:
@@ -40,6 +41,7 @@ routes:
       - paper-research-wiki/workflows/check-wiki.md
     notes:
       - default to Quick + Targeted unless systemic link or tag chaos appears
+      - check EPI wiki-setup bootstrap structure and report missing vault structure as an EPI action
       - QMD is optional and must fall back to manifest and direct Markdown search
   redo_extraction:
     category: primary

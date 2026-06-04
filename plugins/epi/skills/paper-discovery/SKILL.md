@@ -33,7 +33,7 @@ The full EPI chain stays documented in `docs\epi-linkage.md`; this skill only ow
 | High-quality/latest/non-review discovery that needs high recall before precision filtering | `workflows/multi-source-discovery.md` |
 | Prepare PDFs, MinerU artifacts, and source-staging handoff from a ranked run | `paper-ingest/workflows/prepare-ranked.md` |
 | Track deltas across prior runs, backlog, coverage gap, or library duplicates | `topic-tracking/SKILL.md` |
-| Formal wiki deposition after source-staging and approval | `epi-paper-deposition/SKILL.md` |
+| Formal wiki deposition after source-staging and approval | PRW `$paper-research-wiki`; compatibility fallback `epi-paper-deposition/SKILL.md` |
 
 ## Reference Routing
 
@@ -57,4 +57,4 @@ Load only what is needed:
 
 ## Source Boundary
 
-`dry-run` writes only `_epi/runs/<run-id>/`. `prepare-ranked` belongs to `paper-ingest` and stops at source-staging. Final Obsidian/LLM Wiki pages are written by a wiki-capable agent through `epi-paper-deposition`, not by discovery.
+`dry-run` writes only `_epi/runs/<run-id>/`. `prepare-ranked` belongs to `paper-ingest` and stops at source-staging. Final Obsidian/LLM Wiki pages are written by PRW `$paper-research-wiki` or, for compatibility, through `epi-paper-deposition`; discovery never writes them.

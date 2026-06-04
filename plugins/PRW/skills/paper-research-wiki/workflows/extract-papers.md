@@ -9,10 +9,11 @@ Before planning or writing pages, read `../../../rules/wiki-writing-standard.md`
 ## Preflight
 
 1. Resolve the target vault.
-2. Read target vault `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
-3. Locate `_epi/staging/papers/*/wiki_deposition_task.json`.
-4. Run a readiness preflight and group papers as ready, needs human approval, blocked, or already recorded.
-5. For ready papers, read source bundle artifacts before writing: PDF, metadata, MinerU Markdown, TeX, images, manifest, reading report, and `wiki-ingest-brief.json`.
+2. Check the EPI `wiki-setup` bootstrap: `_epi/`, `_meta/`, `.obsidian`, `.git`, and the seven formal page roots. If missing vault structure blocks safe work, stop and point back to EPI `wiki-setup`; do not initialize or reset from PRW.
+3. Read target vault `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
+4. Locate `_epi/staging/papers/*/wiki_deposition_task.json`.
+5. Run a readiness preflight and group papers as ready, needs human approval, blocked, or already recorded.
+6. For ready papers, read source bundle artifacts before writing: PDF, metadata, MinerU Markdown, TeX, images, manifest, reading report, and `wiki-ingest-brief.json`.
 
 ## Plan Wiki Updates
 

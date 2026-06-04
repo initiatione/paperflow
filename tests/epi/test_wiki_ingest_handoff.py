@@ -7,6 +7,7 @@ from epi.wiki_ingest_trigger import build_wiki_ingest_trigger, render_wiki_inges
 
 
 EXPECTED_RESEARCH_WIKI_SKILLS = [
+    "paper-research-wiki",
     "epi-paper-deposition",
     "llm-wiki",
     "wiki-ingest",
@@ -158,6 +159,10 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     {"source": "target vault AGENTS.md", "role": "owner contract"},
                     {"source": "_meta/schema.md", "role": "routing"},
                     {"source": "_meta/taxonomy.md", "role": "taxonomy"},
+                    {
+                        "source": "paper-research-wiki (PRW plugin canonical paper wiki layer)",
+                        "role": "canonical paper wiki workflow layer; epi-paper-deposition remains compatibility adapter",
+                    },
                     {"source": "Ar9av/obsidian-wiki", "role": "framework"},
                     {"source": "kepano/obsidian-skills", "role": "format"},
                     {"source": "initiatione/obsidian-wiki-dev", "role": "personalized rules"},
@@ -293,6 +298,11 @@ def test_build_wiki_ingest_handoff_resolves_contract_and_agent_checklist(tmp_pat
     assert handoff["local_skill_policy"] == "helpers-not-authority"
     assert handoff["formal_routes_suggested"] is False
     assert handoff["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    rule_sources = [item["source"] for item in handoff["wiki_rule_source_model"]["resolution_order"]]
+    assert any("paper-research-wiki" in source for source in rule_sources)
+    prw_index = next(index for index, source in enumerate(rule_sources) if "paper-research-wiki" in source)
+    local_index = rule_sources.index("local llm-wiki / wiki-ingest / obsidian-markdown skills")
+    assert prw_index < local_index
     assert handoff["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
     assert handoff["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
     assert handoff["page_lifecycle_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
@@ -379,6 +389,7 @@ def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_pat
     )
     assert stored["agent_context_policy"] == trigger["agent_context_policy"]
     assert trigger["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert "paper-research-wiki" in trigger["instruction"]
     assert "tag-taxonomy" in trigger["instruction"]
     assert "wiki-provenance" in trigger["instruction"]
     for family in ["derivations/", "experiments/", "opportunities/"]:
@@ -438,6 +449,7 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
     assert "- _meta/directory-structure.md: missing" in output
     assert "Ar9av/obsidian-wiki" in output
     assert "kepano/obsidian-skills" in output
+    assert "paper-research-wiki" in output
     assert "local llm-wiki / wiki-ingest / obsidian-markdown skills" in output
     assert "tag-taxonomy" in output
     assert "Do not write final pages from EPI suggested routes directly" in output

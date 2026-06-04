@@ -80,6 +80,40 @@ def test_linkage_doc_points_to_structure_progress_and_config_docs():
     assert "配套文档" in text
 
 
+def test_root_plugin_development_rules_require_version_and_doc_sync():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    rules_path = ROOT / "docs" / "plugin-development.md"
+    rules = rules_path.read_text(encoding="utf-8")
+
+    assert "docs/plugin-development.md" in readme
+    assert "每次改动插件源码" in readme
+    assert "同步插件版本信息" in readme
+    assert "源码验证通过不等于安装缓存已经更新" in readme
+
+    for phrase in [
+        "任何插件改动都必须同步版本信息",
+        "plugins/<plugin>/.codex-plugin/plugin.json",
+        "interface.shortDescription",
+        "开发完成后必须同步文档信息",
+        "$skill-creator",
+        "D:\\paper-search\\.codex_tmp_refs\\skill-based-architecture",
+        "rules/workflows/references 分层",
+        "禁止把安装 cache 当作开发源",
+        "源码验证通过不等于用户运行态已更新",
+        "PRW 不初始化、修复、reset 或静默创建 vault 结构",
+        "每次插件开发收尾必须报告",
+    ]:
+        assert phrase in rules
+
+    for command in [
+        "python -m pytest tests\\paper_research_wiki\\test_plugin_contract.py plugins\\epi\\tests\\test_skill_bundle_contract.py -q",
+        "validate_plugin.py D:\\paper-search\\plugins\\epi",
+        "validate_plugin.py D:\\paper-search\\plugins\\PRW",
+        "git diff --check",
+    ]:
+        assert command in rules
+
+
 def test_structure_doc_covers_current_plugin_boundaries():
     text = _read("structure.md")
 

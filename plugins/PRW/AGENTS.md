@@ -16,6 +16,7 @@ For every task:
 1. Read `skills/paper-research-wiki/SKILL.md`.
 2. Route the request to extract, check, or update.
 3. Resolve the target vault contract before formal writes.
-4. Treat EPI `_epi/` artifacts as evidence inputs, not formal wiki pages.
-5. Before drafting, rewriting, or materially repairing formal pages, read `skills/paper-wiki-language/SKILL.md` and apply it throughout writing.
-6. Run the post-task check before reporting completion; a task is not complete until pages, tracking files, graph links, taxonomy, provenance, language gate, QMD freshness, and EPI record readiness are checked or explicitly skipped with reason.
+4. If bootstrap structure is missing, point back to EPI `wiki-setup`; PRW does not initialize, repair, or reset the vault.
+5. Treat EPI `_epi/` artifacts as evidence inputs, not formal wiki pages.
+6. Before drafting, rewriting, or materially repairing formal pages, read `skills/paper-wiki-language/SKILL.md` and apply it throughout writing.
+7. Run the post-task check before reporting completion; a task is not complete until pages, tracking files, graph links, taxonomy, provenance, language gate, QMD freshness, and EPI record readiness are checked or explicitly skipped with reason.

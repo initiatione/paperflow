@@ -5,6 +5,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / "plugins" / "PRW"
+EPI_PLUGIN = ROOT / "plugins" / "epi"
 PUBLIC_SKILL = PLUGIN / "skills" / "paper-research-wiki"
 MARKETPLACES = [
     ROOT / "marketplace.json",
@@ -141,7 +142,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "prw"
-    assert manifest["version"] == "0.1.1"
+    assert manifest["version"] == "0.1.2"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Research Wiki"
     assert "academic paper knowledge" in manifest["description"]
@@ -680,3 +681,47 @@ def test_epi_bridge_points_to_plugin_level_experience():
     assert "检测" in skill
     assert "更新" in skill
     assert "重link" in skill
+
+
+def test_epi_handoff_and_prw_routing_share_canonical_contract():
+    wiki_contracts = _read(EPI_PLUGIN / "scripts" / "build" / "epi" / "wiki_contracts.py")
+    stage_wiki = _read(EPI_PLUGIN / "scripts" / "build" / "epi" / "stage_wiki.py")
+    epi_routing = _read(EPI_PLUGIN / "skills" / "routing.yaml")
+    prw_routing = _read(PLUGIN / "skills" / "routing.yaml")
+    prw_skill = _read(PUBLIC_SKILL / "SKILL.md")
+    check_workflow = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+
+    assert 'PRW_CANONICAL_SKILL = "paper-research-wiki"' in wiki_contracts
+    assert "PRW_CANONICAL_SKILL" in stage_wiki
+    assert "first as the canonical paper wiki layer" in stage_wiki
+    assert "wiki_deposition_task" in stage_wiki
+
+    deposition_match = re.search(
+        r"(?ms)^  epi_paper_deposition:\n(?P<body>.*?)(?=^  [a-z0-9_]+:|\Z)",
+        epi_routing,
+    )
+    assert deposition_match
+    deposition_route = deposition_match.group("body")
+    assert "category: compatibility" in deposition_route
+    assert "skill: epi-paper-deposition/SKILL.md" in deposition_route
+    assert "$paper-research-wiki" in deposition_route
+
+    combined_prw_boundary = "\n".join([prw_routing, prw_skill, check_workflow, workflow_doc])
+    assert "missing vault structure" in combined_prw_boundary
+    assert "EPI `wiki-setup`" in combined_prw_boundary
+    assert "does not initialize" in combined_prw_boundary
+    assert "does not reset" in combined_prw_boundary
+
+
+def test_prw_defers_vault_bootstrap_to_epi_wiki_setup():
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    check_workflow = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    extract_workflow = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
+    integration = _read(PLUGIN / "docs" / "epi-integration.md")
+    combined = "\n".join([skill, check_workflow, extract_workflow, integration])
+
+    assert "EPI `wiki-setup`" in combined
+    assert "does not initialize" in integration
+    assert "does not reset" in integration
+    assert "missing vault structure" in combined

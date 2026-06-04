@@ -12,7 +12,7 @@ Use after dry-run ranking selects papers. Chain goal in `docs\epi-linkage.md`: h
 
 If config is missing, stop and use `config-setup`. See `docs\config.md`.
 
-For formal wiki deposition from an EPI source bundle or `wiki_deposition_task.json`, switch to `epi-paper-deposition`. Use `wiki-provenance` inside that layer for final wiki-page provenance, support labels, and claim-to-evidence round-trips.
+For formal wiki deposition from an EPI source bundle or `wiki_deposition_task.json`, switch to PRW `$paper-research-wiki` when it is installed. Use `epi-paper-deposition` only as a compatibility adapter for existing EPI handoff artifacts or legacy records. Use `wiki-provenance` inside the wiki-writing layer for final wiki-page provenance, support labels, and claim-to-evidence round-trips.
 
 ## Reference Routing
 
@@ -27,7 +27,7 @@ Treat parse quality as a source bundle check: Markdown alone is not enough when 
 | Download selected ranked papers, run MinerU, write source artifacts, and prepare source-staging | `workflows/prepare-ranked.md` |
 | Add reader or critic outputs for important, complex, contradictory, reproducibility, review, or project-decision papers | `workflows/prepare-ranked.md` |
 | Show approval report, record human approval, create wiki-agent trigger, or record final wiki ingest | `workflows/approval-and-trigger.md` |
-| Formal page writing after `wiki_deposition_task.json` exists | `epi-paper-deposition/workflows/formal-wiki-write.md` |
+| Formal page writing after `wiki_deposition_task.json` exists | PRW `$paper-research-wiki`; fallback compatibility path `epi-paper-deposition/workflows/formal-wiki-write.md` |
 | Final claim labels, provenance blocks, and evidence-address preservation | `wiki-provenance/SKILL.md` |
 
 ## Ingest Modes
@@ -51,3 +51,5 @@ When the user later calls `@EPI` to continue, use `research-queue --bucket ready
 Final Obsidian/LLM Wiki pages are agent-mediated under the target vault contract. EPI prepares source bundles, approval, trigger, record artifacts, and `wiki_deposition_task.json`; it does not directly write final pages in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, or `opportunities/`.
 
 After the wiki ingest agent writes or stages final Markdown pages, create `final-source-review.json`, then record completion with `record-wiki-ingest`. This command is record-only and must not rewrite final pages or replace the target vault's ingest agent.
+
+EPI owns vault bootstrap through `wiki-setup`. PRW consumes the initialized vault contract and should report missing vault structure back to EPI instead of creating or resetting the vault itself.

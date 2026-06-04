@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parents[1]
 SKILLS = ROOT / "skills"
 CHINESE_TEXT = re.compile(r"[\u4e00-\u9fff]")
-CATEGORIES = {"primary", "support", "maintenance"}
+CATEGORIES = {"primary", "support", "maintenance", "compatibility"}
 MAX_ENTRYPOINT_LINES = 90
 MAX_DESCRIPTION_LINES = 25
 WORKFLOW_SKILLS = {
@@ -375,3 +375,15 @@ def test_epi_paper_deposition_documents_required_wiki_adapter_stack():
     for phrase in ["metadata", "MinerU", "DOI", "arXiv"]:
         assert phrase in combined
     assert "must not enter the formal graph" in combined
+
+
+def test_epi_formal_deposition_route_is_compatibility_adapter():
+    routing = _load_routing()
+    routes = routing["routes"]
+
+    assert routes["wiki_setup"]["category"] == "primary"
+
+    deposition = routes["epi_paper_deposition"]
+    assert deposition["category"] == "compatibility"
+    assert deposition["skill"] == "epi-paper-deposition/SKILL.md"
+    assert "$paper-research-wiki" in "\n".join(deposition.get("notes", []))

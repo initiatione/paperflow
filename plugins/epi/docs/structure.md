@@ -4,7 +4,7 @@
 
 ## 总体边界
 
-EPI 是 Codex 插件源码包，位于 `<plugin-root>`。插件的目标链路是：按用户画像/config 衍生高质量论文发现和排序 -> raw artifact 留痕 -> Reader/Critic 证据审查 -> staging evidence package -> `wiki_deposition_task.json` -> `epi-paper-deposition` / obsidian-wiki skill layer -> lint/review -> EPI record。它是通用学术论文插件，不把任何单一学科写成默认方向。
+EPI 是 Codex 插件源码包，位于 `<plugin-root>`。插件的目标链路是：按用户画像/config 衍生高质量论文发现和排序 -> raw artifact 留痕 -> Reader/Critic 证据审查 -> staging evidence package -> `wiki_deposition_task.json` -> PRW `$paper-research-wiki` / `epi-paper-deposition` compatibility adapter -> lint/review -> EPI record。它是通用学术论文插件，不把任何单一学科写成默认方向。
 
 EPI 自身不应该把最终 Obsidian 页面路径、标签、合并策略或 staged writes 固定死。最终写入规则来自目标 vault 的 `AGENTS.md` 和根 `_meta/*` contract 文件，并参考个性化 `obsidian-wiki-dev`、`Ar9av/obsidian-wiki`、`kepano/obsidian-skills`。本插件只准备 `_epi/` 内部仓库中的证据、报告、审计记录、deposition task 和 handoff。
 
@@ -46,7 +46,7 @@ python scripts\orchestrator.py <command>
 - 解析与修复：`parse-paper`、`redo-acquire`、`redo-parse`、`redo-read`、`recritic`。
 - Reader/Critic/Gate：推进命令内部生成 reader 和 critic；只读检查用 `paper-gate`。
 - Report：`report` 是公开读取入口；`report --run-id <run-id> [--json]` 读取已有 run report artifact；内部生成模块是 `report_run.py`，不是额外的 `run-report` CLI。
-- Staging 与 Wiki handoff：`stage_wiki.py` 生成 `wiki-ingest-brief.json`、`wiki_deposition_task.json` 和 `promotion-plan.json`；`wiki-ingest-handoff` 渲染 agent-mediated handoff；`record-human-approval` 记录外部 agent 写入前的人类批准；`wiki-ingest-trigger` 写继续任务；`record-wiki-ingest` 记录外部 agent 已完成的最终页路径、hash 和 formal page gate；`promote-to-wiki` 仅保留 legacy compiled-draft 兼容。
+- Staging 与 Wiki handoff：`stage_wiki.py` 生成 `wiki-ingest-brief.json`、`wiki_deposition_task.json` 和 `promotion-plan.json`；`wiki-ingest-handoff` 渲染 agent-mediated handoff；`record-human-approval` 记录外部 agent 写入前的人类批准；`wiki-ingest-trigger` 写继续任务；PRW `$paper-research-wiki` 是用户级正式论文 wiki 写入和维护入口；`epi-paper-deposition` 仅保留旧 handoff / record provenance 的 compatibility adapter；`record-wiki-ingest` 记录外部 agent 已完成的最终页路径、hash 和 formal page gate；`promote-to-wiki` 仅保留 legacy compiled-draft 兼容。
 - 索引与查询：`runs-query`、`research-queue`、`wiki-query`。
 - 反馈、评估与进化：`record-feedback`、`evaluation-brief`、`propose-evolution`、`activate-evolution`、`evolution-query`。`evaluation-brief` 把 Plugin Eval、`epi-quality-gates`、benchmark 和 before/after metrics 合并成本地 improvement brief，再交给 `propose-evolution`。
 - 外部集成：`zotero-sync`，以及 MinerU 解析相关命令。
@@ -157,7 +157,7 @@ skills/
 - `topic-tracking`：主题中心、纵向增量、backlog、coverage 和 broad-to-deep 阅读视图；它承接“这次之后有什么新东西”“我有没有漏掉关键分支”这类问题，`paper-discovery` 只保留检索/排序底层。
 - `paper-ingest`：推进已选论文进入 raw、source-staging 和 handoff；默认 `fast-ingest` 不跑 reader/critic，`reviewed-ingest` / `audited-ingest` 才按需加入。
   - `paper-ingest/references/source-first-reading.md` 是 source-staging/wiki handoff 的 source-first 阅读协议，要求最终沉淀前重读 MinerU Markdown、TeX、images、manifest 和必要时的 PDF，最终记录 `final-source-review.json`；`reader/claim-support.json` 只有在 reviewed/audited ingest 生成时才作为辅助区分源文摘取、metadata-only 与 inference。
-- `epi-paper-deposition`：EPI source bundle 与 obsidian-wiki skill layer 的正式 adapter；读取 `wiki_deposition_task.json`，优先把用户级正式沉淀体验交给 sibling 插件包 `prw` / `plugins/PRW` 提供的 `$paper-research-wiki`，并要求 `llm-wiki`、`wiki-ingest`、`wiki-context-pack`、`wiki-lint`、`wiki-stage-commit`、`wiki-status`、`wiki-query`、`wiki-provenance` 和 `tag-taxonomy`，保留七类 EPI 目录，并把旧 `epi-wiki-deposition` 只当兼容 alias。
+- `epi-paper-deposition`：EPI source bundle 与 obsidian-wiki skill layer 的 compatibility adapter；读取 `wiki_deposition_task.json`，但用户级正式沉淀体验交给 sibling 插件包 `prw` / `plugins/PRW` 提供的 `$paper-research-wiki`，并要求 `llm-wiki`、`wiki-ingest`、`wiki-context-pack`、`wiki-lint`、`wiki-stage-commit`、`wiki-status`、`wiki-query`、`wiki-provenance` 和 `tag-taxonomy`，保留七类 EPI 目录，并把旧 `epi-wiki-deposition` 只当兼容 alias。
 - `mineru-paper-parser`：低层 PDF -> Markdown/TeX/images/manifest 解析能力；成功后最终产物只放在 `mineru/`，`paper.tex` 必须非空，必要时使用 Markdown fallback。
 - `wiki-provenance`：final wiki 页 provenance、claim support status、evidence address 和 round-trip retrieval hook；它承接“最终页上的这句话到底来自哪里”这类问题，`paper-ingest` 只保留 source-first handoff。
 - `skill-aware-evolve`：根据 evidence 和验证结果提出受控变更；配置问题必须走配置 proposal。
@@ -271,8 +271,8 @@ python scripts\orchestrator.py evaluation-brief --target-asset <asset> --rationa
 
 ## Literature Wiki Contract
 
-正式论文沉淀页面家族是 `references/`、`concepts/`、`derivations/`、`experiments/`、`synthesis/`、`reports/`、`opportunities/`。EPI 只在 `_epi/` 中生成 evidence bundle、approval、trigger、record 和 `wiki_deposition_task.json`；最终页面由 `epi-paper-deposition` 作为 adapter 交给 obsidian-wiki skill layer 写入，旧 `epi-wiki-deposition` 只作为兼容 alias。
+正式论文沉淀页面家族是 `references/`、`concepts/`、`derivations/`、`experiments/`、`synthesis/`、`reports/`、`opportunities/`。EPI 只在 `_epi/` 中生成 evidence bundle、approval、trigger、record 和 `wiki_deposition_task.json`；最终页面由 PRW `$paper-research-wiki` 作为 canonical 写入和维护入口，`epi-paper-deposition` 只作为旧 artifact 或 record provenance 的 compatibility adapter，旧 `epi-wiki-deposition` 只作为兼容 alias。
 
-正式写入所需 skill 栈是 `prw` 插件包提供的 `$paper-research-wiki`、`epi-paper-deposition`、`llm-wiki`、`wiki-ingest`、`wiki-context-pack`、`wiki-lint`、`wiki-stage-commit`、`wiki-status`、`wiki-query`、`wiki-provenance`、`tag-taxonomy`。正式页 frontmatter 至少包含 `title`、`category`、`page_family`、`tags`、`aliases`、`sources`、`summary`、`provenance`、`base_confidence`、`lifecycle`、`lifecycle_changed`、`tier`、`created`、`updated`。`category` 和 `page_family` 要匹配目录；初始状态只能是 `draft` 或 `review-needed`，不能默认宣称 `source-reviewed` 或 `verified`。
+正式写入所需 skill 栈是 `prw` 插件包提供的 `$paper-research-wiki`、`epi-paper-deposition` compatibility adapter、`llm-wiki`、`wiki-ingest`、`wiki-context-pack`、`wiki-lint`、`wiki-stage-commit`、`wiki-status`、`wiki-query`、`wiki-provenance`、`tag-taxonomy`。正式页 frontmatter 至少包含 `title`、`category`、`page_family`、`tags`、`aliases`、`sources`、`summary`、`provenance`、`base_confidence`、`lifecycle`、`lifecycle_changed`、`tier`、`created`、`updated`。`category` 和 `page_family` 要匹配目录；初始状态只能是 `draft` 或 `review-needed`，不能默认宣称 `source-reviewed` 或 `verified`。
 
 科研审阅字段固定为 `theory_reconstruction`、`formula_derivation`、`figure_table_evidence`、`novelty_type`、`implementability`、`reproducibility_risk`、`research_gap`、`cost_level`。record/lint gate 还要检查 source reread、formula/figure review、Obsidian wikilinks、provenance.extracted/inferred/ambiguous、禁止 `_epi/` 进入正式图谱、禁止 forbidden formula blocks、`derivations/` 的变量定义和推导链、`references/` 的模型/公式/实验/限制，以及 `synthesis/` 的 cross-paper comparison matrix。

@@ -6,6 +6,8 @@ from pathlib import Path
 from epi.artifacts import staging_paper_root, utc_now, wiki_batch_pending_root, write_json_atomic, write_text_atomic
 from epi.source_artifacts import canonical_source_first_artifacts
 from epi.wiki_contracts import (
+    EPI_DEPOSITION_SKILL,
+    PRW_CANONICAL_SKILL,
     deposition_skill_compatibility_aliases,
     final_source_review_must_record,
     formal_frontmatter_schema,
@@ -57,6 +59,28 @@ def _source_markdown_artifact(slug: str) -> str:
 
 def _frontmatter_value(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def _serial_join(values: list[str]) -> str:
+    if not values:
+        return ""
+    if len(values) == 1:
+        return values[0]
+    return ", ".join(values[:-1]) + f", and {values[-1]}"
+
+
+def _required_wiki_skill_loading_clause(load_prefix: str) -> str:
+    remaining_skills = [
+        skill
+        for skill in required_wiki_skills()
+        if skill not in {PRW_CANONICAL_SKILL, EPI_DEPOSITION_SKILL}
+    ]
+    remaining_clause = f", then load {_serial_join(remaining_skills)}" if remaining_skills else ""
+    return (
+        f"{load_prefix} {PRW_CANONICAL_SKILL} first as the canonical paper wiki layer; "
+        f"keep {EPI_DEPOSITION_SKILL} loaded as compatibility adapter"
+        f"{remaining_clause}"
+    )
 
 
 def _role_verdict_key(lens: str) -> str:
@@ -231,8 +255,8 @@ def _write_batch_handoff(
     existing["paper_slugs"] = [str(item["paper_slug"]) for item in papers]
     existing["papers"] = papers
     existing["wiki_skill_instruction"] = (
-        "Load epi-paper-deposition, llm-wiki, wiki-ingest, wiki-context-pack, wiki-lint, "
-        "wiki-stage-commit, wiki-provenance, and tag-taxonomy. Distill formal "
+        _required_wiki_skill_loading_clause("Load")
+        + ". Distill formal "
         "pages across references/, concepts/, derivations/, experiments/, synthesis/, reports/, and "
         "opportunities/ from the source papers, formulas, figures, images, and compact EPI evidence "
         "aids. Do not promote EPI staging reports or per-paper audit pages as formal wiki pages."
@@ -599,6 +623,8 @@ def _wiki_rule_source_model() -> dict:
         "principle": (
             "Obsidian/LLM Wiki construction and write rules are resolved from the target vault "
             "contract and framework references; local installed skills are execution helpers. "
+            "The paper-research-wiki skill is the canonical paper wiki layer, while "
+            "epi-paper-deposition remains a compatibility adapter. "
             "The final wiki executor is agent-neutral and may be Claude, Codex, or any other "
             "wiki-capable agent that follows the same contract."
         ),
@@ -637,21 +663,29 @@ def _wiki_rule_source_model() -> dict:
             },
             {
                 "priority": 5,
+                "source": f"{PRW_CANONICAL_SKILL} (PRW plugin canonical paper wiki layer)",
+                "role": (
+                    "canonical paper wiki workflow layer for EPI source bundles; "
+                    f"{EPI_DEPOSITION_SKILL} remains compatibility adapter"
+                ),
+            },
+            {
+                "priority": 6,
                 "source": "initiatione/obsidian-wiki-dev liuchf/wiki-skills",
                 "role": "Personalized multi-vault contract model and QMD/source-of-truth policy.",
             },
             {
-                "priority": 6,
+                "priority": 7,
                 "source": "Ar9av/obsidian-wiki",
                 "role": "General agent-mediated LLM Wiki architecture, manifest/index/log, provenance, and merge pattern.",
             },
             {
-                "priority": 7,
+                "priority": 8,
                 "source": "kepano/obsidian-skills",
                 "role": "Obsidian syntax, properties, wikilinks, embeds, callouts, bases, and canvas conventions.",
             },
             {
-                "priority": 8,
+                "priority": 9,
                 "source": "local llm-wiki / wiki-ingest / obsidian-markdown skills",
                 "role": "Installed execution adapters; they do not replace the target vault contract or framework repos.",
             },
@@ -968,9 +1002,8 @@ def _build_wiki_ingest_brief(
             "required": True,
             "batch_required": True,
             "minimum_role": (
-                "The current agent must load epi-paper-deposition, llm-wiki, wiki-ingest, "
-                "wiki-context-pack, wiki-lint, wiki-stage-commit, wiki-provenance, and tag-taxonomy "
-                "before writing or staging final pages."
+                _required_wiki_skill_loading_clause("The current agent must load")
+                + " before writing or staging final pages."
             ),
             "required_skills": required_wiki_skills(),
             "compatibility_aliases": deposition_skill_compatibility_aliases(),

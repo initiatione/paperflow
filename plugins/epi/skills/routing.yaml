@@ -81,18 +81,20 @@ routes:
     notes:
       - support paper-ingest source bundle preparation
   epi_paper_deposition:
-    category: primary
+    category: compatibility
     triggers:
-      - 沉淀进 wiki
-      - 写正式论文 wiki 页面
       - wiki_deposition_task.json
-      - final paper deposition
-      - formal EPI wiki page writing
+      - 兼容旧沉淀任务
+      - EPI handoff adapter
+      - legacy EPI wiki deposition
+      - final paper deposition compatibility
     skill: epi-paper-deposition/SKILL.md
     workflows:
       - epi-paper-deposition/workflows/formal-wiki-write.md
     notes:
-      - formal_page_language_policy keeps Chinese body prose by default
+      - user-facing formal paper wiki work should route to $paper-research-wiki when PRW is installed
+      - this skill remains a compatibility bridge for existing wiki_deposition_task.json artifacts and legacy epi-wiki-deposition mentions
+      - formal_page_language_policy is enforced by PRW paper-wiki-language during formal writes
       - Codex may use subagents only when the user explicitly authorizes delegation
   wiki_provenance:
     category: support
@@ -128,6 +130,8 @@ routes:
     skill: wiki-setup/SKILL.md
     workflows:
       - wiki-setup/workflows/reset-repair.md
+    notes:
+      - EPI keeps vault bootstrap ownership; PRW consumes the initialized vault contract and reports missing structure back to wiki-setup
   zotero_sync:
     category: support
     triggers:

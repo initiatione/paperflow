@@ -9,3 +9,5 @@ Detailed behavior lives in workflows and references so users can invoke the plug
 The router skill treats PRW as a closed-loop maintenance system, not a one-shot deposition tool. Workflow files internalize Ar9av/obsidian-wiki patterns into `Check -> Diagnose -> Plan -> Act -> Verify -> Refresh -> Record -> Next`, plus Quick + Targeted checks by default and Full check only for explicit comprehensive audits or systemic graph problems.
 
 `rules/wiki-writing-standard.md` is the mandatory page-writing standard for formal paper wiki writes. It adapts Ar9av/obsidian-wiki page templates, merge-before-create behavior, provenance, wikilinks, relationships, tracking files, and lint/relink gates into the PRW paper workflow.
+
+PRW assumes EPI `wiki-setup` has initialized the target vault. It checks bootstrap structure and reports missing vault structure, but bootstrap, repair, and reset remain EPI responsibilities.

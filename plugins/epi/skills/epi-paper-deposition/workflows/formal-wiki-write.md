@@ -1,6 +1,6 @@
 # Formal Wiki Write
 
-Use this workflow when `wiki_deposition_task.json` is ready and the task is to stage or write formal Obsidian/LLM Wiki pages.
+Use this workflow when `wiki_deposition_task.json` is ready but the normal PRW entrypoint cannot be used directly. For user-facing formal paper wiki work, prefer `$paper-research-wiki`; this file is the EPI compatibility adapter runbook.
 
 ## Load Inputs
 
@@ -21,9 +21,9 @@ Reader and critic files reduce reading cost when present. They are evidence aids
 
 ## Use Wiki Skill Stack
 
-Use the obsidian-wiki layer explicitly:
+Use the PRW and obsidian-wiki layer explicitly:
 
-If the `prw` plugin package (`plugins/PRW`) is available, prefer it as the plugin-level paper wiki assistant. Invoke `$paper-research-wiki` with natural actions such as `提取这些论文`, `检测 wiki 库`, `更新 wiki 库`, or `重link`; its internal workflows handle source-first deposition, provenance, lint, staged review, taxonomy, and relinking.
+If the `prw` plugin package (`plugins/PRW`) is available, it is the plugin-level paper wiki assistant. Invoke `$paper-research-wiki` with natural actions such as `提取这些论文`, `检测 wiki 库`, `更新 wiki 库`, or `重link`; its internal workflows handle source-first deposition, provenance, lint, staged review, taxonomy, and relinking.
 
 - `llm-wiki` for source-first knowledge compilation.
 - `wiki-context-pack` before writing, so related pages are read first.
@@ -35,6 +35,8 @@ If the `prw` plugin package (`plugins/PRW`) is available, prefer it as the plugi
 - `tag-taxonomy` for tags and aliases.
 
 After first staged pages exist, `wiki-synthesize`, `wiki-dedup`, and `cross-linker` may improve graph quality.
+
+Do not initialize, reset, or repair vault structure in this workflow. If the target vault is missing `_epi/`, `_meta/`, `.obsidian`, or the formal page roots, switch to EPI `wiki-setup` first.
 
 ## Page Families
 

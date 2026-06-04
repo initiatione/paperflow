@@ -12,6 +12,7 @@ from epi.wiki_ingest_record import create_wiki_ingest_record
 
 
 EXPECTED_RESEARCH_WIKI_SKILLS = [
+    "paper-research-wiki",
     "epi-paper-deposition",
     "llm-wiki",
     "wiki-ingest",
@@ -171,6 +172,10 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "resolution_order": [
                     {"source": "target vault AGENTS.md", "role": "owner contract"},
                     {"source": "_meta/schema.md", "role": "routing"},
+                    {
+                        "source": "paper-research-wiki (PRW plugin canonical paper wiki layer)",
+                        "role": "canonical paper wiki workflow layer; epi-paper-deposition remains compatibility adapter",
+                    },
                     {"source": "Ar9av/obsidian-wiki", "role": "framework"},
                     {"source": "kepano/obsidian-skills", "role": "format"},
                     {"source": "initiatione/obsidian-wiki-dev", "role": "personalized rules"},
@@ -488,6 +493,11 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     assert record["final_source_review"]["status"] == "verified"
     assert record["paths"]["final_source_review"] == str(source_review)
     assert record["final_source_review"]["wiki_batch_ingest"]["wiki_skill_used"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    rule_sources = [item["source"] for item in record["wiki_rule_source_model"]["resolution_order"]]
+    assert any("paper-research-wiki" in source for source in rule_sources)
+    prw_index = next(index for index, source in enumerate(rule_sources) if "paper-research-wiki" in source)
+    local_index = rule_sources.index("local llm-wiki / wiki-ingest / obsidian-markdown skills")
+    assert prw_index < local_index
     for field in EXPECTED_RESEARCH_REVIEW_FIELDS:
         assert record["final_source_review"][field]["status"] == "reviewed"
     assert record["final_source_review"]["page_lifecycle"]["status"] == "verified"

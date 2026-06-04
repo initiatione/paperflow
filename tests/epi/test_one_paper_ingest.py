@@ -8,6 +8,7 @@ from epi.stage_wiki import stage_paper
 
 
 EXPECTED_RESEARCH_WIKI_SKILLS = [
+    "paper-research-wiki",
     "epi-paper-deposition",
     "llm-wiki",
     "wiki-ingest",
@@ -240,7 +241,18 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert "target vault AGENTS.md" in rule_sources
     assert any("_meta/schema.md" in source for source in rule_sources)
     assert any("liuchf/wiki-skills" in source for source in rule_sources)
+    assert any("paper-research-wiki" in source for source in rule_sources)
     assert "local llm-wiki / wiki-ingest / obsidian-markdown skills" in rule_sources
+    prw_index = next(index for index, source in enumerate(rule_sources) if "paper-research-wiki" in source)
+    local_index = rule_sources.index("local llm-wiki / wiki-ingest / obsidian-markdown skills")
+    assert prw_index < local_index
+    prw_role = next(
+        item["role"]
+        for item in wiki_ingest_brief["wiki_rule_source_model"]["resolution_order"]
+        if "paper-research-wiki" in item["source"]
+    )
+    assert "canonical" in prw_role
+    assert "compatibility adapter" in prw_role
     local_skill_role = next(
         item["role"]
         for item in wiki_ingest_brief["wiki_rule_source_model"]["resolution_order"]
@@ -268,6 +280,13 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     }
     assert wiki_ingest_brief["wiki_skill_handoff"]["batch_required"] is True
     assert wiki_ingest_brief["wiki_skill_handoff"]["required_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    minimum_role = wiki_ingest_brief["wiki_skill_handoff"]["minimum_role"]
+    for skill in EXPECTED_RESEARCH_WIKI_SKILLS:
+        assert skill in minimum_role
+    assert "load paper-research-wiki first" in minimum_role
+    assert "epi-paper-deposition" in minimum_role
+    assert "compatibility adapter" in minimum_role
+    assert "load epi-paper-deposition, llm-wiki" not in minimum_role
     assert wiki_ingest_brief["wiki_skill_handoff"]["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
     assert wiki_ingest_brief["source_bundle"]["raw_artifacts"] == [
         "paper.pdf",
@@ -326,6 +345,12 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert batch_handoff["epi_write_scope"] == "internal-underscore-artifacts-only"
     assert batch_handoff["formal_routes_suggested"] is False
     assert batch_handoff["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    for skill in EXPECTED_RESEARCH_WIKI_SKILLS:
+        assert skill in batch_handoff["wiki_skill_instruction"]
+    assert "Load paper-research-wiki first" in batch_handoff["wiki_skill_instruction"]
+    assert "epi-paper-deposition" in batch_handoff["wiki_skill_instruction"]
+    assert "compatibility adapter" in batch_handoff["wiki_skill_instruction"]
+    assert "Load epi-paper-deposition," not in batch_handoff["wiki_skill_instruction"]
     assert batch_handoff["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
     assert batch_handoff["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
     assert batch_handoff["page_lifecycle_states"] == EXPECTED_PAGE_LIFECYCLE_STATES

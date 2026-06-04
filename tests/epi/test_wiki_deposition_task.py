@@ -14,6 +14,7 @@ EXPECTED_PAGE_FAMILIES = [
 ]
 
 EXPECTED_CORE_SKILLS = [
+    "paper-research-wiki",
     "epi-paper-deposition",
     "llm-wiki",
     "wiki-ingest",
@@ -93,8 +94,8 @@ def test_stage_paper_writes_stable_wiki_deposition_task_contract(tmp_path):
     assert task["task_type"] == "wiki_deposition"
     assert task["vault_schema"] == "epi-paper-research"
     assert task["page_families"] == EXPECTED_PAGE_FAMILIES
-    for skill in EXPECTED_CORE_SKILLS:
-        assert skill in task["required_skills"]
+    assert task["required_skills"] == EXPECTED_CORE_SKILLS
+    assert task["required_skills"][:2] == ["paper-research-wiki", "epi-paper-deposition"]
     assert "epi-wiki-deposition" in task["compatibility_aliases"]
     assert task["handoff_boundary"]["epi_core_role"] == "source-bundle-and-audit-only"
     assert task["handoff_boundary"]["formal_writer_role"] == "obsidian-wiki-skill-layer"
@@ -106,6 +107,12 @@ def test_stage_paper_writes_stable_wiki_deposition_task_contract(tmp_path):
         "verification result",
     ]
     assert "large intermediate transcripts" in task["agent_context_policy"]["main_agent_avoids"]
+    rule_source_model = task["wiki_rule_source_model"]
+    rule_sources = [item["source"] for item in rule_source_model["resolution_order"]]
+    assert any("paper-research-wiki" in source for source in rule_sources)
+    prw_index = next(index for index, source in enumerate(rule_sources) if "paper-research-wiki" in source)
+    local_index = rule_sources.index("local llm-wiki / wiki-ingest / obsidian-markdown skills")
+    assert prw_index < local_index
 
     paper = task["papers"][0]
     assert paper["slug"] == slug
@@ -142,6 +149,14 @@ def test_stage_paper_writes_stable_wiki_deposition_task_contract(tmp_path):
     assert brief["wiki_deposition_task"]["required_skills"] == task["required_skills"]
     assert brief["agent_context_policy"] == task["agent_context_policy"]
     assert brief["wiki_skill_handoff"]["agent_context_policy"] == task["agent_context_policy"]
+    assert brief["wiki_skill_handoff"]["required_skills"] == EXPECTED_CORE_SKILLS
+    minimum_role = brief["wiki_skill_handoff"]["minimum_role"]
+    for skill in EXPECTED_CORE_SKILLS:
+        assert skill in minimum_role
+    assert "load paper-research-wiki first" in minimum_role
+    assert "epi-paper-deposition" in minimum_role
+    assert "compatibility adapter" in minimum_role
+    assert "load epi-paper-deposition, llm-wiki" not in minimum_role
     assert brief["formal_frontmatter_schema"] == frontmatter
     assert plan["wiki_deposition_task_path"] == str(task_path)
     assert str(task_path) in plan["agent_handoff_paths"]
