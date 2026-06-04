@@ -33,8 +33,13 @@ def _seed_plugin_root(tmp_path):
         "scripts/build/epi",
         "build/mineru-paper-parser",
         "skills/paper-discovery",
+        "skills/paper-discovery/agents",
+        "skills/paper-discovery/workflows",
         "skills/paper-ingest",
+        "skills/paper-ingest/agents",
+        "skills/paper-ingest/workflows",
         "skills/mineru-paper-parser",
+        "skills/mineru-paper-parser/agents",
         "templates",
         "templates/wiki",
         "docs",
@@ -47,7 +52,50 @@ def _seed_plugin_root(tmp_path):
     (plugin_root / "scripts" / "orchestrator.py").write_text("# wrapper\n", encoding="utf-8")
     (plugin_root / "build" / "mineru-paper-parser" / "mineru_batch_to_md.py").write_text("# wrapper\n", encoding="utf-8")
     (plugin_root / "skills" / "paper-discovery" / "SKILL.md").write_text("# Discovery\n", encoding="utf-8")
+    (plugin_root / "skills" / "paper-discovery" / "agents" / "openai.yaml").write_text(
+        "interface:\n  display_name: Discovery\n  short_description: Find and rank papers\n  default_prompt: $paper-discovery\n",
+        encoding="utf-8",
+    )
+    (plugin_root / "skills" / "paper-discovery" / "workflows" / "run-discovery.md").write_text(
+        "# Run discovery\n",
+        encoding="utf-8",
+    )
     (plugin_root / "skills" / "paper-ingest" / "SKILL.md").write_text("# Ingest\n", encoding="utf-8")
+    (plugin_root / "skills" / "paper-ingest" / "agents" / "openai.yaml").write_text(
+        "interface:\n  display_name: Ingest\n  short_description: Prepare source bundles\n  default_prompt: $paper-ingest\n",
+        encoding="utf-8",
+    )
+    (plugin_root / "skills" / "paper-ingest" / "workflows" / "prepare-ranked.md").write_text(
+        "# Prepare ranked\n",
+        encoding="utf-8",
+    )
+    (plugin_root / "skills" / "mineru-paper-parser" / "SKILL.md").write_text("# MinerU\n", encoding="utf-8")
+    (plugin_root / "skills" / "mineru-paper-parser" / "agents" / "openai.yaml").write_text(
+        "interface:\n  display_name: MinerU\n  short_description: Parse paper PDFs\n  default_prompt: $mineru-paper-parser\n",
+        encoding="utf-8",
+    )
+    (plugin_root / "skills" / "routing.yaml").write_text(
+        "\n".join(
+            [
+                "routes:",
+                "  paper_discovery:",
+                "    category: primary",
+                "    skill: paper-discovery/SKILL.md",
+                "    workflows:",
+                "      - paper-discovery/workflows/run-discovery.md",
+                "  paper_ingest:",
+                "    category: primary",
+                "    skill: paper-ingest/SKILL.md",
+                "    workflows:",
+                "      - paper-ingest/workflows/prepare-ranked.md",
+                "  mineru_paper_parser:",
+                "    category: support",
+                "    skill: mineru-paper-parser/SKILL.md",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
     return plugin_root
 
 
@@ -133,6 +181,62 @@ def test_doctor_json_reports_structured_checks(tmp_path, monkeypatch, capsys):
     assert setup_by_check["paper_search_cli"]["url"] == "https://github.com/openags/paper-search-mcp"
     assert setup_by_check["mineru_token"]["summary"] == "Configure MINERU_TOKEN"
     assert setup_by_check["mineru_token"]["url"] == "https://mineru.net/apiManage/docs?openApplyModal=true"
+
+
+def test_doctor_reports_skill_agent_and_workflow_discovery_contract(tmp_path, monkeypatch, capsys):
+    plugin_root = _seed_plugin_root(tmp_path)
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "doctor",
+        "--plugin-root",
+        str(plugin_root),
+        "--vault",
+        str(tmp_path / "vault"),
+        "--paper-search-command",
+        "definitely-missing-paper-search-command",
+        "--json",
+    )
+
+    payload = json.loads(output)
+    checks = {check["name"]: check for check in payload["checks"]}
+    skill_contract = checks["skill_bundle_contract"]
+
+    assert exit_code == 0
+    assert skill_contract["status"] == "ok"
+    assert skill_contract["skill_count"] == 3
+    assert skill_contract["agent_metadata_count"] == 3
+    assert skill_contract["workflow_count"] == 2
+    assert "skills/routing.yaml" in skill_contract["message"]
+    assert "skills/paper-discovery/agents/openai.yaml" in skill_contract["agent_metadata"]
+    assert "skills/paper-discovery/workflows/run-discovery.md" in skill_contract["workflows"]
+
+
+def test_doctor_errors_when_skill_agent_metadata_is_missing(tmp_path, monkeypatch, capsys):
+    plugin_root = _seed_plugin_root(tmp_path)
+    (plugin_root / "skills" / "paper-ingest" / "agents" / "openai.yaml").unlink()
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "doctor",
+        "--plugin-root",
+        str(plugin_root),
+        "--vault",
+        str(tmp_path / "vault"),
+        "--paper-search-command",
+        "definitely-missing-paper-search-command",
+        "--json",
+    )
+
+    payload = json.loads(output)
+    skill_contract = {check["name"]: check for check in payload["checks"]}["skill_bundle_contract"]
+
+    assert exit_code == 1
+    assert payload["overall_status"] == "error"
+    assert skill_contract["status"] == "error"
+    assert skill_contract["missing_agent_metadata"] == ["skills/paper-ingest/agents/openai.yaml"]
 
 
 def test_doctor_reports_ok_when_epi_config_exists(tmp_path, monkeypatch, capsys):

@@ -424,6 +424,9 @@ def test_epi_skill_architecture_alignment_documents_routing_and_closure():
     assert "$skill-name" in workflow
     assert "workflows/*.md" in workflow
     assert "workflows` 字段" in workflow
+    assert "skill_bundle_contract" in workflow
+    assert "agent_metadata_count" in workflow
+    assert "workflow_count" in workflow
     assert "Codex may use subagents only when the user explicitly authorizes" in combined
     assert "formal wiki page body prose defaults to Chinese" in combined
     assert "source bundle is incomplete" in combined

@@ -12,6 +12,8 @@ EPI 是多 skill 插件，不硬搬单一 `skills/<project>/rules/workflows/refe
 
 核心入口 `SKILL.md` 只保留触发、边界、workflow routing 和必要引用，不承载完整 runbook；`paper-discovery`、`paper-ingest`、`epi-paper-deposition`、`wiki-setup` 的步骤性流程放在各自 `workflows/*.md`，并必须从 `skills/routing.yaml` 的 `workflows` 字段可达。每个新任务都要 re-match route；route 不变且上下文未压缩时，不重复读取无关文件。
 
+安装缓存验证必须跑 `doctor --json` 并检查 `skill_bundle_contract`：`status` 必须为 `ok`，`agent_metadata_count` 必须等于 `skill_count`，`workflow_count` 必须覆盖 `skills/routing.yaml` 中声明的 workflow，且 `missing_agent_metadata`、`missing_workflows`、`empty_workflows`、`orphan_workflows` 必须为空。这个检查用于确认 marketplace/cache 打包没有漏掉 `skills/*/agents/openai.yaml` 或 `skills/*/workflows/*.md`。
+
 Task closure 只适用于代码、文档或 skill 行为变更；纯只读问答不要求 AAR。非平凡变更结束前要 restate original constraints、记录 verification commands and outcomes，并跑一个 30-second AAR，检查本次是否暴露 recurring failures、route drift、缺失激活路径或应固化到 docs/skills/tests 的经验。
 
 Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work. 获得授权后，EPI workflow 应积极把独立的审计、测试、fixture 扫描、互不重叠模块修改交给 fresh-context workers；主 agent 只读 final worker output、changed file list 和 verification result，避免把中间长 transcript 混入主上下文。

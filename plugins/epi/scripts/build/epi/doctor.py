@@ -240,6 +240,113 @@ def _check_epi_config(vault_path: Path) -> dict:
     }
 
 
+def _relative_plugin_path(plugin_root: Path, path: Path) -> str:
+    try:
+        return path.relative_to(plugin_root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _load_routed_workflows(routing_path: Path) -> tuple[list[str], list[str]]:
+    if not routing_path.exists():
+        return [], ["skills/routing.yaml is missing"]
+
+    text = routing_path.read_text(encoding="utf-8")
+    try:
+        import yaml
+    except ModuleNotFoundError:
+        yaml = None
+
+    if yaml is not None:
+        loaded = yaml.safe_load(text) or {}
+        routes = loaded.get("routes", {}) if isinstance(loaded, dict) else {}
+        workflows = []
+        for route in routes.values():
+            if not isinstance(route, dict):
+                continue
+            route_workflows = route.get("workflows", [])
+            if isinstance(route_workflows, list):
+                workflows.extend(str(workflow) for workflow in route_workflows)
+        return sorted(set(workflows)), []
+
+    workflows = []
+    in_workflows = False
+    for line in text.splitlines():
+        if line.startswith("    workflows:"):
+            in_workflows = True
+            continue
+        if in_workflows:
+            if line.startswith("      - "):
+                workflows.append(line.split("- ", 1)[1].strip())
+                continue
+            if line.startswith("    ") and not line.startswith("      "):
+                in_workflows = False
+    return sorted(set(workflows)), []
+
+
+def _check_skill_bundle_contract(plugin_root: Path) -> dict:
+    skills_root = plugin_root / "skills"
+    routing_path = skills_root / "routing.yaml"
+    skill_paths = sorted(skills_root.glob("*/SKILL.md")) if skills_root.exists() else []
+    skill_names = [path.parent.name for path in skill_paths]
+    agent_metadata = []
+    missing_agent_metadata = []
+
+    for skill_name in skill_names:
+        metadata_path = skills_root / skill_name / "agents" / "openai.yaml"
+        relative_path = _relative_plugin_path(plugin_root, metadata_path)
+        if metadata_path.exists() and metadata_path.is_file() and metadata_path.read_text(encoding="utf-8").strip():
+            agent_metadata.append(relative_path)
+        else:
+            missing_agent_metadata.append(relative_path)
+
+    routed_workflows, issues = _load_routed_workflows(routing_path)
+    workflows = []
+    missing_workflows = []
+    empty_workflows = []
+    for workflow in routed_workflows:
+        workflow_path = skills_root / workflow
+        relative_path = _relative_plugin_path(plugin_root, workflow_path)
+        if not workflow_path.exists():
+            missing_workflows.append(relative_path)
+        elif not workflow_path.read_text(encoding="utf-8").strip():
+            empty_workflows.append(relative_path)
+        else:
+            workflows.append(relative_path)
+
+    actual_workflows = sorted(
+        _relative_plugin_path(plugin_root, path)
+        for path in skills_root.glob("*/workflows/*.md")
+    ) if skills_root.exists() else []
+    orphan_workflows = sorted(
+        set(actual_workflows) - set(workflows) - set(missing_workflows) - set(empty_workflows)
+    )
+    missing = missing_agent_metadata + missing_workflows + empty_workflows + orphan_workflows + issues
+    status = "error" if missing else "ok"
+
+    return {
+        "name": "skill_bundle_contract",
+        "status": status,
+        "message": (
+            f"{len(skill_names)} skills, {len(agent_metadata)} agent metadata files, "
+            f"{len(workflows)} routed workflows via skills/routing.yaml"
+            if status == "ok"
+            else "missing or unrouted skill bundle discovery artifacts"
+        ),
+        "skill_count": len(skill_names),
+        "skills": skill_names,
+        "agent_metadata_count": len(agent_metadata),
+        "agent_metadata": agent_metadata,
+        "missing_agent_metadata": missing_agent_metadata,
+        "workflow_count": len(workflows),
+        "workflows": workflows,
+        "missing_workflows": missing_workflows,
+        "empty_workflows": empty_workflows,
+        "orphan_workflows": orphan_workflows,
+        "routing_path": _relative_plugin_path(plugin_root, routing_path),
+    }
+
+
 def setup_links_for_report(report: dict) -> list[dict]:
     links = []
     seen_urls = set()
@@ -277,6 +384,7 @@ def collect_doctor_report(
     plugin_metadata, manifest_check = _load_plugin_metadata(plugin_root)
     checks = [manifest_check]
     checks.extend(_check_path(plugin_root, relative_path) for relative_path in REQUIRED_PATHS if relative_path != ".codex-plugin/plugin.json")
+    checks.append(_check_skill_bundle_contract(plugin_root))
     checks.append(_check_epi_config(vault_path))
     checks.append(_check_paper_search_mcp_server())
     checks.append(_check_paper_search(paper_search_command))
