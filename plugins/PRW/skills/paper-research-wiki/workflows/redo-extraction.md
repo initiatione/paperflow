@@ -14,10 +14,11 @@ If the target is ambiguous, ask one short question. A reply of `默认` means re
 ## Preflight
 
 1. Read `../../../rules/wiki-writing-standard.md`.
-2. Resolve the target vault and read `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
-3. Locate the relevant `_epi/staging/papers/*/wiki_deposition_task.json` and `wiki-ingest-brief.json`.
-4. Check `paper-gate` status or handoff status. Stop if source artifacts are missing or if human approval is the only unresolved gate.
-5. Read current formal pages named by previous `wiki-ingest-record.json`, `final-source-review.json`, page frontmatter `sources:`, or search hits in the seven page families.
+2. Read `../../paper-wiki-language/SKILL.md`; redo writing must fix language quality without changing evidence.
+3. Resolve the target vault and read `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
+4. Locate the relevant `_epi/staging/papers/*/wiki_deposition_task.json` and `wiki-ingest-brief.json`.
+5. Check `paper-gate` status or handoff status. Stop if source artifacts are missing or if human approval is the only unresolved gate.
+6. Read current formal pages named by previous `wiki-ingest-record.json`, `final-source-review.json`, page frontmatter `sources:`, or search hits in the seven page families.
 
 ## Source Reread
 
@@ -80,12 +81,13 @@ Ask one confirmation before write-heavy redo. A reply of `默认` means apply th
 After confirmation:
 
 1. Apply `wiki-writing-standard.md`.
-2. Write direct changes only when risk is low and the target vault allows direct writes.
-3. Otherwise write staged patch files or staged replacement pages using the vault staging contract.
-4. Keep source support labels and evidence addresses visible.
-5. Recompute `provenance:` and `base_confidence:` when sources or claim mix materially change.
-6. Update `relationships:` only when direction and type are clear.
-7. Update or recreate `final-source-review.json` for every selected paper.
+2. Apply `paper-wiki-language` before and during the rewrite; do not leave machine-translation headings or outline-like Chinese prose in formal pages.
+3. Write direct changes only when risk is low and the target vault allows direct writes.
+4. Otherwise write staged patch files or staged replacement pages using the vault staging contract.
+5. Keep source support labels and evidence addresses visible.
+6. Recompute `provenance:` and `base_confidence:` when sources or claim mix materially change.
+7. Update `relationships:` only when direction and type are clear.
+8. Update or recreate `final-source-review.json` for every selected paper.
 
 ## Tracking And EPI Boundary
 

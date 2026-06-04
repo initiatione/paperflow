@@ -13,13 +13,15 @@
     "wiki",
     "obsidian",
     "provenance",
-    "epi"
+    "epi",
+    "language",
+    "style"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Research Wiki",
     "shortDescription": "v0.1.0 | Deposit EPI papers into a source-grounded wiki.",
-    "longDescription": "Paper Research Wiki gives users one plugin-level assistant for EPI-collected papers. The default path is to inspect EPI handoffs, identify ready papers, and deposit them into the wiki while keeping detailed provenance, source-first review, page-family rules, relinking, linting, and taxonomy maintenance inside internal workflows so users do not need to learn many skill names.",
+    "longDescription": "Paper Research Wiki gives users one plugin-level assistant for EPI-collected papers. The default path is to inspect EPI handoffs, identify ready papers, and deposit them into the wiki while keeping detailed provenance, source-first review, page-family rules, formal-page language style, relinking, linting, and taxonomy maintenance inside internal workflows so users do not need to learn many skill names.",
     "developerName": "liuchf",
     "category": "Productivity",
     "capabilities": [

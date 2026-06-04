@@ -2,6 +2,8 @@
 
 This rule is mandatory for every PRW formal paper wiki write. It adapts Ar9av/obsidian-wiki `wiki-ingest`, `llm-wiki`, `wiki-lint`, `cross-linker`, `tag-taxonomy`, and `wiki-update` into the paper research wiki contract.
 
+Formal page prose must also follow `../skills/paper-wiki-language/SKILL.md`. Read that skill before drafting, rewriting, or materially repairing formal pages.
+
 ## Core Rule
 
 Do not summarize papers in isolation. PRW must distill and integrate paper knowledge into the existing wiki graph.
@@ -99,6 +101,7 @@ Do not set `lifecycle: reviewed`, `verified`, or `source-reviewed` automatically
 
 - Write durable knowledge, not per-paper abstracts.
 - Prefer short paragraphs and compact bullets over copied source text.
+- Write natural Chinese research-wiki prose. Do not leave machine-translated headings, literal English sentence order, or generic academic filler in formal pages.
 - Put paper-specific identity, contribution, setup, limitations, and evidence into `references/`.
 - Put reusable methods, concepts, formulas, mechanisms, datasets, metrics, or design patterns into the matching family.
 - Put cross-paper comparison, contradictions, and research gaps into `synthesis/`, `reports/`, or `opportunities/`.
@@ -138,6 +141,7 @@ Before telling the user a wiki write is ready for EPI `record-wiki-ingest`, chec
 - stale or missing `summary:`
 - invalid `relationships:` entries or relationship issues
 - provenance drift or missing evidence addresses
+- language-style drift against `paper-wiki-language`: machine-translation headings, stiff translated prose, terminology drift, or generic AI academic filler
 - fragmented tags or aliases against the target taxonomy
 - staged writes that still need human review
 - missing `final-source-review.json`

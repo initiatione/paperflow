@@ -1,0 +1,4 @@
+interface:
+  display_name: "Paper Wiki Language"
+  short_description: "规范 PRW 正式论文 wiki 页的中文语言风格，去机翻腔并保护证据。"
+  default_prompt: "Use $paper-wiki-language to 检查或改写 PRW/EPI 正式论文 wiki 页的语言风格，保留术语、证据地址、公式、引用和 wikilink。"

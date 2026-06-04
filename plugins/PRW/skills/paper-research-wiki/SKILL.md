@@ -23,6 +23,8 @@ These files apply to every task:
 3. `references/upstream-obsidian-wiki-map.md`
 4. `../../rules/wiki-writing-standard.md`
 
+For any task that drafts, rewrites, repairs, or materially updates formal wiki pages, also read `../paper-wiki-language/SKILL.md` before writing and keep applying it while writing.
+
 ## Intent Router
 
 | User intent | Load |
@@ -52,6 +54,7 @@ For vague EPI plus wiki requests, default to deposition:
 - Formal pages may land only in the target vault's allowed paper page families.
 - Relink or tag cleanup must preserve provenance and never hide unsupported claims.
 - Every formal wiki write must follow `../../rules/wiki-writing-standard.md`; this is the PRW page-writing contract derived from Ar9av/obsidian-wiki.
+- Every formal page draft or rewrite must follow `../paper-wiki-language/SKILL.md`; language quality is part of the write gate, not a post-hoc cosmetic pass.
 
 ## Internal References
 
