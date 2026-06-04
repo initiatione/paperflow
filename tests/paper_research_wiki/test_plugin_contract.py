@@ -15,6 +15,8 @@ WORKFLOWS = {
     "update-wiki.md",
     "redo-extraction.md",
 }
+PUBLIC_SKILLS = {"paper-research-wiki"}
+SUPPORT_SKILLS = {"paper-wiki-language"}
 REFERENCES = {
     "epi-artifact-contract.md",
     "page-provenance.md",
@@ -52,12 +54,15 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "prw"
-    assert manifest["version"] == "0.1.0"
+    assert manifest["version"] == "0.1.1"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Research Wiki"
     assert "academic paper knowledge" in manifest["description"]
+    assert "link repair" in manifest["interface"]["longDescription"]
+    assert "QMD-compatible" in manifest["interface"]["longDescription"]
+    assert "post-task check" in manifest["interface"]["longDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
-    for phrase in ["提取", "检测", "更新", "沉淀", "EPI"]:
+    for phrase in ["提取", "检测", "更新", "沉淀", "EPI", "link", "QMD"]:
         assert phrase in prompt_text
 
 
@@ -79,13 +84,16 @@ def test_marketplaces_register_paper_research_wiki():
         assert entry["category"] == "Productivity"
 
 
-def test_plugin_has_exactly_one_public_skill():
+def test_plugin_has_one_public_skill_plus_language_gate():
     skill_dirs = {
         path.name
         for path in (PLUGIN / "skills").iterdir()
         if path.is_dir() and (path / "SKILL.md").exists()
     }
-    assert skill_dirs == {"paper-research-wiki"}
+    assert skill_dirs == PUBLIC_SKILLS | SUPPORT_SKILLS
+    language_skill = _read(PLUGIN / "skills" / "paper-wiki-language" / "SKILL.md")
+    assert "formal PRW/EPI" in language_skill
+    assert "Language Gate" in language_skill
 
 
 def test_public_skill_routes_natural_epi_deposition_actions():
@@ -215,6 +223,131 @@ def test_upstream_obsidian_wiki_map_covers_core_skill_families():
         "wiki-lint",
     ]:
         assert phrase in text
+
+
+def test_upstream_obsidian_wiki_map_is_internalized_not_runtime_fetch():
+    text = _read(PUBLIC_SKILL / "references" / "upstream-obsidian-wiki-map.md")
+
+    for phrase in [
+        "design source, not a runtime source of truth",
+        "do not fetch or search Ar9av/obsidian-wiki",
+        "normal PRW runs",
+        "local PRW workflows",
+        "upstream repository only when maintaining PRW",
+    ]:
+        assert phrase in text
+
+
+def test_prw_internalizes_link_repair_qmd_and_post_task_checks():
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    upstream = _read(PUBLIC_SKILL / "references" / "upstream-obsidian-wiki-map.md")
+    check = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
+    extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
+    redo = _read(PUBLIC_SKILL / "workflows" / "redo-extraction.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+
+    for text in [skill, standard, upstream, check, update, extract, redo, workflow_doc]:
+        assert "post-task check" in text
+
+    for text in [check, update, upstream, workflow_doc]:
+        for phrase in [
+            "broken wikilinks",
+            "ambiguous aliases",
+            "duplicate concept owners",
+            "forbidden internal links",
+            "relationship direction",
+        ]:
+            assert phrase in text
+
+    for text in [check, update, extract, redo, upstream, workflow_doc]:
+        for phrase in [
+            "QMD",
+            "qmd update",
+            "qmd embed",
+            "fallback to manifest",
+            "block on qmd query",
+        ]:
+            assert phrase.lower() in text.lower()
+
+    for text in [extract, redo, update]:
+        assert "Run `workflows/check-wiki.md` after writing" in text
+
+
+def test_prw_declares_closed_loop_boundary_and_completion_definition():
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+    epi_integration = _read(PLUGIN / "docs" / "epi-integration.md")
+
+    for text in [skill, workflow_doc]:
+        assert "Check -> Diagnose -> Plan -> Act -> Verify -> Refresh -> Record -> Next" in text
+
+    for text in [skill, standard, workflow_doc]:
+        assert (
+            "A PRW task is not complete until formal pages, tracking files, graph links, "
+            "taxonomy, provenance, language gate, QMD freshness, and EPI record readiness "
+            "have been checked or explicitly reported as skipped with reason."
+        ) in text
+
+    for text in [skill, workflow_doc, epi_integration]:
+        for phrase in [
+            "PRW owns",
+            "EPI owns",
+            "paper discovery",
+            "MinerU parsing",
+            "paper-gate",
+            "human approval",
+            "record-wiki-ingest",
+            "final-source-review.json",
+        ]:
+            assert phrase in text
+
+
+def test_check_wiki_supports_layered_checks_and_completion_reports():
+    check = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+
+    for text in [check, workflow_doc]:
+        for phrase in [
+            "Quick check",
+            "Targeted check",
+            "Full check",
+            "Quick + Targeted",
+            "systemic link/tag chaos",
+        ]:
+            assert phrase in text
+
+    for phrase in [
+        "Completion Report",
+        "pages created or updated",
+        "links/tags/aliases repaired",
+        "tracking files updated",
+        "QMD refreshed / skipped / failed with fallback",
+        "remaining risks",
+        "next EPI/PRW action",
+    ]:
+        assert phrase in check
+
+
+def test_update_wiki_has_controlled_link_repair_mechanism():
+    update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
+
+    for phrase in [
+        "Scan formal pages",
+        "canonical page map",
+        "alias map",
+        "broken wikilinks",
+        "orphan pages",
+        "duplicate pages",
+        "relationship drift",
+        "repair plan",
+        "small batches",
+        "staging patch",
+        "rerun the post-task check",
+    ]:
+        assert phrase in update
 
 
 def test_workflows_adapt_upstream_ingest_status_update_and_relink_patterns():

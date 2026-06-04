@@ -26,7 +26,7 @@ Only run `doctor` for dependency health, plugin diagnosis, MCP/CLI/MinerU availa
 - Required Chinese contract phrases: 最终确认前不得运行 `init-config`; 最终确认前不得运行 `apply-config-update`.
 - Never print secrets; report token state as set/missing only.
 - Runtime config: `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`.
-- `runtime.json` stores command/env-file paths, not tokens: 不保存 token 明文. `MINERU_TOKEN` comes from env or `mineru.env`.
+- `runtime.json` stores command/env-file paths, not tokens: 不保存 token 明文. `MINERU_TOKEN` comes from env or `mineru.env`; `EASYSCHOLAR_SECRET_KEY` comes from env, `mineru.env`, or dedicated `easyscholar.env_file` / `easyscholar.env_files`.
 
 ## Conversation Contract
 

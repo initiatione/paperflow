@@ -22,4 +22,6 @@ If the current request activates a domain hint pack, keep the hard anchor gate o
 
 Treat publisher PDF blocks as acquisition evidence, not as the end of discovery. HTTP 403/502 from IEEE, Wiley, or publisher PDFs should be reported as publisher PDF blocks; then try open sources, arXiv versions, DOI landing pages, Semantic Scholar/OpenAlex metadata, or a sharper arXiv-first query before concluding that the paper cannot be processed.
 
+During acquisition, a DOI or publisher landing page is not a PDF. If a landing page exposes `citation_pdf_url` or an obvious publisher PDF link, EPI can follow it once; otherwise `acquire-record.json` should report `failure_class=not-pdf` and the next step is to switch to a direct PDF/open-access source rather than sending HTML to MinerU.
+
 If the first result set is generic, stale, too review-heavy, or full of blocked PDFs, run a sharper rerun rather than stopping early.

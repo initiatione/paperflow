@@ -246,8 +246,27 @@ def test_docs_document_easyscholar_enrichment_contract():
         assert phrase in combined
     assert "EASYSCHOLAR_SECRET_KEY=set" in config
     assert "EASYSCHOLAR_SECRET_KEY=missing" in config
+    assert "easyscholar.env_file" in config
     assert "secretKey" not in workflow
     assert "cannot by itself make a paper Tier A" in quality_gate
+
+
+def test_docs_document_landing_page_acquisition_recovery():
+    prepare_ranked = (
+        PLUGIN_ROOT / "skills" / "paper-ingest" / "workflows" / "prepare-ranked.md"
+    ).read_text(encoding="utf-8")
+    search_protocol = (
+        PLUGIN_ROOT / "skills" / "paper-discovery" / "references" / "search-protocol.md"
+    ).read_text(encoding="utf-8")
+    combined = "\n".join([prepare_ranked, search_protocol])
+
+    for phrase in [
+        "not-pdf",
+        "citation_pdf_url",
+        "landing page",
+        "publisher PDF link",
+    ]:
+        assert phrase in combined
 
 
 def test_human_approval_requires_single_readable_approval_report():

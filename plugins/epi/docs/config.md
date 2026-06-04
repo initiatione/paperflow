@@ -12,7 +12,7 @@ python scripts\orchestrator.py doctor --open-setup
 EPI 有两层配置，边界不要混：
 
 - 研究画像、领域、关键词、venue prior、预算、Zotero 和人工确认门写入目标论文库的 EPI 内部仓库：`<vault>\_epi\meta\epi-config.yaml`。
-- 本机 runtime 依赖写入 Codex 用户级插件区：`%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。这里记录 `paper-search` MCP server 命令、CLI fallback、MinerU 命令和 env file 路径，例如 `mineru.env`；runtime.json 不保存 token 明文，也不保存 secret 明文。`MINERU_TOKEN` 和 `EASYSCHOLAR_SECRET_KEY` 只从进程环境或 runtime env file 载入，报告时只能说 `MINERU_TOKEN=set` / `MINERU_TOKEN=missing` 和 `EASYSCHOLAR_SECRET_KEY=set` / `EASYSCHOLAR_SECRET_KEY=missing`。
+- 本机 runtime 依赖写入 Codex 用户级插件区：`%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json`。这里记录 `paper-search` MCP server 命令、CLI fallback、MinerU 命令和 env file 路径，例如 `mineru.env`；也可以用 `easyscholar.env_file` 或 `easyscholar.env_files` 指向只包含 `EASYSCHOLAR_SECRET_KEY` 的独立 env file。runtime.json 不保存 token 明文，也不保存 secret 明文。`MINERU_TOKEN` 和 `EASYSCHOLAR_SECRET_KEY` 只从进程环境或 runtime env file 载入，报告时只能说 `MINERU_TOKEN=set` / `MINERU_TOKEN=missing` 和 `EASYSCHOLAR_SECRET_KEY=set` / `EASYSCHOLAR_SECRET_KEY=missing`。
 - EasyScholar 质量增强是 default-on：`dry-run` 默认在 filter 后、rank 前查询期刊/会议质量指标，写入 `_epi\runs\<run-id>\easyscholar-record.json`、候选 `verified_metrics.easyscholar` 和 `easyscholar_score`。缺 key、无匹配、超时或 API 错误都软失败，不阻断 discovery；输出中相关指标写 `未核实`。单次运行可用 `--no-easyscholar` 禁用。
 - 显式进程环境变量优先，runtime.json 只补缺失项；插件升级 cache 时不会覆盖用户级 runtime.json。
 

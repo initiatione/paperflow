@@ -34,6 +34,8 @@ Inspect per-paper failures:
 
 Failed `acquire-record.json` includes `failure_class`, `retryable`, and `recovery_hint`; use those fields to decide retry, source switch, or skip.
 
+`failure_class=not-pdf` means the candidate URL returned a DOI/publisher landing page, HTML, or another non-PDF payload. EPI will try one landing page recovery by reading `citation_pdf_url` or an obvious publisher PDF link; if that still fails, switch to a direct PDF, arXiv, or open-access source before rerunning acquisition.
+
 For slow MinerU jobs, pass `--mineru-timeout <seconds>` or set `EPI_MINERU_TIMEOUT`. Complete parse reuse requires `parse-record.json status=success`, not just a Markdown file.
 
 ## Source-First Handoff Check

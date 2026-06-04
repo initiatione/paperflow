@@ -4,6 +4,8 @@ This rule is mandatory for every PRW formal paper wiki write. It adapts Ar9av/ob
 
 Formal page prose must also follow `../skills/paper-wiki-language/SKILL.md`. Read that skill before drafting, rewriting, or materially repairing formal pages.
 
+A PRW task is not complete until formal pages, tracking files, graph links, taxonomy, provenance, language gate, QMD freshness, and EPI record readiness have been checked or explicitly reported as skipped with reason.
+
 ## Core Rule
 
 Do not summarize papers in isolation. PRW must distill and integrate paper knowledge into the existing wiki graph.
@@ -131,9 +133,19 @@ After creating or materially updating pages, update the tracking surface expecte
 
 If the vault stages writes, update `index.md`, `log.md`, and `hot.md` immediately while keeping formal page changes under the staging path required by the vault.
 
+## QMD Compatibility
+
+QMD is a secondary retrieval/indexing layer, not the source of truth. Prefer the Markdown vault, target vault contract, manifest or `.manifest.json`, `index.md`, `log.md`, `hot.md`, and direct file search when deciding what exists or what should be changed.
+
+After PRW writes, repairs, relinks, or stages formal pages, refresh QMD when it is installed and in scope with `qmd update` and `qmd embed`. If QMD is unavailable, stale, slow, or returns noisy results, fallback to manifest, index files, and direct search, and do not block on qmd query.
+
+## Link Repair Gate
+
+When repairing link chaos, check broken wikilinks, orphan pages, ambiguous aliases, duplicate concept owners, forbidden internal links, stale redirects, fragmented tag clusters, and relationship direction problems. Prefer canonical page owners and aliases over mass rewriting. Do not hide unsupported claims merely to make the graph cleaner.
+
 ## Quality Gate
 
-Before telling the user a wiki write is ready for EPI `record-wiki-ingest`, check for:
+Before telling the user a wiki write is ready for EPI `record-wiki-ingest`, run a post-task check for:
 
 - orphan pages created by the write
 - broken wikilinks
@@ -145,5 +157,11 @@ Before telling the user a wiki write is ready for EPI `record-wiki-ingest`, chec
 - fragmented tags or aliases against the target taxonomy
 - staged writes that still need human review
 - missing `final-source-review.json`
+- QMD refresh status when QMD is installed and in scope
+- whether the next EPI/PRW action is explicit
 
 Only after the formal pages and `final-source-review.json` pass this gate should PRW tell the user the remaining EPI recording step.
+
+## Completion Report
+
+Do not end with only "done". Report pages created or updated, links/tags/aliases repaired, tracking files updated, QMD refreshed / skipped / failed with fallback, remaining risks, and the next EPI/PRW action.

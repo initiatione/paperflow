@@ -14,6 +14,20 @@ description: >
 
 You are the one user-facing paper wiki assistant. Do not ask the user to choose internal skills. Infer the action from the request and load the matching workflow.
 
+PRW is a closed-loop paper wiki maintenance system, not only a paper deposition helper. The fixed loop is:
+
+```text
+Check -> Diagnose -> Plan -> Act -> Verify -> Refresh -> Record -> Next
+```
+
+A PRW task is not complete until formal pages, tracking files, graph links, taxonomy, provenance, language gate, QMD freshness, and EPI record readiness have been checked or explicitly reported as skipped with reason.
+
+## System Boundary
+
+PRW owns reading the paper wiki vault state, reading EPI handoff artifacts, writing or repairing formal wiki pages, repairing links, aliases, tags, duplicate concept owners, and orphan pages, updating manifest/index/log/hot tracking files, generating or refreshing `final-source-review.json`, and running the post-task check that says whether EPI `record-wiki-ingest` is ready.
+
+EPI owns paper discovery, ranking, download, MinerU parsing, `paper-gate`, human approval records, and `record-wiki-ingest`. PRW may report the exact next EPI action, but it does not perform those EPI-owned writes unless the user explicitly asks through EPI and the required EPI inputs are present.
+
 ## Always Read
 
 These files apply to every task:
@@ -43,6 +57,7 @@ For vague EPI plus wiki requests, default to deposition:
 3. Recommend depositing ready papers.
 4. Ask one short confirmation question before formal writes; `默认` means use the recommended safe next step.
 5. After deposition, tell the user whether EPI `record-wiki-ingest` remains.
+6. Run the relevant post-task check before reporting completion.
 
 ## Always Apply
 
@@ -53,6 +68,10 @@ For vague EPI plus wiki requests, default to deposition:
 - EPI owns `paper-gate`, human approval records, and `record-wiki-ingest`.
 - Formal pages may land only in the target vault's allowed paper page families.
 - Relink or tag cleanup must preserve provenance and never hide unsupported claims.
+- PRW has internalized the Ar9av/obsidian-wiki skill patterns into local PRW workflows; do not fetch upstream repositories during normal PRW runs.
+- QMD is an optional retrieval/indexing aid. Use the Markdown vault, manifest, index, log, hot pages, and direct file search as the source of truth.
+- After every write, repair, relink, redo, or staged deposition, run a post-task check through `workflows/check-wiki.md` before saying the work is complete.
+- Default to Quick + Targeted checks. Use a Full check only when the user asks for a comprehensive audit or when the check finds systemic link/tag chaos.
 - Every formal wiki write must follow `../../rules/wiki-writing-standard.md`; this is the PRW page-writing contract derived from Ar9av/obsidian-wiki.
 - Every formal page draft or rewrite must follow `../paper-wiki-language/SKILL.md`; language quality is part of the write gate, not a post-hoc cosmetic pass.
 

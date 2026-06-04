@@ -33,6 +33,7 @@ Before planning or writing pages, read `../../../rules/wiki-writing-standard.md`
 6. Add `relationships:` frontmatter entries only when direction and type are clear.
 7. Keep formula and figure claims tied to formula or figure evidence.
 8. Write or update `final-source-review.json`.
+9. Run `workflows/check-wiki.md` after writing as the post-task check.
 
 ## Tracking
 
@@ -46,3 +47,11 @@ Update the wiki tracking surface when the target vault contract expects it:
 Tell the user which EPI `record-wiki-ingest` command remains.
 
 Stop when source artifacts are missing and point back to EPI `paper-gate`.
+
+## QMD Compatibility
+
+QMD is an optional accelerator after the source-first plan is built from the Markdown vault. Use QMD only to improve lookup and discoverability. After writing or staging pages, run or recommend `qmd update` and `qmd embed` when QMD is installed and the target vault allows it. If QMD is unavailable, stale, slow, or noisy, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, and direct file search; do not block on qmd query.
+
+## Post-Task Check
+
+Run `workflows/check-wiki.md` after writing. The post-task check must cover broken wikilinks, orphan pages, missing frontmatter, provenance drift, QMD refresh status, stale tracking files, staged review state, `final-source-review.json`, and whether EPI `record-wiki-ingest` remains.

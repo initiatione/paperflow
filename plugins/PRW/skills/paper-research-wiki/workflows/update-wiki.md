@@ -14,6 +14,7 @@ Read `../../../rules/wiki-writing-standard.md` first. For repairs that touch for
 6. Run relink/cross-link cleanup only after preserving evidence addresses.
 7. Stop before destructive reset or ambiguous merge.
 8. Preserve EPI boundaries for human approval and `record-wiki-ingest`.
+9. Run `workflows/check-wiki.md` after writing as the post-task check.
 
 ## Relink And Maintenance
 
@@ -28,4 +29,23 @@ For missing wikilinks, add links conservatively: first natural mention inline, t
 
 For aliases and tag fixes, preserve canonical paper terminology and do not erase source-specific terms that the paper itself uses.
 
+## Link Repair Triage
+
+When the wiki has link chaos, triage before editing:
+
+1. Scan formal pages in the seven allowed page families.
+2. Build a canonical page map from page titles, aliases, tags, `sources:`, and `relationships:`.
+3. Build an alias map from English titles, Chinese names, abbreviations, DOI/arXiv IDs, method names, paper terms, and known spelling variants.
+4. Identify broken wikilinks, orphan pages, ambiguous aliases, duplicate pages, duplicate concept owners, forbidden internal links, stale redirects, relationship drift, and relationship direction or relationship type mistakes.
+5. Generate a repair plan that separates low-risk link additions from high-risk merge, split, rename, or canonical slug changes.
+6. Repair in small batches and preserve evidence addresses, support labels, formulas, figure references, and page-family boundaries.
+7. Use a staging patch and ask confirmation for high-risk operations such as merging two concept pages, renaming a canonical slug, or batch replacing links.
+8. After each batch, rerun the post-task check before continuing.
+
+## QMD Compatibility
+
+QMD is optional. Use QMD only after reading the Markdown vault inventory. If QMD is installed and responsive, use it to accelerate lookup, then refresh after writes with `qmd update` and `qmd embed`. If QMD is missing, stale, slow, or noisy, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, and direct file search; do not block on qmd query.
+
 Ask one confirmation question before any write-heavy relink, tag normalization, staged repair, or page merge. A reply of `默认` means apply the recommended safe next step.
+
+After confirmed maintenance writes, run the post-task check. Run `workflows/check-wiki.md` after writing and report broken wikilinks, ambiguous aliases, duplicate concept owners, forbidden internal links, relationship direction issues, QMD refresh status, stale tracking files, and remaining EPI `record-wiki-ingest` work.

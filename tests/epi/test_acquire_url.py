@@ -104,6 +104,50 @@ def test_acquire_paper_from_url_records_http_failure_without_pdf(tmp_path):
     assert json.loads((paper_root / "acquire-record.json").read_text(encoding="utf-8")) == record
 
 
+def test_acquire_paper_from_url_follows_landing_page_citation_pdf_url(tmp_path):
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+    (server_root / "paper.pdf").write_bytes(b"%PDF-1.4\nresolved landing fixture\n")
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / "landing-paper"
+
+    with _LocalServer(server_root) as base_url:
+        landing_url = f"{base_url}/article"
+        resolved_pdf_url = f"{base_url}/paper.pdf"
+        (server_root / "article").write_text(
+            f'<html><head><meta name="citation_pdf_url" content="{resolved_pdf_url}"></head></html>',
+            encoding="utf-8",
+        )
+
+        record = acquire_paper_from_url(_candidate(landing_url, slug="landing-paper"), paper_root)
+
+    assert record["status"] == "success"
+    assert record["mode"] == "url"
+    assert record["candidate_pdf_url"] == landing_url
+    assert record["resolved_pdf_url"] == resolved_pdf_url
+    assert record["pdf_url"] == resolved_pdf_url
+    assert (paper_root / "paper.pdf").read_bytes().startswith(b"%PDF-1.4")
+
+
+def test_acquire_paper_from_url_rejects_html_without_pdf_link(tmp_path):
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / "html-paper"
+
+    with _LocalServer(server_root) as base_url:
+        landing_url = f"{base_url}/article"
+        (server_root / "article").write_text("<html><body>publisher landing page</body></html>", encoding="utf-8")
+
+        record = acquire_paper_from_url(_candidate(landing_url, slug="html-paper"), paper_root)
+
+    assert record["status"] == "failed"
+    assert record["mode"] == "url"
+    assert record["http_status"] == 200
+    assert record["failure_class"] == "not-pdf"
+    assert record["retryable"] is True
+    assert "not a PDF" in record["error"]
+    assert not (paper_root / "paper.pdf").exists()
+
+
 def test_acquire_paper_from_candidate_prefers_paper_search_cli_download(tmp_path, monkeypatch):
     monkeypatch.setenv("EPI_PAPER_SEARCH_MCP_DISABLED", "1")
     fake_command = tmp_path / "paper-search-download.ps1"

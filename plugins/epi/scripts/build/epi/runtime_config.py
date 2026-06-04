@@ -114,6 +114,26 @@ def _as_args_string(value: object) -> str | None:
     return str(value)
 
 
+def _env_files_from_section(section: dict[str, Any]) -> list[object]:
+    env_files = section.get("env_files")
+    if env_files is None and section.get("env_file"):
+        env_files = [section["env_file"]]
+    if isinstance(env_files, (str, Path)):
+        return [env_files]
+    if isinstance(env_files, list):
+        return list(env_files)
+    return []
+
+
+def _apply_env_file_section(status: dict[str, Any], section: dict[str, Any]) -> None:
+    for env_file in _env_files_from_section(section):
+        env_status = _load_env_file(Path(str(env_file)).expanduser())
+        status["env_files"].append(env_status)
+        status["applied_env"].extend(env_status["applied_env"])
+        status["skipped_env"].extend(env_status["skipped_env"])
+        status["warnings"].extend(env_status["warnings"])
+
+
 def _apply_runtime_payload(status: dict[str, Any], payload: dict[str, Any]) -> None:
     paper_search_mcp = payload.get("paper_search_mcp")
     if isinstance(paper_search_mcp, dict):
@@ -132,18 +152,11 @@ def _apply_runtime_payload(status: dict[str, Any], payload: dict[str, Any]) -> N
     if isinstance(mineru, dict):
         if mineru.get("command"):
             _set_env_if_missing(status, "EPI_MINERU_COMMAND", mineru["command"])
-        env_files = mineru.get("env_files")
-        if env_files is None and mineru.get("env_file"):
-            env_files = [mineru["env_file"]]
-        if isinstance(env_files, (str, Path)):
-            env_files = [env_files]
-        if isinstance(env_files, list):
-            for env_file in env_files:
-                env_status = _load_env_file(Path(str(env_file)).expanduser())
-                status["env_files"].append(env_status)
-                status["applied_env"].extend(env_status["applied_env"])
-                status["skipped_env"].extend(env_status["skipped_env"])
-                status["warnings"].extend(env_status["warnings"])
+        _apply_env_file_section(status, mineru)
+
+    easyscholar = payload.get("easyscholar")
+    if isinstance(easyscholar, dict):
+        _apply_env_file_section(status, easyscholar)
 
     env_payload = payload.get("env")
     if isinstance(env_payload, dict):

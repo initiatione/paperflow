@@ -88,6 +88,7 @@ After confirmation:
 6. Recompute `provenance:` and `base_confidence:` when sources or claim mix materially change.
 7. Update `relationships:` only when direction and type are clear.
 8. Update or recreate `final-source-review.json` for every selected paper.
+9. Run `workflows/check-wiki.md` after writing as the post-task check.
 
 ## Tracking And EPI Boundary
 
@@ -101,3 +102,11 @@ Update the target vault tracking surface after the redo:
 PRW can prepare pages and source review, but do not write human approval. EPI owns human approval records and `record-wiki-ingest`.
 
 After redo, tell the user which `record-wiki-ingest` command remains, or say that staged review must happen first.
+
+## QMD Compatibility
+
+Redo may change retrieval-critical pages. After the source reread and page comparison, use QMD only as an optional lookup aid. After confirmed writes or staged patches, run or recommend `qmd update` and `qmd embed` when QMD is installed and the target vault permits it. If QMD is unavailable, stale, slow, or noisy, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, previous `wiki-ingest-record.json`, and direct file search; do not block on qmd query.
+
+## Post-Task Check
+
+Run `workflows/check-wiki.md` after writing. The post-task check must confirm changed pages, tracking files, source-review hashes, broken wikilinks, orphan pages, staged patch state, provenance drift, QMD refresh status, and whether `record-wiki-ingest` remains.

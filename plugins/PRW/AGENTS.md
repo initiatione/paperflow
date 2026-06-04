@@ -5,6 +5,12 @@ It also ships the supporting language gate `paper-wiki-language` for formal page
 
 Users should be able to ask for coarse actions such as directly depositing EPI papers, checking the wiki library, updating the wiki library, or relinking paper knowledge. Do not ask users to choose internal workflow names.
 
+PRW is a closed-loop paper wiki maintenance system. Every task follows:
+
+```text
+Check -> Diagnose -> Plan -> Act -> Verify -> Refresh -> Record -> Next
+```
+
 For every task:
 
 1. Read `skills/paper-research-wiki/SKILL.md`.
@@ -12,3 +18,4 @@ For every task:
 3. Resolve the target vault contract before formal writes.
 4. Treat EPI `_epi/` artifacts as evidence inputs, not formal wiki pages.
 5. Before drafting, rewriting, or materially repairing formal pages, read `skills/paper-wiki-language/SKILL.md` and apply it throughout writing.
+6. Run the post-task check before reporting completion; a task is not complete until pages, tracking files, graph links, taxonomy, provenance, language gate, QMD freshness, and EPI record readiness are checked or explicitly skipped with reason.

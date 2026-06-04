@@ -82,6 +82,28 @@ def test_apply_runtime_config_loads_plugin_level_commands_and_env_file(tmp_path,
     assert "easyscholar-secret" not in json.dumps(status)
 
 
+def test_apply_runtime_config_loads_dedicated_easyscholar_env_file(tmp_path, monkeypatch):
+    runtime_path = tmp_path / "runtime.json"
+    easyscholar_env = tmp_path / "easyscholar.env"
+    easyscholar_env.write_text("EASYSCHOLAR_SECRET_KEY=easyscholar-secret\n", encoding="utf-8")
+    _write_json(
+        runtime_path,
+        {
+            "schema_version": "epi-runtime-config-v1",
+            "easyscholar": {"env_file": str(easyscholar_env)},
+        },
+    )
+    monkeypatch.setenv("EPI_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.delenv("EASYSCHOLAR_SECRET_KEY", raising=False)
+
+    status = apply_runtime_config()
+
+    assert os.environ["EASYSCHOLAR_SECRET_KEY"] == "easyscholar-secret"
+    assert "EASYSCHOLAR_SECRET_KEY" in status["applied_env"]
+    assert status["env_files"][0]["path"] == str(easyscholar_env)
+    assert "easyscholar-secret" not in json.dumps(status)
+
+
 def test_apply_runtime_config_does_not_override_explicit_environment(tmp_path, monkeypatch):
     runtime_path = tmp_path / "runtime.json"
     _write_json(
