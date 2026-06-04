@@ -13,6 +13,7 @@ Each item should have:
 - DOI
 - citation count or `未核实`
 - impact factor/quartile, CiteScore, or `未核实`
+- EasyScholar metrics from `verified_metrics.easyscholar` when present; otherwise `未核实`
 - venue prior, if it affected ordering
 - PDF/code availability
 - a short Chinese abstract, 2-3 compact sentences explaining method, task, evidence, and caveat
@@ -25,6 +26,7 @@ Then add `EPI 实测证据` with:
 - query plan summary: domain, concept blocks, query variants
 - candidate pool size before/after dedup/filter when available
 - ranking evidence: `paper_type`, `quality_tier`, `quality_gate`, `ranking_confidence`, and key rubric dimensions
+- EasyScholar evidence: `easyscholar-record.json`, `easyscholar_score`, and matched/no-match/missing-key counts when checked
 - accepted/rejected counts
 - review exclusion evidence and already-downloaded exclusions such as `already_in_library:<slug>`
 - query variants and whether a sharper rerun was needed
@@ -33,6 +35,6 @@ Then add `EPI 实测证据` with:
 - recall gaps if any
 - `MINERU_TOKEN` set/missing only if setup was checked
 
-Quality metrics must be current evidence, not memory or guesses. Verify citation counts, impact factor/quartile, CiteScore, publisher/venue metadata, or code availability when available; otherwise write `未核实` for that field.
+Quality metrics must be current evidence, not memory or guesses. Verify citation counts, impact factor/quartile, CiteScore, publisher/venue metadata, EasyScholar venue metrics, or code availability when available; otherwise write `未核实` for that field.
 
 For each recommendation, avoid raw JSON and long abstracts. Use links when verified. If the kept list is long, still list all kept papers; use shorter notes for lower-priority items rather than omitting them. Rejected review/survey papers should not appear in `推荐优先看` when the user asked to exclude them.

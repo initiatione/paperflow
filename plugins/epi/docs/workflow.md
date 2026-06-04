@@ -14,9 +14,9 @@ Task closure 只适用于代码、文档或 skill 行为变更；纯只读问答
 
 Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work. 获得授权后，EPI workflow 应积极把独立的审计、测试、fixture 扫描、互不重叠模块修改交给 fresh-context workers；主 agent 只读 final worker output、changed file list 和 verification result，避免把中间长 transcript 混入主上下文。
 
-本机依赖由 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` 自动加载：优先 paper-search MCP server，CLI 作为 fallback，MinerU token 从环境或 `mineru.env` 读取。MinerU 子进程默认超时 7200 秒，可用 `--mineru-timeout <seconds>` 或 `EPI_MINERU_TIMEOUT` 覆盖。不要把 token 写入 runtime.json，也不要在报告里打印 token 值。
+本机依赖由 `%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json` 自动加载：优先 paper-search MCP server，CLI 作为 fallback，MinerU token 从环境或 `mineru.env` 读取，EasyScholar secret 从 `EASYSCHOLAR_SECRET_KEY` 或 approved runtime env file 读取。MinerU 子进程默认超时 7200 秒，可用 `--mineru-timeout <seconds>` 或 `EPI_MINERU_TIMEOUT` 覆盖。不要把 token/secret 写入 runtime.json，也不要在报告里打印 token/secret 值。
 
-EPI 是通用论文插件，不默认任何学科方向。`dry-run` 会从 `<vault>\_epi\meta\epi-config.yaml` 的 profile、domains、positive/negative keywords、venue prior 和当前请求生成 `query-plan.json`，记录 `research_mode`，再按 query variants 调用 MCP/CLI 搜索、去重、过滤、分类和排序。Query plan 的扩展词用于扩大召回；ranking 的画像匹配词只来自用户 config 和当前请求核心词，避免宽召回词稀释窄主题相关性。`rank.json` 会暴露 `paper_type`、`paper_classification`、`quality_gate`、`quality_tier`、`ranking_rubric` 和 `ranking_confidence`，用于解释阅读优先级，不替代源论文阅读。AUV、机器人、医学等只能来自用户配置、当前请求或显式领域 hint。
+EPI 是通用论文插件，不默认任何学科方向。`dry-run` 会从 `<vault>\_epi\meta\epi-config.yaml` 的 profile、domains、positive/negative keywords、venue prior 和当前请求生成 `query-plan.json`，记录 `research_mode`，再按 query variants 调用 MCP/CLI 搜索、去重、过滤、EasyScholar default-on 质量增强、分类和排序。EasyScholar 在 filter 后、rank 前运行，写入 `easyscholar-record.json`、`verified_metrics.easyscholar` 和 `easyscholar_score`；缺 key、无匹配、超时或 API 错误都软失败并标为 `未核实`。单次运行可用 `--no-easyscholar` 禁用。Query plan 的扩展词用于扩大召回；ranking 的画像匹配词只来自用户 config 和当前请求核心词，避免宽召回词稀释窄主题相关性。`rank.json` 会暴露 `paper_type`、`paper_classification`、`quality_gate`、`quality_tier`、`ranking_rubric` 和 `ranking_confidence`，用于解释阅读优先级，不替代源论文阅读。AUV、机器人、医学等只能来自用户配置、当前请求或显式领域 hint。
 
 持续方向跟踪使用 `topic-tracking` skill 作为外层：先比较 prior runs、`_epi/raw/papers` 和 `already_in_library` 去重信号，再报告 net-new、backlog、coverage gap、parse fidelity 和 acquisition fallback。`paper-discovery` 仍是单轮检索/排序层。
 

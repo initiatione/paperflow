@@ -29,6 +29,7 @@ REQUIRED_PATHS = [
 
 PAPER_SEARCH_SETUP_URL = "https://github.com/openags/paper-search-mcp"
 MINERU_TOKEN_SETUP_URL = "https://mineru.net/apiManage/docs?openApplyModal=true"
+EASYSCHOLAR_SETUP_URL = "https://www.easyscholar.cc"
 
 SETUP_GUIDES = {
     "paper_search_mcp": {
@@ -57,6 +58,15 @@ SETUP_GUIDES = {
         "commands": [
             "$env:MINERU_TOKEN='<your MinerU token>'",
             "[Environment]::SetEnvironmentVariable('MINERU_TOKEN', '<your MinerU token>', 'User')",
+        ],
+    },
+    "easyscholar": {
+        "summary": "Configure EASYSCHOLAR_SECRET_KEY",
+        "url": EASYSCHOLAR_SETUP_URL,
+        "description": "Create an EasyScholar secret key for default-on venue quality enrichment.",
+        "commands": [
+            "$env:EASYSCHOLAR_SECRET_KEY='<your EasyScholar secret key>'",
+            "[Environment]::SetEnvironmentVariable('EASYSCHOLAR_SECRET_KEY', '<your EasyScholar secret key>', 'User')",
         ],
     },
 }
@@ -201,6 +211,20 @@ def _check_mineru_token() -> dict:
     )
 
 
+def _check_easyscholar() -> dict:
+    key_present = bool(os.environ.get("EASYSCHOLAR_SECRET_KEY"))
+    return _with_setup(
+        {
+            "name": "easyscholar",
+            "status": "ok" if key_present else "warning",
+            "secret_key": "set" if key_present else "missing",
+            "message": "EASYSCHOLAR_SECRET_KEY is set"
+            if key_present
+            else "EASYSCHOLAR_SECRET_KEY is not set; EasyScholar enrichment will soft-fail as unverified",
+        }
+    )
+
+
 def _check_epi_config(vault_path: Path) -> dict:
     status = config_status(vault_path)
     configured = bool(status["configured"])
@@ -258,6 +282,7 @@ def collect_doctor_report(
     checks.append(_check_paper_search(paper_search_command))
     checks.append(_check_mineru_command(plugin_root, mineru_command))
     checks.append(_check_mineru_token())
+    checks.append(_check_easyscholar())
     overall_status = "error" if any(check["status"] == "error" for check in checks) else "ok"
     report = {
         "overall_status": overall_status,

@@ -24,6 +24,10 @@ class PipelineConfig:
     venue_prior: list[str]
     paper_search_command: str | None
     paper_search_sources: list[str]
+    easyscholar_enabled: bool
+    easyscholar_timeout_seconds: int
+    easyscholar_cache_ttl_days: int
+    easyscholar_max_candidates_per_run: int
 
 
 @dataclass(frozen=True)
@@ -43,6 +47,14 @@ DEFAULT_EPI_CONFIG: dict[str, Any] = {
     "venue_prior": [],
     "budget": {"max_results": 20},
     "paper_search": {"command": "paper-search", "sources": ["arxiv", "semantic", "openalex", "crossref"]},
+    "quality_enrichment": {
+        "easyscholar": {
+            "enabled": True,
+            "timeout_seconds": 15,
+            "cache_ttl_days": 30,
+            "max_candidates_per_run": 50,
+        }
+    },
     "mineru": {
         "token_source": "MINERU_TOKEN env",
         "command": "python skills/mineru-paper-parser/scripts/mineru_batch_to_md.py",
@@ -60,6 +72,10 @@ _FLAT_FIELD_PATHS: dict[str, tuple[str, ...]] = {
     "max_results": ("budget", "max_results"),
     "paper_search_command": ("paper_search", "command"),
     "paper_search_sources": ("paper_search", "sources"),
+    "easyscholar_enabled": ("quality_enrichment", "easyscholar", "enabled"),
+    "easyscholar_timeout_seconds": ("quality_enrichment", "easyscholar", "timeout_seconds"),
+    "easyscholar_cache_ttl_days": ("quality_enrichment", "easyscholar", "cache_ttl_days"),
+    "easyscholar_max_candidates_per_run": ("quality_enrichment", "easyscholar", "max_candidates_per_run"),
     "mineru_token_source": ("mineru", "token_source"),
     "mineru_command": ("mineru", "command"),
     "zotero_enabled": ("zotero", "enabled"),
@@ -75,6 +91,7 @@ _TOP_LEVEL_CONFIG_KEYS = {
     "venue_prior",
     "budget",
     "paper_search",
+    "quality_enrichment",
     "mineru",
     "zotero",
     "human_gate",
@@ -232,9 +249,14 @@ def _as_bool(value: Any) -> bool:
 def _normalize_flat_value(key: str, value: Any) -> Any:
     if key in {"domains", "positive_keywords", "negative_keywords", "venue_prior", "paper_search_sources"}:
         return _as_list(value)
-    if key == "max_results":
+    if key in {
+        "max_results",
+        "easyscholar_timeout_seconds",
+        "easyscholar_cache_ttl_days",
+        "easyscholar_max_candidates_per_run",
+    }:
         return int(value)
-    if key == "zotero_enabled":
+    if key in {"zotero_enabled", "easyscholar_enabled"}:
         return _as_bool(value)
     return value
 
@@ -580,6 +602,12 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
         "openalex",
         "crossref",
     ]
+    quality_enrichment = interests.get("quality_enrichment")
+    if not isinstance(quality_enrichment, dict):
+        quality_enrichment = {}
+    easyscholar = quality_enrichment.get("easyscholar")
+    if not isinstance(easyscholar, dict):
+        easyscholar = {}
     return PipelineConfig(
         plugin_root=plugin_root,
         vault_path=vault_path,
@@ -592,4 +620,8 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
         venue_prior=[str(venue) for venue in _as_list(interests.get("venue_prior"))],
         paper_search_command=str(paper_search_command) if paper_search_command else None,
         paper_search_sources=paper_search_sources,
+        easyscholar_enabled=_as_bool(easyscholar.get("enabled", True)),
+        easyscholar_timeout_seconds=int(easyscholar.get("timeout_seconds", 15)),
+        easyscholar_cache_ttl_days=int(easyscholar.get("cache_ttl_days", 30)),
+        easyscholar_max_candidates_per_run=int(easyscholar.get("max_candidates_per_run", 50)),
     )

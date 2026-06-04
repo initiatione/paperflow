@@ -45,11 +45,15 @@ def _normalize_env_value(value: object) -> str:
     return str(value)
 
 
+def _runtime_secret_key(key: str) -> bool:
+    return key in {"MINERU_TOKEN", "EASYSCHOLAR_SECRET_KEY"}
+
+
 def _set_env_if_missing(status: dict[str, Any], key: str, value: object) -> None:
     if not key:
         return
-    if key == "MINERU_TOKEN":
-        status["warnings"].append("MINERU_TOKEN in runtime.json ignored; use mineru.env_file")
+    if _runtime_secret_key(key):
+        status["warnings"].append(f"{key} in runtime.json ignored; use an env_file")
         status["skipped_env"].append(key)
         return
     if not _safe_env_key(key):
@@ -66,7 +70,7 @@ def _set_env_if_missing(status: dict[str, Any], key: str, value: object) -> None
 def _set_env_from_env_file(status: dict[str, Any], key: str, value: str) -> None:
     if not key:
         return
-    if key != "MINERU_TOKEN" and not _safe_env_key(key):
+    if not _runtime_secret_key(key) and not _safe_env_key(key):
         status["warnings"].append(f"unsupported env-file key ignored: {key}")
         status["skipped_env"].append(key)
         return

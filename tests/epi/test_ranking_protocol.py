@@ -161,3 +161,81 @@ def test_rank_candidates_penalizes_negative_profile_keywords():
     assert "negative_keyword_overlap" in negative["quality_gate"]["blocking_reasons"]
     assert "negative_keyword_overlap: biomedical trial" in negative["ranking_protocol"]["cautions"]
     assert negative["ranking_protocol"]["decision"] == "review-candidate"
+
+
+def test_rank_candidates_uses_easyscholar_signal_for_source_confidence():
+    candidates = [
+        {
+            "slug": "strong-venue",
+            "title": "Humanoid Control with Reproducible Benchmarks",
+            "abstract": "Humanoid robot control with benchmark ablations and open code.",
+            "year": 2025,
+            "venue": "Journal of Applied Psychology",
+            "doi": "10.1234/strong-venue",
+            "citation_count": 10,
+            "pdf_url": "https://example.org/strong.pdf",
+            "code_url": "https://github.com/example/strong",
+            "verified_metrics": {
+                "easyscholar": {
+                    "status": "matched",
+                    "publication_name": "Journal of Applied Psychology",
+                    "source": "easyscholar",
+                    "metrics": {"jcr_quartile": "Q1", "cas_zone_upgraded": "1", "impact_factor": "9.4"},
+                    "warnings": [],
+                }
+            },
+            "quality_signals": {
+                "easyscholar": {
+                    "score": 0.95,
+                    "evidence": ["JCR Q1", "CAS 1", "impact_factor:9.4"],
+                    "cautions": [],
+                }
+            },
+        }
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=["humanoid", "control", "benchmark"],
+        venue_tiers={},
+    )
+
+    top = ranked[0]
+    assert top["ranking_signals"]["easyscholar_score"] == 0.95
+    assert top["ranking_signals"]["venue_score"] > 0.45
+    assert "easyscholar_verified_metrics" in top["ranking_rubric"]["dimensions"]["source_confidence"]["signals"]
+    assert any("EasyScholar" in reason and "JCR Q1" in reason for reason in top["ranking_protocol"]["reasons"])
+    assert top["quality_gate"]["tier"] == "Tier A"
+
+
+def test_rank_candidates_does_not_let_easyscholar_override_weak_topic_fit():
+    candidates = [
+        {
+            "slug": "off-topic-strong-venue",
+            "title": "Organizational Psychology Survey",
+            "abstract": "A management paper about workplace behavior and organizational surveys.",
+            "year": 2025,
+            "venue": "Journal of Applied Psychology",
+            "doi": "10.1234/off-topic",
+            "citation_count": 100,
+            "pdf_url": "https://example.org/off-topic.pdf",
+            "quality_signals": {
+                "easyscholar": {
+                    "score": 1.0,
+                    "evidence": ["JCR Q1", "CAS 1", "impact_factor:9.4"],
+                    "cautions": [],
+                }
+            },
+        }
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=["humanoid", "robotics", "control"],
+        venue_tiers={},
+    )
+
+    top = ranked[0]
+    assert top["ranking_signals"]["easyscholar_score"] == 1.0
+    assert top["quality_tier"] == "Reject"
+    assert "weak_topic_fit" in top["quality_gate"]["blocking_reasons"]

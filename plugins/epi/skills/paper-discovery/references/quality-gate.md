@@ -2,7 +2,7 @@
 
 Apply a quality gate before recommendation: a paper should usually have strong profile/topic fit, a real contribution, credible validation, DOI or stable arXiv ID, available PDF, and at least one quality signal such as reputable configured venue, citations, code/data, field evidence, replication, strong benchmark, or recent journal acceptance.
 
-Venue prior from `venue-prior.md` can raise or lower reading priority, but it cannot pass the quality gate by itself. A paper with weak topic fit, unclear identity, no PDF, or unverifiable claims should not become Tier A only because the venue is famous.
+Venue prior from `venue-prior.md` and EasyScholar `verified_metrics.easyscholar` can raise or lower reading priority, but neither can pass the quality gate by itself. EasyScholar cannot by itself make a paper Tier A. A paper with weak topic fit, unclear identity, no PDF, or unverifiable claims should not become Tier A only because the venue is famous or has a strong EasyScholar metric.
 
 Paper type from `paper-type-taxonomy.md` is a routing hint. It should change how the paper is read, not excuse weak evidence. For example, theory papers require formula/proof preservation, dataset papers require data provenance checks, and benchmark papers require baseline/metric/task scrutiny.
 

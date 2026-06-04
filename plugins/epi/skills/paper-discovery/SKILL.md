@@ -19,6 +19,7 @@ For ongoing topic monitoring, "what is new since last run/date", backlog priorit
 - Use `research_mode`, `paper_classification`, and `ranking_rubric` as routing/explanation contracts, not as final scholarly truth.
 - For chat-window results, load `references/output-format.md` and return papers in reading-priority order with title, short Chinese abstract, and quality metrics such as citations, impact factor/quartile, CiteScore, or `未核实`.
 - If config is missing, stop and use `config-setup`. See `docs\config.md`.
+- EasyScholar enrichment is default-on in `dry-run`; inspect `easyscholar-record.json`, candidate `verified_metrics.easyscholar`, and `easyscholar_score` when explaining venue quality. Missing `EASYSCHOLAR_SECRET_KEY`, no match, timeout, or API error is a soft failure and must be reported as `未核实`, not guessed. Use `--no-easyscholar` only for a run that must avoid the external check.
 
 ## Reference Routing
 

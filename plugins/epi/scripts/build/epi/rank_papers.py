@@ -185,7 +185,8 @@ def _ranking_rubric(
     source_confidence = round(
         signals["venue_score"] * 0.35
         + signals["citation_score"] * 0.25
-        + signals["pdf_score"] * 0.4,
+        + signals["pdf_score"] * 0.30
+        + signals["easyscholar_score"] * 0.10,
         4,
     )
     method_rigor = round(signals["benchmark_score"] * 0.55 + signals["peer_review_score"] * 0.45, 4)
@@ -227,7 +228,12 @@ def _ranking_rubric(
         ),
         "source_confidence": _rubric_dimension(
             source_confidence,
-            ["venue_prior", "citation_signal", "pdf_available"],
+            [
+                "venue_prior",
+                "citation_signal",
+                "pdf_available",
+                *(["easyscholar_verified_metrics"] if signals["easyscholar_score"] > 0 else []),
+            ],
         ),
     }
     return {
@@ -248,6 +254,7 @@ def _ranking_protocol(
     matched_negative_keywords: list[str],
     signals: dict[str, float],
     code_available: bool,
+    easyscholar_signal: dict | None = None,
 ) -> dict:
     reasons: list[str] = []
     cautions: list[str] = []
@@ -259,6 +266,11 @@ def _ranking_protocol(
         reasons.append("code availability signal present")
     else:
         cautions.append("weak_reproducibility_signal")
+    if easyscholar_signal and float(easyscholar_signal.get("score") or 0) > 0:
+        evidence = ", ".join(str(item) for item in easyscholar_signal.get("evidence") or [])
+        reasons.append("EasyScholar verified metrics: " + evidence)
+    if easyscholar_signal:
+        cautions.extend(str(item) for item in easyscholar_signal.get("cautions") or [])
     if signals["benchmark_score"] < 0.34:
         cautions.append("weak_benchmark_signal")
     if signals["venue_score"] < 0.5:
@@ -462,13 +474,18 @@ def rank_candidates(
     negative_terms = [keyword.lower() for keyword in (negative_keywords or [])]
     for candidate in candidates:
         text = _text(candidate)
+        easyscholar_signal = (candidate.get("quality_signals") or {}).get("easyscholar") or {}
+        easyscholar_score = max(0.0, min(1.0, float(easyscholar_signal.get("score") or 0.0)))
         matched_keywords = _matched_keywords(text, keywords)
         matched_negative_keywords = _matched_keywords(text, negative_terms)
         keyword_hits = len(matched_keywords)
         topic_score = min(1.0, keyword_hits / max(1, len(keywords)))
         negative_keyword_penalty = min(1.0, len(matched_negative_keywords) / max(1, len(negative_terms)))
         profile_fit_score = max(0.0, topic_score - negative_keyword_penalty)
-        venue_score = venue_tiers.get(str(candidate.get("venue") or "").lower(), 0.45)
+        venue_score = max(
+            venue_tiers.get(str(candidate.get("venue") or "").lower(), 0.45),
+            0.45 + easyscholar_score * 0.40,
+        )
         citation_score = min(1.0, log10(int(candidate.get("citation_count") or 0) + 1) / 3)
         freshness_score = 1.0 if int(candidate.get("year") or 0) >= 2024 else 0.7
         pdf_score = 1.0 if candidate.get("pdf_url") else 0.0
@@ -500,6 +517,7 @@ def rank_candidates(
             "code_score": code_score,
             "benchmark_score": round(benchmark_score, 4),
             "reproducibility_terms_score": round(reproducibility_terms_score, 4),
+            "easyscholar_score": round(easyscholar_score, 4),
             "negative_keyword_penalty": round(negative_keyword_penalty, 4),
             "editorial_score": editorial_score,
             "peer_review_score": peer_review_score,
@@ -526,6 +544,7 @@ def rank_candidates(
                 "score": score,
             },
             code_available=bool(candidate.get("code_url")),
+            easyscholar_signal=easyscholar_signal,
         )
         protocol["paper_type"] = classification["primary_type"]
         protocol["classification_confidence"] = classification["confidence"]

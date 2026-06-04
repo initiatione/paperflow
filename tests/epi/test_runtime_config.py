@@ -40,7 +40,12 @@ def _write_fake_paper_search(tmp_path: Path, payload: dict) -> str:
 def test_apply_runtime_config_loads_plugin_level_commands_and_env_file(tmp_path, monkeypatch):
     runtime_path = tmp_path / "runtime.json"
     mineru_env = tmp_path / "mineru.env"
-    mineru_env.write_text("MINERU_TOKEN=dummy-token\nEPI_MINERU_COMMAND=from-env-file\n", encoding="utf-8")
+    mineru_env.write_text(
+        "MINERU_TOKEN=dummy-token\n"
+        "EPI_MINERU_COMMAND=from-env-file\n"
+        "EASYSCHOLAR_SECRET_KEY=easyscholar-secret\n",
+        encoding="utf-8",
+    )
     _write_json(
         runtime_path,
         {
@@ -57,6 +62,7 @@ def test_apply_runtime_config_loads_plugin_level_commands_and_env_file(tmp_path,
         "EPI_PAPER_SEARCH_COMMAND",
         "EPI_MINERU_COMMAND",
         "MINERU_TOKEN",
+        "EASYSCHOLAR_SECRET_KEY",
     ]:
         monkeypatch.delenv(key, raising=False)
 
@@ -68,9 +74,12 @@ def test_apply_runtime_config_loads_plugin_level_commands_and_env_file(tmp_path,
     assert os.environ["EPI_PAPER_SEARCH_COMMAND"] == "runtime-paper-search"
     assert os.environ["EPI_MINERU_COMMAND"] == "runtime-mineru"
     assert os.environ["MINERU_TOKEN"] == "dummy-token"
+    assert os.environ["EASYSCHOLAR_SECRET_KEY"] == "easyscholar-secret"
     assert status["loaded"] is True
     assert "MINERU_TOKEN" in status["applied_env"]
+    assert "EASYSCHOLAR_SECRET_KEY" in status["applied_env"]
     assert "dummy-token" not in json.dumps(status)
+    assert "easyscholar-secret" not in json.dumps(status)
 
 
 def test_apply_runtime_config_does_not_override_explicit_environment(tmp_path, monkeypatch):
@@ -95,7 +104,7 @@ def test_apply_runtime_config_does_not_override_explicit_environment(tmp_path, m
 def test_doctor_applies_runtime_config_before_dependency_checks(tmp_path, monkeypatch):
     runtime_path = tmp_path / "runtime.json"
     mineru_env = tmp_path / "mineru.env"
-    mineru_env.write_text("MINERU_TOKEN=dummy-token\n", encoding="utf-8")
+    mineru_env.write_text("MINERU_TOKEN=dummy-token\nEASYSCHOLAR_SECRET_KEY=easyscholar-secret\n", encoding="utf-8")
     _write_json(
         runtime_path,
         {
@@ -110,6 +119,7 @@ def test_doctor_applies_runtime_config_before_dependency_checks(tmp_path, monkey
         "EPI_PAPER_SEARCH_MCP_ARGS",
         "EPI_PAPER_SEARCH_COMMAND",
         "MINERU_TOKEN",
+        "EASYSCHOLAR_SECRET_KEY",
     ]:
         monkeypatch.delenv(key, raising=False)
 
@@ -136,9 +146,45 @@ def test_doctor_applies_runtime_config_before_dependency_checks(tmp_path, monkey
     assert checks["paper_search_mcp"]["status"] == "ok"
     assert checks["paper_search_cli"]["status"] == "ok"
     assert checks["mineru_token"]["status"] == "ok"
+    assert checks["easyscholar"]["status"] == "ok"
+    assert checks["easyscholar"]["secret_key"] == "set"
     assert checks["paper_search_cli"]["command"] == "runtime-paper-search"
     assert report["runtime_config"]["loaded"] is True
     assert "dummy-token" not in json.dumps(report)
+    assert "easyscholar-secret" not in json.dumps(report)
+
+
+def test_doctor_warns_when_easyscholar_secret_is_missing(tmp_path, monkeypatch):
+    monkeypatch.delenv("EASYSCHOLAR_SECRET_KEY", raising=False)
+    monkeypatch.setattr("epi.doctor.probe_paper_search_mcp_server", lambda timeout_seconds: {"available": False})
+    monkeypatch.setattr("epi.doctor.probe_paper_search_mcp", lambda command: {"available": False})
+
+    report = collect_doctor_report(
+        plugin_root=tmp_path / "plugin",
+        vault_path=tmp_path / "vault",
+        paper_search_command=None,
+    )
+
+    checks = {check["name"]: check for check in report["checks"]}
+    assert checks["easyscholar"]["status"] == "warning"
+    assert checks["easyscholar"]["secret_key"] == "missing"
+
+
+def test_config_status_include_runtime_reports_easyscholar_secret_without_value(tmp_path, monkeypatch, capsys):
+    from epi import cli
+
+    monkeypatch.setenv("EASYSCHOLAR_SECRET_KEY", "easyscholar-secret")
+    vault = tmp_path / "vault"
+    meta = vault / "_epi" / "meta"
+    meta.mkdir(parents=True)
+    (meta / "epi-config.yaml").write_text("profile: general_academic_research\n", encoding="utf-8")
+
+    exit_code = cli.main(["config-status", "--vault", str(vault), "--include-runtime", "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["easyscholar_secret_key"] == "set"
+    assert "easyscholar-secret" not in json.dumps(payload)
 
 
 def test_dry_run_uses_runtime_configured_cli_fallback(tmp_path, monkeypatch):

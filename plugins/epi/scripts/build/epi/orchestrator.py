@@ -18,6 +18,7 @@ from epi.artifacts import (
     write_text_atomic,
 )
 from epi.config import load_config
+from epi.easyscholar import config_from_environment, enrich_candidates_with_easyscholar
 from epi.epi_repository import cleanup_epi_repository, ensure_epi_repository, refresh_epi_manifest
 from epi.feedback import record_feedback
 from epi.evaluation_loop import build_improvement_brief, render_improvement_brief, write_improvement_brief
@@ -585,6 +586,7 @@ def run_dry_run(
     use_query_plan: bool = True,
     query_plan_domain: str = "auto",
     query_plan_max_queries: int = 6,
+    enable_easyscholar: bool = True,
 ) -> Path:
     config = load_config(plugin_root=plugin_root, vault_path=vault_path, max_results=max_results)
     configured_paper_search_command = (
@@ -626,6 +628,7 @@ def run_dry_run(
             "paper_search_adapter",
             "normalize_candidates",
             "filter_candidates",
+            "easyscholar",
             "rank_candidates",
             "report_run",
         ),
@@ -675,8 +678,26 @@ def run_dry_run(
     state["state"] = "filtered"
     _write_json(run_dir / "run-state.json", state)
 
+    easyscholar_config = config_from_environment(
+        config.vault_path,
+        enabled=bool(enable_easyscholar and config.easyscholar_enabled),
+        timeout_seconds=config.easyscholar_timeout_seconds,
+        cache_ttl_days=config.easyscholar_cache_ttl_days,
+        max_candidates_per_run=config.easyscholar_max_candidates_per_run,
+    )
+    enriched_filtered, easyscholar_record = enrich_candidates_with_easyscholar(filtered, easyscholar_config)
+    easyscholar_record_path = run_dir / "easyscholar-record.json"
+    _write_json(easyscholar_record_path, easyscholar_record)
+    state["state"] = "quality_enriched"
+    state["easyscholar"] = {
+        "enabled": easyscholar_record.get("enabled"),
+        "summary": easyscholar_record.get("summary", {}),
+        "record_path": str(easyscholar_record_path),
+    }
+    _write_json(run_dir / "run-state.json", state)
+
     ranked_pool = rank_candidates(
-        filtered,
+        enriched_filtered,
         positive_keywords=_ranking_keywords_from_profile(config, query, query_plan),
         negative_keywords=config.negative_keywords,
         venue_tiers=_venue_tiers_from_profile(config, query_plan),
@@ -712,6 +733,11 @@ def run_dry_run(
         },
         "query_records": search_record.get("query_records", []),
         "warnings": search_record.get("warnings", []),
+        "easyscholar": {
+            "enabled": easyscholar_record.get("enabled"),
+            "summary": easyscholar_record.get("summary", {}),
+            "record_path": str(easyscholar_record_path),
+        },
     }
     next_actions = ["Review accepted dry-run candidates before advancing ranked papers."]
     if rejected:
@@ -756,6 +782,7 @@ def run_dry_run(
             "search-record.json": run_dir / "search-record.json",
             "normalized.json": run_dir / "normalized.json",
             "filter-report.json": run_dir / "filter-report.json",
+            "easyscholar-record.json": run_dir / "easyscholar-record.json",
             "rank.json": run_dir / "rank.json",
             "report.md": run_dir / "report.md",
             "paper-search-raw.json": run_dir / "paper-search-raw.json",

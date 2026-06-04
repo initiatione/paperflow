@@ -73,6 +73,20 @@ def test_dry_run_parser_accepts_json_output():
     assert args.json is True
 
 
+def test_dry_run_parser_accepts_no_easyscholar_override():
+    args = build_parser().parse_args(
+        [
+            "dry-run",
+            "--query",
+            "AUV reinforcement learning control",
+            "--no-easyscholar",
+        ]
+    )
+
+    assert args.command == "dry-run"
+    assert args.no_easyscholar is True
+
+
 def test_dry_run_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatch, capsys):
     run_dir = tmp_path / "_epi" / "runs" / "run-json-001"
     run_dir.mkdir(parents=True)
@@ -113,6 +127,34 @@ def test_dry_run_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatch, caps
     assert payload["artifacts"]["rank"] == str(run_dir / "rank.json")
     assert captured["query"] == "AUV reinforcement learning control"
     assert captured["use_query_plan"] is True
+    assert captured["enable_easyscholar"] is True
+
+
+def test_dry_run_cli_passes_no_easyscholar_to_workflow(tmp_path, monkeypatch):
+    run_dir = tmp_path / "_epi" / "runs" / "run-json-001"
+    run_dir.mkdir(parents=True)
+    captured = {}
+
+    def fake_run_dry_run(**kwargs):
+        captured.update(kwargs)
+        return run_dir
+
+    monkeypatch.setattr(cli.workflows, "run_dry_run", fake_run_dry_run)
+
+    exit_code = cli.main(
+        [
+            "dry-run",
+            "--query",
+            "AUV reinforcement learning control",
+            "--vault",
+            str(tmp_path),
+            "--no-easyscholar",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["enable_easyscholar"] is False
+
 
 
 def test_dry_run_parser_accepts_profile_derived_query_plan_domain():

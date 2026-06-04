@@ -214,6 +214,42 @@ def test_paper_discovery_chat_output_requires_priority_abstracts_and_metrics():
     assert "禁止返回未排序的标题清单" in linkage
 
 
+def test_docs_document_easyscholar_enrichment_contract():
+    attribution = _read("attribution.md")
+    config = _read("config.md")
+    workflow = _read("workflow.md")
+    skill = (PLUGIN_ROOT / "skills" / "paper-discovery" / "SKILL.md").read_text(encoding="utf-8")
+    ranking_rubric = (
+        PLUGIN_ROOT / "skills" / "paper-discovery" / "references" / "ranking-rubric.md"
+    ).read_text(encoding="utf-8")
+    quality_gate = (
+        PLUGIN_ROOT / "skills" / "paper-discovery" / "references" / "quality-gate.md"
+    ).read_text(encoding="utf-8")
+    output_format = (
+        PLUGIN_ROOT / "skills" / "paper-discovery" / "references" / "output-format.md"
+    ).read_text(encoding="utf-8")
+    vendor_notice = (PLUGIN_ROOT / "vendor-notices" / "easyscholar-mcp.md").read_text(encoding="utf-8")
+    combined = "\n".join([attribution, config, workflow, skill, ranking_rubric, quality_gate, output_format, vendor_notice])
+
+    for phrase in [
+        "EasyScholar",
+        "chaosman42/easyscholar-mcp",
+        "MIT License",
+        "EASYSCHOLAR_SECRET_KEY",
+        "default-on",
+        "--no-easyscholar",
+        "easyscholar-record.json",
+        "easyscholar_score",
+        "verified_metrics.easyscholar",
+        "未核实",
+    ]:
+        assert phrase in combined
+    assert "EASYSCHOLAR_SECRET_KEY=set" in config
+    assert "EASYSCHOLAR_SECRET_KEY=missing" in config
+    assert "secretKey" not in workflow
+    assert "cannot by itself make a paper Tier A" in quality_gate
+
+
 def test_human_approval_requires_single_readable_approval_report():
     paper_ingest = (PLUGIN_ROOT / "skills" / "paper-ingest" / "SKILL.md").read_text(
         encoding="utf-8"

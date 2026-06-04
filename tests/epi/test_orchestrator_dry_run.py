@@ -1,6 +1,8 @@
 import json
 from datetime import datetime, timezone
 
+import pytest
+
 from epi import orchestrator as orchestrator_module
 from epi.artifacts import file_sha256
 from epi.orchestrator import run_dry_run
@@ -30,6 +32,12 @@ def _write_fake_paper_search(tmp_path, payload: dict) -> str:
         encoding="utf-8",
     )
     return str(script)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_runtime_and_easyscholar_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("EPI_RUNTIME_CONFIG", str(tmp_path / "missing-runtime.json"))
+    monkeypatch.delenv("EASYSCHOLAR_SECRET_KEY", raising=False)
 
 
 def test_write_json_uses_atomic_writer(tmp_path, monkeypatch):
@@ -94,12 +102,14 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert (run_dir / "search-record.json").is_file()
     assert (run_dir / "normalized.json").is_file()
     assert (run_dir / "filter-report.json").is_file()
+    assert (run_dir / "easyscholar-record.json").is_file()
     assert (run_dir / "rank.json").is_file()
     assert (run_dir / "report.md").is_file()
     state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
     query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
     ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
     report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    easyscholar_record = json.loads((run_dir / "easyscholar-record.json").read_text(encoding="utf-8"))
     report_md = (run_dir / "report.md").read_text(encoding="utf-8")
     index_payload = json.loads((run_dir.parent / "index.json").read_text(encoding="utf-8"))
     dashboard_text = (run_dir.parent / "dashboard.md").read_text(encoding="utf-8")
@@ -120,21 +130,31 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert report["discovery_context"]["query_plan"]["domain"] == "profile-derived"
     assert report["discovery_context"]["research_mode"]["mode"] == "targeted-discovery"
     assert report["discovery_context"]["candidate_pool"]["raw"] == 2
+    assert report["discovery_context"]["easyscholar"]["summary"]["missing_key"] == 1
+    assert report["easyscholar"]["record_path"] == str(run_dir / "easyscholar-record.json")
+    assert easyscholar_record["schema_version"] == "epi-easyscholar-record-v1"
+    assert easyscholar_record["summary"]["missing_key"] == 1
     assert state["started_at"]
     assert state["finished_at"]
     assert state["exit_status"] == 0
     assert state["tool_versions"]["orchestrator"] == "epi-local"
     assert state["tool_versions"]["paper_search_adapter"] == "epi-local"
+    assert state["tool_versions"]["easyscholar"] == "epi-local"
     assert len(state["input_artifact_hashes"]["request"]) == 64
     assert state["input_artifact_hashes"]["fixture.json"] == file_sha256(fixture)
     assert state["output_artifact_hashes"]["search-record.json"] == file_sha256(run_dir / "search-record.json")
     assert state["output_artifact_hashes"]["normalized.json"] == file_sha256(run_dir / "normalized.json")
     assert state["output_artifact_hashes"]["filter-report.json"] == file_sha256(run_dir / "filter-report.json")
+    assert state["output_artifact_hashes"]["easyscholar-record.json"] == file_sha256(
+        run_dir / "easyscholar-record.json"
+    )
     assert state["output_artifact_hashes"]["rank.json"] == file_sha256(run_dir / "rank.json")
     assert state["output_artifact_hashes"]["report.md"] == file_sha256(run_dir / "report.md")
     assert report["workflow_type"] == "paper-discovery-dry-run"
     assert report["run_id"] == run_dir.name
     assert report["accepted"][0]["title"] == "Embodied Navigation Control for Mobile Robots"
+    assert report["accepted"][0]["easyscholar_status"] == "missing_key"
+    assert report["accepted"][0]["ranking_signals"]["easyscholar_score"] == 0.0
     assert ranked[0]["ranking_protocol"]["schema_version"] == "epi-ranking-protocol-v1"
     assert ranked[0]["paper_classification"]["schema_version"] == "epi-paper-classification-v1"
     assert ranked[0]["ranking_rubric"]["schema_version"] == "epi-ranking-rubric-v1"
@@ -175,12 +195,54 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert f"Run ID: {run_dir.name}" in report_md
     assert report_md.startswith("# EPI Dry Run")
     assert "## Budget Usage" in report_md
+    assert "## EasyScholar Enrichment" in report_md
+    assert "missing_key: 1" in report_md
     assert "quality_tier:" in report_md
     assert "## Next Actions" in report_md
     assert index_payload["runs"][0]["run_id"] == run_dir.name
     assert index_payload["runs"][0]["workflow_type"] == "paper-discovery-dry-run"
     assert run_dir.name in dashboard_text
     assert sorted(path.name for path in (tmp_path / "vault").iterdir()) == ["_epi"]
+
+
+def test_dry_run_can_disable_easyscholar_for_single_run(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Embodied Navigation Control for Mobile Robots",
+                    "authors": ["B. Engineer"],
+                    "year": 2024,
+                    "venue": "IROS",
+                    "abstract": "Robotics navigation and control with code.",
+                    "pdf_url": "https://example.org/nav.pdf",
+                    "citation_count": 9,
+                    "code_url": "https://github.com/example/nav",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="robotics navigation control",
+        max_results=5,
+        fixture_path=fixture,
+        enable_easyscholar=False,
+    )
+
+    record = json.loads((run_dir / "easyscholar-record.json").read_text(encoding="utf-8"))
+    ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
+
+    assert record["enabled"] is False
+    assert record["summary"]["disabled"] == 1
+    assert ranked[0]["easyscholar_status"] == "disabled"
 
 
 def test_dry_run_query_plan_searches_variants_and_merges_candidate_pool(tmp_path):

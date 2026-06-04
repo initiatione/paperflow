@@ -112,6 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["auto", "profile", "auv-control", "embodied-ai", "general-robotics"],
     )
     dry_run.add_argument("--query-plan-max-queries", type=int, default=6)
+    dry_run.add_argument("--no-easyscholar", action="store_true")
     dry_run.add_argument("--json", action="store_true")
 
     ingest_one = subparsers.add_parser("ingest-one")

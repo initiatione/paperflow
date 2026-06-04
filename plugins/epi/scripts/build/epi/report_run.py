@@ -173,6 +173,21 @@ def _append_zotero_section(report: list[str], zotero_results: dict) -> None:
         report.append(f"- final_wiki_pages: {len(final_pages)}")
 
 
+def _append_easyscholar_section(report: list[str], easyscholar: dict) -> None:
+    if not easyscholar:
+        return
+    report.append("")
+    report.append("## EasyScholar Enrichment")
+    report.append(f"- enabled: {easyscholar.get('enabled')}")
+    if easyscholar.get("record_path"):
+        report.append(f"- record_path: {easyscholar['record_path']}")
+    summary = easyscholar.get("summary") if isinstance(easyscholar.get("summary"), dict) else {}
+    if summary:
+        report.append("- summary:")
+        for status, count in sorted(summary.items()):
+            report.append(f"  - {status}: {count}")
+
+
 def write_report(
     run_dir: Path,
     ranked: list[dict],
@@ -214,6 +229,8 @@ def write_report(
     reader_revision_plans = reader_revision_plans or []
     reproduction_plans = reproduction_plans or []
     discovery_context = discovery_context or {}
+    easyscholar_context = discovery_context.get("easyscholar") if isinstance(discovery_context, dict) else {}
+    easyscholar_context = easyscholar_context if isinstance(easyscholar_context, dict) else {}
     research_queue = _research_queue(ranked)
 
     if workflow_type in {"dry-run", "paper-discovery-dry-run"}:
@@ -252,6 +269,7 @@ def write_report(
             query_records = discovery_context.get("query_records") or []
             if query_records:
                 report.append(f"- query_records: {len(query_records)}")
+        _append_easyscholar_section(report, easyscholar_context)
         report.append("")
         report.append("## Next Actions")
         if next_actions:
@@ -387,6 +405,7 @@ def write_report(
             "reader_revision_plans": reader_revision_plans,
             "reproduction_plans": reproduction_plans,
             "discovery_context": discovery_context,
+            "easyscholar": easyscholar_context,
             "research_queue": research_queue,
             "accepted_count": len(ranked),
             "errors": errors,

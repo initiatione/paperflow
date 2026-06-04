@@ -53,6 +53,7 @@ def _handle_config_status(args: argparse.Namespace) -> int:
         runtime = apply_runtime_config()
         status["runtime_config"] = runtime
         status["mineru_token"] = "set" if os.environ.get("MINERU_TOKEN") else "missing"
+        status["easyscholar_secret_key"] = "set" if os.environ.get("EASYSCHOLAR_SECRET_KEY") else "missing"
     if args.json:
         print(json.dumps(status, ensure_ascii=False, indent=2))
     else:
@@ -62,6 +63,7 @@ def _handle_config_status(args: argparse.Namespace) -> int:
         if args.include_runtime:
             print(f"runtime_config_path={status['runtime_config']['path']}")
             print(f"MINERU_TOKEN={status['mineru_token']}")
+            print(f"EASYSCHOLAR_SECRET_KEY={status['easyscholar_secret_key']}")
     return 0 if status["configured"] else 1
 
 
@@ -120,6 +122,7 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
         use_query_plan=not args.no_query_plan,
         query_plan_domain=args.query_plan_domain,
         query_plan_max_queries=args.query_plan_max_queries,
+        enable_easyscholar=not args.no_easyscholar,
     )
     if args.json:
         payload = {
