@@ -7,16 +7,16 @@ Repository: `D:\paper-search`
 
 ## Purpose
 
-Create a Codex marketplace plugin named `paper-research-wiki` that gives users one simple paper-wiki assistant for EPI-collected papers.
+Create a Codex marketplace plugin package named `prw`, stored under `plugins/PRW`, that gives users one simple paper-wiki assistant for EPI-collected papers.
 
 The user experience should be plugin-first, not skill-list-first. A user should be able to invoke the plugin with natural requests such as:
 
-- `@paper-research-wiki 提取这些论文`
-- `@paper-research-wiki 检测 wiki 库`
-- `@paper-research-wiki 更新 wiki 库`
-- `@paper-research-wiki 把 EPI 收集到的论文沉淀进 wiki`
-- `@paper-research-wiki 直接沉淀 EPI 抓下来的论文`
-- `@paper-research-wiki 继续上次的论文沉淀`
+- `@PRW 提取这些论文`
+- `@PRW 检测 wiki 库`
+- `@PRW 更新 wiki 库`
+- `@PRW 把 EPI 收集到的论文沉淀进 wiki`
+- `@PRW 直接沉淀 EPI 抓下来的论文`
+- `@PRW 继续上次的论文沉淀`
 
 The plugin should automatically route these requests to the right internal workflow. Users should not need to know separate skill names such as `paper-provenance`, `paper-lint`, `paper-stage-commit`, or `paper-taxonomy`.
 
@@ -26,7 +26,7 @@ EPI remains the paper evidence engine: it discovers papers, preserves source bun
 
 ## Confirmed Decisions
 
-- Plugin identifier and folder name: `paper-research-wiki`.
+- Plugin package identifier: `prw`; folder name: `PRW`.
 - Marketplace display name: `Paper Research Wiki`.
 - The plugin is a sibling of `plugins/epi`, not a subdirectory of EPI.
 - Add the plugin to both `marketplace.json` and `.agents/plugins/marketplace.json`.
@@ -121,7 +121,7 @@ Behavior:
 Target layout:
 
 ```text
-plugins/paper-research-wiki/
+plugins/PRW/
   .codex-plugin/
     plugin.json
   AGENTS.md
@@ -222,7 +222,7 @@ Formal pages must not be created inside `_epi/`, legacy `_raw/`, legacy `_stagin
 Initial validation should cover:
 
 - Plugin manifest validates.
-- Marketplace entries exist in both marketplace files and point to `./plugins/paper-research-wiki`.
+- Marketplace entries exist in both marketplace files and point to `./plugins/PRW`.
 - Exactly one public skill exists: `skills/paper-research-wiki/SKILL.md`.
 - The public skill description and default prompts include natural Chinese actions: `提取`, `检测`, `更新`, `沉淀`.
 - The public skill routes to three internal workflows: `extract-papers.md`, `check-wiki.md`, and `update-wiki.md`.
@@ -240,7 +240,7 @@ The implementation plan should start with a marketplace-visible plugin scaffold 
 Recommended first slice:
 
 1. Add tests for single-skill UX and marketplace registration.
-2. Scaffold `plugins/paper-research-wiki`.
+2. Scaffold `plugins/PRW`.
 3. Add one public skill plus three internal workflows.
 4. Add docs, rules, and references.
 5. Update EPI docs or skills only where they point to the new plugin-level bridge.

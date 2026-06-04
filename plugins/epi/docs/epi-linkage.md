@@ -32,7 +32,7 @@ EPI 不能把 Obsidian Wiki 写入规则简化成“调用本机 `llm-wiki` / `w
 2. 目标 vault `AGENTS.md`：用户个性化约定、领域词汇、写作风格和安全边界。
 3. 目标 vault `_meta/agent-operating-contract.md`。
 4. 目标 vault `_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`：最终路由、页面类型、标签、链接、staged writes、合并/拆分策略。
-5. `paper-research-wiki` 插件：面向用户的一体化论文 wiki 助手，支持通过 `$paper-research-wiki` 提取 EPI 论文、检测 wiki 库、更新 wiki 库和 `重link`，并在内部执行 source-first provenance、七类正式页面、staged review、paper lint、cross-link/relink 和 EPI handoff 消费。
+5. `prw` 插件包（目录 `plugins/PRW`）：面向用户的一体化论文 wiki 助手，提供 `$paper-research-wiki`，支持提取 EPI 论文、检测 wiki 库、更新 wiki 库和 `重link`，并在内部执行 source-first provenance、七类正式页面、staged review、paper lint、cross-link/relink 和 EPI handoff 消费。
 6. `initiatione/obsidian-wiki-dev` 的 `liuchf/wiki-skills` 分支：个性化 multi-vault contract、QMD 只是检索辅助、Markdown vault 是 source of truth。
 7. `Ar9av/obsidian-wiki`：agent-mediated LLM Wiki 架构、manifest/index/log/hot、provenance、先搜索/合并再创建页面。
 8. `kepano/obsidian-skills`：Obsidian 语法、properties/frontmatter、wikilinks、embeds、callouts、bases/canvas 等格式约定。

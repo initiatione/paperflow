@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first marketplace-visible `paper-research-wiki` plugin with one user-facing skill that defaults to depositing EPI-collected papers into the wiki through natural language.
+**Goal:** Build the first marketplace-visible `prw` plugin package with one user-facing `paper-research-wiki` skill that defaults to depositing EPI-collected papers into the wiki through natural language.
 
-**Architecture:** Add a sibling plugin under `plugins/paper-research-wiki`. Expose one public skill named `paper-research-wiki`; keep detailed behavior in internal workflows, rules, and references so users do not need to learn many skill names. The default path is status-first but deposition-default: vague EPI/wiki requests run a readiness preflight, then recommend depositing ready EPI papers. EPI remains responsible for discovery, MinerU, paper-gate, human approval records, and `record-wiki-ingest`.
+**Architecture:** Add a sibling plugin under `plugins/PRW`. Expose one public skill named `paper-research-wiki`; keep detailed behavior in internal workflows, rules, and references so users do not need to learn many skill names. The default path is status-first but deposition-default: vague EPI/wiki requests run a readiness preflight, then recommend depositing ready EPI papers. EPI remains responsible for discovery, MinerU, paper-gate, human approval records, and `record-wiki-ingest`.
 
 **Tech Stack:** Codex plugin manifest JSON, Markdown skills/workflows, Python 3.13 pytest, existing plugin-creator validation script.
 
@@ -33,18 +33,18 @@ Excluded:
 ## File Map
 
 - Create `D:\paper-search\tests\paper_research_wiki\test_plugin_contract.py`: root tests for marketplace, manifest, single public skill, workflows, docs, and EPI bridge.
-- Create `D:\paper-search\plugins\paper-research-wiki\.codex-plugin\plugin.json`: Codex plugin manifest.
+- Create `D:\paper-search\plugins\PRW\.codex-plugin\plugin.json`: Codex plugin manifest.
 - Modify `D:\paper-search\marketplace.json`: add local marketplace entry.
 - Modify `D:\paper-search\.agents\plugins\marketplace.json`: add matching local marketplace entry.
-- Create `D:\paper-search\plugins\paper-research-wiki\AGENTS.md`: thin shell.
-- Create `D:\paper-search\plugins\paper-research-wiki\skills\paper-research-wiki\SKILL.md`: single public entrypoint.
-- Create `D:\paper-search\plugins\paper-research-wiki\skills\paper-research-wiki\agents\openai.yaml`: UI metadata.
-- Create workflows under `D:\paper-search\plugins\paper-research-wiki\skills\paper-research-wiki\workflows\`: `extract-papers.md`, `check-wiki.md`, `update-wiki.md`.
-- Create references under `D:\paper-search\plugins\paper-research-wiki\skills\paper-research-wiki\references\`: `epi-artifact-contract.md`, `page-provenance.md`, `page-family-contract.md`, `upstream-obsidian-wiki-map.md`.
-- Create docs under `D:\paper-search\plugins\paper-research-wiki\docs\`: `workflow.md`, `structure.md`, `epi-integration.md`, `provenance.md`, `privacy.md`, `terms.md`.
-- Create rules under `D:\paper-search\plugins\paper-research-wiki\rules\`: `source-trust.md`, `page-families.md`, `formal-page-frontmatter.md`.
-- Modify `D:\paper-search\plugins\epi\skills\epi-paper-deposition\SKILL.md`: point to the plugin-level `paper-research-wiki` UX.
-- Modify `D:\paper-search\plugins\epi\skills\epi-paper-deposition\workflows\formal-wiki-write.md`: name `paper-research-wiki` as the preferred formal paper wiki layer.
+- Create `D:\paper-search\plugins\PRW\AGENTS.md`: thin shell.
+- Create `D:\paper-search\plugins\PRW\skills\paper-research-wiki\SKILL.md`: single public entrypoint.
+- Create `D:\paper-search\plugins\PRW\skills\paper-research-wiki\agents\openai.yaml`: UI metadata.
+- Create workflows under `D:\paper-search\plugins\PRW\skills\paper-research-wiki\workflows\`: `extract-papers.md`, `check-wiki.md`, `update-wiki.md`.
+- Create references under `D:\paper-search\plugins\PRW\skills\paper-research-wiki\references\`: `epi-artifact-contract.md`, `page-provenance.md`, `page-family-contract.md`, `upstream-obsidian-wiki-map.md`.
+- Create docs under `D:\paper-search\plugins\PRW\docs\`: `workflow.md`, `structure.md`, `epi-integration.md`, `provenance.md`, `privacy.md`, `terms.md`.
+- Create rules under `D:\paper-search\plugins\PRW\rules\`: `source-trust.md`, `page-families.md`, `formal-page-frontmatter.md`.
+- Modify `D:\paper-search\plugins\epi\skills\epi-paper-deposition\SKILL.md`: point to the plugin-level `prw` / `$paper-research-wiki` UX.
+- Modify `D:\paper-search\plugins\epi\skills\epi-paper-deposition\workflows\formal-wiki-write.md`: name `prw` as the preferred formal paper wiki plugin package and `$paper-research-wiki` as its public skill.
 - Modify `D:\paper-search\plugins\epi\docs\structure.md`: document the sibling plugin boundary.
 - Modify `D:\paper-search\plugins\epi\docs\epi-linkage.md`: document the bridge in the Obsidian Wiki rule source model.
 
@@ -52,7 +52,7 @@ Excluded:
 
 ```powershell
 python -m pytest tests\paper_research_wiki -q --basetemp .pytest_tmp_paper_research_wiki
-python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\paper-research-wiki
+python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\PRW
 git diff --check
 ```
 
@@ -74,7 +74,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PLUGIN = ROOT / "plugins" / "paper-research-wiki"
+PLUGIN = ROOT / "plugins" / "PRW"
 PUBLIC_SKILL = PLUGIN / "skills" / "paper-research-wiki"
 MARKETPLACES = [
     ROOT / "marketplace.json",
@@ -121,7 +121,7 @@ def _read(path: Path) -> str:
 def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["name"] == "paper-research-wiki"
+    assert manifest["name"] == "prw"
     assert manifest["version"] == "0.1.0"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Research Wiki"
@@ -136,11 +136,11 @@ def test_marketplaces_register_paper_research_wiki():
         marketplace = _read_json(marketplace_path)
         entries = {entry["name"]: entry for entry in marketplace["plugins"]}
 
-        assert "paper-research-wiki" in entries, marketplace_path
-        entry = entries["paper-research-wiki"]
+        assert "prw" in entries, marketplace_path
+        entry = entries["prw"]
         assert entry["source"] == {
             "source": "local",
-            "path": "./plugins/paper-research-wiki",
+            "path": "./plugins/PRW",
         }
         assert entry["policy"] == {
             "installation": "AVAILABLE",
@@ -311,10 +311,10 @@ Expected: FAIL because the plugin and EPI bridge text do not exist yet.
 
 **Files:**
 
-- Create: `D:\paper-search\plugins\paper-research-wiki\.codex-plugin\plugin.json`
-- Create: `D:\paper-search\plugins\paper-research-wiki\AGENTS.md`
-- Create: `D:\paper-search\plugins\paper-research-wiki\skills\paper-research-wiki\SKILL.md`
-- Create: `D:\paper-search\plugins\paper-research-wiki\skills\paper-research-wiki\agents\openai.yaml`
+- Create: `D:\paper-search\plugins\PRW\.codex-plugin\plugin.json`
+- Create: `D:\paper-search\plugins\PRW\AGENTS.md`
+- Create: `D:\paper-search\plugins\PRW\skills\paper-research-wiki\SKILL.md`
+- Create: `D:\paper-search\plugins\PRW\skills\paper-research-wiki\agents\openai.yaml`
 - Modify: `D:\paper-search\marketplace.json`
 - Modify: `D:\paper-search\.agents\plugins\marketplace.json`
 
@@ -324,7 +324,7 @@ Use this full JSON:
 
 ```json
 {
-  "name": "paper-research-wiki",
+  "name": "prw",
   "version": "0.1.0",
   "description": "Extract, check, and update academic paper knowledge in an EPI-compatible Obsidian/LLM Wiki.",
   "author": {
@@ -352,8 +352,8 @@ Use this full JSON:
       "Write"
     ],
     "websiteURL": "https://github.com/initiatione/paper-search",
-    "privacyPolicyURL": "https://github.com/initiatione/paper-search/blob/main/plugins/paper-research-wiki/docs/privacy.md",
-    "termsOfServiceURL": "https://github.com/initiatione/paper-search/blob/main/plugins/paper-research-wiki/docs/terms.md",
+    "privacyPolicyURL": "https://github.com/initiatione/paper-search/blob/main/plugins/PRW/docs/privacy.md",
+    "termsOfServiceURL": "https://github.com/initiatione/paper-search/blob/main/plugins/PRW/docs/terms.md",
     "defaultPrompt": [
       "直接沉淀 EPI 抓下来的论文到 wiki。",
       "检测论文 wiki 库的状态、缺口和待处理任务。",
@@ -369,10 +369,10 @@ Append this entry to the `plugins` array in both `D:\paper-search\marketplace.js
 
 ```json
 {
-  "name": "paper-research-wiki",
+  "name": "prw",
   "source": {
     "source": "local",
-    "path": "./plugins/paper-research-wiki"
+    "path": "./plugins/PRW"
   },
   "policy": {
     "installation": "AVAILABLE",
@@ -605,7 +605,7 @@ EPI prepares source bundles and handoff artifacts. Paper Research Wiki reads the
 ```markdown
 # Paper Research Wiki Structure
 
-This plugin lives at `plugins/paper-research-wiki` and has one public skill: `skills/paper-research-wiki/SKILL.md`.
+This plugin lives at `plugins/PRW` and has one public skill: `skills/paper-research-wiki/SKILL.md`.
 
 Detailed behavior lives in workflows and references so users can invoke the plugin with natural requests instead of skill names.
 ```
@@ -725,7 +725,7 @@ Expected: FAIL only on `test_epi_bridge_points_to_plugin_level_experience`, beca
 In `plugins\epi\skills\epi-paper-deposition\SKILL.md`, add this paragraph after the compatibility note:
 
 ```markdown
-Preferred user experience: when the `paper-research-wiki` plugin is installed, route formal paper wiki work through `$paper-research-wiki`. Users should be able to ask it to `提取` EPI papers, `检测` the wiki library, or `更新` the wiki library without choosing internal workflow names. This EPI skill remains a compatibility bridge for existing `wiki_deposition_task.json` artifacts.
+Preferred user experience: when the `prw` plugin package (`plugins/PRW`) is installed, route formal paper wiki work through `$paper-research-wiki`. Users should be able to ask it to `提取` EPI papers, `检测` the wiki library, or `更新` the wiki library without choosing internal workflow names. This EPI skill remains a compatibility bridge for existing `wiki_deposition_task.json` artifacts.
 ```
 
 - [ ] **Step 2: Update EPI formal workflow**
@@ -733,7 +733,7 @@ Preferred user experience: when the `paper-research-wiki` plugin is installed, r
 In `plugins\epi\skills\epi-paper-deposition\workflows\formal-wiki-write.md`, add this paragraph under `## Use Wiki Skill Stack`:
 
 ```markdown
-If the `paper-research-wiki` plugin is available, prefer it as the plugin-level paper wiki assistant. Invoke `$paper-research-wiki` with natural actions such as `提取这些论文`, `检测 wiki 库`, or `更新 wiki 库`; its internal workflows handle source-first deposition, provenance, lint, staged review, and taxonomy.
+If the `prw` plugin package (`plugins/PRW`) is available, prefer it as the plugin-level paper wiki assistant. Invoke `$paper-research-wiki` with natural actions such as `提取这些论文`, `检测 wiki 库`, or `更新 wiki 库`; its internal workflows handle source-first deposition, provenance, lint, staged review, and taxonomy.
 ```
 
 - [ ] **Step 3: Update EPI structure docs**
@@ -741,15 +741,15 @@ If the `paper-research-wiki` plugin is available, prefer it as the plugin-level 
 In `plugins\epi\docs\structure.md`, add this paragraph in `## 总体边界` after the paragraph that starts with `EPI 自身不应该`:
 
 ```markdown
-新的 sibling 插件 `paper-research-wiki` 是面向用户的一体化论文 wiki 助手：用户只需要通过 `$paper-research-wiki` 请求 `提取` EPI 论文、`检测` wiki 库或 `更新` wiki 库。它内部消费 EPI 产出的 `wiki_deposition_task.json`、`wiki-ingest-brief.json`、source bundle 和 final-source-review contract；EPI 保留发现、采集、MinerU、paper-gate、人类批准记录和 `record-wiki-ingest`。
+新的 sibling 插件包 `prw`（目录 `plugins/PRW`）是面向用户的一体化论文 wiki 助手，并提供公共 skill `$paper-research-wiki`：用户只需要请求 `提取` EPI 论文、`检测` wiki 库或 `更新` wiki 库。它内部消费 EPI 产出的 `wiki_deposition_task.json`、`wiki-ingest-brief.json`、source bundle 和 final-source-review contract；EPI 保留发现、采集、MinerU、paper-gate、人类批准记录和 `record-wiki-ingest`。
 ```
 
 - [ ] **Step 4: Update EPI linkage docs**
 
-In `plugins\epi\docs\epi-linkage.md`, add `paper-research-wiki` to the Obsidian Wiki rule source model list immediately before `initiatione/obsidian-wiki-dev`:
+In `plugins\epi\docs\epi-linkage.md`, add `prw` / `$paper-research-wiki` to the Obsidian Wiki rule source model list immediately before `initiatione/obsidian-wiki-dev`:
 
 ```markdown
-5. `paper-research-wiki` 插件：面向用户的一体化论文 wiki 助手，支持通过 `$paper-research-wiki` 提取 EPI 论文、检测 wiki 库、更新 wiki 库，并在内部执行 source-first provenance、七类正式页面、staged review、paper lint 和 EPI handoff 消费。
+5. `prw` 插件包（目录 `plugins/PRW`）：面向用户的一体化论文 wiki 助手，提供 `$paper-research-wiki`，支持提取 EPI 论文、检测 wiki 库、更新 wiki 库，并在内部执行 source-first provenance、七类正式页面、staged review、paper lint 和 EPI handoff 消费。
 ```
 
 Renumber the following items in that list by one. In the paragraph that lists required skills for handoff checks, add:
@@ -791,7 +791,7 @@ Expected: PASS.
 Run:
 
 ```powershell
-python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\paper-research-wiki
+python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\PRW
 ```
 
 Expected: PASS or validator success output.
@@ -814,14 +814,14 @@ Run:
 git status --short
 ```
 
-Expected: changed files are limited to `plugins/paper-research-wiki`, `tests/paper_research_wiki`, both marketplace files, and the four EPI bridge files named in Task 4.
+Expected: changed files are limited to `plugins/PRW`, `tests/paper_research_wiki`, both marketplace files, the two plugin design docs, and the four EPI bridge files named in Task 4.
 
 - [ ] **Step 5: Commit implementation slice**
 
 Run:
 
 ```powershell
-git add -- marketplace.json .agents/plugins/marketplace.json plugins/paper-research-wiki tests/paper_research_wiki plugins/epi/skills/epi-paper-deposition/SKILL.md plugins/epi/skills/epi-paper-deposition/workflows/formal-wiki-write.md plugins/epi/docs/structure.md plugins/epi/docs/epi-linkage.md
+git add -- marketplace.json .agents/plugins/marketplace.json plugins/PRW tests/paper_research_wiki plugins/epi/skills/epi-paper-deposition/SKILL.md plugins/epi/skills/epi-paper-deposition/workflows/formal-wiki-write.md plugins/epi/docs/structure.md plugins/epi/docs/epi-linkage.md
 git commit -m "feat: add paper research wiki plugin scaffold"
 ```
 

@@ -1,5 +1,5 @@
 {
-  "name": "paper-research-wiki",
+  "name": "prw",
   "version": "0.1.0",
   "description": "Extract, check, update, and relink academic paper knowledge in an EPI-compatible Obsidian/LLM Wiki.",
   "author": {
@@ -27,8 +27,8 @@
       "Write"
     ],
     "websiteURL": "https://github.com/initiatione/paper-search",
-    "privacyPolicyURL": "https://github.com/initiatione/paper-search/blob/main/plugins/paper-research-wiki/docs/privacy.md",
-    "termsOfServiceURL": "https://github.com/initiatione/paper-search/blob/main/plugins/paper-research-wiki/docs/terms.md",
+    "privacyPolicyURL": "https://github.com/initiatione/paper-search/blob/main/plugins/PRW/docs/privacy.md",
+    "termsOfServiceURL": "https://github.com/initiatione/paper-search/blob/main/plugins/PRW/docs/terms.md",
     "defaultPrompt": [
       "提取并直接沉淀 EPI 抓下来的论文到 wiki。",
       "检测论文 wiki 库的状态、缺口和待处理任务。",

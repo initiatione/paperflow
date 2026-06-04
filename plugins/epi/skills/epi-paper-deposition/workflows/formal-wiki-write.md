@@ -23,7 +23,7 @@ Reader and critic files reduce reading cost when present. They are evidence aids
 
 Use the obsidian-wiki layer explicitly:
 
-If the `paper-research-wiki` plugin is available, prefer it as the plugin-level paper wiki assistant. Invoke `$paper-research-wiki` with natural actions such as `提取这些论文`, `检测 wiki 库`, `更新 wiki 库`, or `重link`; its internal workflows handle source-first deposition, provenance, lint, staged review, taxonomy, and relinking.
+If the `prw` plugin package (`plugins/PRW`) is available, prefer it as the plugin-level paper wiki assistant. Invoke `$paper-research-wiki` with natural actions such as `提取这些论文`, `检测 wiki 库`, `更新 wiki 库`, or `重link`; its internal workflows handle source-first deposition, provenance, lint, staged review, taxonomy, and relinking.
 
 - `llm-wiki` for source-first knowledge compilation.
 - `wiki-context-pack` before writing, so related pages are read first.

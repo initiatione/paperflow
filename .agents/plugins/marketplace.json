@@ -17,10 +17,10 @@
       "category": "Productivity"
     },
     {
-      "name": "paper-research-wiki",
+      "name": "prw",
       "source": {
         "source": "local",
-        "path": "./plugins/paper-research-wiki"
+        "path": "./plugins/PRW"
       },
       "policy": {
         "installation": "AVAILABLE",

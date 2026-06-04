@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PLUGIN = ROOT / "plugins" / "paper-research-wiki"
+PLUGIN = ROOT / "plugins" / "PRW"
 PUBLIC_SKILL = PLUGIN / "skills" / "paper-research-wiki"
 MARKETPLACES = [
     ROOT / "marketplace.json",
@@ -50,7 +50,7 @@ def _read(path: Path) -> str:
 def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["name"] == "paper-research-wiki"
+    assert manifest["name"] == "prw"
     assert manifest["version"] == "0.1.0"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Research Wiki"
@@ -65,11 +65,11 @@ def test_marketplaces_register_paper_research_wiki():
         marketplace = _read_json(marketplace_path)
         entries = {entry["name"]: entry for entry in marketplace["plugins"]}
 
-        assert "paper-research-wiki" in entries, marketplace_path
-        entry = entries["paper-research-wiki"]
+        assert "prw" in entries, marketplace_path
+        entry = entries["prw"]
         assert entry["source"] == {
             "source": "local",
-            "path": "./plugins/paper-research-wiki",
+            "path": "./plugins/PRW",
         }
         assert entry["policy"] == {
             "installation": "AVAILABLE",
@@ -208,6 +208,47 @@ def test_upstream_obsidian_wiki_map_covers_core_skill_families():
         "wiki-lint",
     ]:
         assert phrase in text
+
+
+def test_workflows_adapt_upstream_ingest_status_update_and_relink_patterns():
+    extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
+    check = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
+    provenance = _read(PUBLIC_SKILL / "references" / "page-provenance.md")
+
+    for phrase in [
+        "distill and integrate",
+        "existing related pages",
+        "manifest",
+        "index.md",
+        "log.md",
+        "hot.md",
+        "relationships:",
+    ]:
+        assert phrase in extract
+
+    for phrase in [
+        "What to Do Next",
+        "pending EPI handoffs",
+        "orphan",
+        "broken wikilinks",
+        "staged writes",
+        "provenance gaps",
+    ]:
+        assert phrase in check
+
+    for phrase in [
+        "cross-linker",
+        "tag-taxonomy",
+        "wiki-lint",
+        "missing wikilinks",
+        "aliases",
+        "one confirmation",
+    ]:
+        assert phrase in update
+
+    for phrase in ["relationships:", "source-grounded", "unsupported"]:
+        assert phrase in provenance
 
 
 def test_skill_ui_metadata_uses_single_public_skill():
