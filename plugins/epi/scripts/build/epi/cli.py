@@ -29,6 +29,15 @@ def _load_json(path: Path) -> object:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _run_review_payload(run_dir: Path) -> dict | None:
+    try:
+        state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+    review = state.get("review_session")
+    return review if isinstance(review, dict) else None
+
+
 def _handle_doctor(args: argparse.Namespace) -> int:
     report = collect_doctor_report(
         plugin_root=args.plugin_root,
@@ -123,6 +132,8 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
         query_plan_domain=args.query_plan_domain,
         query_plan_max_queries=args.query_plan_max_queries,
         enable_easyscholar=not args.no_easyscholar,
+        resume=not args.no_resume,
+        refresh=args.refresh,
     )
     if args.json:
         payload = {
@@ -137,6 +148,9 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
                 "run_state": str(run_dir / "run-state.json"),
             },
         }
+        review_payload = _run_review_payload(run_dir)
+        if review_payload:
+            payload["review"] = review_payload
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         print(f"run_dir={run_dir}")

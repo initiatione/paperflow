@@ -156,6 +156,126 @@ def test_dry_run_cli_passes_no_easyscholar_to_workflow(tmp_path, monkeypatch):
     assert captured["enable_easyscholar"] is False
 
 
+def test_dry_run_parser_accepts_refresh_and_no_resume_as_exclusive_options():
+    refresh_args = build_parser().parse_args(
+        [
+            "dry-run",
+            "--query",
+            "robotics control",
+            "--refresh",
+        ]
+    )
+    no_resume_args = build_parser().parse_args(
+        [
+            "dry-run",
+            "--query",
+            "robotics control",
+            "--no-resume",
+        ]
+    )
+
+    assert refresh_args.refresh is True
+    assert refresh_args.no_resume is False
+    assert no_resume_args.refresh is False
+    assert no_resume_args.no_resume is True
+
+
+def test_dry_run_parser_rejects_refresh_with_no_resume():
+    import pytest
+
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            [
+                "dry-run",
+                "--query",
+                "robotics control",
+                "--refresh",
+                "--no-resume",
+            ]
+        )
+
+
+def test_dry_run_cli_passes_resume_and_refresh_flags(tmp_path, monkeypatch):
+    run_dir = tmp_path / "_epi" / "runs" / "run-json-001"
+    run_dir.mkdir(parents=True)
+    captured = {}
+
+    def fake_run_dry_run(**kwargs):
+        captured.update(kwargs)
+        return run_dir
+
+    monkeypatch.setattr(cli.workflows, "run_dry_run", fake_run_dry_run)
+
+    exit_code = cli.main(
+        [
+            "dry-run",
+            "--query",
+            "AUV reinforcement learning control",
+            "--vault",
+            str(tmp_path),
+            "--refresh",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["resume"] is True
+    assert captured["refresh"] is True
+
+
+def test_dry_run_cli_json_includes_review_artifacts_when_present(tmp_path, monkeypatch, capsys):
+    run_dir = tmp_path / "_epi" / "runs" / "run-json-001"
+    run_dir.mkdir(parents=True)
+    for name in ["search-record.json", "rank.json", "report.md", "report.json", "run-state.json"]:
+        (run_dir / name).write_text("{}", encoding="utf-8")
+    review_dir = tmp_path / "_epi" / "reviews" / "robotics-abc"
+    review_dir.mkdir(parents=True)
+    for name in ["state.json", "candidates.json", "shortlist.json", "fetch_plan.json", "coverage.json"]:
+        (review_dir / name).write_text("{}", encoding="utf-8")
+    (run_dir / "run-state.json").write_text(
+        __import__("json").dumps(
+            {
+                "review_session": {
+                    "review_id": "robotics-abc",
+                    "review_dir": str(review_dir),
+                    "resumed": True,
+                    "refreshed": False,
+                    "provider_call_skipped": True,
+                    "artifacts": {
+                        "state": str(review_dir / "state.json"),
+                        "candidates": str(review_dir / "candidates.json"),
+                        "shortlist": str(review_dir / "shortlist.json"),
+                        "fetch_plan": str(review_dir / "fetch_plan.json"),
+                        "coverage": str(review_dir / "coverage.json"),
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_run_dry_run(**kwargs):
+        return run_dir
+
+    monkeypatch.setattr(cli.workflows, "run_dry_run", fake_run_dry_run)
+
+    exit_code = cli.main(
+        [
+            "dry-run",
+            "--query",
+            "robotics control",
+            "--vault",
+            str(tmp_path),
+            "--json",
+        ]
+    )
+
+    payload = __import__("json").loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["review"]["review_id"] == "robotics-abc"
+    assert payload["review"]["provider_call_skipped"] is True
+    assert payload["review"]["artifacts"]["fetch_plan"] == str(review_dir / "fetch_plan.json")
+
+
 
 def test_dry_run_parser_accepts_profile_derived_query_plan_domain():
     args = build_parser().parse_args(

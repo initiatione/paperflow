@@ -113,6 +113,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     dry_run.add_argument("--query-plan-max-queries", type=int, default=6)
     dry_run.add_argument("--no-easyscholar", action="store_true")
+    dry_run_resume_group = dry_run.add_mutually_exclusive_group()
+    dry_run_resume_group.add_argument("--refresh", action="store_true")
+    dry_run_resume_group.add_argument("--no-resume", action="store_true")
     dry_run.add_argument("--json", action="store_true")
 
     ingest_one = subparsers.add_parser("ingest-one")
