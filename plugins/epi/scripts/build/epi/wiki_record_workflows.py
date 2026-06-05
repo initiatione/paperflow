@@ -191,7 +191,7 @@ def _write_wiki_ingest_record_report(
     page_paths = record.get("relative_page_paths") or record.get("page_paths") or []
     human_gate = record.get("human_gate_decision") or {}
     changed_artifacts = [
-        f"_epi/raw/papers/{slug}/wiki-ingest-record.json",
+        f"_epi/raw/{slug}/wiki-ingest-record.json",
         f"_epi/staging/papers/{slug}/wiki-ingest-record.json",
     ]
     report_paper_states = [

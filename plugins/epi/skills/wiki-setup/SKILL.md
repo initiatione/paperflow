@@ -47,7 +47,7 @@ Initialization must ensure the vault is a git repository. `init_paper_wiki.py` r
 
 Expected structure includes one EPI internal repository root `_epi`, wiki contract root `_meta`, wiki roots, `.obsidian`, `.git`, `index.md`, `log.md`, `hot.md`, and `.manifest.json`. New initialization must not create top-level `_raw`, `_staging`, `_runs`, `_quarantine`, or `_evolution`.
 
-`_epi` must include `_epi\README.md`, `_epi\manifest.json`, `_epi\policies\retention.json`, raw/staging/runs/quarantine/evolution/meta roots, and graph visibility rules. Obsidian graph views should ignore `_epi`; `_epi/raw/papers/<slug>/mineru/<slug>.md` remains source material, not a formal wiki page.
+`_epi` must include `_epi\README.md`, `_epi\manifest.json`, `_epi\policies\retention.json`, raw/staging/runs/quarantine/evolution/meta roots, bounded maintenance roots, and graph visibility rules. Obsidian graph views should ignore `_epi`; `_epi/raw/<slug>/mineru/<slug>.md` remains source material, not a formal wiki page. The default retention policy must cap lifecycle artifacts even when the repository is under total file/byte budget: transient run dirs, `_epi\meta\run-lifecycle`, `_epi\meta\raw-cleanup`, `_epi\meta\repository-maintenance`, `_epi\meta\migrations`, `_epi\meta\wiki-reset`, `_epi\meta\formal-page-snapshots`, and `_epi\tmp-manual-pdfs` are not allowed to grow forever.
 
 Initialization also seeds the vault contract files used by final wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`.
 
@@ -61,6 +61,8 @@ python scripts\orchestrator.py epi-repository-migrate --vault <vault> --json
 python scripts\orchestrator.py epi-repository-cleanup --vault <vault> --preview --json
 ```
 
+`epi-repository-cleanup --preview --json` is a no-write inspection path. It must not refresh `_epi\manifest.json`, create missing directories, or seed policy files. The non-preview cleanup may delete only lifecycle-bounded, reproducible maintenance artifacts; it must preserve `_epi\\raw`, config files/history, final wiki pages, Zotero records, and source-first paper bundles.
+
 ## Literature Wiki Contract
 
 Initialization seeds formal wiki page families for paper research: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. EPI itself still writes only `_epi/`; final pages are written by PRW `$paper-research-wiki` after handoff and approval. `epi-paper-deposition` is only the compatibility adapter for existing EPI handoff artifacts or legacy records.
@@ -69,4 +71,4 @@ The vault contract should expect `wiki_deposition_task.json` plus the required s
 
 PRW assumes this bootstrap exists. If PRW detects missing `_epi/`, `_meta/`, `.obsidian`, `.git`, or formal page roots, it should report the missing vault structure and send the user back to EPI `wiki-setup`; PRW should not initialize or reset the vault itself.
 
-Formal page frontmatter requires `title`, `category`, `page_family`, `tags`, `aliases`, `sources`, `summary`, `provenance`, `base_confidence`, `lifecycle`, `lifecycle_changed`, `tier`, `created`, and `updated`; initial lifecycle is `draft` or `review-needed`, not automatic `source-reviewed` or `verified`. Frontmatter `sources` must contain only Obsidian wikilinks to original paper PDFs, each displayed as the paper slug: `"[[_epi/raw/papers/<slug>/paper.pdf|<slug>]]"`.
+Formal page frontmatter requires `title`, `category`, `page_family`, `tags`, `aliases`, `sources`, `summary`, `provenance`, `base_confidence`, `lifecycle`, `lifecycle_changed`, `tier`, `created`, and `updated`; initial lifecycle is `draft` or `review-needed`, not automatic `source-reviewed` or `verified`. Frontmatter `sources` must contain only Obsidian wikilinks to original paper PDFs, each displayed as the paper slug: `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"`.

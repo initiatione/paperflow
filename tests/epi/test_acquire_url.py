@@ -55,7 +55,7 @@ def test_acquire_paper_from_url_downloads_pdf_and_records_metadata(tmp_path):
     server_root.mkdir()
     source_pdf = server_root / "paper.pdf"
     source_pdf.write_bytes(b"%PDF-1.4\nurl fixture\n")
-    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / "downloaded-paper"
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "downloaded-paper"
 
     with _LocalServer(server_root) as base_url:
         record = acquire_paper_from_url(_candidate(f"{base_url}/paper.pdf"), paper_root)
@@ -83,7 +83,7 @@ def test_acquire_paper_from_url_downloads_pdf_and_records_metadata(tmp_path):
 def test_acquire_paper_from_url_records_http_failure_without_pdf(tmp_path):
     server_root = tmp_path / "server"
     server_root.mkdir()
-    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / "missing-paper"
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "missing-paper"
 
     with _LocalServer(server_root) as base_url:
         record = acquire_paper_from_url(_candidate(f"{base_url}/missing.pdf", slug="missing-paper"), paper_root)
@@ -108,7 +108,7 @@ def test_acquire_paper_from_url_follows_landing_page_citation_pdf_url(tmp_path):
     server_root = tmp_path / "server"
     server_root.mkdir()
     (server_root / "paper.pdf").write_bytes(b"%PDF-1.4\nresolved landing fixture\n")
-    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / "landing-paper"
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "landing-paper"
 
     with _LocalServer(server_root) as base_url:
         landing_url = f"{base_url}/article"
@@ -132,7 +132,7 @@ def test_acquire_paper_from_url_tries_candidate_pdf_url_fallbacks(tmp_path):
     server_root = tmp_path / "server"
     server_root.mkdir()
     (server_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfallback fixture\n")
-    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / "fallback-paper"
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "fallback-paper"
 
     with _LocalServer(server_root) as base_url:
         first_url = f"{base_url}/missing.pdf"
@@ -157,7 +157,7 @@ def test_acquire_paper_from_url_tries_candidate_pdf_url_fallbacks(tmp_path):
 def test_acquire_paper_from_url_rejects_html_without_pdf_link(tmp_path):
     server_root = tmp_path / "server"
     server_root.mkdir()
-    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / "html-paper"
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "html-paper"
 
     with _LocalServer(server_root) as base_url:
         landing_url = f"{base_url}/article"
@@ -216,7 +216,7 @@ def test_acquire_paper_from_candidate_prefers_paper_search_cli_download(tmp_path
 
     record = acquire_paper_from_candidate(vault, candidate)
 
-    paper_root = vault / "_epi" / "raw" / "papers" / "paper-search-cli-paper"
+    paper_root = vault / "_epi" / "raw" / "paper-search-cli-paper"
     invoked_args = json.loads(args_path.read_text(encoding="utf-8-sig"))
 
     assert record["status"] == "success"
@@ -297,7 +297,7 @@ def test_acquire_paper_from_candidate_records_paper_search_mcp_download_mode(tmp
 
     record = acquire_paper_from_candidate(vault, candidate)
 
-    paper_root = vault / "_epi" / "raw" / "papers" / "paper-search-mcp-paper"
+    paper_root = vault / "_epi" / "raw" / "paper-search-mcp-paper"
     assert record["status"] == "success"
     assert record["mode"] == "paper_search_mcp_download"
     assert record["upstream"]["tool"] == "download_arxiv"
@@ -360,7 +360,7 @@ def test_acquire_paper_from_candidate_soft_fails_retrieval_preview(tmp_path, mon
 
     record = acquire_paper_from_candidate(vault, candidate)
 
-    paper_root = vault / "_epi" / "raw" / "papers" / "preview-soft-fail-paper"
+    paper_root = vault / "_epi" / "raw" / "preview-soft-fail-paper"
     assert record["status"] == "success"
     assert record["retrieval_preview"]["status"] == "failed"
     assert record["retrieval_preview"]["error"] == "preview extraction crashed"
@@ -475,7 +475,7 @@ def test_acquire_paper_from_candidate_uses_vault_slug_boundary(tmp_path):
     with _LocalServer(server_root) as base_url:
         record = acquire_paper_from_candidate(vault, _candidate(f"{base_url}/paper.pdf"))
 
-    paper_root = vault / "_epi" / "raw" / "papers" / "downloaded-paper"
+    paper_root = vault / "_epi" / "raw" / "downloaded-paper"
     assert record["status"] == "success"
     assert record["output_path"] == str(paper_root / "paper.pdf")
     assert (paper_root / "paper.pdf").is_file()

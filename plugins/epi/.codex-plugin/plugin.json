@@ -1,6 +1,6 @@
 {
   "name": "epi",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "Search and rank academic papers for an EPI wiki.",
   "author": {
     "name": "liuchf"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "EPI",
-    "shortDescription": "v0.1.7 | Find, vet, source-audit, OA-acquire, preview, and hand off papers to PRW.",
-    "longDescription": "EPI packages a Codex workflow for profile-driven academic paper discovery, MCP-backed multi-source source coverage, provider readiness diagnostics, OA-first PDF acquisition, non-authoritative retrieval preview, source-first bundle preservation, MinerU parsing, optional reader/critic review, low-burden reading reports, Chinese-first approval reports, wiki handoff, final-source-review recording, and proposal-based quality evolution. It derives search terms, venue prior, ranking, and wiki/reader emphasis from the user's config plus the current request, blocks incomplete source bundles before final deposition, and prepares handoffs for an agent to write into the target Obsidian/LLM Wiki according to that vault's contract.",
+    "shortDescription": "v0.1.9 | Find, vet, source-audit, OA-acquire, preview, and hand off papers to PRW.",
+    "longDescription": "EPI packages a Codex workflow for profile-driven academic paper discovery, MCP-backed multi-source source coverage, provider readiness diagnostics, OA-first PDF acquisition, non-authoritative retrieval preview, source-first bundle preservation, MinerU parsing, bounded lifecycle cleanup, optional reader/critic review, low-burden reading reports, Chinese-first approval reports, wiki handoff, final-source-review recording, and proposal-based quality evolution. It derives search terms, venue prior, ranking, and wiki/reader emphasis from the user's config plus the current request, blocks incomplete source bundles before final deposition, and prepares handoffs for an agent to write into the target Obsidian/LLM Wiki according to that vault's contract.",
     "developerName": "liuchf",
     "category": "Productivity",
     "capabilities": [

@@ -13,7 +13,7 @@ def _write_json(path, payload):
 
 
 def _seed_paper_gate_fixture(vault, slug, *, critic_outcome="pass", staged=True, promoted=False, legacy_compiled=False):
-    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / slug
     staging_root = vault / "_epi" / "staging" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)

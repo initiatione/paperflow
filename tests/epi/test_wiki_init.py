@@ -1,7 +1,7 @@
 import json
 import subprocess
 
-from epi.epi_repository import migrate_legacy_epi_roots
+from epi.epi_repository import cleanup_epi_repository, load_retention_policy, migrate_legacy_epi_roots
 from epi.wiki_init import initialize_paper_wiki
 
 
@@ -22,7 +22,7 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     created = initialize_paper_wiki(vault)
 
     expected_dirs = [
-        "_epi/raw/papers",
+        "_epi/raw",
         "_epi/staging/papers",
         "_epi/staging/wiki-batches/pending",
         "_epi/quarantine/papers",
@@ -33,7 +33,10 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
         "_epi/evolution/archive",
         "_epi/evolution/rejected",
         "_epi/meta",
+        "_epi/meta/raw-cleanup",
+        "_epi/meta/formal-page-snapshots",
         "_epi/policies",
+        "_epi/tmp-manual-pdfs",
         "_meta",
         *EXPECTED_RESEARCH_WIKI_DIRS,
         ".obsidian",
@@ -60,12 +63,20 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     assert (vault / "_epi" / "README.md").is_file()
     assert (vault / "_epi" / "manifest.json").is_file()
     assert (vault / "_epi" / "policies" / "retention.json").is_file()
+    retention = json.loads((vault / "_epi" / "policies" / "retention.json").read_text(encoding="utf-8"))
+    assert retention["max_total_files"] == 3000
+    assert retention["max_total_bytes"] == 1024 * 1024 * 1024
+    assert retention["lifecycle"]["enforce_even_when_under_budget"] is True
+    assert retention["lifecycle"]["meta_manifests"]["run-lifecycle"]["keep_latest"] == 20
+    assert retention["lifecycle"]["meta_manifests"]["raw-cleanup"]["keep_latest"] == 30
+    assert retention["lifecycle"]["formal_page_snapshots"]["keep_latest"] == 3
+    assert retention["lifecycle"]["temporary_files"]["tmp-manual-pdfs"]["keep_latest"] == 5
     assert (vault / "_meta" / "agent-operating-contract.md").is_file()
     assert (vault / "_meta" / "schema.md").is_file()
     assert (vault / "_meta" / "taxonomy.md").is_file()
     assert (vault / "_meta" / "directory-structure.md").is_file()
     assert "Source-first paper ingest" in (vault / "AGENTS.md").read_text(encoding="utf-8")
-    assert "_epi/raw/papers" in (vault / "_epi" / "README.md").read_text(encoding="utf-8")
+    assert "_epi/raw" in (vault / "_epi" / "README.md").read_text(encoding="utf-8")
     agents = (vault / "AGENTS.md").read_text(encoding="utf-8")
     operating_contract = (vault / "_meta" / "agent-operating-contract.md").read_text(encoding="utf-8")
     schema = (vault / "_meta" / "schema.md").read_text(encoding="utf-8")
@@ -241,7 +252,7 @@ def test_migrate_legacy_epi_roots_moves_operational_dirs_under_single_epi_root(t
 
     assert preview["status"] == "preview"
     assert result["status"] == "migrated"
-    assert (vault / "_epi" / "raw" / "papers" / "paper-a" / "metadata.json").is_file()
+    assert (vault / "_epi" / "raw" / "paper-a" / "metadata.json").is_file()
     assert (vault / "_epi" / "staging" / "papers" / "paper-a" / "wiki-ingest-brief.json").is_file()
     assert (vault / "_epi" / "runs" / "run-1" / "run-state.json").is_file()
     assert (vault / "_epi" / "meta" / "epi-config.yaml").is_file()
@@ -251,3 +262,132 @@ def test_migrate_legacy_epi_roots_moves_operational_dirs_under_single_epi_root(t
     assert not (vault / "_runs").exists()
     assert (vault / "_epi" / "manifest.json").is_file()
     assert result["manifest_path"].endswith("legacy-roots.json")
+
+
+def test_migrate_legacy_nested_epi_raw_papers_to_direct_raw_slug_dirs(tmp_path):
+    vault = tmp_path / "paper-research-wiki"
+    legacy_nested_paper = vault / "_epi" / "raw" / "papers" / "paper-a"
+    legacy_nested_paper.mkdir(parents=True)
+    (legacy_nested_paper / "metadata.json").write_text(json.dumps({"slug": "paper-a"}), encoding="utf-8")
+
+    result = migrate_legacy_epi_roots(vault)
+
+    assert result["status"] == "migrated"
+    assert not (vault / "_epi" / "raw" / "papers" / "paper-a").exists()
+    assert (vault / "_epi" / "raw" / "paper-a" / "metadata.json").is_file()
+
+
+def test_migrate_legacy_epi_roots_preview_does_not_write_repository_files(tmp_path):
+    vault = tmp_path / "paper-research-wiki"
+    (vault / "_epi" / "raw" / "papers" / "paper-a").mkdir(parents=True)
+    (vault / "_epi" / "raw" / "papers" / "paper-a" / "metadata.json").write_text("{}", encoding="utf-8")
+
+    result = migrate_legacy_epi_roots(vault, dry_run=True)
+
+    assert result["status"] == "preview"
+    assert result["actions"]
+    assert (vault / "_epi" / "raw" / "papers" / "paper-a" / "metadata.json").is_file()
+    assert not (vault / "_epi" / "raw" / "paper-a").exists()
+    assert not (vault / "_epi" / "manifest.json").exists()
+    assert not (vault / "_epi" / "policies" / "retention.json").exists()
+
+
+def test_repository_cleanup_preview_does_not_write_manifest(tmp_path):
+    vault = tmp_path / "paper-research-wiki"
+    run_dir = vault / "_epi" / "runs" / "run-1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "run-state.json").write_text(json.dumps({"status": "success"}), encoding="utf-8")
+
+    result = cleanup_epi_repository(vault, dry_run=True)
+
+    assert result["status"] == "preview"
+    assert not (vault / "_epi" / "manifest.json").exists()
+    assert not (vault / "_epi" / "policies" / "retention.json").exists()
+
+
+def test_load_retention_policy_upgrades_legacy_default_policy_without_preview_write(tmp_path):
+    vault = tmp_path / "paper-research-wiki"
+    policy_path = vault / "_epi" / "policies" / "retention.json"
+    policy_path.parent.mkdir(parents=True)
+    legacy = {
+        "schema_version": "epi-retention-policy-v1",
+        "auto_cleanup_enabled": True,
+        "max_total_files": 12000,
+        "max_total_bytes": 5 * 1024 * 1024 * 1024,
+        "runs": {"keep_latest": 15, "keep_per_workflow": 2},
+        "staging": {"keep_pending_wiki_batches": 8},
+        "protected": ["raw/papers", "meta/epi-config.yaml", "policies/retention.json"],
+    }
+    policy_path.write_text(json.dumps(legacy), encoding="utf-8")
+
+    preview_policy = load_retention_policy(vault, ensure=False)
+
+    assert preview_policy["max_total_files"] == 3000
+    assert preview_policy["max_total_bytes"] == 1024 * 1024 * 1024
+    assert preview_policy["lifecycle"]["enforce_even_when_under_budget"] is True
+    assert json.loads(policy_path.read_text(encoding="utf-8"))["max_total_files"] == 12000
+
+    applied_policy = load_retention_policy(vault, ensure=True)
+
+    stored = json.loads(policy_path.read_text(encoding="utf-8"))
+    assert applied_policy["max_total_files"] == 3000
+    assert stored["max_total_files"] == 3000
+    assert stored["protected"][0] == "raw"
+    assert "lifecycle" in stored
+
+
+def test_repository_cleanup_prunes_lifecycle_artifacts_even_when_under_budget(tmp_path):
+    vault = tmp_path / "paper-research-wiki"
+    policy_path = vault / "_epi" / "policies" / "retention.json"
+    policy_path.parent.mkdir(parents=True)
+    policy_path.write_text(
+        json.dumps(
+            {
+                "auto_cleanup_enabled": True,
+                "max_total_files": 9999,
+                "max_total_bytes": 999999999,
+                "runs": {"keep_latest": 2},
+                "lifecycle": {
+                    "enforce_even_when_under_budget": True,
+                    "meta_manifests": {
+                        "run-lifecycle": {"keep_latest": 2},
+                        "raw-cleanup": {"keep_latest": 1},
+                    },
+                    "formal_page_snapshots": {"keep_latest": 1},
+                    "temporary_files": {"tmp-manual-pdfs": {"keep_latest": 1}},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    for index in range(4):
+        run_dir = vault / "_epi" / "runs" / f"run-{index}"
+        run_dir.mkdir(parents=True)
+        (run_dir / "run-state.json").write_text(json.dumps({"status": "success"}), encoding="utf-8")
+        lifecycle = vault / "_epi" / "meta" / "run-lifecycle" / f"{index}-run-lifecycle.json"
+        lifecycle.parent.mkdir(parents=True, exist_ok=True)
+        lifecycle.write_text(json.dumps({"index": index}), encoding="utf-8")
+        raw_cleanup = vault / "_epi" / "meta" / "raw-cleanup" / f"{index}-cleanup.json"
+        raw_cleanup.parent.mkdir(parents=True, exist_ok=True)
+        raw_cleanup.write_text(json.dumps({"index": index}), encoding="utf-8")
+        snapshot = vault / "_epi" / "meta" / "formal-page-snapshots" / f"snapshot-{index}"
+        snapshot.mkdir(parents=True)
+        (snapshot / "snapshot-manifest.json").write_text(json.dumps({"index": index}), encoding="utf-8")
+        manual_pdf = vault / "_epi" / "tmp-manual-pdfs" / f"paper-{index}.pdf"
+        manual_pdf.parent.mkdir(parents=True, exist_ok=True)
+        manual_pdf.write_bytes(b"%PDF-1.4\n")
+
+    result = cleanup_epi_repository(vault)
+
+    assert result["over_budget"] is False
+    assert result["deleted_count"] == 13
+    assert sorted(path.name for path in (vault / "_epi" / "runs").iterdir() if path.is_dir()) == ["run-2", "run-3"]
+    assert sorted(path.name for path in (vault / "_epi" / "meta" / "run-lifecycle").iterdir()) == [
+        "2-run-lifecycle.json",
+        "3-run-lifecycle.json",
+    ]
+    assert sorted(path.name for path in (vault / "_epi" / "meta" / "raw-cleanup").iterdir()) == ["3-cleanup.json"]
+    assert sorted(path.name for path in (vault / "_epi" / "meta" / "formal-page-snapshots").iterdir()) == [
+        "snapshot-3"
+    ]
+    assert sorted(path.name for path in (vault / "_epi" / "tmp-manual-pdfs").iterdir()) == ["paper-3.pdf"]

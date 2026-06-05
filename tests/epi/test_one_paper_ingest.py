@@ -392,7 +392,7 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
 
 
 def test_stage_paper_rejects_nonpassing_critic(tmp_path):
-    paper_root = tmp_path / "_epi" / "raw" / "papers" / "paper"
+    paper_root = tmp_path / "_epi" / "raw" / "paper"
     critic_dir = paper_root / "critic"
     reader_dir = paper_root / "reader"
     critic_dir.mkdir(parents=True)
@@ -412,7 +412,7 @@ def test_stage_paper_rejects_nonpassing_critic(tmp_path):
 def test_critic_quorum_records_reviewer_failure_without_staging(tmp_path):
     vault = tmp_path / "vault"
     slug = "critic-failure-paper"
-    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / slug
     (paper_root / "mineru").mkdir(parents=True)
     (paper_root / "reader").mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\n")
@@ -449,7 +449,7 @@ def test_critic_quorum_records_reviewer_failure_without_staging(tmp_path):
 
 def test_critic_quorum_records_missing_reader_as_reviewer_failure(tmp_path):
     slug = "missing-reader-paper"
-    paper_root = tmp_path / "_epi" / "raw" / "papers" / slug
+    paper_root = tmp_path / "_epi" / "raw" / slug
     (paper_root / "mineru").mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\n")
     (paper_root / "metadata.json").write_text(

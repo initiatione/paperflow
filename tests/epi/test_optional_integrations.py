@@ -43,7 +43,7 @@ def _read_json(path: Path) -> dict:
 
 
 def test_zotero_sync_disabled_writes_skip_record(tmp_path):
-    paper_root = tmp_path / "_epi" / "raw" / "papers" / "paper"
+    paper_root = tmp_path / "_epi" / "raw" / "paper"
     paper_root.mkdir(parents=True)
 
     record = sync_zotero_record(paper_root, enabled=False, collection="EPI")

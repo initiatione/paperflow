@@ -6,8 +6,8 @@ Use this reference when a user wants breadth, increments, or a reading plan for 
 
 Build a delta table with these buckets:
 
-- `net_new`: stable DOI/arXiv/title not seen in prior runs and not present in `_epi/raw/papers`.
-- `already_in_library`: candidate rejected by `already_in_library:<slug>` or matching `_epi/raw/papers/*/metadata.json`.
+- `net_new`: stable DOI/arXiv/title not seen in prior runs and not present in `_epi/raw`.
+- `already_in_library`: candidate rejected by `already_in_library:<slug>` or matching `_epi/raw/*/metadata.json`.
 - `seen_in_prior_run`: candidate appeared in an earlier `rank.json` or `report.json` but was not acquired.
 - `changed_status`: known paper whose PDF, parse, critic, or wiki-ingest state changed.
 - `uncertain_identity`: title-only or weak metadata match; ask for human review before suppressing.

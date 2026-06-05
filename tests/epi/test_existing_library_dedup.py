@@ -6,7 +6,7 @@ from epi.paper_library import load_existing_paper_index
 
 def test_filter_rejects_candidates_already_downloaded_to_raw_library(tmp_path):
     vault = tmp_path / "vault"
-    paper_root = vault / "_epi" / "raw" / "papers" / "existing-paper"
+    paper_root = vault / "_epi" / "raw" / "existing-paper"
     paper_root.mkdir(parents=True)
     (paper_root / "metadata.json").write_text(
         json.dumps(

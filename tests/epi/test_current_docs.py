@@ -345,8 +345,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         ]
     )
 
-    assert manifest["version"] == "0.1.7"
-    assert "v0.1.7" in manifest["interface"]["shortDescription"]
+    assert manifest["version"] == "0.1.9"
+    assert "v0.1.9" in manifest["interface"]["shortDescription"]
     for phrase in [
         "search_papers",
         "source_coverage",
@@ -379,8 +379,38 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "PAPER_SEARCH_MCP_CORE_API_KEY",
         "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL",
         "source capability matrix",
-        "0.1.7",
+        "0.1.9",
+        "0.1.8",
         "installed cache",
+    ]:
+        assert phrase in combined
+
+
+def test_docs_document_bounded_epi_lifecycle_cleanup_contract():
+    manifest = json.loads((PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    linkage = _read("epi-linkage.md")
+    progress = _read("progress.md")
+    structure = _read("structure.md")
+    wiki_setup = (PLUGIN_ROOT / "skills" / "wiki-setup" / "SKILL.md").read_text(encoding="utf-8")
+    combined = "\n".join([json.dumps(manifest, ensure_ascii=False), linkage, progress, structure, wiki_setup])
+
+    for phrase in [
+        "bounded lifecycle cleanup",
+        "retention.json",
+        "3000 files",
+        "1 GiB",
+        "lifecycle 上限",
+        "no-write inspection",
+        "over_budget=false",
+        "run-lifecycle",
+        "raw-cleanup",
+        "repository-maintenance",
+        "migrations",
+        "wiki-reset",
+        "formal-page-snapshots",
+        "tmp-manual-pdfs",
+        "不刷新 `_epi/manifest.json`",
+        "不得删除 `_epi/raw`",
     ]:
         assert phrase in combined
 

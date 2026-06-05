@@ -370,7 +370,7 @@ def test_epi_paper_deposition_documents_required_wiki_adapter_stack():
         assert field in combined
     assert "draft` or `review-needed`" in combined
     assert "only Obsidian wikilinks to original paper PDFs" in combined
-    assert "[[_epi/raw/papers/<slug>/paper.pdf|<slug>]]" in combined
+    assert "[[_epi/raw/<slug>/paper.pdf|<slug>]]" in combined
     assert "displayed as the paper slug" in combined
     for phrase in ["metadata", "MinerU", "DOI", "arXiv"]:
         assert phrase in combined

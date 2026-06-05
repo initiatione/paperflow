@@ -42,7 +42,7 @@ AGENTS_MD = """# EPI Paper Research Wiki
 
 This vault is for source-first academic paper ingest. Final wiki pages are agent-mediated and must be grounded in the source paper artifacts, not reader summaries alone.
 
-EPI writes only the internal `_epi/` repository. Formal graph pages are written by the wiki skill after batch deposition into `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. Obsidian graph views should ignore `_epi/`; `_epi/raw/papers/<slug>/mineru/paper.md` and `_epi/raw/papers/<slug>/mineru/<slug>.md` remain source material for final writing, not formal wiki pages.
+EPI writes only the internal `_epi/` repository. Formal graph pages are written by the wiki skill after batch deposition into `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. Obsidian graph views should ignore `_epi/`; `_epi/raw/<slug>/mineru/paper.md` and `_epi/raw/<slug>/mineru/<slug>.md` remain source material for final writing, not formal wiki pages.
 
 Required reading before final wiki writing:
 
@@ -124,7 +124,7 @@ DIRECTORY_STRUCTURE_MD = """# Directory Structure
 The paper research vault keeps paper acquisition, staging, and final wiki outputs separate.
 
 - `_epi/`: internal EPI repository with its own navigation, manifest, policy, and lifecycle management
-- `_epi/raw/papers/<slug>/`: downloaded source paper artifacts
+- `_epi/raw/<slug>/`: downloaded source paper artifacts
 - `_epi/staging/papers/<slug>/`: per-paper evidence handoff
 - `_epi/staging/wiki-batches/<batch-id>/`: multi-paper handoff for wiki skill deposition
 - `_epi/runs/`: transient run reports and dashboards, auto-cleaned by repository policy
@@ -287,7 +287,7 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
         "_meta/agent-operating-contract.md": (AGENT_OPERATING_CONTRACT_MD, "Render formulas with Obsidian math delimiters"),
         "_meta/schema.md": (SCHEMA_MD, "Formula Rendering Contract"),
         "_meta/taxonomy.md": (TAXONOMY_MD, "EPI must not create formal pages"),
-        "_meta/directory-structure.md": (DIRECTORY_STRUCTURE_MD, "_epi/raw/papers/<slug>/"),
+        "_meta/directory-structure.md": (DIRECTORY_STRUCTURE_MD, "_epi/raw/<slug>/"),
         "_meta/graph-visibility.md": (GRAPH_VISIBILITY_MD, "Source paper Markdown under `_epi/raw`"),
     }
     for relative_file, (content, marker) in contract_files.items():

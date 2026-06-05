@@ -153,7 +153,7 @@ def test_dry_run_to_critic_decision_e2e_fixture_updates_reports_index_and_dashbo
     slug = "embodied-navigation-control-benchmark-for-mobile-robots"
     final_batch = stage_results[-1]
     final_run_dir = vault / "_epi" / "runs" / final_batch["run_id"]
-    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / slug
     decision = json.loads((paper_root / "critic" / "research-decision.json").read_text(encoding="utf-8"))
     report_json = json.loads((final_run_dir / "report.json").read_text(encoding="utf-8"))
     report_md = (final_run_dir / "report.md").read_text(encoding="utf-8")

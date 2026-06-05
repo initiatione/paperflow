@@ -43,4 +43,4 @@ Codex may use subagents only when the user explicitly authorizes delegation or p
 
 ## Discovery Coordination
 
-Discovery must deduplicate against `_epi\raw\papers`: already downloaded papers should be rejected as `already_in_library:<slug>` rather than recommended again. This keeps lifecycle cleanup separate from library identity.
+Discovery must deduplicate against `_epi\\raw`: already downloaded papers should be rejected as `already_in_library:<slug>` rather than recommended again. This keeps lifecycle cleanup separate from library identity.

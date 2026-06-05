@@ -96,7 +96,11 @@ def cleanup_failed_raw_paper(
     resolved_root = paper_root.resolve()
     if resolved_root.parent != papers_root.resolve():
         record["status"] = "skipped"
-        record["skip_reason"] = "path_outside_raw_papers"
+        record["skip_reason"] = "path_outside_raw_root"
+        return record
+    if (paper_root / "paper.pdf").is_file():
+        record["status"] = "skipped"
+        record["skip_reason"] = "source_pdf_present"
         return record
     if _has_complete_parse(paper_root):
         record["status"] = "skipped"

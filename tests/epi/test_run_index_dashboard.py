@@ -21,7 +21,7 @@ def _seed_run(runs_root, run_id, run_state=None, report=None):
 
 
 def _seed_ready_paper_gate(vault_path, slug):
-    paper_root = vault_path / "_epi/raw" / "papers" / slug
+    paper_root = vault_path / "_epi/raw" / slug
     staging_root = vault_path / "_epi/staging" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
@@ -943,4 +943,3 @@ def test_refresh_run_index_uses_atomic_writer_for_machine_json(tmp_path, monkeyp
 
     assert "index.json" in calls
     assert "research-queue.json" in calls
-

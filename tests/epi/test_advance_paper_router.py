@@ -121,7 +121,7 @@ def test_advance_paper_once_routes_one_safe_stage_at_a_time(tmp_path):
     assert records[-1]["next_action"] == "run-wiki-ingest-agent"
     assert records[-1]["human_gate_required"] is True
 
-    paper_root = vault / "_epi" / "raw" / "papers" / "routed-paper"
+    paper_root = vault / "_epi" / "raw" / "routed-paper"
     assert (paper_root / "paper.pdf").is_file()
     assert (paper_root / "mineru" / "routed-paper.md").is_file()
     assert not (paper_root / "mineru" / "paper.md").exists()
@@ -173,7 +173,7 @@ def test_advance_paper_once_audited_mode_runs_reader_and_critic(tmp_path):
     ]
     assert [record["workflow_mode"] for record in records] == ["audited-ingest"] * 6
 
-    paper_root = vault / "_epi" / "raw" / "papers" / "routed-paper"
+    paper_root = vault / "_epi" / "raw" / "routed-paper"
     promotion_plan = vault / "_epi" / "staging" / "papers" / "routed-paper" / "promotion-plan.json"
     assert (paper_root / "reader" / "reader.md").is_file()
     assert (paper_root / "critic" / "critic-report.json").is_file()
@@ -183,7 +183,7 @@ def test_advance_paper_once_audited_mode_runs_reader_and_critic(tmp_path):
 def test_advance_paper_once_reparses_incomplete_existing_parse_outputs(tmp_path):
     vault = tmp_path / "vault"
     candidate = _candidate("https://example.org/routed.pdf")
-    paper_root = vault / "_epi" / "raw" / "papers" / "routed-paper"
+    paper_root = vault / "_epi" / "raw" / "routed-paper"
     mineru_root = paper_root / "mineru"
     mineru_root.mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nstale parse fixture\n")

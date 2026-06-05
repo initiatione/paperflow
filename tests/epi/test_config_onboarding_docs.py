@@ -91,6 +91,10 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "_epi\\README.md" in combined
     assert "_epi\\manifest.json" in combined
     assert "_epi\\policies\\retention.json" in combined
+    assert "retention policy must cap lifecycle artifacts" in combined
+    assert "formal-page-snapshots" in combined
+    assert "tmp-manual-pdfs" in combined
+    assert "no-write inspection" in combined
     assert "epi-repository-migrate --vault <vault> --preview --json" in text
     assert "epi-repository-cleanup --vault <vault> --preview --json" in text
     assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text

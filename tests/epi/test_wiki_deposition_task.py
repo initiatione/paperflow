@@ -46,7 +46,7 @@ EXPECTED_FRONTMATTER_FIELDS = [
 
 
 def _seed_source_bundle(vault, slug="fixture-paper"):
-    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / slug
     mineru_root = paper_root / "mineru"
     image_root = mineru_root / "images"
     image_root.mkdir(parents=True, exist_ok=True)
@@ -116,12 +116,12 @@ def test_stage_paper_writes_stable_wiki_deposition_task_contract(tmp_path):
 
     paper = task["papers"][0]
     assert paper["slug"] == slug
-    assert _posix(paper["metadata"]).endswith("_epi/raw/papers/fixture-paper/metadata.json")
-    assert _posix(paper["paper_md"]).endswith("_epi/raw/papers/fixture-paper/mineru/fixture-paper.md")
-    assert _posix(paper["paper_tex"]).endswith("_epi/raw/papers/fixture-paper/mineru/paper.tex")
-    assert _posix(paper["images"]).endswith("_epi/raw/papers/fixture-paper/mineru/images")
-    assert _posix(paper["formula_index"]).endswith("_epi/raw/papers/fixture-paper/formula-index.json")
-    assert _posix(paper["figure_index"]).endswith("_epi/raw/papers/fixture-paper/figure-index.json")
+    assert _posix(paper["metadata"]).endswith("_epi/raw/fixture-paper/metadata.json")
+    assert _posix(paper["paper_md"]).endswith("_epi/raw/fixture-paper/mineru/fixture-paper.md")
+    assert _posix(paper["paper_tex"]).endswith("_epi/raw/fixture-paper/mineru/paper.tex")
+    assert _posix(paper["images"]).endswith("_epi/raw/fixture-paper/mineru/images")
+    assert _posix(paper["formula_index"]).endswith("_epi/raw/fixture-paper/formula-index.json")
+    assert _posix(paper["figure_index"]).endswith("_epi/raw/fixture-paper/figure-index.json")
     assert _posix(paper["brief"]).endswith("_epi/staging/papers/fixture-paper/wiki-ingest-brief.json")
 
     quality_gates = task["quality_gates"]

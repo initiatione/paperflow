@@ -47,7 +47,7 @@ Failed `acquire-record.json` includes `candidate_pdf_urls`, `acquire_attempts`, 
 
 `failure_class=not-pdf` means the candidate URL returned a DOI/publisher landing page, HTML, or another non-PDF payload. EPI will try landing page recovery by reading `citation_pdf_url` or an obvious publisher PDF link, and merged candidates can provide multiple `candidate_pdf_urls` fallback attempts; if those still fail, switch to a direct PDF, arXiv, Unpaywall, or open-access source before rerunning acquisition.
 
-Failed acquire/parse attempts that never reached a complete source bundle are not library entries. `prepare-ranked` cleans those `_epi/raw/papers/<slug>` folders when there is no complete parse, staging plan, wiki-ingest record, or Zotero record, and records the cleanup manifest under `_epi/meta/raw-cleanup/`.
+Failed acquire attempts that never downloaded `paper.pdf` are not library entries. `prepare-ranked` cleans those `_epi/raw/<slug>` folders only when there is no source PDF, staging plan, wiki-ingest record, or Zotero record, and records the cleanup manifest under `_epi/meta/raw-cleanup/`. Parse failures with `paper.pdf` present stay in raw for retry or manual repair.
 
 For slow MinerU jobs, pass `--mineru-timeout <seconds>` or set `EPI_MINERU_TIMEOUT`. Complete parse reuse requires `parse-record.json status=success`, not just a Markdown file.
 

@@ -9,12 +9,12 @@ Read the required EPI source bundle and target vault contract before writing:
 - `_epi/staging/papers/<slug>/wiki_deposition_task.json`
 - `_epi/staging/papers/<slug>/wiki-ingest-brief.json`
 - `_epi/staging/papers/<slug>/briefs/reading-report.md`
-- `_epi/raw/papers/<slug>/metadata.json`
-- `_epi/raw/papers/<slug>/paper.pdf`
-- `_epi/raw/papers/<slug>/mineru/<slug>.md`
-- `_epi/raw/papers/<slug>/mineru/paper.tex`
-- `_epi/raw/papers/<slug>/mineru/images/*`
-- `_epi/raw/papers/<slug>/mineru/mineru-manifest.json`
+- `_epi/raw/<slug>/metadata.json`
+- `_epi/raw/<slug>/paper.pdf`
+- `_epi/raw/<slug>/mineru/<slug>.md`
+- `_epi/raw/<slug>/mineru/paper.tex`
+- `_epi/raw/<slug>/mineru/images/*`
+- `_epi/raw/<slug>/mineru/mineru-manifest.json`
 - target vault `AGENTS.md` and `_meta/*` contract files
 
 Reader and critic files reduce reading cost when present. They are evidence aids, not source authority.
@@ -80,7 +80,7 @@ updated:
 
 Initial `lifecycle` is `draft` or `review-needed`; do not mark pages `source-reviewed` or `verified` until source reread, formula/figure review, `wiki-lint`, and human stage review have passed.
 
-Frontmatter `sources` must contain only Obsidian wikilinks to original paper PDFs, each displayed as the paper slug: `"[[_epi/raw/papers/<slug>/paper.pdf|<slug>]]"`. Put metadata, MinerU Markdown/TeX, DOI/arXiv URLs, figure paths, and other evidence details in the page body or Provenance section instead of frontmatter `sources`.
+Frontmatter `sources` must contain only Obsidian wikilinks to original paper PDFs, each displayed as the paper slug: `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"`. Put metadata, MinerU Markdown/TeX, DOI/arXiv URLs, figure paths, and other evidence details in the page body or Provenance section instead of frontmatter `sources`.
 
 ## Quality Gates
 

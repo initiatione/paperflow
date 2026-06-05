@@ -17,7 +17,7 @@ def _run_dirs(vault):
 
 
 def _seed_legacy_staged_paper(vault, slug):
-    paper_root = vault / "_epi/raw" / "papers" / slug
+    paper_root = vault / "_epi/raw" / slug
     staging_root = vault / "_epi/staging" / "papers" / slug
     (paper_root / "critic").mkdir(parents=True)
     (staging_root / "references").mkdir(parents=True)
@@ -89,7 +89,7 @@ def test_promote_to_wiki_cli_writes_deprecated_failure_report_without_formal_pag
 def test_rollback_promotion_rejects_recorded_compiled_path_outside_vault(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    paper_root = vault / "_epi/raw" / "papers" / slug
+    paper_root = vault / "_epi/raw" / slug
     paper_root.mkdir(parents=True)
     outside_page = tmp_path / "outside.md"
     outside_page.write_text("# Outside\n", encoding="utf-8")
@@ -117,7 +117,7 @@ def test_rollback_promotion_rejects_recorded_compiled_path_outside_vault(tmp_pat
 def test_rollback_promotion_rejects_recorded_snapshot_path_outside_backups(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    paper_root = vault / "_epi/raw" / "papers" / slug
+    paper_root = vault / "_epi/raw" / slug
     paper_root.mkdir(parents=True)
     compiled = vault / "references" / f"{slug}.md"
     compiled.parent.mkdir(parents=True)
@@ -143,4 +143,3 @@ def test_rollback_promotion_rejects_recorded_snapshot_path_outside_backups(tmp_p
         rollback_promotion(vault, slug)
 
     assert compiled.read_text(encoding="utf-8") == "# Current\n"
-

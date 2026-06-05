@@ -215,7 +215,7 @@ def test_propose_config_update_does_not_write_until_apply(tmp_path, monkeypatch,
 def test_reset_update_preserves_existing_wiki_artifacts(tmp_path, monkeypatch, capsys):
     vault = tmp_path / "vault"
     for relative in [
-        "_epi/raw/papers/keep/paper.pdf",
+        "_epi/raw/keep/paper.pdf",
         "_epi/runs/keep-run/run-state.json",
         "_epi/staging/papers/keep/promotion-plan.json",
         "references/keep.md",
@@ -250,7 +250,7 @@ def test_reset_update_preserves_existing_wiki_artifacts(tmp_path, monkeypatch, c
 
     assert exit_code == 0
     assert "profile: reset_profile" in (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
-    assert (vault / "_epi/raw/papers/keep/paper.pdf").read_text(encoding="utf-8") == "keep"
+    assert (vault / "_epi/raw/keep/paper.pdf").read_text(encoding="utf-8") == "keep"
     assert (vault / "_epi/runs/keep-run/run-state.json").read_text(encoding="utf-8") == "keep"
     assert (vault / "_epi/staging/papers/keep/promotion-plan.json").read_text(encoding="utf-8") == "keep"
     assert (vault / "references/keep.md").read_text(encoding="utf-8") == "keep"
@@ -262,7 +262,7 @@ def test_wiki_reset_preserves_config_by_default_and_backs_up_content(tmp_path, m
     answers_path = tmp_path / "answers.json"
     _write_json(answers_path, _answers(profile="kept_profile"))
     _run_orchestrator_cli(monkeypatch, capsys, "init-config", "--vault", str(vault), "--answers-json", str(answers_path))
-    raw_paper = vault / "_epi/raw" / "papers" / "paper-a" / "paper.pdf"
+    raw_paper = vault / "_epi/raw" / "paper-a" / "paper.pdf"
     raw_paper.parent.mkdir(parents=True)
     raw_paper.write_text("paper", encoding="utf-8")
     transient_meta = vault / "_epi/meta" / "temporary.json"
@@ -286,7 +286,7 @@ def test_wiki_reset_preserves_config_by_default_and_backs_up_content(tmp_path, m
     assert payload["preserved_config"] is True
     assert "profile: kept_profile" in (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
     assert not raw_paper.exists()
-    assert (backup_root / "_epi/raw" / "papers" / "paper-a" / "paper.pdf").read_text(encoding="utf-8") == "paper"
+    assert (backup_root / "_epi/raw" / "paper-a" / "paper.pdf").read_text(encoding="utf-8") == "paper"
     assert (backup_root / "_epi/meta" / "temporary.json").read_text(encoding="utf-8") == "temporary"
     assert (vault / "_epi/meta" / "wiki-reset").is_dir()
 
@@ -296,7 +296,7 @@ def test_wiki_reset_preview_lists_actions_without_mutating(tmp_path, monkeypatch
     answers_path = tmp_path / "answers.json"
     _write_json(answers_path, _answers(profile="preview_profile"))
     _run_orchestrator_cli(monkeypatch, capsys, "init-config", "--vault", str(vault), "--answers-json", str(answers_path))
-    raw_paper = vault / "_epi/raw" / "papers" / "paper-a" / "paper.pdf"
+    raw_paper = vault / "_epi/raw" / "paper-a" / "paper.pdf"
     raw_paper.parent.mkdir(parents=True)
     raw_paper.write_text("paper", encoding="utf-8")
 
@@ -344,7 +344,7 @@ def test_wiki_reset_requires_separate_config_confirmation(tmp_path, monkeypatch,
     assert payload["reset_config"] is True
     assert payload["after_config"]["configured"] is False
     assert not (vault / "_epi/meta" / "epi-config.yaml").exists()
-    assert (vault / "_epi/raw" / "papers").is_dir()
+    assert (vault / "_epi/raw").is_dir()
 
 
 def test_config_recover_lists_backup_candidates_and_restore_requires_confirmation(tmp_path, monkeypatch, capsys):
@@ -467,4 +467,3 @@ def test_wiki_repair_can_restore_missing_config_from_backup(tmp_path, monkeypatc
     assert repair_payload["status"] == "repaired"
     assert repair_payload["after_config"]["configured"] is True
     assert "profile: repair_profile" in (vault / "_epi/meta" / "epi-config.yaml").read_text(encoding="utf-8")
-

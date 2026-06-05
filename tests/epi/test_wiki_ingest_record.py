@@ -68,7 +68,7 @@ def _write_json(path, payload):
 
 def _seed_agent_handoff(vault, slug="fixture-paper"):
     canonical_mineru_md = f"mineru/{slug}.md"
-    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / slug
     staging_root = vault / "_epi" / "staging" / "papers" / slug
     paper_root.mkdir(parents=True, exist_ok=True)
     staging_root.mkdir(parents=True, exist_ok=True)
@@ -276,7 +276,7 @@ def _formal_page_content(family, title, *, body=None):
         f"page_family: {family}\n"
         "tags: [epi, fixture]\n"
         "aliases: []\n"
-        'sources: ["[[_epi/raw/papers/fixture-paper/paper.pdf|fixture-paper]]"]\n'
+        'sources: ["[[_epi/raw/fixture-paper/paper.pdf|fixture-paper]]"]\n'
         f'summary: "Source-grounded {family} page for fixture validation."\n'
         "provenance:\n"
         "  extracted: [\"mineru/fixture-paper.md#method\"]\n"
@@ -303,7 +303,7 @@ def _source_artifact_record(paper_root, artifact):
 
 
 def _write_final_source_review(vault, slug, pages):
-    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / slug
     staging_root = vault / "_epi" / "staging" / "papers" / slug
     canonical_mineru_md = f"mineru/{slug}.md"
     image_files = sorted((paper_root / "mineru" / "images").glob("*"))
@@ -513,7 +513,7 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     assert file_sha256(reference) == before_hashes[reference]
     assert file_sha256(concept) == before_hashes[concept]
 
-    raw_record = json.loads((vault / "_epi" / "raw" / "papers" / slug / "wiki-ingest-record.json").read_text(encoding="utf-8"))
+    raw_record = json.loads((vault / "_epi" / "raw" / slug / "wiki-ingest-record.json").read_text(encoding="utf-8"))
     staging_record = json.loads(
         (vault / "_epi" / "staging" / "papers" / slug / "wiki-ingest-record.json").read_text(encoding="utf-8")
     )
@@ -530,7 +530,7 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     run_dir = tmp_path / "vault" / "_epi" / "runs" / result["run_id"]
     report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
     run_state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
-    paper_state = json.loads((vault / "_epi" / "raw" / "papers" / slug / "run-state.json").read_text(encoding="utf-8"))
+    paper_state = json.loads((vault / "_epi" / "raw" / slug / "run-state.json").read_text(encoding="utf-8"))
     assert report_json["workflow_type"] == "record-wiki-ingest"
     assert report_json["wiki_pages_written"] == ["references/fixture-paper.md", "concepts/navigation-control.md"]
     assert report_json["human_gate"]["status"] == "approved"
@@ -538,7 +538,7 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     assert report_json["wiki_ingest_record"]["final_source_review"]["status"] == "verified"
     assert report_json["zotero_results"]["status"] == "skipped"
     assert report_json["zotero_results"]["reason"] == "zotero_not_configured"
-    zotero_record = json.loads((vault / "_epi" / "raw" / "papers" / slug / "zotero-record.json").read_text(encoding="utf-8"))
+    zotero_record = json.loads((vault / "_epi" / "raw" / slug / "zotero-record.json").read_text(encoding="utf-8"))
     assert zotero_record["wiki_ingest"]["final_wiki_pages"][0]["relative_path"] == "references/fixture-paper.md"
     assert run_state["compiled_wiki_write"] is False
     assert run_state["record_only"] is True
@@ -638,7 +638,7 @@ def test_record_wiki_ingest_uses_enabled_zotero_config_in_report(tmp_path):
         source_review_path=str(source_review),
     )
 
-    raw_zotero = json.loads((vault / "_epi" / "raw" / "papers" / slug / "zotero-record.json").read_text(encoding="utf-8"))
+    raw_zotero = json.loads((vault / "_epi" / "raw" / slug / "zotero-record.json").read_text(encoding="utf-8"))
     assert raw_zotero["schema_version"] == "epi-zotero-record-v1"
     assert raw_zotero["status"] == "recorded"
     assert raw_zotero["record_only"] is True
@@ -669,7 +669,7 @@ def test_create_wiki_ingest_record_rejects_missing_human_approval(tmp_path):
     with pytest.raises(ValueError, match="human gate approval"):
         create_wiki_ingest_record(vault, slug, [str(page)], approved_by="")
 
-    assert not (vault / "_epi" / "raw" / "papers" / slug / "wiki-ingest-record.json").exists()
+    assert not (vault / "_epi" / "raw" / slug / "wiki-ingest-record.json").exists()
 
 
 def test_create_wiki_ingest_record_rejects_missing_prewrite_approval_artifact(tmp_path):
@@ -684,7 +684,7 @@ def test_create_wiki_ingest_record_rejects_missing_prewrite_approval_artifact(tm
     with pytest.raises(ValueError, match="pre-write human approval"):
         create_wiki_ingest_record(vault, slug, [str(page)], approved_by="codex-test")
 
-    assert not (vault / "_epi" / "raw" / "papers" / slug / "wiki-ingest-record.json").exists()
+    assert not (vault / "_epi" / "raw" / slug / "wiki-ingest-record.json").exists()
 
 
 def test_create_wiki_ingest_record_rejects_mismatched_prewrite_approval_actor(tmp_path):
@@ -757,8 +757,8 @@ def test_create_wiki_ingest_record_rejects_plain_text_pdf_source(tmp_path):
         vault,
         "references/plain-text-source.md",
         _formal_page_content("references", "Plain Text Source").replace(
-            '"[[_epi/raw/papers/fixture-paper/paper.pdf|fixture-paper]]"',
-            '"_epi/raw/papers/fixture-paper/paper.pdf (原论文 PDF)"',
+            '"[[_epi/raw/fixture-paper/paper.pdf|fixture-paper]]"',
+            '"_epi/raw/fixture-paper/paper.pdf (原论文 PDF)"',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
@@ -781,8 +781,8 @@ def test_create_wiki_ingest_record_rejects_markdown_pdf_source_link(tmp_path):
         vault,
         "references/markdown-source-link.md",
         _formal_page_content("references", "Markdown Source Link").replace(
-            '"[[_epi/raw/papers/fixture-paper/paper.pdf|fixture-paper]]"',
-            '"[fixture-paper](_epi/raw/papers/fixture-paper/paper.pdf)"',
+            '"[[_epi/raw/fixture-paper/paper.pdf|fixture-paper]]"',
+            '"[fixture-paper](_epi/raw/fixture-paper/paper.pdf)"',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
@@ -805,8 +805,8 @@ def test_create_wiki_ingest_record_rejects_pdf_source_alias_that_is_not_slug(tmp
         vault,
         "references/source-alias-not-slug.md",
         _formal_page_content("references", "Source Alias Not Slug").replace(
-            '"[[_epi/raw/papers/fixture-paper/paper.pdf|fixture-paper]]"',
-            '"[[_epi/raw/papers/fixture-paper/paper.pdf|fixture-paper 原论文 PDF]]"',
+            '"[[_epi/raw/fixture-paper/paper.pdf|fixture-paper]]"',
+            '"[[_epi/raw/fixture-paper/paper.pdf|fixture-paper 原论文 PDF]]"',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
@@ -825,8 +825,8 @@ def test_create_wiki_ingest_record_rejects_pdf_source_alias_that_is_not_slug(tmp
 @pytest.mark.parametrize(
     "extra_source",
     [
-        '"[[_epi/raw/papers/fixture-paper/metadata.json|metadata.json]]"',
-        '"[[_epi/raw/papers/fixture-paper/mineru/fixture-paper.md|MinerU Markdown]]"',
+        '"[[_epi/raw/fixture-paper/metadata.json|metadata.json]]"',
+        '"[[_epi/raw/fixture-paper/mineru/fixture-paper.md|MinerU Markdown]]"',
         '"https://doi.org/10.1000/fixture"',
     ],
 )
@@ -837,8 +837,8 @@ def test_create_wiki_ingest_record_rejects_non_pdf_entries_in_frontmatter_source
         vault,
         "references/non-pdf-source-entry.md",
         _formal_page_content("references", "Non PDF Source Entry").replace(
-            'sources: ["[[_epi/raw/papers/fixture-paper/paper.pdf|fixture-paper]]"]',
-            'sources: ["[[_epi/raw/papers/fixture-paper/paper.pdf|fixture-paper]]", '
+            'sources: ["[[_epi/raw/fixture-paper/paper.pdf|fixture-paper]]"]',
+            'sources: ["[[_epi/raw/fixture-paper/paper.pdf|fixture-paper]]", '
             + extra_source
             + "]",
         ),

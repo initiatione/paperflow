@@ -51,7 +51,7 @@ def _write_json(path, payload):
 
 def _seed_agent_handoff(vault, slug="fixture-paper"):
     canonical_mineru_md = f"mineru/{slug}.md"
-    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / slug
     staging_root = vault / "_epi" / "staging" / "papers" / slug
     paper_root.mkdir(parents=True, exist_ok=True)
     staging_root.mkdir(parents=True, exist_ok=True)

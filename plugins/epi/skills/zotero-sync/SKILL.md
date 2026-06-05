@@ -13,9 +13,9 @@ Zotero integration is optional. Default to local record-only behavior unless the
 If config is missing, stop sync and use `config-setup`. See `docs\config.md`.
 
 ```powershell
-python scripts\orchestrator.py zotero-sync --paper-root <vault>\_epi\raw\papers\<paper-slug> --collection EPI --enabled --item-key <zotero-item-key>
+python scripts\orchestrator.py zotero-sync --paper-root <vault>\_epi\\raw\\<paper-slug> --collection EPI --enabled --item-key <zotero-item-key>
 ```
 
-Runtime note: after `record-wiki-ingest` or legacy `promote-to-wiki`, EPI writes `_epi\raw\papers\<paper-slug>\zotero-record.json` as a record-only sidecar using vault config. The record may include metadata, `wiki-ingest-record.json`, and final wiki page hashes. It does not call external Zotero APIs.
+Runtime note: after `record-wiki-ingest` or legacy `promote-to-wiki`, EPI writes `_epi\\raw\\<paper-slug>\zotero-record.json` as a record-only sidecar using vault config. The record may include metadata, `wiki-ingest-record.json`, and final wiki page hashes. It does not call external Zotero APIs.
 
 Never delete existing Zotero records during config reset or update.

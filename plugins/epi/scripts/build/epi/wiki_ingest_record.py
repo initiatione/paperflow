@@ -34,11 +34,11 @@ _AUDIT_PAGE_MARKERS = [
     "formal_page: false",
 ]
 _OBSIDIAN_SOURCE_PDF_PATTERN = re.compile(
-    r"\[\[_epi/raw/papers/(?P<slug>[^/\]\|]+)/paper\.pdf\|(?P=slug)\]\]",
+    r"\[\[_epi/raw/(?P<slug>[^/\]\|]+)/paper\.pdf\|(?P=slug)\]\]",
     re.IGNORECASE,
 )
 _OBSIDIAN_SOURCE_PDF_ANY_ALIAS_PATTERN = re.compile(
-    r"\[\[_epi/raw/papers/(?P<slug>[^/\]\|]+)/paper\.pdf\|(?P<alias>[^\]]+)\]\]",
+    r"\[\[_epi/raw/(?P<slug>[^/\]\|]+)/paper\.pdf\|(?P<alias>[^\]]+)\]\]",
     re.IGNORECASE,
 )
 

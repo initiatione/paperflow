@@ -6,7 +6,7 @@ from epi.run_mineru_parse import run_mineru_command
 
 
 def _seed_paper_root(tmp_path, slug="paper"):
-    paper_root = tmp_path / "vault" / "_epi" / "raw" / "papers" / slug
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / slug
     paper_root.mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
     return paper_root
@@ -256,7 +256,7 @@ def test_mineru_command_reports_done_without_markdown_as_missing_output(tmp_path
 def test_parse_paper_with_mineru_uses_vault_slug_boundary(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"
-    paper_root = vault / "_epi" / "raw" / "papers" / slug
+    paper_root = vault / "_epi" / "raw" / slug
     paper_root.mkdir(parents=True)
     (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
     command = [sys.executable, str(_write_success_command(tmp_path))]

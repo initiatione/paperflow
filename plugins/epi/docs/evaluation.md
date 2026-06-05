@@ -15,7 +15,7 @@ python scripts\orchestrator.py wiki-ingest-handoff --slug <paper-slug> --vault <
 python scripts\orchestrator.py record-human-approval --slug <paper-slug> --approved-by <name> --scope run-wiki-ingest-agent --vault <vault>
 python scripts\orchestrator.py wiki-ingest-trigger --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py record-wiki-ingest --slug <paper-slug> --page <final-page.md> --approved-by <name> --source-review <final-source-review.json> --vault <vault>
-python scripts\orchestrator.py zotero-sync --paper-root <vault>\_epi\raw\papers\<paper-slug> --collection EPI --enabled
+python scripts\orchestrator.py zotero-sync --paper-root <vault>\_epi\\raw\\<paper-slug> --collection EPI --enabled
 ```
 
 Runtime artifacts stay under the single `_epi` internal repository and the optional Zotero sidecar. The main artifacts are `_epi/runs/<run-id>/search-record.json`, `rank.json`, `report.md`, `report.json`, and `run-state.json`, plus paper-scoped `parse-record.json`, `critic-report.json`, `_epi/staging/papers/<slug>/human-approval.json`, `_epi/staging/papers/<slug>/wiki-agent-trigger.json`, `wiki-ingest-record.json`, and `zotero-record.json` files.

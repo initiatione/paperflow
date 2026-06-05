@@ -42,7 +42,7 @@ def raw_root(vault_path: Path) -> Path:
 
 
 def raw_papers_root(vault_path: Path) -> Path:
-    return raw_root(vault_path) / "papers"
+    return raw_root(vault_path)
 
 
 def raw_paper_root(vault_path: Path, slug: str) -> Path:
@@ -53,10 +53,17 @@ def legacy_raw_paper_root(vault_path: Path, slug: str) -> Path:
     return vault_path.resolve() / LEGACY_RAW_ROOT_NAME / "papers" / slug
 
 
+def legacy_nested_epi_raw_paper_root(vault_path: Path, slug: str) -> Path:
+    return raw_root(vault_path) / "papers" / slug
+
+
 def existing_raw_paper_root(vault_path: Path, slug: str) -> Path:
     current = raw_paper_root(vault_path, slug)
     if current.exists():
         return current
+    legacy_nested = legacy_nested_epi_raw_paper_root(vault_path, slug)
+    if legacy_nested.exists():
+        return legacy_nested
     legacy = legacy_raw_paper_root(vault_path, slug)
     if legacy.exists():
         return legacy

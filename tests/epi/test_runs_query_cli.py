@@ -52,7 +52,7 @@ def _seed_run(
 
 
 def _seed_ready_paper_gate(vault, slug):
-    paper_root = vault / "_epi/raw" / "papers" / slug
+    paper_root = vault / "_epi/raw" / slug
     staging_root = vault / "_epi/staging" / "papers" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
@@ -140,7 +140,7 @@ def _seed_ready_paper_gate(vault, slug):
 
 def _seed_failed_paper_gate(vault, slug):
     _seed_ready_paper_gate(vault, slug)
-    paper_root = vault / "_epi/raw" / "papers" / slug
+    paper_root = vault / "_epi/raw" / slug
     critic_root = paper_root / "critic"
     _write_json(
         critic_root / "critic-quorum.json",
@@ -165,7 +165,7 @@ def _seed_failed_paper_gate(vault, slug):
 
 
 def _seed_unstaged_paper_gate(vault, slug):
-    paper_root = vault / "_epi/raw" / "papers" / slug
+    paper_root = vault / "_epi/raw" / slug
     critic_root = paper_root / "critic"
     critic_root.mkdir(parents=True, exist_ok=True)
     _write_json(paper_root / "metadata.json", {"slug": slug, "title": "Unstaged Paper"})
@@ -891,7 +891,7 @@ def test_research_queue_cli_actions_suggest_reader_repair_command(tmp_path, monk
                     "next_action": "revise-reader",
                     "blocking_count": 2,
                     "warning_count": 1,
-                    "plan_path": str(vault / "_epi/raw" / "papers" / "repair-paper" / "critic" / "reader-revision-plan.json"),
+                    "plan_path": str(vault / "_epi/raw" / "repair-paper" / "critic" / "reader-revision-plan.json"),
                 }
             ],
         },
@@ -972,4 +972,3 @@ def test_research_agenda_cli_is_not_available(tmp_path, monkeypatch, capsys):
         assert exc.code != 0
     else:
         raise AssertionError("research-agenda should not be available after narrowing EPI scope")
-
