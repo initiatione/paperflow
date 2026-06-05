@@ -108,6 +108,14 @@ def runs_root(vault_path: Path) -> Path:
     return epi_root(vault_path) / "runs"
 
 
+def reviews_root(vault_path: Path) -> Path:
+    return epi_root(vault_path) / "reviews"
+
+
+def review_root(vault_path: Path, review_id: str) -> Path:
+    return reviews_root(vault_path) / review_id
+
+
 def legacy_runs_root(vault_path: Path) -> Path:
     return vault_path.resolve() / LEGACY_RUNS_ROOT_NAME
 
