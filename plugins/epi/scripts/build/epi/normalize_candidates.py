@@ -40,6 +40,41 @@ def _pdf_urls_from_record(record: dict) -> list[str]:
     return sorted(urls, key=_pdf_url_score)
 
 
+def _record_source_name(record: dict) -> str:
+    raw_record = record.get("raw_record") if isinstance(record.get("raw_record"), dict) else {}
+    return str(record.get("source") or raw_record.get("source") or "unknown")
+
+
+def _record_paper_id(record: dict) -> str | None:
+    raw_record = record.get("raw_record") if isinstance(record.get("raw_record"), dict) else {}
+    for key in ("paper_id", "id", "arxiv_id", "doi"):
+        value = record.get(key) or raw_record.get(key)
+        if value:
+            return str(value)
+    return None
+
+
+def _add_alternate_source(current: dict, record: dict) -> None:
+    source = _record_source_name(record)
+    alternate = {"source": source}
+    paper_id = _record_paper_id(record)
+    if paper_id:
+        alternate["paper_id"] = paper_id
+    if alternate not in current["alternate_sources"]:
+        current["alternate_sources"].append(alternate)
+        current["alternate_sources"].sort(key=lambda item: (item.get("source") or "", item.get("paper_id") or ""))
+
+
+def _add_alternate_pdf_urls(current: dict, record: dict) -> None:
+    source = _record_source_name(record)
+    urls = current["alternate_pdf_urls"]
+    for url in _pdf_urls_from_record(record):
+        alternate = {"source": source, "url": url}
+        if alternate not in urls:
+            urls.append(alternate)
+    urls.sort(key=lambda item: _pdf_url_score(item["url"]))
+
+
 def _merge_pdf_urls(current: dict, record: dict) -> None:
     urls = list(current.get("pdf_urls") or [])
     for url in _pdf_urls_from_record(record):
@@ -72,6 +107,8 @@ def normalize_candidates(raw_records: list[dict]) -> list[dict]:
                 "code_url": record.get("code_url"),
                 "citation_count": int(record.get("citation_count") or 0),
                 "sources": [],
+                "alternate_sources": [],
+                "alternate_pdf_urls": [],
                 "raw_records": [],
             },
         )
@@ -79,6 +116,8 @@ def normalize_candidates(raw_records: list[dict]) -> list[dict]:
         if source not in current["sources"]:
             current["sources"].append(source)
         current["sources"].sort()
+        _add_alternate_source(current, record)
+        _add_alternate_pdf_urls(current, record)
         current["raw_records"].append(record)
         _merge_pdf_urls(current, record)
         if not current.get("code_url") and record.get("code_url"):

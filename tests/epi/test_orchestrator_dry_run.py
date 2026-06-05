@@ -994,6 +994,79 @@ def test_dry_run_records_provider_aware_source_routing_in_query_plan_search_and_
     assert invoked_args[-1] == "semantic,unpaywall"
 
 
+def test_dry_run_exact_doi_uses_single_identifier_query_and_narrowed_sources(tmp_path, monkeypatch):
+    monkeypatch.setenv("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL", "research@example.org")
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    args_path = tmp_path / "args.json"
+    fake_command = tmp_path / "exact-doi-paper-search.ps1"
+    fake_payload = {
+        "query": "10.1016/j.oceaneng.2024.119432",
+        "sources_used": ["unpaywall", "crossref"],
+        "source_results": {"unpaywall": 1, "crossref": 1},
+        "errors": {},
+        "total": 1,
+        "papers": [
+            {
+                "paper_id": "10.1016/j.oceaneng.2024.119432",
+                "title": "Fault Tolerant Control for AUVs",
+                "authors": "A. Researcher",
+                "abstract": "AUV control with experiments.",
+                "doi": "10.1016/j.oceaneng.2024.119432",
+                "url": "https://doi.org/10.1016/j.oceaneng.2024.119432",
+                "source": "crossref",
+                "citations": 4,
+                "extra": {"venue": "Ocean Engineering"},
+            }
+        ],
+    }
+    fake_command.write_text(
+        "$args_json = $args | ConvertTo-Json -Compress\n"
+        "if ($args -contains '--version') { Write-Output 'paper-search 0.1.4'; exit 0 }\n"
+        f"$payload = @'\n{json.dumps(fake_payload)}\n'@\n"
+        "$payload | Write-Output\n"
+        f"$args_json | Set-Content -Encoding UTF8 -LiteralPath {json.dumps(str(args_path))}\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="https://doi.org/10.1016/j.oceaneng.2024.119432",
+        max_results=3,
+        paper_search_command=fake_command,
+        sources=["arxiv", "semantic", "openalex", "crossref", "unpaywall", "dblp"],
+        use_query_plan=True,
+    )
+
+    query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
+    search_record = json.loads((run_dir / "search-record.json").read_text(encoding="utf-8"))
+    state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
+    invoked_args = json.loads(args_path.read_text(encoding="utf-8-sig"))
+
+    assert query_plan["research_mode"]["mode"] == "exact-lookup"
+    assert query_plan["query_variants"] == ["10.1016/j.oceaneng.2024.119432"]
+    assert query_plan["source_routing"]["exact_lookup"]["kind"] == "doi"
+    assert query_plan["source_routing"]["selected_sources"] == [
+        "unpaywall",
+        "crossref",
+        "openalex",
+        "semantic",
+    ]
+    assert search_record["query_strategy"] == "exact_lookup_single_query"
+    assert search_record["query_records"] == []
+    assert state["query_strategy"] == "exact_lookup_single_query"
+    assert invoked_args == [
+        "search",
+        "10.1016/j.oceaneng.2024.119432",
+        "-n",
+        "3",
+        "-s",
+        "unpaywall,crossref,openalex,semantic",
+    ]
+
+
 def test_dry_run_keeps_environment_command_override_for_default_config_command(tmp_path, monkeypatch):
     plugin_root = tmp_path / "plugin"
     _write_minimal_plugin_template(plugin_root)

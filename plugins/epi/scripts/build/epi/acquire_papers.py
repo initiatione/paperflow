@@ -125,6 +125,15 @@ def _candidate_pdf_urls(candidate: dict) -> list[str]:
     elif isinstance(pdf_urls, list):
         for url in pdf_urls:
             add(url)
+    alternate_pdf_urls = candidate.get("alternate_pdf_urls")
+    if isinstance(alternate_pdf_urls, str):
+        add(alternate_pdf_urls)
+    elif isinstance(alternate_pdf_urls, list):
+        for item in alternate_pdf_urls:
+            if isinstance(item, dict):
+                add(item.get("url") or item.get("pdf_url"))
+            else:
+                add(item)
     for record in candidate.get("raw_records") or []:
         if not isinstance(record, dict):
             continue

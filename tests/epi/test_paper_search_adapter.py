@@ -56,6 +56,56 @@ def test_plan_source_routing_demotes_unstable_sources_and_reports_provider_risks
     ]
 
 
+def test_plan_source_routing_narrows_exact_doi_lookup_to_identifier_sources(monkeypatch):
+    monkeypatch.setenv("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL", "research@example.org")
+
+    plan = plan_source_routing(query="https://doi.org/10.1016/j.oceaneng.2024.119432")
+
+    assert plan["exact_lookup"] == {
+        "kind": "doi",
+        "value": "10.1016/j.oceaneng.2024.119432",
+        "source_policy": "doi_exact",
+    }
+    assert plan["selected_sources"] == ["unpaywall", "crossref", "openalex", "semantic"]
+    assert {"source": "arxiv", "reason": "exact_doi_lookup"} in plan["demoted_sources"]
+    assert {"source": "dblp", "reason": "exact_doi_lookup"} in plan["demoted_sources"]
+
+
+def test_plan_source_routing_prioritizes_arxiv_id_exact_lookup():
+    plan = plan_source_routing(
+        ["semantic", "arxiv", "openalex", "crossref"],
+        query="arXiv:2401.12345v2",
+    )
+
+    assert plan["exact_lookup"] == {
+        "kind": "arxiv_id",
+        "value": "2401.12345v2",
+        "source_policy": "arxiv_exact",
+    }
+    assert plan["selected_sources"] == ["arxiv"]
+    assert plan["demoted_sources"] == [
+        {"source": "semantic", "reason": "exact_arxiv_lookup"},
+        {"source": "openalex", "reason": "exact_arxiv_lookup"},
+        {"source": "crossref", "reason": "exact_arxiv_lookup"},
+    ]
+
+
+def test_plan_source_routing_detects_explicit_exact_title_lookup():
+    plan = plan_source_routing(
+        ["arxiv", "semantic", "openalex", "crossref", "unpaywall"],
+        query='title:"Fault Tolerant Model Predictive Control for Autonomous Underwater Vehicles"',
+    )
+
+    assert plan["exact_lookup"] == {
+        "kind": "title",
+        "value": "Fault Tolerant Model Predictive Control for Autonomous Underwater Vehicles",
+        "source_policy": "title_exact",
+    }
+    assert plan["selected_sources"] == ["semantic", "openalex", "crossref"]
+    assert {"source": "arxiv", "reason": "exact_title_lookup"} in plan["demoted_sources"]
+    assert {"source": "unpaywall", "reason": "exact_title_lookup"} in plan["demoted_sources"]
+
+
 def test_discovery_prefers_paper_search_mcp_server_over_cli(tmp_path, monkeypatch):
     cli_command = _write_fake_paper_search(tmp_path, {"papers": []})
 

@@ -185,6 +185,33 @@ def test_acquire_paper_from_url_tries_candidate_pdf_url_fallbacks(tmp_path):
     assert (paper_root / "paper.pdf").read_bytes().startswith(b"%PDF-1.4")
 
 
+def test_acquire_paper_from_url_tries_alternate_pdf_urls_from_deduped_sources(tmp_path):
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+    (server_root / "alternate.pdf").write_bytes(b"%PDF-1.4\nalternate fixture\n")
+    paper_root = tmp_path / "vault" / "_epi" / "raw" / "alternate-url-paper"
+
+    with _LocalServer(server_root) as base_url:
+        first_url = f"{base_url}/missing.pdf"
+        alternate_url = f"{base_url}/alternate.pdf"
+        candidate = _candidate(first_url, slug="alternate-url-paper")
+        candidate["pdf_urls"] = [first_url]
+        candidate["alternate_pdf_urls"] = [
+            {"source": "unpaywall", "url": alternate_url},
+            {"source": "crossref", "url": first_url},
+        ]
+
+        record = acquire_paper_from_url(candidate, paper_root)
+
+    assert record["status"] == "success"
+    assert record["candidate_pdf_urls"] == [first_url, alternate_url]
+    assert record["resolved_pdf_url"] == alternate_url
+    assert record["acquire_attempts"][0]["url"] == first_url
+    assert record["acquire_attempts"][1]["url"] == alternate_url
+    assert record["acquire_attempts"][1]["status"] == "success"
+    assert (paper_root / "paper.pdf").read_bytes().startswith(b"%PDF-1.4")
+
+
 def test_acquire_paper_from_url_rejects_html_without_pdf_link(tmp_path):
     server_root = tmp_path / "server"
     server_root.mkdir()

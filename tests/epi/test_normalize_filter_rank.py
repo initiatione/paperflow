@@ -77,6 +77,55 @@ def test_normalize_candidates_prefers_direct_pdf_over_doi_landing_url():
     ]
 
 
+def test_normalize_candidates_preserves_alternate_sources_and_pdf_urls_for_deduped_records():
+    raw_records = [
+        {
+            "source": "crossref",
+            "title": "Exact AUV Control Paper",
+            "authors": ["A. Researcher"],
+            "year": 2024,
+            "doi": "10.1016/j.oceaneng.2024.119432",
+            "pdf_url": "https://doi.org/10.1016/j.oceaneng.2024.119432",
+            "citation_count": 3,
+            "raw_record": {"source": "crossref", "paper_id": "10.1016/j.oceaneng.2024.119432"},
+        },
+        {
+            "source": "unpaywall",
+            "title": "Exact AUV Control Paper",
+            "authors": ["A. Researcher"],
+            "year": 2024,
+            "doi": "10.1016/j.oceaneng.2024.119432",
+            "pdf_url": "https://repository.example/auv-control.pdf",
+            "citation_count": 1,
+            "raw_record": {
+                "source": "unpaywall",
+                "paper_id": "10.1016/j.oceaneng.2024.119432",
+                "pdf_url": "https://mirror.example/auv-control.pdf",
+            },
+        },
+    ]
+
+    normalized = normalize_candidates(raw_records)
+
+    assert len(normalized) == 1
+    assert normalized[0]["sources"] == ["crossref", "unpaywall"]
+    assert normalized[0]["alternate_sources"] == [
+        {"source": "crossref", "paper_id": "10.1016/j.oceaneng.2024.119432"},
+        {"source": "unpaywall", "paper_id": "10.1016/j.oceaneng.2024.119432"},
+    ]
+    assert normalized[0]["pdf_urls"] == [
+        "https://repository.example/auv-control.pdf",
+        "https://mirror.example/auv-control.pdf",
+        "https://doi.org/10.1016/j.oceaneng.2024.119432",
+    ]
+    assert normalized[0]["alternate_pdf_urls"] == [
+        {"source": "unpaywall", "url": "https://repository.example/auv-control.pdf"},
+        {"source": "unpaywall", "url": "https://mirror.example/auv-control.pdf"},
+        {"source": "crossref", "url": "https://doi.org/10.1016/j.oceaneng.2024.119432"},
+    ]
+    assert len(normalized[0]["raw_records"]) == 2
+
+
 def test_filter_candidates_can_hard_exclude_reviews_when_requested():
     candidates = [
         {

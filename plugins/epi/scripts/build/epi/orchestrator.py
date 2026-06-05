@@ -207,6 +207,36 @@ def _build_dry_run_query_plan(query: str, *, domain: str, max_queries: int, conf
     )
 
 
+def _exact_lookup_query(source_routing: dict | None, fallback_query: str) -> str:
+    exact_lookup = source_routing.get("exact_lookup") if isinstance(source_routing, dict) else None
+    if isinstance(exact_lookup, dict) and exact_lookup.get("value"):
+        return str(exact_lookup["value"])
+    return fallback_query
+
+
+def _apply_exact_lookup_query_plan(query_plan: dict, source_routing: dict | None) -> None:
+    exact_lookup = source_routing.get("exact_lookup") if isinstance(source_routing, dict) else None
+    if not isinstance(exact_lookup, dict):
+        return
+    query_plan["research_mode"] = {
+        "schema_version": "epi-research-mode-v1",
+        "mode": "exact-lookup",
+        "spectrum": "fidelity",
+        "oversight": "low",
+        "signals": [exact_lookup.get("kind")],
+        "reason": "The user supplied a DOI, arXiv ID, or explicit title lookup; preserve the identifier instead of expanding the query.",
+    }
+    query_plan["query_variants"] = [_exact_lookup_query(source_routing, str(query_plan.get("topic") or ""))]
+
+
+def _query_strategy_for_dry_run(query_plan: dict | None, fixture_path: Path | None, source_routing: dict | None) -> str:
+    if fixture_path is not None or not query_plan:
+        return "single_query"
+    if isinstance(source_routing, dict) and isinstance(source_routing.get("exact_lookup"), dict):
+        return "exact_lookup_single_query"
+    return "query_plan_multi_query"
+
+
 def _ranking_keywords_from_profile(config, query: str, query_plan: dict | None) -> list[str]:
     keywords: list[str] = []
     keywords.extend(config.positive_keywords)
@@ -491,9 +521,11 @@ def _run_query_plan_discovery(
         if isinstance(source_routing, dict) and source_routing.get("selected_sources")
         else sources
     )
-    if fixture_path is not None or not query_plan:
+    exact_lookup = source_routing.get("exact_lookup") if isinstance(source_routing, dict) else None
+    if fixture_path is not None or not query_plan or isinstance(exact_lookup, dict):
+        discovery_query = _exact_lookup_query(source_routing, query) if isinstance(exact_lookup, dict) else query
         search_record = discover(
-            query=query,
+            query=discovery_query,
             max_results=max_results,
             fixture_path=fixture_path,
             command=command,
@@ -502,7 +534,15 @@ def _run_query_plan_discovery(
         )
         if query_plan:
             search_record["query_plan"] = query_plan
-            search_record["query_strategy"] = "fixture_single_query" if fixture_path is not None else "single_query"
+            search_record["query_strategy"] = (
+                "fixture_single_query"
+                if fixture_path is not None
+                else "exact_lookup_single_query"
+                if isinstance(exact_lookup, dict)
+                else "single_query"
+            )
+            if isinstance(exact_lookup, dict):
+                search_record["query_records"] = []
         if source_routing:
             search_record["source_routing"] = source_routing
         return search_record
@@ -860,7 +900,7 @@ def run_dry_run(
     )
     effective_paper_search_command = paper_search_command or configured_paper_search_command
     requested_sources = sources or config.paper_search_sources
-    source_routing = plan_source_routing(requested_sources)
+    source_routing = plan_source_routing(requested_sources, query=query)
     effective_sources = source_routing.get("selected_sources") or requested_sources
     run_id, run_dir = _new_run_dir(config.vault_path)
     started_at = utc_now()
@@ -874,7 +914,10 @@ def run_dry_run(
         if use_query_plan
         else None
     )
+    if query_plan:
+        _apply_exact_lookup_query_plan(query_plan, source_routing)
     research_mode = (query_plan or {}).get("research_mode") or infer_research_mode(query)
+    query_strategy = _query_strategy_for_dry_run(query_plan, fixture_path, source_routing)
     if query_plan:
         query_plan["source_routing"] = source_routing
         _write_json(run_dir / "query-plan.json", query_plan)
@@ -888,7 +931,7 @@ def run_dry_run(
         "dry_run": True,
         "query": query,
         "research_mode": research_mode,
-        "query_strategy": "query_plan_multi_query" if query_plan and fixture_path is None else "single_query",
+        "query_strategy": query_strategy,
         "profile": config.profile,
         "requested_sources": requested_sources,
         "sources": effective_sources,

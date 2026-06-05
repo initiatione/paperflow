@@ -4,6 +4,7 @@ import ast
 import json
 import os
 import queue
+import re
 import shlex
 import shutil
 import subprocess
@@ -117,8 +118,134 @@ def paper_search_provider_readiness(sources: list[str] | None = None) -> dict[st
     return readiness
 
 
-def plan_source_routing(sources: list[str] | None = None, *, include_unstable: bool = False) -> dict:
-    requested_sources = [str(source).strip() for source in (sources or DEFAULT_SOURCES) if str(source).strip()]
+DOI_PATTERN = re.compile(r"\b10\.\d{4,9}/[^\s\"'<>]+\b", re.IGNORECASE)
+ARXIV_ID_PATTERN = re.compile(
+    r"(?i)(?:arxiv:\s*|arxiv\.org/(?:abs|pdf)/)?(\d{4}\.\d{4,5}(?:v\d+)?)"
+)
+EXACT_SOURCE_POLICIES = {
+    "doi": {
+        "source_policy": "doi_exact",
+        "sources": ["unpaywall", "crossref", "openalex", "semantic"],
+        "demotion_reason": "exact_doi_lookup",
+    },
+    "arxiv_id": {
+        "source_policy": "arxiv_exact",
+        "sources": ["arxiv"],
+        "demotion_reason": "exact_arxiv_lookup",
+    },
+    "title": {
+        "source_policy": "title_exact",
+        "sources": ["semantic", "openalex", "crossref"],
+        "demotion_reason": "exact_title_lookup",
+    },
+}
+
+
+def _clean_doi(value: str) -> str:
+    text = re.sub(r"^https?://(dx\.)?doi\.org/", "", value.strip(), flags=re.IGNORECASE)
+    text = re.sub(r"^doi:\s*", "", text, flags=re.IGNORECASE)
+    return text.strip().strip(".,;")
+
+
+def _detect_exact_lookup(query: str | None) -> dict | None:
+    text = str(query or "").strip()
+    if not text:
+        return None
+    title_match = re.fullmatch(r"""(?is)\s*title:\s*["'](.+?)["']\s*""", text)
+    if title_match:
+        value = " ".join(title_match.group(1).split())
+        if value:
+            policy = EXACT_SOURCE_POLICIES["title"]
+            return {"kind": "title", "value": value, "source_policy": policy["source_policy"]}
+    doi_match = DOI_PATTERN.search(text)
+    if doi_match:
+        policy = EXACT_SOURCE_POLICIES["doi"]
+        return {
+            "kind": "doi",
+            "value": _clean_doi(doi_match.group(0)),
+            "source_policy": policy["source_policy"],
+        }
+    arxiv_match = ARXIV_ID_PATTERN.search(text)
+    if arxiv_match and (
+        "arxiv" in text.lower()
+        or re.fullmatch(r"\s*\d{4}\.\d{4,5}(?:v\d+)?\s*", text, flags=re.IGNORECASE)
+    ):
+        policy = EXACT_SOURCE_POLICIES["arxiv_id"]
+        return {
+            "kind": "arxiv_id",
+            "value": arxiv_match.group(1),
+            "source_policy": policy["source_policy"],
+        }
+    return None
+
+
+def _dedupe_sources(sources: list[str] | None) -> list[str]:
+    requested_sources: list[str] = []
+    seen: set[str] = set()
+    for source in sources or DEFAULT_SOURCES:
+        source_name = str(source).strip().lower()
+        if not source_name or source_name in seen:
+            continue
+        seen.add(source_name)
+        requested_sources.append(source_name)
+    return requested_sources
+
+
+def plan_source_routing(
+    sources: list[str] | None = None,
+    *,
+    include_unstable: bool = False,
+    query: str | None = None,
+) -> dict:
+    requested_sources = _dedupe_sources(sources)
+    exact_lookup = _detect_exact_lookup(query)
+    if exact_lookup:
+        policy = EXACT_SOURCE_POLICIES[exact_lookup["kind"]]
+        policy_sources = [source for source in policy["sources"] if source in SOURCE_CAPABILITIES]
+        requested_set = set(requested_sources)
+        selected_sources = [source for source in policy_sources if source in requested_set] or policy_sources
+        demoted_sources = [
+            {"source": source, "reason": policy["demotion_reason"]}
+            for source in requested_sources
+            if source not in selected_sources
+        ]
+        provider_readiness = paper_search_provider_readiness(selected_sources)
+        provider_risks = [
+            {
+                "provider": provider,
+                "status": state.get("status"),
+                "env": state.get("env"),
+                "importance": state.get("importance"),
+                "reason": state.get("reason"),
+            }
+            for provider, state in sorted(provider_readiness.items())
+            if isinstance(state, dict)
+            and state.get("status") not in {"set"}
+            and state.get("importance") in {"required", "recommended"}
+        ]
+        provider_gaps = [
+            {
+                "provider": risk["provider"],
+                "provider_gap": provider_readiness.get(risk["provider"], {}).get("provider_gap")
+                or f"{risk.get('provider')}_missing_env",
+                "status": risk.get("status"),
+                "env": risk.get("env"),
+                "importance": risk.get("importance"),
+                "reason": risk.get("reason"),
+            }
+            for risk in provider_risks
+        ]
+        return {
+            "requested_sources": requested_sources,
+            "selected_sources": selected_sources,
+            "demoted_sources": demoted_sources,
+            "provider_readiness": provider_readiness,
+            "provider_risks": provider_risks,
+            "provider_gaps": provider_gaps,
+            "include_unstable": include_unstable,
+            "exact_lookup": exact_lookup,
+        }
+
     selected_sources: list[str] = []
     demoted_sources: list[dict] = []
     seen: set[str] = set()
