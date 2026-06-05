@@ -269,6 +269,43 @@ def test_parse_paper_with_mineru_uses_vault_slug_boundary(tmp_path):
     assert not (paper_root / "mineru" / "paper.md").exists()
 
 
+def test_mineru_command_success_writes_evidence_index_and_aggregate(tmp_path):
+    paper_root = _seed_paper_root(tmp_path, slug="fixture-paper")
+    (paper_root / "metadata.json").write_text(
+        json.dumps({"slug": "fixture-paper", "title": "Fixture Paper", "doi": "10.1000/fixture"}),
+        encoding="utf-8",
+    )
+    command = [sys.executable, str(_write_success_command(tmp_path))]
+
+    record = run_mineru_command(paper_root, command=command)
+
+    evidence_index = json.loads((paper_root / "evidence-index.json").read_text(encoding="utf-8"))
+    aggregate = json.loads((tmp_path / "vault" / "_epi" / "meta" / "evidence-index.json").read_text(encoding="utf-8"))
+    assert record["evidence_index"]["path"] == str(paper_root / "evidence-index.json")
+    assert record["evidence_index"]["chunk_count"] >= 1
+    assert evidence_index["paper_slug"] == "fixture-paper"
+    assert aggregate["papers"][0]["paper_slug"] == "fixture-paper"
+
+
+def test_parse_paper_with_mineru_writes_evidence_index(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    paper_root = vault / "_epi" / "raw" / slug
+    paper_root.mkdir(parents=True)
+    (paper_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
+    (paper_root / "metadata.json").write_text(
+        json.dumps({"slug": slug, "title": "Fixture Paper"}),
+        encoding="utf-8",
+    )
+    command = [sys.executable, str(_write_success_command(tmp_path))]
+
+    record = parse_paper_with_mineru(vault, slug, mineru_command=command)
+
+    assert record["status"] == "success"
+    assert (paper_root / "evidence-index.json").is_file()
+    assert (vault / "_epi" / "meta" / "evidence-index.json").is_file()
+
+
 def test_resolve_mineru_timeout_prefers_param_then_env_then_default(monkeypatch):
     from epi.run_mineru_parse import _resolve_mineru_timeout
 

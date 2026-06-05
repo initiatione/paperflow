@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from epi.artifacts import file_sha256, utc_now, write_json_atomic, write_text_atomic
+from epi.evidence_index import build_paper_evidence_index
 from epi.runtime_config import apply_runtime_config
 from epi.source_artifacts import canonical_mineru_markdown_path
 
@@ -243,6 +244,33 @@ def _resolve_mineru_timeout(timeout_seconds: int | None) -> int:
     return _DEFAULT_MINERU_TIMEOUT_SECONDS
 
 
+def _vault_path_from_paper_root(paper_root: Path) -> Path | None:
+    parts = paper_root.resolve().parts
+    if len(parts) >= 3 and parts[-3] == "_epi" and parts[-2] == "raw":
+        return Path(*parts[:-3])
+    return None
+
+
+def _attach_evidence_index(record: dict, paper_root: Path) -> dict:
+    vault_path = _vault_path_from_paper_root(paper_root)
+    try:
+        evidence_index = build_paper_evidence_index(paper_root, vault_path=vault_path)
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        record["evidence_index"] = {"status": "failed", "error": str(exc)}
+        return record
+
+    evidence_path = paper_root / "evidence-index.json"
+    record["evidence_index"] = {
+        "status": "success",
+        "path": str(evidence_path),
+        "chunk_count": len(evidence_index.get("chunks") or []),
+        "warnings": evidence_index.get("warnings") or [],
+    }
+    record.setdefault("output_artifact_hashes", {})
+    record["output_artifact_hashes"]["evidence-index.json"] = file_sha256(evidence_path)
+    return record
+
+
 def run_mineru_command(
     paper_root: Path,
     *,
@@ -410,6 +438,7 @@ def run_mineru_command(
     if manifest_path:
         output_hashes["mineru-manifest.json"] = file_sha256(mineru_dir / "mineru-manifest.json")
     record["output_artifact_hashes"] = output_hashes
+    record = _attach_evidence_index(record, paper_root)
     write_json_atomic(paper_root / "parse-record.json", record)
     return record
 
@@ -485,5 +514,6 @@ def materialize_mineru_fixture(
         "paper.tex": file_sha256(mineru_dir / "paper.tex"),
         "mineru-manifest.json": file_sha256(manifest_path),
     }
+    parse_record = _attach_evidence_index(parse_record, paper_root)
     write_json_atomic(paper_root / "parse-record.json", parse_record)
     return parse_record
