@@ -345,8 +345,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         ]
     )
 
-    assert manifest["version"] == "0.1.9"
-    assert "v0.1.9" in manifest["interface"]["shortDescription"]
+    assert manifest["version"] == "0.1.10"
+    assert "v0.1.10" in manifest["interface"]["shortDescription"]
     for phrase in [
         "search_papers",
         "source_coverage",
@@ -379,7 +379,7 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "PAPER_SEARCH_MCP_CORE_API_KEY",
         "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL",
         "source capability matrix",
-        "0.1.9",
+        "0.1.10",
         "0.1.8",
         "installed cache",
     ]:
