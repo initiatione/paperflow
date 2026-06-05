@@ -58,6 +58,8 @@ Good headings name the durable role:
 - `## 可复用的设计`
 - `## 局限和未覆盖问题`
 
+For `references/` pages, use the canonical section spine in `../../paper-research-wiki/references/references-page-anatomy.md`: `证据钩子 / 原文与证据入口 / 问题设定 / 核心机制 / 实验设置与证据边界 / 局限与未覆盖问题 / Provenance`. This spine is preferred for new writes; current approved heading aliases remain acceptable during repairs when the section role is clear.
+
 For concept, derivation, experiment, synthesis, and opportunity pages, make headings page-specific:
 
 - concept: name the distinction the concept preserves
@@ -88,3 +90,13 @@ For each paragraph, preserve this order:
 4. Which graph page it should connect to.
 
 If a sentence cannot be mapped to those four points, either rewrite it as an open question or remove it from factual prose.
+
+## Depth, Density, and Punctuation
+
+These apply to every reference page and are part of the write gate, not cosmetic polish.
+
+- **Mechanism over label.** "Uses SAC" is a label; "writes the current-induced value-estimation bias into the Q-target, which a plain SAC baseline cannot do" is knowledge. In 核心机制, pair each mechanism with the baseline failure mode it fixes and the resulting consequence.
+- **Differential graph-contrast.** Use natural body links and page-specific comparison prose to contrast the paper against named sibling pages on concrete axes (objective optimized, evidence tier, assumptions, how the objective is expressed). A "Related" link dump is not graph integration.
+- **Attribute every number.** Each metric carries its value, its source table/figure, and a stance verb (作者报告 / Table I 报告 / 作者据此称). Never launder an author's simulation claim into a flat fact; reproduce the key table verbatim rather than paraphrasing it lossily.
+- **Richness is evidence density, not word count.** Prefer a precise table, a defined formula, and one sharp contrast over three paragraphs of restatement. If a paragraph adds no claim, number, or distinction, cut it.
+- **Consistent full-width Chinese punctuation** (，。：；）in prose; do not mix half-width commas into Chinese sentences.

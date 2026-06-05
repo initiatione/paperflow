@@ -23,6 +23,7 @@ REFERENCES = {
     "epi-artifact-contract.md",
     "page-provenance.md",
     "page-family-contract.md",
+    "references-page-anatomy.md",
     "upstream-obsidian-wiki-map.md",
 }
 FORMAL_PAGE_FAMILIES = {
@@ -574,9 +575,11 @@ def test_prw_enforces_ar9av_style_wiki_writing_standard():
         "tier:",
         "created:",
         "updated:",
-        "Key Ideas",
-        "Open Questions",
-        "Sources",
+        "证据钩子",
+        "核心机制",
+        "Provenance",
+        "references-page-anatomy.md",
+        "evidence/",
         "manifest",
         "index.md",
         "log.md",
@@ -626,14 +629,73 @@ def test_prw_requires_clickable_source_pdf_links_in_frontmatter():
     extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
 
     for text in [standard, frontmatter, provenance, extract]:
-        assert "displayed as the paper slug" in text
-        assert "only Obsidian wikilinks to original paper PDFs" in text
-        assert "[[_epi/raw/papers/<slug>/paper.pdf|<slug>]]" in text
+        # canonical clickable obsidian:// form displayed with the paper title
+        assert "obsidian://open?vault=" in text
+        # correct PDF path with no stale papers/ segment; legacy wikilink form still accepted
+        assert "_epi/raw/<slug>/paper.pdf" in text
+        assert "papers/<slug>" not in text
+        assert "[[_epi/raw/<slug>/paper.pdf|<slug>]]" in text
     assert "Markdown link" in standard
     assert "原论文 PDF" in standard
     assert "plain path text" in standard
     for phrase in ["metadata", "MinerU", "DOI", "arXiv"]:
         assert phrase in standard
+
+
+def test_prw_scopes_reference_single_source_separately_from_synthesis_pages():
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    frontmatter = _read(PLUGIN / "rules" / "formal-page-frontmatter.md")
+    provenance = _read(PUBLIC_SKILL / "references" / "page-provenance.md")
+    extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
+
+    for text in [standard, frontmatter, provenance, extract]:
+        assert "references/ pages" in text
+        assert "exactly one clickable original-paper PDF link" in text
+    for text in [standard, frontmatter, extract]:
+        assert "concepts/, derivations/, experiments/, synthesis/, reports/, and opportunities/" in text
+        assert "one or more clickable original-paper PDF links" in text
+    assert "same frontmatter contract" not in standard
+
+
+def test_references_page_anatomy_keeps_graph_integration_as_quality_rule_not_heading():
+    anatomy = _read(PUBLIC_SKILL / "references" / "references-page-anatomy.md")
+    style = _read(PLUGIN / "skills" / "paper-wiki-language" / "references" / "style-guide.md")
+
+    for canonical in [
+        "证据钩子",
+        "原文与证据入口",
+        "问题设定",
+        "核心机制",
+        "实验设置与证据边界",
+        "局限与未覆盖问题",
+        "Provenance",
+    ]:
+        assert canonical in anatomy
+
+    assert "## 在知识图谱中的位置" not in anatomy
+    assert "在知识图谱中的位置 / Provenance" not in style
+    assert "graph integration" in anatomy
+    assert "named sibling pages" in anatomy
+    assert "natural body links" in anatomy
+    assert "not a mandatory heading" in anatomy
+
+
+def test_references_page_anatomy_allows_current_approved_heading_aliases():
+    anatomy = _read(PUBLIC_SKILL / "references" / "references-page-anatomy.md")
+    style = _read(PLUGIN / "skills" / "paper-wiki-language" / "references" / "style-guide.md")
+
+    for alias in [
+        "Evidence Hooks",
+        "原论文 PDF",
+        "原论文与证据",
+        "原论文与证据入口",
+        "实验设置和证据边界",
+        "局限和未覆盖问题",
+        "与现有图谱的关系",
+    ]:
+        assert alias in anatomy
+    assert "accepted aliases" in anatomy
+    assert "preferred for new writes" in style
 
 
 def test_skill_ui_metadata_uses_single_public_skill():

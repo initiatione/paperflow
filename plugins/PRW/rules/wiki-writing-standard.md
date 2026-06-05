@@ -38,46 +38,47 @@ Every new or materially rewritten formal page must use this page template shape:
 
 ```markdown
 ---
-title: Page Title
+title: <full paper title>
 category: references
 page_family: references
-tags: [paper, method]
-aliases: [alternate name]
+tags: ["domain/<d>", "method/<m>", "task/<t>", "topic/<topic>", "evidence/<tier>"]
+aliases: ["<ACRONYM>", "<full method name>", "<descriptive name>"]
 relationships:
   - target: "[[concepts/related-concept]]"
     type: uses
-sources: ["[[_epi/raw/papers/<slug>/paper.pdf|<slug>]]"]
-summary: One or two sentences under 200 characters.
+sources: ["[<full paper title>](obsidian://open?vault=<vault>&file=_epi%2Fraw%2F<slug>%2Fpaper.pdf)"]
+summary: "<year> <venue> <type>，提出 <ACRONYM>：<one-line mechanism>。"
 provenance:
-  extracted: 0.70
-  inferred: 0.25
-  ambiguous: 0.05
+  extracted:
+    - "<directly from source bundle: metadata, MinerU md/tex, images>"
+  inferred:
+    - "<cross-page or reuse inference>"
+  ambiguous:
+    - "<OCR noise, author future-work, data/code availability>"
 base_confidence: 0.65
-lifecycle: draft
+lifecycle: review-needed
 lifecycle_changed: 2026-06-04
 tier: supporting
-created: 2026-06-04T00:00:00Z
-updated: 2026-06-04T00:00:00Z
+created: 2026-06-04
+updated: 2026-06-04
 ---
 
-# Page Title
+# <ACRONYM>：<one-sentence thesis that adds an angle beyond the title>
 
-One paragraph explaining the page's scope.
+<opening paragraph: the problem the paper sets, and its core design idea, in curator voice>
 
-## Key Ideas
-
-- Source-grounded claim.
-- Synthesis or generalization. ^[inferred]
-- Unclear or contested claim. ^[ambiguous]
-
-## Open Questions
-
-- Questions that require more source evidence.
-
-## Sources
-
-- Source paper, EPI bundle, figure, formula, table, or evidence address.
+## 证据钩子
+## 原文与证据入口
+## 问题设定
+## 核心机制
+## 实验设置与证据边界
+## 局限与未覆盖问题
+## Provenance
 ```
+
+The template above shows the `references/` shape. For the full section-by-section references contract — body skeleton, depth/precision rules (mechanism-contrast, graph integration), stance vocabulary, provenance schema, and a self-check — follow `../skills/paper-research-wiki/references/references-page-anatomy.md`. The other families (`concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, `opportunities/`) keep the required frontmatter fields but use family-specific source cardinality and body structure per `../skills/paper-wiki-language/SKILL.md`.
+
+`tags:` uses five facets: `domain/`, `method/` (one or more), `task/`, `topic/` (optional), and a required `evidence/` tier (`simulation`, `hardware-in-the-loop`, `pool-trial`, `sea-trial`, or `real-data-driven-simulation`). The `evidence/` facet is what prevents a simulation paper from being cited as field-proven.
 
 Required frontmatter fields:
 
@@ -99,7 +100,7 @@ Required frontmatter fields:
 
 Do not set `lifecycle: reviewed`, `verified`, or `source-reviewed` automatically. New agent-written pages start as `draft` or `review-needed` unless the target vault contract says otherwise.
 
-`sources:` must contain only Obsidian wikilinks to original paper PDFs, each displayed as the paper slug: `"[[_epi/raw/papers/<slug>/paper.pdf|<slug>]]"`. Do not leave the PDF as plain path text such as `_epi/raw/papers/<slug>/paper.pdf (原论文 PDF)`, a Markdown link, or an alias such as `原论文 PDF`; the Obsidian properties view must show the source slug and still click through to the PDF. Put metadata, MinerU Markdown/TeX, DOI/arXiv URLs, figure paths, and other evidence details in the page body or Provenance section instead of frontmatter `sources`.
+`sources:` contains clickable original-paper PDF links only. `references/ pages` use exactly one clickable original-paper PDF link. Canonical form: a Markdown link displayed with the paper title, pointing at `obsidian://open?vault=<vault>&file=_epi%2Fraw%2F<slug>%2Fpaper.pdf` — this is what the reviewed exemplar pages use and what renders clickable in the Obsidian properties panel. The path is `_epi/raw/<slug>/paper.pdf`, with no `papers/` segment. The legacy wikilink form `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"` remains accepted for EPI-generated pages. `concepts/, derivations/, experiments/, synthesis/, reports/, and opportunities/` use one or more clickable original-paper PDF links for the papers the page materially uses. Do not use plain path text, an alias such as `原论文 PDF`, or metadata/MinerU/DOI/arXiv entries in frontmatter `sources`; put those in the body evidence section or the Provenance section.
 
 ## Body Rules
 

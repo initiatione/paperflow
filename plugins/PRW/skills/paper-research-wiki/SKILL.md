@@ -32,7 +32,7 @@ First read `../routing.yaml`; it is the routing manifest and source of truth for
 
 For every task, read `references/epi-artifact-contract.md`, `references/page-family-contract.md`, and `../../rules/wiki-writing-standard.md`. Keep this entrypoint and `../routing.yaml` aligned when routes change. Read `references/upstream-obsidian-wiki-map.md` only when maintaining PRW's upstream-derived behavior or repairing link/status patterns that explicitly need that background.
 
-For any task that drafts, rewrites, repairs, or materially updates formal wiki pages, also read `../paper-wiki-language/SKILL.md` before writing and keep applying it while writing.
+For any task that drafts, rewrites, repairs, or materially updates formal wiki pages, also read `../paper-wiki-language/SKILL.md` before writing and keep applying it while writing. For `references/` pages specifically, read `references/references-page-anatomy.md` — the binding section-by-section references contract.
 
 ## Intent Router
 
@@ -64,4 +64,4 @@ For vague EPI plus wiki requests, default to deposition: run a readiness preflig
 
 ## Internal References
 
-- `references/epi-artifact-contract.md`, `references/page-provenance.md`, `references/page-family-contract.md`, `references/upstream-obsidian-wiki-map.md`
+- `references/epi-artifact-contract.md`, `references/page-provenance.md`, `references/page-family-contract.md`, `references/references-page-anatomy.md`, `references/upstream-obsidian-wiki-map.md`
