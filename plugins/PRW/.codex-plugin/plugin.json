@@ -1,7 +1,7 @@
 {
   "name": "prw",
-  "version": "0.1.3",
-  "description": "Extract, check, update, and relink academic paper knowledge in an EPI-compatible Obsidian/LLM Wiki.",
+  "version": "0.1.4",
+  "description": "Extract, check, update, and relink source-map-grounded academic paper knowledge in an EPI-compatible Obsidian/LLM Wiki.",
   "author": {
     "name": "liuchf"
   },
@@ -20,8 +20,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Research Wiki",
-    "shortDescription": "v0.1.3 | Canonical EPI paper wiki deposition, checks, and relinking.",
-    "longDescription": "Paper Research Wiki gives users one plugin-level assistant for EPI-collected papers. The default path is to inspect EPI handoffs, identify ready papers, and deposit them into the wiki while keeping detailed provenance, source-first review, page-family rules, formal-page language style, link repair, linting, taxonomy maintenance, QMD-compatible indexing, and a post-task check inside internal workflows so users do not need to learn many skill names.",
+    "shortDescription": "v0.1.4 | Source-map PRW deposition, checks, update, relink, redo.",
+    "longDescription": "Paper Research Wiki gives users one plugin-level assistant for EPI-collected papers. The default path is to inspect EPI handoffs, identify ready papers, and deposit them into the wiki while keeping detailed provenance, source-map-first reference writing, formula reasoning chains, evidence figure cards, page-family rules, formal-page language style, link repair, linting, taxonomy maintenance, QMD-compatible indexing, and a post-task check inside internal workflows so users do not need to learn many skill names.",
     "developerName": "liuchf",
     "category": "Productivity",
     "capabilities": [

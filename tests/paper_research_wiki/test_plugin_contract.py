@@ -143,13 +143,18 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "prw"
-    assert manifest["version"] == "0.1.3"
+    assert manifest["version"] == "0.1.4"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Research Wiki"
     assert "academic paper knowledge" in manifest["description"]
+    assert "source-map-grounded" in manifest["description"]
+    assert "formula reasoning chains" in manifest["interface"]["longDescription"]
+    assert "evidence figure cards" in manifest["interface"]["longDescription"]
     assert "link repair" in manifest["interface"]["longDescription"]
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
+    for phrase in ["deposition", "checks", "update", "relink", "redo"]:
+        assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
     for phrase in ["提取", "检测", "更新", "沉淀", "EPI", "link", "QMD"]:
         assert phrase in prompt_text
@@ -233,8 +238,17 @@ def test_public_skill_routes_natural_epi_deposition_actions():
         "extract",
         "check",
         "update",
+        "公式推理链",
+        "图片证据",
+        "图文证据卡",
+        "source map",
+        "source-map-first",
     ]:
         assert phrase in skill
+    assert (
+        "| 重做 / 重新提取 / 更详细提取 / 批量重提取 / 公式推理链 / 图片证据 / 图文证据卡 / "
+        "source map / source-map-first / redo / deep extraction | `workflows/redo-extraction.md` |"
+    ) in skill
     for workflow in WORKFLOWS:
         assert f"workflows/{workflow}" in skill
         path = PUBLIC_SKILL / "workflows" / workflow
@@ -270,6 +284,21 @@ def test_prw_skill_routing_manifest_matches_public_workflows():
         }, route_name
         assert route.get("triggers"), route_name
         assert any(re.search(r"[\u4e00-\u9fff]", str(trigger)) for trigger in route["triggers"]), route_name
+
+    redo_triggers = set(routes["redo_extraction"]["triggers"])
+    for phrase in [
+        "公式推理",
+        "公式推理链",
+        "图片证据",
+        "图文结合",
+        "图文证据卡",
+        "source map",
+        "source-map-first",
+        "source-map-grounded extraction",
+        "formula reasoning chains",
+        "evidence figure cards",
+    ]:
+        assert phrase in redo_triggers
 
     skill = _read(PUBLIC_SKILL / "SKILL.md")
     assert "../routing.yaml" in skill
@@ -698,12 +727,37 @@ def test_references_page_anatomy_allows_current_approved_heading_aliases():
     assert "preferred for new writes" in style
 
 
+def test_references_page_anatomy_requires_source_map_formula_chain_and_figure_cards():
+    anatomy = _read(PUBLIC_SKILL / "references" / "references-page-anatomy.md")
+
+    for phrase in [
+        "Source-map-first writing",
+        "MinerU Markdown / TeX / images / manifest",
+        "reader/critic artifacts are secondary aids",
+        "Do not expose the full source map",
+        "Formula reasoning chain",
+        "premise -> equation -> variable definitions -> guarantee -> next step -> baseline contrast",
+        "原文未明确说明",
+        "Evidence figure card",
+        "Placed near:",
+        "Source:",
+        "中文图注:",
+        "Reading note:",
+        "Reviewer-style boundary check",
+        "originality",
+        "scientific importance",
+        "technical soundness",
+        "not assessable",
+    ]:
+        assert phrase in anatomy
+
+
 def test_skill_ui_metadata_uses_single_public_skill():
     metadata = _read(PUBLIC_SKILL / "agents" / "openai.yaml")
 
     assert "display_name: \"Paper Research Wiki\"" in metadata
     assert "$paper-research-wiki" in metadata
-    for phrase in ["提取", "检测", "更新", "沉淀"]:
+    for phrase in ["提取", "检测", "更新", "沉淀", "重做", "重link"]:
         assert phrase in metadata
 
 

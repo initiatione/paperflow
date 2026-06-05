@@ -6,8 +6,10 @@ description: >
   paper extraction, or continue EPI
   paper deposition. Triggers include "直接沉淀 EPI 抓下来的论文", "提取这些论文",
   "检测 wiki 库", "更新 wiki 库", "继续上次的论文沉淀", "重link",
-  "重做", "重新提取", "更详细", "批量", extract papers, check wiki,
-  update wiki, relink, redo, deep extraction, and EPI paper deposition.
+  "重做", "重新提取", "更详细", "公式推理", "公式推理链", "图片证据",
+  "图文结合", "图文证据卡", "source map", "source-map-first", "批量", extract papers, check wiki,
+  update wiki, relink, redo, deep extraction, source-map-grounded extraction,
+  formula reasoning chains, evidence figure cards, and EPI paper deposition.
 ---
 
 # Paper Research Wiki
@@ -40,7 +42,7 @@ For any task that drafts, rewrites, repairs, or materially updates formal wiki p
 | --- | --- |
 | 直接沉淀 EPI 抓下来的论文 / 提取这些论文 / 沉淀论文进 wiki / extract EPI papers | `workflows/extract-papers.md` |
 | 检测 wiki 库 / 检查论文 wiki / wiki 状态 / check wiki | `workflows/check-wiki.md` |
-| 重做 / 重新提取 / 更详细提取 / 批量重提取 / redo / deep extraction | `workflows/redo-extraction.md` |
+| 重做 / 重新提取 / 更详细提取 / 批量重提取 / 公式推理链 / 图片证据 / 图文证据卡 / source map / source-map-first / redo / deep extraction | `workflows/redo-extraction.md` |
 | 更新 wiki 库 / 继续上次的论文沉淀 / 重link / relink / update wiki | `workflows/update-wiki.md` |
 
 ## Default EPI Flow

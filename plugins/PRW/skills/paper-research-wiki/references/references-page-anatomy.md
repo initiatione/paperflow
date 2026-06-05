@@ -164,7 +164,8 @@ Section-by-section:
   - Capture **reproducibility knobs**: training budget, network sizes, learning rates, replay
     buffer, episode counts, reward weights, horizons, detection thresholds. These make the page
     reusable for re-implementation.
-  - Embed **evidence figures** (architecture diagrams, result curves) with caption + MinerU path.
+  - Embed **evidence figures** as Evidence figure cards with placement, source, caption, and
+    reading note.
   - Attribute every number (see Quantified-claim rule).
 - **`## 局限与未覆盖问题`** — separate *proven* from *not proven*. Cover all four boundary types
   below. Be blunt: "这是作者仿真结果，不是实艇容错能力证明".
@@ -178,10 +179,45 @@ Section-by-section:
 
 These separate a strong page from a competent summary — they are what "分析深入且精确" means here.
 
+### Source-map-first writing
+Write from the source bundle, not from reader or critic summaries. Treat MinerU Markdown / TeX /
+images / manifest as the first source map: `mineru/paper.md` or `mineru/<slug>.md`,
+`mineru/paper.tex`, `mineru/images/*`, and `mineru/mineru-manifest.json`.
+Rule: reader/critic artifacts are secondary aids for orientation, critique, or quality checks; they
+cannot replace a direct pass over the MinerU source artifacts for load-bearing claims.
+
+Use source-map depth as the page's depth control:
+- For every core mechanism claim, find the source section/block, formula, table, figure, or caption
+  before writing the distilled prose.
+- Prefer stable addresses such as `MinerU Markdown 第 III 节`, `TeX Eq. (7)`, `Fig. 2 caption`, or
+  `Table I row <metric>`. If a local source map provides block IDs such as `S012`, `C003`, `F002`,
+  or `T001`, preserve them in the body or Provenance.
+- Do not expose the full source map in the reference page. Surface only the anchors needed to audit
+  the page's durable claims; the full source map remains in `_epi/raw/<slug>/mineru/*`.
+- If the source bundle does not support a step, say `原文未明确说明` instead of filling the gap from
+  general field knowledge.
+
 ### Mechanism contrast
 In 核心机制, every core mechanism is paired with the baseline it improves on and *why*. State the
 baseline's failure mode → the mechanism → the consequence. A mechanism described in isolation is a
 description; described against its baseline it is knowledge.
+
+### Formula reasoning chain
+Do not paste a load-bearing equation as an isolated decoration. For each distinguishing formula,
+write the chain in this order: premise -> equation -> variable definitions -> guarantee -> next step -> baseline contrast.
+This makes the derivation inspectable without turning the page into a full proof.
+
+Use stance labels while writing the chain:
+- `source-grounded` when the paper states the equation, definition, setup, or proof step.
+- `author-method-description` when explaining the authors' intended mechanism.
+- `inferred` when the page connects two paper facts or contrasts a sibling page; mark with
+  `^[inferred]`.
+- `ambiguous` when OCR, notation, or a skipped proof step makes the interpretation uncertain; mark
+  with `^[ambiguous]`.
+
+If a reasoning step is standard but not explicit in the paper, write it as an inference and keep the
+boundary visible: `原文未明确说明该中间步；这里按 Lyapunov/MPC 常规读法解释为 ...` Do not upgrade
+that inference into an author claim.
 
 ### Quantified-claim attribution
 Every quantitative claim carries three things: the **number**, the **source artifact** (table/
@@ -209,6 +245,14 @@ Provenance block):
 4. **Reproducibility gaps** — code not provided, data available-on-request, hyperparameters or
    approximations that dominate results.
 
+### Reviewer-style boundary check
+Use a lightweight reviewer-style pass to calibrate `## 局限与未覆盖问题`, `base_confidence`, and
+`tier`; do not turn the reference page into a reviewer report. Check the paper against:
+`originality`, `scientific importance`, `interdisciplinary readership`, `technical soundness`, and
+`readability for nonspecialists`. Then translate only the relevant findings into the page's normal
+boundary language: what is supported, what is weak, and what is not assessable from the source bundle.
+Do not invent missing experiments, controls, citations, line numbers, or prior-work distinctions.
+
 ### Graph contrast must be differential
 Graph integration is not a "Related" link dump and not a mandatory heading. Use natural body links
 and comparison prose to say *how this page differs from* named sibling pages on a concrete axis. If
@@ -219,17 +263,32 @@ you cannot name the axis of difference, you have not yet understood how the pape
 - Math uses Obsidian delimiters: inline `$u_t$`, block `$$ ... $$`. **Never** fenced ` ```math `,
   ` ```tex `, or ` ```latex ` blocks — Obsidian renders those as code, not math.
 - Define variables right after the equation that introduces them.
-- Embed evidence figures with a bold caption naming the original figure, then the MinerU image path:
+- Embed evidence figures as an Evidence figure card near the first substantive use, not as a
+  gallery at the end. Put architecture/mechanism figures in `## 核心机制`; put result curves/tables
+  in `## 实验设置与证据边界`. Later mentions should link back to the first card instead of duplicating
+  the image.
+- Each Evidence figure card needs the original figure name, placement anchor, MinerU figure/caption
+  source, image path, Chinese caption, and a reading note:
 
 ```markdown
-**原文 Fig. 2：Bayesian multi-model LMPC 架构。**
+<a id="F002"></a>
+**原文 Fig. 2：Bayesian multi-model LMPC 架构**
 
-![Evidence image](file:///D:/paper-research-wiki/_epi/raw/<slug>/mineru/images/<hash>.jpg)
+**Placed near:** 核心机制（第 III 节首次实质引用）
+**Source:** MinerU Fig. 2 / Fig. 2 caption C003
+
+![Fig. 2](file:///D:/paper-research-wiki/_epi/raw/<slug>/mineru/images/<hash>.jpg)
+
+**中文图注:** <原图注的保守译文>
+
+**Reading note:** 看 controller bank、posterior、共享 Lyapunov 约束之间的连接；这张图支撑机制结构，
+不是实验结果。
 ```
 
   Pick figures that carry mechanism or evidence, not decorative ones. If MinerU has OCR noise in a
-  formula, normalize against TeX + Markdown + prose and say so honestly rather than copying garbled
-  symbols.
+  formula or caption, normalize against TeX + Markdown + prose and say so honestly rather than
+  copying garbled symbols. A result figure must cite its caption and the relevant table/metric when
+  the claim depends on both.
 
 ## Provenance block schema
 
@@ -283,10 +342,15 @@ honest simulation-tier node.
 - `sources` is PDF-only, clickable, canonical obsidian:// form, path `_epi/raw/<slug>/paper.pdf`
   (no `papers/`).
 - Frontmatter `provenance` has all three lists; body has a `## Provenance` block with stance labels.
-- 核心机制 renders the distinguishing formula and contrasts a baseline's failure mode.
+- Source-map-first writing used MinerU Markdown / TeX / images / manifest, not only reader/critic
+  summaries.
+- 核心机制 renders the distinguishing formula as a Formula reasoning chain and contrasts a baseline's
+  failure mode.
 - 实验 names the platform, reproduces the metric table, and lists reproducibility knobs.
-- At least one mechanism/evidence figure embedded with caption + MinerU path.
-- 局限 covers the four boundary types; no author simulation claim is laundered into a flat fact.
+- At least one mechanism/evidence figure embedded as an Evidence figure card with `Placed near:`,
+  `Source:`, `中文图注:`, and `Reading note:`.
+- 局限 covers the four boundary types plus reviewer-style unsupported/not-assessable items; no
+  author simulation claim is laundered into a flat fact.
 - Graph integration uses natural body links to contrast named sibling pages on a concrete axis.
 - No `本文提出`, no machine-translation headings, no fenced math blocks; richness is evidence
   density, not word count.

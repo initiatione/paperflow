@@ -50,6 +50,16 @@ routes:
       - 重新提取
       - 更详细提取
       - 批量重提取
+      - 公式推理
+      - 公式推理链
+      - 图片证据
+      - 图文结合
+      - 图文证据卡
+      - source map
+      - source-map-first
+      - source-map-grounded extraction
+      - formula reasoning chains
+      - evidence figure cards
       - redo
       - deep extraction
     skill: paper-research-wiki/SKILL.md
