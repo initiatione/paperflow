@@ -246,6 +246,126 @@ def test_dry_run_can_disable_easyscholar_for_single_run(tmp_path):
     assert ranked[0]["easyscholar_status"] == "disabled"
 
 
+def test_dry_run_resumes_matching_review_session_by_default_without_provider_call(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Embodied Navigation Control for Mobile Robots",
+                    "authors": ["B. Engineer"],
+                    "year": 2024,
+                    "venue": "IROS",
+                    "abstract": "Robotics navigation and control with code.",
+                    "pdf_url": "https://example.org/nav.pdf",
+                    "citation_count": 9,
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    vault = tmp_path / "vault"
+    first_run = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=vault,
+        query="robotics navigation control",
+        max_results=5,
+        fixture_path=fixture,
+        enable_easyscholar=False,
+    )
+    fixture.write_text("[]", encoding="utf-8")
+
+    second_run = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=vault,
+        query="robotics navigation control",
+        max_results=5,
+        fixture_path=fixture,
+        enable_easyscholar=False,
+    )
+
+    assert first_run != second_run
+    second_state = json.loads((second_run / "run-state.json").read_text(encoding="utf-8"))
+    second_search = json.loads((second_run / "search-record.json").read_text(encoding="utf-8"))
+    second_report = json.loads((second_run / "report.json").read_text(encoding="utf-8"))
+    second_ranked = json.loads((second_run / "rank.json").read_text(encoding="utf-8"))
+    assert second_state["review_session"]["resumed"] is True
+    assert second_state["review_session"]["provider_call_skipped"] is True
+    assert second_search["provider_call_skipped"] is True
+    assert second_ranked[0]["title"] == "Embodied Navigation Control for Mobile Robots"
+    assert second_report["discovery_context"]["review_session"]["provider_call_skipped"] is True
+    assert "## Review Session" in (second_run / "report.md").read_text(encoding="utf-8")
+
+
+def test_dry_run_refresh_bypasses_review_cache(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Old Robot Navigation Control",
+                    "authors": ["B. Engineer"],
+                    "year": 2024,
+                    "venue": "IROS",
+                    "abstract": "robotics navigation control",
+                    "pdf_url": "https://example.org/old.pdf",
+                    "citation_count": 9,
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    vault = tmp_path / "vault"
+    run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=vault,
+        query="robotics navigation control",
+        max_results=5,
+        fixture_path=fixture,
+        enable_easyscholar=False,
+    )
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Fresh Robot Navigation Control",
+                    "authors": ["B. Engineer"],
+                    "year": 2026,
+                    "venue": "IROS",
+                    "abstract": "robotics navigation control",
+                    "pdf_url": "https://example.org/fresh.pdf",
+                    "citation_count": 11,
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    refreshed_run = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=vault,
+        query="robotics navigation control",
+        max_results=5,
+        fixture_path=fixture,
+        enable_easyscholar=False,
+        refresh=True,
+    )
+
+    state = json.loads((refreshed_run / "run-state.json").read_text(encoding="utf-8"))
+    ranked = json.loads((refreshed_run / "rank.json").read_text(encoding="utf-8"))
+    assert state["review_session"]["resumed"] is False
+    assert state["review_session"]["refreshed"] is True
+    assert state["review_session"]["provider_call_skipped"] is False
+    assert ranked[0]["title"] == "Fresh Robot Navigation Control"
+
+
 def test_dry_run_query_plan_searches_variants_and_merges_candidate_pool(tmp_path):
     plugin_root = tmp_path / "plugin"
     _write_minimal_plugin_template(plugin_root)

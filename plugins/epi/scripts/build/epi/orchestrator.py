@@ -38,6 +38,14 @@ from epi.raw_cleanup import cleanup_failed_raw_paper
 from epi.rank_papers import rank_candidates
 from epi.redo import redo_acquire, redo_parse, redo_read, redo_read_recritic, recritic
 from epi.report_run import write_report
+from epi.review_sessions import (
+    build_review_signature,
+    create_or_update_review_session,
+    load_review_session_for_resume,
+    mark_review_resumed,
+    rehydrate_search_record_from_review,
+    review_artifact_paths,
+)
 from epi.run_index import (
     auto_prune_run_lifecycle,
     prune_run_lifecycle,
@@ -893,6 +901,8 @@ def run_dry_run(
     query_plan_domain: str = "auto",
     query_plan_max_queries: int = 6,
     enable_easyscholar: bool = True,
+    resume: bool = True,
+    refresh: bool = False,
 ) -> Path:
     config = load_config(plugin_root=plugin_root, vault_path=vault_path, max_results=max_results)
     configured_paper_search_command = (
@@ -918,6 +928,31 @@ def run_dry_run(
         _apply_exact_lookup_query_plan(query_plan, source_routing)
     research_mode = (query_plan or {}).get("research_mode") or infer_research_mode(query)
     query_strategy = _query_strategy_for_dry_run(query_plan, fixture_path, source_routing)
+    review_signature = build_review_signature(
+        {
+            "query": query,
+            "query_plan": query_plan or {},
+            "requested_sources": requested_sources,
+            "effective_sources": effective_sources,
+            "source_routing": source_routing,
+            "max_results": config.max_results,
+            "profile": config.profile,
+            "domains": config.domains,
+            "positive_keywords": config.positive_keywords,
+            "negative_keywords": config.negative_keywords,
+            "venue_prior": config.venue_prior,
+            "use_query_plan": use_query_plan,
+            "query_plan_domain": query_plan_domain,
+            "query_plan_max_queries": query_plan_max_queries,
+            "enable_easyscholar": bool(enable_easyscholar and config.easyscholar_enabled),
+        }
+    )
+    resumed_session = None
+    if resume and not refresh:
+        try:
+            resumed_session = load_review_session_for_resume(config.vault_path, review_signature["signature"])
+        except FileNotFoundError:
+            resumed_session = None
     if query_plan:
         query_plan["source_routing"] = source_routing
         _write_json(run_dir / "query-plan.json", query_plan)
@@ -956,16 +991,19 @@ def run_dry_run(
         }
     _write_json(run_dir / "run-state.json", state)
 
-    search_record = _run_query_plan_discovery(
-        query=query,
-        query_plan=query_plan,
-        max_results=config.max_results,
-        fixture_path=fixture_path,
-        command=effective_paper_search_command,
-        sources=effective_sources,
-        run_dir=run_dir,
-        source_routing=source_routing,
-    )
+    if resumed_session:
+        search_record = rehydrate_search_record_from_review(resumed_session)
+    else:
+        search_record = _run_query_plan_discovery(
+            query=query,
+            query_plan=query_plan,
+            max_results=config.max_results,
+            fixture_path=fixture_path,
+            command=effective_paper_search_command,
+            sources=effective_sources,
+            run_dir=run_dir,
+            source_routing=source_routing,
+        )
     _write_json(run_dir / "search-record.json", search_record)
     state["state"] = "discovered"
     _write_json(run_dir / "run-state.json", state)
@@ -1035,6 +1073,44 @@ def run_dry_run(
     }
     if query_plan:
         budget_usage["query_variant_count"] = len(query_plan.get("query_variants") or [])
+    source_coverage = _source_coverage_from_search_record(search_record, deduped_total=len(normalized))
+    review_session_payload = None
+    if resumed_session:
+        mark_review_resumed(resumed_session, run_id)
+        review_session_payload = {
+            "review_id": resumed_session["review_id"],
+            "review_dir": str(resumed_session["review_dir"]),
+            "resumed": True,
+            "refreshed": False,
+            "provider_call_skipped": True,
+            "resume_reason": "matching_signature",
+            "artifacts": review_artifact_paths(resumed_session),
+        }
+    else:
+        session = create_or_update_review_session(
+            config.vault_path,
+            topic=query,
+            signature=review_signature,
+            query_plan=query_plan,
+            search_record=search_record,
+            normalized=normalized,
+            filter_report=filter_report,
+            easyscholar_record=easyscholar_record,
+            ranked_pool=ranked_pool,
+            accepted=ranked,
+            coverage=source_coverage,
+            run_id=run_id,
+            refreshed=refresh,
+        )
+        review_session_payload = {
+            "review_id": session["review_id"],
+            "review_dir": session["review_dir"],
+            "resumed": False,
+            "refreshed": bool(refresh),
+            "provider_call_skipped": False,
+            "resume_reason": "refresh" if refresh else "created",
+            "artifacts": review_artifact_paths(session),
+        }
     discovery_context = {
         "research_mode": research_mode,
         "query_strategy": search_record.get("query_strategy", state.get("query_strategy")),
@@ -1048,13 +1124,14 @@ def run_dry_run(
             "rejected": len(rejected),
         },
         "query_records": search_record.get("query_records", []),
-        "source_coverage": _source_coverage_from_search_record(search_record, deduped_total=len(normalized)),
+        "source_coverage": source_coverage,
         "warnings": search_record.get("warnings", []),
         "easyscholar": {
             "enabled": easyscholar_record.get("enabled"),
             "summary": easyscholar_record.get("summary", {}),
             "record_path": str(easyscholar_record_path),
         },
+        "review_session": review_session_payload,
     }
     next_actions = ["Review accepted dry-run candidates before advancing ranked papers."]
     if rejected:
@@ -1080,6 +1157,7 @@ def run_dry_run(
     state["status"] = "failed" if errors else "success"
     state["finished_at"] = utc_now()
     state["exit_status"] = 1 if errors else 0
+    state["review_session"] = review_session_payload
     input_hashes = {
         "request": json_sha256(
             {

@@ -406,6 +406,19 @@ def write_report(
                 _append_source_coverage_section(report, source_coverage)
             _append_source_routing_section(report, discovery_context)
         _append_easyscholar_section(report, easyscholar_context)
+        review_session = discovery_context.get("review_session") if isinstance(discovery_context, dict) else {}
+        review_session = review_session if isinstance(review_session, dict) else {}
+        if review_session:
+            report.append("")
+            report.append("## Review Session")
+            for key in ("review_id", "resumed", "provider_call_skipped", "refreshed", "resume_reason"):
+                if key in review_session:
+                    report.append(f"- {key}: {review_session[key]}")
+            artifacts = review_session.get("artifacts")
+            artifacts = artifacts if isinstance(artifacts, dict) else {}
+            for key in ("candidates", "shortlist", "fetch_plan", "coverage"):
+                if artifacts.get(key):
+                    report.append(f"- {key}: {artifacts[key]}")
         report.append("")
         report.append("## Next Actions")
         if next_actions:
