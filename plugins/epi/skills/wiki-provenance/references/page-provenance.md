@@ -12,7 +12,7 @@ Adapt field names to the target vault contract, but preserve these facts somewhe
 - Final review artifacts: `final-source-review.json`, `wiki-ingest-record.json`, human approval record.
 - Support status summary: count of source-grounded, metadata-only, inferred, and unsupported claims.
 
-Frontmatter `sources` must contain only Obsidian wikilinks to original paper PDFs, each displayed as the paper slug: `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"`. Metadata, MinerU Markdown/TeX, DOI/arXiv URLs, figure paths, and other evidence details belong in body provenance, not frontmatter `sources`.
+Frontmatter `sources` must contain only Obsidian source PDF links to `_epi/raw/<slug>/paper.pdf`. Prefer paper-title `obsidian://open?...paper.pdf` links so `_epi` does not enter the formal graph; legacy `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"` wikilinks are accepted for compatibility. Metadata, MinerU Markdown/TeX, DOI/arXiv URLs, figure paths, and other evidence details belong in body provenance, not frontmatter `sources`.
 
 ## Claim Line Contract
 

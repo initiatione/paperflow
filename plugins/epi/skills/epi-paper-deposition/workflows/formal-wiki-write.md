@@ -92,14 +92,14 @@ updated:
 
 Initial `lifecycle` is `draft` or `review-needed`; do not mark pages `source-reviewed` or `verified` until source reread, formula/figure review, `wiki-lint`, and human stage review have passed.
 
-Frontmatter `sources` must contain only Obsidian wikilinks to original paper PDFs, each displayed as the paper slug: `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"`. Put metadata, MinerU Markdown/TeX, DOI/arXiv URLs, figure paths, and other evidence details in the page body or Provenance section instead of frontmatter `sources`.
+Frontmatter `sources` must contain only Obsidian source PDF links to `_epi/raw/<slug>/paper.pdf`. Prefer paper-title `obsidian://open?...paper.pdf` links so `_epi` does not enter the formal graph; legacy `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"` wikilinks are accepted for compatibility. Put metadata, MinerU Markdown/TeX, DOI/arXiv URLs, figure paths, and other evidence details in the page body or Provenance section instead of frontmatter `sources`.
 
 ## Quality Gates
 
 Before `record-wiki-ingest` or `wiki-stage-commit`, check:
 
 - Required frontmatter fields are present and non-empty where applicable.
-- Frontmatter `sources` is PDF-only and every PDF link is displayed as the paper slug.
+- Frontmatter `sources` is PDF-only and every source entry is an Obsidian source PDF link.
 - Formal pages use Obsidian wikilinks for internal knowledge.
 - `_epi/` and other internal roots must not enter the formal graph as pages.
 - Do not use fenced formula blocks such as ` ```math`, ` ```tex`, or ` ```latex`; use `$...$` or `$$...$$`.

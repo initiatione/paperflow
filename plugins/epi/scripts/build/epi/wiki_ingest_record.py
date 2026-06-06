@@ -33,12 +33,12 @@ _AUDIT_PAGE_MARKERS = [
     "stage: staging",
     "formal_page: false",
 ]
-_OBSIDIAN_SOURCE_PDF_PATTERN = re.compile(
-    r"\[\[_epi/raw/(?P<slug>[^/\]\|]+)/paper\.pdf\|(?P=slug)\]\]",
+_OBSIDIAN_WIKILINK_SOURCE_PDF_PATTERN = re.compile(
+    r"\[\[_epi/raw/(?P<slug>[^/\]\|]+)/paper\.pdf\|(?P<alias>[^\]]+)\]\]",
     re.IGNORECASE,
 )
-_OBSIDIAN_SOURCE_PDF_ANY_ALIAS_PATTERN = re.compile(
-    r"\[\[_epi/raw/(?P<slug>[^/\]\|]+)/paper\.pdf\|(?P<alias>[^\]]+)\]\]",
+_OBSIDIAN_URI_SOURCE_PDF_PATTERN = re.compile(
+    r"\[[^\]]+\]\(obsidian://open\?[^)]*file=_epi%2Fraw%2F(?P<slug>[^%/)]+)%2Fpaper\.pdf(?:[&#][^)]*)?\)",
     re.IGNORECASE,
 )
 
@@ -146,13 +146,26 @@ def _frontmatter_block(text: str) -> tuple[dict[str, Any], str] | None:
         return None
     frontmatter: dict[str, Any] = {}
     current_map_key: str | None = None
+    current_nested_key: str | None = None
     for raw_line in lines[1:end_index]:
         if not raw_line.strip() or raw_line.lstrip().startswith("#"):
             continue
         if raw_line.startswith("  ") and current_map_key:
             nested = raw_line.strip()
+            if raw_line.startswith("    ") and current_nested_key:
+                if nested.startswith("- "):
+                    nested_map = frontmatter.get(current_map_key)
+                    if not isinstance(nested_map, dict):
+                        nested_map = {}
+                        frontmatter[current_map_key] = nested_map
+                    current_value = nested_map.get(current_nested_key)
+                    if not isinstance(current_value, list):
+                        current_value = []
+                        nested_map[current_nested_key] = current_value
+                    current_value.append(_strip_frontmatter_scalar(nested[2:].strip()))
+                    continue
             if nested.startswith("- "):
-                value = nested[2:].strip()
+                value = _strip_frontmatter_scalar(nested[2:].strip())
                 current_value = frontmatter.get(current_map_key)
                 if not isinstance(current_value, list):
                     current_value = []
@@ -166,7 +179,10 @@ def _frontmatter_block(text: str) -> tuple[dict[str, Any], str] | None:
                     nested_map = {}
                     frontmatter[current_map_key] = nested_map
                 if isinstance(nested_map, dict):
-                    nested_map[key.strip()] = value.strip()
+                    nested_key = key.strip()
+                    nested_value = value.strip()
+                    nested_map[nested_key] = nested_value
+                    current_nested_key = nested_key if not nested_value else None
             continue
         if ":" not in raw_line or raw_line[0].isspace():
             continue
@@ -175,6 +191,7 @@ def _frontmatter_block(text: str) -> tuple[dict[str, Any], str] | None:
         value = value.strip()
         frontmatter[key] = value
         current_map_key = key if not value else None
+        current_nested_key = None
     body = "\n".join(lines[end_index + 1 :])
     return frontmatter, body
 
@@ -255,35 +272,30 @@ def _formal_source_pdf_link_issues(value: Any) -> list[str]:
     entries = _frontmatter_source_entries(value)
     if not entries:
         return [
-            "formal page frontmatter sources must include an Obsidian source PDF link displayed as <paper-slug>"
+            "formal page frontmatter sources must include an Obsidian source PDF link"
         ]
 
-    valid = [entry for entry in entries if _OBSIDIAN_SOURCE_PDF_PATTERN.fullmatch(entry)]
-    alias_mismatches = [
+    valid = [
         entry
         for entry in entries
-        if _OBSIDIAN_SOURCE_PDF_ANY_ALIAS_PATTERN.fullmatch(entry)
-        and not _OBSIDIAN_SOURCE_PDF_PATTERN.fullmatch(entry)
+        if _OBSIDIAN_WIKILINK_SOURCE_PDF_PATTERN.fullmatch(entry)
+        or _OBSIDIAN_URI_SOURCE_PDF_PATTERN.fullmatch(entry)
     ]
     invalid_non_pdf = [
         entry
         for entry in entries
-        if not _OBSIDIAN_SOURCE_PDF_PATTERN.fullmatch(entry)
-        and not _OBSIDIAN_SOURCE_PDF_ANY_ALIAS_PATTERN.fullmatch(entry)
+        if not _OBSIDIAN_WIKILINK_SOURCE_PDF_PATTERN.fullmatch(entry)
+        and not _OBSIDIAN_URI_SOURCE_PDF_PATTERN.fullmatch(entry)
     ]
 
     issues: list[str] = []
     if not valid:
         issues.append(
-            "formal page frontmatter sources must include an Obsidian source PDF link displayed as <paper-slug>"
-        )
-    if alias_mismatches:
-        issues.append(
-            "formal page frontmatter sources PDF links must be displayed as <paper-slug>"
+            "formal page frontmatter sources must include an Obsidian source PDF link"
         )
     if invalid_non_pdf:
         issues.append(
-            "formal page frontmatter sources must contain only Obsidian source PDF links displayed as <paper-slug>"
+            "formal page frontmatter sources must contain only Obsidian source PDF links"
         )
     return issues
 
@@ -601,8 +613,9 @@ def _validate_research_review_sections(payload: dict[str, Any], failures: list[s
     for field in research_review_fields():
         _validate_review_section(payload, field, failures)
     lifecycle = payload.get("page_lifecycle") if isinstance(payload.get("page_lifecycle"), dict) else {}
-    if lifecycle.get("status") != "verified":
-        failures.append("final source review page_lifecycle must be status=verified")
+    status = str(lifecycle.get("status") or "").strip()
+    if status not in page_lifecycle_states():
+        failures.append("final source review page_lifecycle status must be an allowed lifecycle state")
     allowed_states = [str(item) for item in lifecycle.get("allowed_states") or []]
     if allowed_states != page_lifecycle_states():
         failures.append("final source review page_lifecycle must record allowed lifecycle states")

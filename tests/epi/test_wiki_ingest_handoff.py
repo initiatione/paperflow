@@ -41,7 +41,7 @@ EXPECTED_RESEARCH_REVIEW_FIELDS = [
     "cost_level",
 ]
 
-EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "source-reviewed", "under-review", "verified"]
+EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "review-needed", "source-reviewed", "under-review", "verified"]
 
 
 def _write_json(path, payload):

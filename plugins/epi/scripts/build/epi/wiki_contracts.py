@@ -93,6 +93,7 @@ RESEARCH_REVIEW_FIELDS: tuple[str, ...] = (
 
 PAGE_LIFECYCLE_STATES: tuple[str, ...] = (
     "draft",
+    "review-needed",
     "source-reviewed",
     "under-review",
     "verified",
@@ -266,5 +267,5 @@ def final_source_review_must_record() -> list[str]:
         "final_page_provenance[] mapping every final wiki page to source_grounded=true",
         "formal_content_quality with audit_pages_excluded=true and language_policy.chinese_body_default=true",
         f"research review sections: {fields}",
-        f"page_lifecycle with status=verified, allowed states {states}, and verified requirements",
+        f"page_lifecycle with a status in allowed states {states}, allowed_states recorded exactly, and summary",
     ]

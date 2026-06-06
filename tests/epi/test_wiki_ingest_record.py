@@ -46,7 +46,7 @@ EXPECTED_FORMAL_PAGE_FAMILIES = [
     "opportunities",
 ]
 
-EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "source-reviewed", "under-review", "verified"]
+EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "review-needed", "source-reviewed", "under-review", "verified"]
 
 
 def test_orchestrator_reexports_wiki_record_workflow_entrypoints():
@@ -290,6 +290,13 @@ def _formal_page_content(family, title, *, body=None):
         "updated: 2026-06-03\n"
         "---\n\n"
         + body
+    )
+
+
+def _obsidian_uri_pdf_source(slug="fixture-paper", title="Fixture Paper"):
+    return (
+        f"[{title}]"
+        f"(obsidian://open?vault=paper-research-wiki&file=_epi%2Fraw%2F{slug}%2Fpaper.pdf)"
     )
 
 
@@ -750,6 +757,96 @@ def test_create_wiki_ingest_record_rejects_missing_formal_frontmatter(tmp_path):
         )
 
 
+def test_create_wiki_ingest_record_accepts_obsidian_uri_pdf_source(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/fixture-paper.md",
+        _formal_page_content("references", "Fixture Paper").replace(
+            '"[[_epi/raw/fixture-paper/paper.pdf|fixture-paper]]"',
+            json.dumps(_obsidian_uri_pdf_source(), ensure_ascii=False),
+        ),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+
+    record = create_wiki_ingest_record(
+        vault,
+        slug,
+        [str(page)],
+        approved_by="codex-test",
+        source_review_path=str(source_review),
+    )
+
+    assert record["status"] == "recorded"
+    assert record["relative_page_paths"] == ["references/fixture-paper.md"]
+
+
+def test_create_wiki_ingest_record_accepts_nested_provenance_yaml_lists(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/nested-provenance.md",
+        _formal_page_content("references", "Nested Provenance").replace(
+            '  extracted: ["mineru/fixture-paper.md#method"]\n'
+            "  inferred: []\n"
+            "  ambiguous: []\n",
+            "  extracted:\n"
+            "    - mineru/fixture-paper.md#method\n"
+            "  inferred:\n"
+            "    - comparison with [[fixture-method-family]]\n"
+            "  ambiguous:\n"
+            "    - table label requires PDF fallback\n",
+        ),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+
+    record = create_wiki_ingest_record(
+        vault,
+        slug,
+        [str(page)],
+        approved_by="codex-test",
+        source_review_path=str(source_review),
+    )
+
+    assert record["status"] == "recorded"
+    assert record["relative_page_paths"] == ["references/nested-provenance.md"]
+
+
+def test_create_wiki_ingest_record_allows_source_review_lifecycle_state(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/review-needed-lifecycle.md",
+        _formal_page_content("references", "Review Needed Lifecycle").replace(
+            "lifecycle: draft",
+            "lifecycle: review-needed",
+        ),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    payload = json.loads(source_review.read_text(encoding="utf-8"))
+    payload["page_lifecycle"]["status"] = "review-needed"
+    payload["page_lifecycle"]["summary"] = "Final pages are source reviewed but still need human graph review."
+    _write_json(source_review, payload)
+    _approve_handoff(vault, slug)
+
+    record = create_wiki_ingest_record(
+        vault,
+        slug,
+        [str(page)],
+        approved_by="codex-test",
+        source_review_path=str(source_review),
+    )
+
+    assert record["status"] == "recorded"
+    assert record["final_source_review"]["status"] == "verified"
+    assert record["final_source_review"]["page_lifecycle"]["status"] == "review-needed"
+
+
 def test_create_wiki_ingest_record_rejects_plain_text_pdf_source(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
@@ -798,7 +895,7 @@ def test_create_wiki_ingest_record_rejects_markdown_pdf_source_link(tmp_path):
         )
 
 
-def test_create_wiki_ingest_record_rejects_pdf_source_alias_that_is_not_slug(tmp_path):
+def test_create_wiki_ingest_record_accepts_legacy_pdf_source_alias_that_is_not_slug(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
@@ -812,14 +909,16 @@ def test_create_wiki_ingest_record_rejects_pdf_source_alias_that_is_not_slug(tmp
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    with pytest.raises(ValueError, match="displayed as <paper-slug>"):
-        create_wiki_ingest_record(
-            vault,
-            slug,
-            [str(page)],
-            approved_by="codex-test",
-            source_review_path=str(source_review),
-        )
+    record = create_wiki_ingest_record(
+        vault,
+        slug,
+        [str(page)],
+        approved_by="codex-test",
+        source_review_path=str(source_review),
+    )
+
+    assert record["status"] == "recorded"
+    assert record["relative_page_paths"] == ["references/source-alias-not-slug.md"]
 
 
 @pytest.mark.parametrize(
@@ -1051,7 +1150,7 @@ def test_create_wiki_ingest_record_requires_research_review_contract(tmp_path):
     payload = json.loads(source_review.read_text(encoding="utf-8"))
     payload["wiki_batch_ingest"]["wiki_skill_used"] = ["epi-wiki-deposition", "wiki-ingest", "wiki-provenance"]
     payload.pop("formula_derivation")
-    payload["page_lifecycle"]["status"] = "under-review"
+    payload["page_lifecycle"]["status"] = "not-a-real-state"
     _write_json(source_review, payload)
 
     with pytest.raises(ValueError, match="tag-taxonomy.*formula_derivation.*page_lifecycle"):
