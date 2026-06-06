@@ -9,12 +9,12 @@ def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_marketplace_manifests_expose_only_epi():
+def test_marketplace_manifests_expose_epi_and_prw():
     for rel in [".agents/plugins/marketplace.json", "marketplace.json"]:
         payload = _load(ROOT / rel)
         plugin_names = [plugin["name"] for plugin in payload["plugins"]]
 
-        assert plugin_names == ["epi"]
+        assert plugin_names == ["epi", "prw"]
         assert "mineru-paper-parser" not in plugin_names
 
 
