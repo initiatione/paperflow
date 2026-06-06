@@ -211,6 +211,63 @@ def test_paper_gate_marks_agent_handoff_approved_before_wiki_ingest(tmp_path):
     assert checks["human-approval"]["details"]["approved_by"] == "codex-test"
 
 
+def test_paper_gate_surfaces_corrected_premature_wiki_ingest_record(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    paper_root = _seed_paper_gate_fixture(vault, slug)
+    _write_json(
+        paper_root / "wiki-ingest-record.json",
+        {
+            "schema_version": "epi-wiki-ingest-record-v1",
+            "paper_slug": slug,
+            "status": "recorded",
+            "human_gate_decision": {"status": "approved", "approved_by": "codex-test"},
+            "page_records": [{"path": "references/fixture-paper.md"}],
+        },
+    )
+    correction_path = vault / "_epi" / "meta" / "record-corrections" / "20260606-premature.json"
+    _write_json(
+        correction_path,
+        {
+            "schema_version": "epi-record-correction-v1",
+            "correction_type": "premature-wiki-ingest-record",
+            "affected_papers": [
+                {
+                    "slug": slug,
+                    "premature_record": f"_epi/raw/{slug}/wiki-ingest-record.json",
+                }
+            ],
+            "action_taken": {
+                "staging_location": "_epi/staging/premature-formal-pages/20260606-fixture",
+            },
+            "status_after_correction": {
+                "wiki_quality_status": "pending-prw-review",
+                "record_status_interpretation": "premature/superseded-by-correction-note",
+            },
+        },
+    )
+
+    gate = build_paper_gate(vault, slug)
+
+    assert gate["status"] == "wiki_ingest_record_corrected"
+    assert gate["check_suite"]["conclusion"] == "action_required"
+    assert gate["next_action"] == "run-prw-review"
+    checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
+    assert checks["human-approval"]["conclusion"] == "success"
+    assert checks["human-approval"]["details"]["record_type"] == "wiki-ingest-record"
+    assert checks["record-correction"]["conclusion"] == "action_required"
+    assert checks["record-correction"]["details"]["path"] == str(correction_path)
+    assert checks["record-correction"]["details"]["wiki_quality_status"] == "pending-prw-review"
+    assert (
+        checks["record-correction"]["details"]["staging_location"]
+        == "_epi/staging/premature-formal-pages/20260606-fixture"
+    )
+    assert (
+        checks["record-correction"]["details"]["record_status_interpretation"]
+        == "premature/superseded-by-correction-note"
+    )
+
+
 def test_paper_gate_blocks_agent_handoff_without_wiki_rule_source_model(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"

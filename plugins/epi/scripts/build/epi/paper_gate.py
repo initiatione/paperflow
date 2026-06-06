@@ -431,6 +431,78 @@ def _completion_record_check(paper_root: Path) -> dict[str, Any] | None:
     )
 
 
+def _normalized_record_path(value: Any) -> str:
+    return str(value or "").replace("\\", "/").strip()
+
+
+def _correction_affects_slug(correction: dict[str, Any], slug: str) -> tuple[bool, dict[str, Any]]:
+    expected_record_suffix = f"_epi/raw/{slug}/wiki-ingest-record.json"
+    if correction.get("paper_slug") == slug:
+        return True, {}
+    affected_papers = correction.get("affected_papers")
+    if not isinstance(affected_papers, list):
+        affected_papers = []
+    for affected in affected_papers:
+        if not isinstance(affected, dict):
+            continue
+        premature_record = _normalized_record_path(affected.get("premature_record"))
+        if (
+            affected.get("slug") == slug
+            or affected.get("paper_slug") == slug
+            or premature_record.endswith(expected_record_suffix)
+        ):
+            return True, affected
+    return False, {}
+
+
+def _record_correction_check(vault_path: Path, slug: str) -> dict[str, Any] | None:
+    corrections_root = vault_path / "_epi" / "meta" / "record-corrections"
+    matches: list[tuple[Path, dict[str, Any], dict[str, Any]]] = []
+    try:
+        correction_paths = sorted(corrections_root.glob("*.json"))
+    except OSError:
+        correction_paths = []
+    for path in correction_paths:
+        correction = _read_json(path)
+        if not correction:
+            continue
+        if correction.get("correction_type") != "premature-wiki-ingest-record":
+            continue
+        affects_slug, affected_paper = _correction_affects_slug(correction, slug)
+        if affects_slug:
+            matches.append((path, correction, affected_paper))
+    if not matches:
+        return None
+    path, correction, affected_paper = matches[-1]
+    status_after = (
+        correction.get("status_after_correction")
+        if isinstance(correction.get("status_after_correction"), dict)
+        else {}
+    )
+    action_taken = correction.get("action_taken") if isinstance(correction.get("action_taken"), dict) else {}
+    details = {
+        "path": str(path),
+        "correction_type": correction.get("correction_type"),
+        "wiki_quality_status": status_after.get("wiki_quality_status"),
+        "record_status_interpretation": status_after.get("record_status_interpretation"),
+    }
+    staging_location = (
+        affected_paper.get("staging_location")
+        or correction.get("staging_location")
+        or action_taken.get("staging_location")
+    )
+    if staging_location:
+        details["staging_location"] = staging_location
+    if len(matches) > 1:
+        details["matching_correction_count"] = len(matches)
+    return _check_run(
+        "record-correction",
+        "action_required",
+        "Wiki ingest record was corrected as premature; run PRW review before treating final wiki pages as complete.",
+        details=details,
+    )
+
+
 def _prewrite_human_approval_check(vault_path: Path, slug: str) -> dict[str, Any] | None:
     valid, record, issues = validate_human_approval_record(vault_path, slug)
     path = human_approval_record_path(vault_path, slug)
@@ -536,7 +608,11 @@ def build_paper_gate(vault_path: Path, slug: str) -> dict[str, Any]:
     promotion_check = _completion_record_check(paper_root)
     if promotion_check is not None:
         check_runs.append(promotion_check)
+        correction_check = _record_correction_check(vault_path, slug)
+        if correction_check is not None:
+            check_runs.append(correction_check)
     elif (critic_outcome == "pass" or not critic_required) and plan and _suite_conclusion(check_runs) == "success":
+        correction_check = None
         prewrite_approval_check = (
             _prewrite_human_approval_check(vault_path, slug)
             if _is_agent_handoff_plan(plan)
@@ -552,10 +628,12 @@ def build_paper_gate(vault_path: Path, slug: str) -> dict[str, Any]:
                     "Human approval is required before final wiki ingest or legacy compiled wiki write.",
                 )
             )
+    else:
+        correction_check = None
 
     conclusion = _suite_conclusion(check_runs)
-    next_action = _next_action(critic_report, plan, conclusion, promotion_check)
-    status = _gate_status(conclusion, next_action, promotion_check)
+    next_action = _next_action(critic_report, plan, conclusion, promotion_check, correction_check)
+    status = _gate_status(conclusion, next_action, promotion_check, correction_check)
     return _paper_gate_payload(
         slug=slug,
         title=metadata.get("title") or slug,
@@ -572,7 +650,10 @@ def _next_action(
     plan: dict[str, Any] | None,
     conclusion: str,
     promotion_check: dict[str, Any] | None,
+    correction_check: dict[str, Any] | None = None,
 ) -> str:
+    if correction_check is not None:
+        return "run-prw-review"
     if promotion_check and promotion_check.get("conclusion") == "success":
         details = promotion_check.get("details") if isinstance(promotion_check.get("details"), dict) else {}
         if details.get("record_type") == "wiki-ingest-record":
@@ -589,7 +670,14 @@ def _next_action(
     return "repair-staging-to-wiki-handoff"
 
 
-def _gate_status(conclusion: str, next_action: str, promotion_check: dict[str, Any] | None) -> str:
+def _gate_status(
+    conclusion: str,
+    next_action: str,
+    promotion_check: dict[str, Any] | None,
+    correction_check: dict[str, Any] | None = None,
+) -> str:
+    if correction_check is not None:
+        return "wiki_ingest_record_corrected"
     if promotion_check and promotion_check.get("conclusion") == "success":
         details = promotion_check.get("details") if isinstance(promotion_check.get("details"), dict) else {}
         if details.get("record_type") == "wiki-ingest-record":
