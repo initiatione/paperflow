@@ -11,3 +11,5 @@ The router skill treats PRW as a closed-loop maintenance system, not a one-shot 
 `rules/wiki-writing-standard.md` is the mandatory page-writing standard for formal paper wiki writes. It adapts Ar9av/obsidian-wiki page templates, merge-before-create behavior, provenance, wikilinks, relationships, tracking files, and lint/relink gates into the PRW paper workflow.
 
 PRW assumes EPI `wiki-setup` has initialized the target vault. It checks bootstrap structure and reports missing vault structure, but bootstrap, repair, and reset remain EPI responsibilities.
+
+Operational health is checked at three layers: source plugin validation, installed-cache plugin validation, and contract tests. PRW has no standalone CLI; its runtime correctness is protected by `paper-research-wiki` routing metadata, PRW contract tests, EPI handoff/record tests, and QMD surface checks that keep formal page roots visible while `_epi/**` remains outside the indexed formal graph.

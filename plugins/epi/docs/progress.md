@@ -6,6 +6,21 @@
 
 EPI 当前聚焦“按用户画像/config 衍生的高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉淀 -> 轻阅读负担报告”。它是通用学术论文插件，不默认任何学科方向；AUV、机器人、AI、医学等词只能来自用户配置、当前请求或显式领域 hint。它不是自动完成选题、实验、写作、投稿的科研工作台。复现思路可以出现，但只作为阅读报告中的 compact caveat 和验证线索，不占主要篇幅。
 
+## 2026-06-06 EPI/PRW 健康检查
+
+本轮检查把 source checkout、installed cache 和当前 Codex CLI 可见性分开记录，避免把缓存目录存在误判为当前会话必然可调用。
+
+- Source plugin validation：`validate_plugin.py <repo-root>\plugins\epi` 和 `validate_plugin.py <repo-root>\plugins\PRW` 均通过。
+- Installed cache validation：`validate_plugin.py <codex-home>\plugins\cache\paper-search\epi\0.1.11` 和 `validate_plugin.py <codex-home>\plugins\cache\paper-search\prw\0.1.4` 均通过。
+- Docs-only source version sync：本轮文档同步后，source manifest 版本为 EPI `0.1.12`、PRW `0.1.5`；installed cache 仍需 marketplace refresh / reinstall 后才会从 EPI `0.1.11`、PRW `0.1.4` 更新。
+- 聚焦回归：`python -m pytest tests\paper_research_wiki\test_plugin_contract.py plugins\epi\tests\test_skill_bundle_contract.py tests\epi\test_current_docs.py -q --basetemp=<repo-local-temp>` 返回 `67 passed in 0.72s`。
+- Real-vault doctor：`doctor --plugin-root <repo-root>\plugins\epi --vault <target-vault> --paper-search-command <paper-search.exe> --json` 返回 `overall_status=ok`；`skill_bundle_contract`、`epi_config`、`paper_search_mcp`、`paper_search_cli`、`mineru_command`、`mineru_token` 和 `easyscholar` 均为 `ok`。
+- Paper-search runtime：MCP stdio command 为 configured runtime Python + `-m paper_search_mcp.server`，probe 返回 `available=true`、protocol `2025-11-25`、server `paper_search_server`。CLI `sources` probe 返回 21 个 sources。
+- Provider readiness：Unpaywall email 已配置；CORE key 为 recommended gap，Semantic Scholar key、Google Scholar proxy、DOAJ key、Zenodo token 为 optional gaps。它们影响召回稳定性或限流，不是插件启动失败。
+- Functional smoke：`dry-run --query "reinforcement learning" --sources crossref --max-results 2 --no-query-plan --no-easyscholar --no-resume --json` 成功，`search-record.json` 记录 `source_mode=paper_search_mcp`、tool `search_papers`、`source_results.crossref=2`、`errors={}`、`raw_total=2`。两条 Crossref 结果因 `missing_pdf` 被过滤，这是 Crossref metadata source 边界，不是 MCP 启动问题。
+- QMD surface：`qmd collection show paper-research-wiki` 能看到 collection；`qmd ls paper-research-wiki/_epi` 和 `qmd ls paper-research-wiki/_epi/meta/formal-page-snapshots` 返回 no files，说明内部 EPI 目录未进入正式 QMD surface；`qmd ls paper-research-wiki/references` 能列出正式 references 页。
+- Codex CLI visibility caveat：若某个 Windows CLI 调用返回 `No plugin marketplaces in scope`，必须同时检查 `<codex-home>\config.toml`、installed cache、当前会话 skill list 和新线程加载结果；不要仅凭 cache 存在或单次 `codex plugin list` 输出断言运行态可见或不可见。
+
 ## 已完成能力
 
 - Marketplace 包装：`plugin.json` 已声明 EPI 展示信息、GitHub marketplace 链接、技能目录和默认提示；展示文案已从单一工程/机器人方向改成通用 academic/profile-driven 定位。

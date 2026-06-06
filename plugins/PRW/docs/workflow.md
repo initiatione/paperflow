@@ -26,6 +26,8 @@ Update and relink requests repair the graph before they polish prose. PRW checks
 
 QMD is QMD-compatible support, not the wiki source of truth. PRW may use QMD for retrieval and freshness checks, then run `qmd update` and `qmd embed` after write-heavy work. If QMD is unavailable, stale, slow, or noisy, PRW must fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, and direct file search. It must not block on qmd query.
 
+PRW health checks do not use a separate PRW CLI. Treat PRW as healthy only after plugin validation, source/cache manifest checks, `tests\paper_research_wiki\test_plugin_contract.py`, and the EPI bridge tests that protect `paper-research-wiki` handoff semantics pass. For runtime surface checks, confirm the QMD collection can see formal page roots and that `_epi/**` and formal-page snapshot internals remain absent from the indexed surface. If a Codex CLI marketplace command cannot see configured marketplaces in the current shell, report that as a CLI visibility caveat and verify cache/config/new-session skill loading separately.
+
 EPI prepares source bundles and handoff artifacts. Paper Research Wiki reads them and performs the formal wiki-side work without taking over EPI discovery, MinerU parsing, paper-gate, human approval, or record-only completion.
 
 Completion reports must include pages created or updated, links/tags/aliases repaired, tracking files updated, QMD refreshed / skipped / failed with fallback, remaining risks, and the next EPI/PRW action.
