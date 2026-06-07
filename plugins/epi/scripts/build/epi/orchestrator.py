@@ -82,7 +82,7 @@ from epi.wiki_record_workflows import (
     record_wiki_ingest,
     rollback_promotion,
 )
-from epi.wiki_query import query_wiki, render_wiki_query
+from epi.wiki_query import ask_wiki, query_wiki, render_wiki_ask, render_wiki_query
 from epi.wiki_init import initialize_paper_wiki
 
 _LOCAL_TOOL_VERSION = "epi-local"

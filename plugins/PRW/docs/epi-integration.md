@@ -14,4 +14,6 @@ If source artifacts are missing, stop and send the user back to EPI `paper-gate`
 
 PRW may read previous `wiki-ingest-record.json` files to find affected formal pages, hashes, and reverse dependencies, but it must not refresh or replace those EPI record files. PRW records readiness; EPI writes or replaces `wiki-ingest-record.json` through `record-wiki-ingest`.
 
+The read-only `ask_wiki` route is different from record-request ask-mode automation. `ask-wiki` answers user questions from the formal Obsidian graph, labels evidence/synthesis/inference/uncertainty, reports correction candidates, and asks before repair. It does not write `log.md`, does not write formal pages, does not refresh QMD, does not write EPI artifacts, and ask-wiki does not write `prw-record-request.json`.
+
 Ask-mode automation uses `_epi/staging/papers/<paper-slug>/prw-record-request.json`. PRW writes the request artifact; EPI consumes it. The request uses `schema_version: prw-record-request-v1`, `automation_mode: ask`, final page paths and sha256 hashes, `final-source-review.json` path/hash, and the human approval identity. The next EPI command is `record-wiki-ingest --from-prw-request _epi/staging/papers/<paper-slug>/prw-record-request.json`; EPI validates the live vault again before writing or replacing `wiki-ingest-record.json`.

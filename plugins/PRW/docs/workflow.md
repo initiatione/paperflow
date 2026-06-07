@@ -1,6 +1,6 @@
 # Paper Research Wiki Workflow
 
-The plugin exposes one user-facing assistant for direct EPI paper deposition, redo/deep extraction, wiki checks, wiki updates, and relink maintenance.
+The plugin exposes one user-facing assistant for direct EPI paper deposition, read-only wiki Q&A, redo/deep extraction, wiki checks, wiki updates, and relink maintenance.
 
 PRW is a closed-loop paper wiki maintenance system. The fixed loop is:
 
@@ -11,6 +11,14 @@ Check -> Diagnose -> Plan -> Act -> Verify -> Refresh -> Record -> Next
 The ordinary path is: preflight EPI handoffs, diagnose wiki health, plan focused changes, deposit them into staged or formal pages under the target vault contract, verify provenance and language, refresh tracking/QMD surfaces, report record readiness to EPI `record-wiki-ingest`, and name the next action.
 
 A PRW task is not complete until formal pages, tracking files, graph links, taxonomy, provenance, language gate, QMD freshness, and EPI record readiness have been checked or explicitly reported as skipped with reason.
+
+The read-only ask path is:
+
+```text
+Question -> Scope -> Formal graph retrieval -> Evidence check -> Answer labels -> Correction candidates -> Stop
+```
+
+`ask_wiki` answers from the formal Obsidian graph first. It expands candidate pages through backlinks, outlinks, reciprocal links, aliases, tags, and co-links before falling back to frontmatter, manifest files, `index.md`, `hot.md`, and direct Markdown search. QMD is an optional accelerator, not the source of truth. This path uses no `log.md` write, does not write formal pages, does not refresh QMD, and does not write EPI artifacts. It reports correction candidates and uses ask before repair if the user wants the issues fixed.
 
 PRW owns reading the paper wiki vault state, reading EPI handoff artifacts, writing or repairing formal wiki pages, fixing links/tags/aliases/duplicate concepts/orphan pages, updating `.manifest.json` or `manifest`, `index.md`, `log.md`, `hot.md`, refreshing `final-source-review.json`, and running post-task checks.
 

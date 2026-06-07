@@ -156,7 +156,7 @@ def test_progress_doc_records_status_verification_and_next_steps():
     text = _read("progress.md")
 
     assert "# EPI 插件进度说明" in text
-    assert "更新时间：2026-06-06" in text
+    assert "更新时间：2026-06-07" in text
     assert "高质量论文收集和整理" in text
     assert "config-setup" in text
     assert "paper-quality-critic" in text
@@ -166,6 +166,9 @@ def test_progress_doc_records_status_verification_and_next_steps():
     assert "record-human-approval" in text
     assert "record-wiki-ingest" in text
     assert "wiki_ingest_recorded" in text
+    assert "107 passed in 1.35s" in text
+    assert "55 passed in 0.42s" in text
+    assert "70 passed in 1.16s" in text
     assert "287 passed in 30.16s" in text
     assert "45 passed in 10.19s" in text
     assert "pass rate `1`" in text
@@ -346,8 +349,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         ]
     )
 
-    assert manifest["version"] == "0.1.14"
-    assert "v0.1.14" in manifest["interface"]["shortDescription"]
+    assert manifest["version"] == "0.2.0"
+    assert "v0.2.0" in manifest["interface"]["shortDescription"]
     for phrase in [
         "search_papers",
         "source_coverage",
@@ -393,6 +396,9 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "_epi/quarantine/papers",
         "quarantine",
         "source capability matrix",
+        "wiki-ask",
+        "read-only formal graph",
+        "0.2.0",
         "0.1.14",
         "0.1.11",
         "0.1.13",

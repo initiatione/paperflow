@@ -5,10 +5,12 @@ description: >
   paper wiki library, update or relink paper wiki knowledge, redo or deepen
   paper extraction, or continue EPI
   paper deposition. Triggers include "直接沉淀 EPI 抓下来的论文", "提取这些论文",
-  "检测 wiki 库", "更新 wiki 库", "继续上次的论文沉淀", "重link",
+  "检测 wiki 库", "问 wiki", "问论文 wiki", "根据 wiki 回答", "查询论文 wiki",
+  "更新 wiki 库", "继续上次的论文沉淀", "重link",
   "重写某页", "重写页面", "重做", "重新提取", "更详细", "公式推理", "公式推理链", "图片证据",
   "图文结合", "图文证据卡", "source map", "source-map-first", "批量", extract papers, check wiki,
-  update wiki, relink, rewrite formal page, rewrite page, redo, deep extraction, source-map-grounded extraction,
+  ask wiki, ask paper wiki, what does the wiki say, research question, update wiki, relink,
+  rewrite formal page, rewrite page, redo, deep extraction, source-map-grounded extraction,
   formula reasoning chains, evidence figure cards, and EPI paper deposition.
 ---
 
@@ -42,6 +44,7 @@ For any task that drafts, rewrites, repairs, or materially updates formal wiki p
 | --- | --- |
 | 直接沉淀 EPI 抓下来的论文 / 提取这些论文 / 沉淀论文进 wiki / extract EPI papers | `workflows/extract-papers.md` |
 | 检测 wiki 库 / 检查论文 wiki / wiki 状态 / check wiki | `workflows/check-wiki.md` |
+| 提问 / 问 wiki / 问论文 wiki / 根据 wiki 回答 / 查询论文 wiki / ask wiki / ask paper wiki / what does the wiki say | `workflows/ask-wiki.md` |
 | 重做 / 重新提取 / 更详细提取 / 批量重提取 / 公式推理链 / 图片证据 / 图文证据卡 / source map / source-map-first / redo / deep extraction | `workflows/redo-extraction.md` |
 | 更新 wiki 库 / 继续上次的论文沉淀 / 重link / 重写某页 / 重写页面 / relink / rewrite formal page / rewrite page / update wiki | `workflows/update-wiki.md` |
 
@@ -61,6 +64,7 @@ For vague EPI plus wiki requests, default to deposition: run a readiness preflig
 - A material formal page rewrite is a graph-aware rewrite: inspect dependent formal pages and update tracking/provenance/QMD surfaces when rewritten claims, formulas, evidence tiers, relationships, or reusable knowledge affect downstream pages.
 - PRW has internalized the Ar9av/obsidian-wiki skill patterns into local PRW workflows; do not fetch upstream repositories during normal PRW runs.
 - QMD is an optional retrieval/indexing aid. Use the Markdown vault, manifest, index, log, hot pages, and direct file search as the source of truth.
+- Read-only ask workflows answer from the formal graph and correction candidates; ask before repair and do not write `log.md`, formal pages, QMD, or EPI artifacts.
 - After every write, repair, relink, redo, or staged deposition, run a post-task check through `workflows/check-wiki.md` before saying the work is complete.
 - Default to Quick + Targeted checks. Use a Full check only when the user asks for a comprehensive audit or when the check finds systemic link/tag chaos.
 - Every formal wiki write must follow `../../rules/wiki-writing-standard.md`; every formal page draft or rewrite must follow `../paper-wiki-language/SKILL.md`; language quality is part of the write gate, not a post-hoc cosmetic pass.

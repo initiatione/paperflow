@@ -300,6 +300,13 @@ def build_parser() -> argparse.ArgumentParser:
     wiki_query.add_argument("--limit", type=int, default=20)
     wiki_query.add_argument("--json", action="store_true")
 
+    wiki_ask = subparsers.add_parser("wiki-ask")
+    _add_common_vault(wiki_ask)
+    wiki_ask.add_argument("--question", required=True)
+    wiki_ask.add_argument("--limit", type=int, default=8)
+    wiki_ask.add_argument("--max-hops", type=int, default=1)
+    wiki_ask.add_argument("--json", action="store_true")
+
     wiki_ingest_handoff = subparsers.add_parser("wiki-ingest-handoff")
     _add_common_vault(wiki_ingest_handoff)
     wiki_ingest_handoff.add_argument("--slug", required=True)

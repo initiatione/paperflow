@@ -316,7 +316,7 @@ python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-pa
 <vault>/_epi/raw/<slug>/zotero-record.json
 ```
 
-后续查询和综合依赖这些元数据。EPI 自身的 `wiki-query` 只是 legacy manifest/index 视角；真正的跨论文综合、带引用检索和 provenance round-trip 需要目标 wiki skills 消费 final page metadata、claim support 和 evidence route。
+后续查询和综合依赖这些元数据。EPI 自身的 `wiki-query` 是 legacy manifest/index 视角；`wiki-ask` 是 read-only formal graph 问答入口，会利用正式页 backlinks/outlinks/co-links 并标记证据、综合、推断和不确定性。真正的写入、修复、带引用沉淀和 provenance round-trip 仍需要目标 wiki skills 消费 final page metadata、claim support 和 evidence route。
 
 ## 插件源码结构
 

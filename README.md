@@ -12,14 +12,14 @@ MinerU parsing is an internal EPI helper capability, not as a separate marketpla
 
 ## PRW 是什么
 
-PRW 是 Paper Research Wiki 插件。它不是论文检索器，而是 EPI 之后的正式论文 wiki 写入和维护层：读取 EPI source bundle、handoff 和 source review，按目标 vault contract 写入或修复正式页面，并处理检测、更新、重做、重link、语言 gate、tracking 文件和 QMD 兼容检查。
+PRW 是 Paper Research Wiki 插件。它不是论文检索器，而是 EPI 之后的正式论文 wiki 写入、问答和维护层：读取 EPI source bundle、handoff、source review 和正式 wiki 图谱，按目标 vault contract 回答研究问题、写入或修复正式页面，并处理检测、更新、重做、重link、语言 gate、tracking 文件和 QMD 兼容检查。
 
-PRW exposes one user-facing paper wiki assistant for source-map-grounded deposition, wiki checks, updates, relinking, and redo/deep extraction. EPI remains responsible for discovery, acquisition, MinerU parsing, paper gate, human approval, and record-only completion.
+PRW exposes one user-facing paper wiki assistant for read-only wiki Q&A, source-map-grounded deposition, wiki checks, updates, relinking, and redo/deep extraction. EPI remains responsible for discovery, acquisition, MinerU parsing, paper gate, human approval, and record-only completion.
 
 ## 工作链路
 
 EPI 的核心链路是 profile-driven high-quality paper collection -> source-first paper bundle -> reader/critic review -> staging -> human approval -> wiki handoff -> provenance record。
-PRW 的核心链路是 EPI handoff -> wiki state check -> formal page write/update/redo/relink -> provenance/language/QMD check -> EPI record readiness report。
+PRW 的核心链路是 EPI handoff -> wiki state check 或 read-only wiki ask -> formal page write/update/redo/relink -> provenance/language/QMD check -> EPI record readiness report。
 
 链路含义如下：
 
@@ -40,8 +40,9 @@ PRW 的核心链路是 EPI handoff -> wiki state check -> formal page write/upda
 - paper gate、human approval、wiki-ingest handoff、wiki-ingest trigger 和最终 record。
 - Obsidian/LLM Wiki 目录初始化、graph 可见性修复、formal 页面语言策略和 provenance 约束。
 - run lifecycle、dashboard、研究队列、Zotero 同步和质量演化建议。
+- EPI `wiki-ask` 只读查询：从正式论文 wiki graph 检索，标记 wiki 证据、综合判断、推断、不确定性和纠错候选。
 - 基于 skill-based architecture 的轻量路由：插件根入口保持 thin shell，具体任务交给 skill 与模块化脚本，独立子任务可在用户授权后交由 Codex subagents 完成。
-- PRW 正式 wiki 侧闭环：提取 EPI 论文、检测 wiki 库、更新正式页、重做/更详细提取、重link、修复 tracking/QMD surface，并把剩余 EPI `record-wiki-ingest` 动作报告清楚。
+- PRW 正式 wiki 侧闭环：根据 wiki 提问、提取 EPI 论文、检测 wiki 库、更新正式页、重做/更详细提取、重link、修复 tracking/QMD surface，并把剩余 EPI `record-wiki-ingest` 动作报告清楚。
 
 ## 依赖
 

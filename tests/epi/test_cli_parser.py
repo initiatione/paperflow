@@ -608,6 +608,79 @@ def test_wiki_query_parser_accepts_research_decision_filters():
     assert args.warning_reviewer == "paper-quality-critic"
 
 
+def test_wiki_ask_parser_accepts_question_graph_options_and_json():
+    args = build_parser().parse_args(
+        [
+            "wiki-ask",
+            "--question",
+            "How should I start AUV strong-current attitude-control research with AI?",
+            "--limit",
+            "7",
+            "--max-hops",
+            "2",
+            "--json",
+        ]
+    )
+
+    assert args.command == "wiki-ask"
+    assert args.question == "How should I start AUV strong-current attitude-control research with AI?"
+    assert args.limit == 7
+    assert args.max_hops == 2
+    assert args.json is True
+
+
+def test_wiki_ask_cli_outputs_read_only_ask_result_json(tmp_path, monkeypatch, capsys):
+    captured = {}
+
+    def fake_ask_wiki(vault, *, question, limit=8, max_hops=1):
+        captured.update(
+            {
+                "vault": vault,
+                "question": question,
+                "limit": limit,
+                "max_hops": max_hops,
+            }
+        )
+        return {
+            "title": "PRW Wiki Ask",
+            "mode": "read-only",
+            "question": question,
+            "write_performed": False,
+            "retrieval": {"primary": "formal_graph"},
+            "pages": [],
+            "correction_candidates": [],
+        }
+
+    monkeypatch.setattr(cli.workflows, "ask_wiki", fake_ask_wiki, raising=False)
+
+    exit_code = cli.main(
+        [
+            "wiki-ask",
+            "--question",
+            "AUV strong-current attitude-control first step",
+            "--vault",
+            str(tmp_path),
+            "--limit",
+            "3",
+            "--max-hops",
+            "2",
+            "--json",
+        ]
+    )
+
+    payload = __import__("json").loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["title"] == "PRW Wiki Ask"
+    assert payload["mode"] == "read-only"
+    assert payload["write_performed"] is False
+    assert captured == {
+        "vault": tmp_path.resolve(),
+        "question": "AUV strong-current attitude-control first step",
+        "limit": 3,
+        "max_hops": 2,
+    }
+
+
 def test_wiki_ingest_handoff_parser_accepts_slug_and_json():
     args = build_parser().parse_args(
         [

@@ -12,6 +12,7 @@ MARKETPLACES = [
     ROOT / ".agents" / "plugins" / "marketplace.json",
 ]
 WORKFLOWS = {
+    "ask-wiki.md",
     "extract-papers.md",
     "check-wiki.md",
     "update-wiki.md",
@@ -143,7 +144,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "prw"
-    assert manifest["version"] == "0.1.7"
+    assert manifest["version"] == "0.2.0"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Research Wiki"
     assert "academic paper knowledge" in manifest["description"]
@@ -153,10 +154,10 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "link repair" in manifest["interface"]["longDescription"]
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
-    for phrase in ["deposition", "checks", "update", "relink", "redo"]:
+    for phrase in ["deposition", "ask", "checks", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
-    for phrase in ["提取", "检测", "更新", "沉淀", "EPI", "link", "QMD"]:
+    for phrase in ["提取", "提问", "检测", "更新", "沉淀", "EPI", "link", "QMD"]:
         assert phrase in prompt_text
 
 
@@ -225,6 +226,11 @@ def test_public_skill_routes_natural_epi_deposition_actions():
         "检测",
         "更新",
         "沉淀",
+        "提问",
+        "问 wiki",
+        "问论文 wiki",
+        "根据 wiki 回答",
+        "查询论文 wiki",
         "直接沉淀",
         "继续上次",
         "默认",
@@ -237,6 +243,9 @@ def test_public_skill_routes_natural_epi_deposition_actions():
         "redo",
         "extract",
         "check",
+        "ask wiki",
+        "ask paper wiki",
+        "what does the wiki say",
         "update",
         "公式推理链",
         "图片证据",
@@ -248,6 +257,10 @@ def test_public_skill_routes_natural_epi_deposition_actions():
     assert (
         "| 重做 / 重新提取 / 更详细提取 / 批量重提取 / 公式推理链 / 图片证据 / 图文证据卡 / "
         "source map / source-map-first / redo / deep extraction | `workflows/redo-extraction.md` |"
+    ) in skill
+    assert (
+        "| 提问 / 问 wiki / 问论文 wiki / 根据 wiki 回答 / 查询论文 wiki / "
+        "ask wiki / ask paper wiki / what does the wiki say | `workflows/ask-wiki.md` |"
     ) in skill
     for workflow in WORKFLOWS:
         assert f"workflows/{workflow}" in skill
@@ -268,7 +281,7 @@ def test_prw_skill_routing_manifest_matches_public_workflows():
     assert "../rules/wiki-writing-standard.md" in routing["always_read"]
 
     routes = routing["routes"]
-    assert set(routes) == {"extract_papers", "check_wiki", "redo_extraction", "update_wiki", "language_gate"}
+    assert set(routes) == {"extract_papers", "check_wiki", "ask_wiki", "redo_extraction", "update_wiki", "language_gate"}
 
     routed_workflows = {
         Path(workflow).name
@@ -305,6 +318,66 @@ def test_prw_skill_routing_manifest_matches_public_workflows():
     assert "routing manifest" in skill
 
     assert "paper-wiki-language/references/style-guide.md" in routes["language_gate"].get("references", [])
+
+
+def test_prw_routes_read_only_wiki_questions_to_ask_workflow():
+    routing = _load_prw_routing()
+    ask_route = routing["routes"]["ask_wiki"]
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    workflow = _read(PUBLIC_SKILL / "workflows" / "ask-wiki.md")
+
+    assert ask_route["category"] == "primary"
+    assert ask_route["skill"] == "paper-research-wiki/SKILL.md"
+    assert ask_route["workflows"] == ["paper-research-wiki/workflows/ask-wiki.md"]
+    for phrase in [
+        "提问",
+        "问 wiki",
+        "问论文 wiki",
+        "根据 wiki 回答",
+        "查询论文 wiki",
+        "ask wiki",
+        "ask paper wiki",
+        "what does the wiki say",
+        "research question",
+    ]:
+        assert phrase in ask_route["triggers"]
+        assert phrase in skill or phrase in workflow
+
+
+def test_ask_wiki_workflow_is_read_only_graph_first_and_correction_candidate_based():
+    workflow = _read(PUBLIC_SKILL / "workflows" / "ask-wiki.md")
+    routing = _read(PLUGIN / "skills" / "routing.yaml")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+    structure_doc = _read(PLUGIN / "docs" / "structure.md")
+    integration_doc = _read(PLUGIN / "docs" / "epi-integration.md")
+    combined = "\n".join([workflow, routing, workflow_doc, structure_doc, integration_doc])
+
+    for phrase in [
+        "read-only",
+        "no `log.md`",
+        "do not write `log.md`",
+        "do not write formal pages",
+        "do not refresh QMD",
+        "do not write EPI artifacts",
+        "formal Obsidian graph",
+        "backlinks",
+        "outlinks",
+        "co-links",
+        "QMD is an optional accelerator",
+        "fallback",
+        "【Wiki 证据】",
+        "【综合判断】",
+        "【推断】",
+        "【边界/不确定】",
+        "correction candidates",
+        "ask before repair",
+    ]:
+        assert phrase in combined
+
+    assert "Question -> Scope -> Formal graph retrieval -> Evidence check -> Answer labels -> Correction candidates -> Stop" in workflow_doc
+    assert "read-only `ask_wiki`" in integration_doc
+    assert "prw-record-request.json" in integration_doc
+    assert "ask-wiki does not write `prw-record-request.json`" in integration_doc
 
 
 def test_public_skill_references_internal_contract_files():

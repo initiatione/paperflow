@@ -781,6 +781,20 @@ def _handle_wiki_query(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_wiki_ask(args: argparse.Namespace) -> int:
+    result = workflows.ask_wiki(
+        args.vault.resolve(),
+        question=args.question,
+        limit=args.limit,
+        max_hops=args.max_hops,
+    )
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(workflows.render_wiki_ask(result))
+    return 0
+
+
 def _handle_wiki_ingest_handoff(args: argparse.Namespace) -> int:
     result = workflows.build_wiki_ingest_handoff(args.vault.resolve(), args.slug)
     if args.json:

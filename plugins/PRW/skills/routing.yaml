@@ -43,6 +43,25 @@ routes:
       - default to Quick + Targeted unless systemic link or tag chaos appears
       - check EPI wiki-setup bootstrap structure and report missing vault structure as an EPI action
       - QMD is optional and must fall back to manifest and direct Markdown search
+  ask_wiki:
+    category: primary
+    triggers:
+      - 提问
+      - 问 wiki
+      - 问论文 wiki
+      - 根据 wiki 回答
+      - 查询论文 wiki
+      - ask wiki
+      - ask paper wiki
+      - what does the wiki say
+      - research question
+    skill: paper-research-wiki/SKILL.md
+    workflows:
+      - paper-research-wiki/workflows/ask-wiki.md
+    notes:
+      - read-only formal Obsidian graph retrieval; do not write `log.md`, formal pages, QMD, or EPI artifacts
+      - use QMD only as an optional accelerator and fallback to frontmatter, index, and direct Markdown search
+      - report correction candidates and ask before repair
   redo_extraction:
     category: primary
     triggers:
@@ -114,6 +133,7 @@ task_closure:
     - skill behavior changes
   skip_for:
     - pure read-only Q&A
+    - ask_wiki read-only answers
   checklist:
     - run the matched workflow's post-task check
     - report QMD refreshed, skipped, or failed with fallback

@@ -1,6 +1,6 @@
 {
   "name": "prw",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "description": "Extract, check, update, and relink source-map-grounded academic paper knowledge in an EPI-compatible Obsidian/LLM Wiki.",
   "author": {
     "name": "liuchf"
@@ -20,7 +20,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Research Wiki",
-    "shortDescription": "v0.1.7 | Source-map PRW deposition, checks, update, relink, redo, record requests.",
+    "shortDescription": "v0.2.0 | Source-map PRW deposition, ask, checks, update, relink, redo, record requests.",
     "longDescription": "Paper Research Wiki gives users one plugin-level assistant for EPI-collected papers. The default path is to inspect EPI handoffs, identify ready papers, and deposit them into the wiki while keeping detailed provenance, source-map-first reference writing, formula reasoning chains, evidence figure cards, page-family rules, formal-page language style, link repair, linting, taxonomy maintenance, QMD-compatible indexing, and a post-task check inside internal workflows so users do not need to learn many skill names.",
     "developerName": "liuchf",
     "category": "Productivity",
@@ -33,6 +33,7 @@
     "termsOfServiceURL": "https://github.com/initiatione/paper-search/blob/main/plugins/PRW/docs/terms.md",
     "defaultPrompt": [
       "提取并直接沉淀 EPI 抓下来的论文到 wiki。",
+      "根据论文 wiki 提问并回答，标记证据、综合判断、推断和纠错候选。",
       "检测论文 wiki 库的状态、缺口、link 混乱和待处理任务。",
       "更新论文 wiki 库，继续沉淀、重link、兼容 QMD，并修复 ready 的论文。"
     ]

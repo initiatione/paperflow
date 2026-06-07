@@ -44,6 +44,7 @@ HANDLER_NAMES: dict[str, str] = {
     "run-lifecycle": "_handle_run_lifecycle",
     "research-queue": "_handle_research_queue",
     "wiki-query": "_handle_wiki_query",
+    "wiki-ask": "_handle_wiki_ask",
     "wiki-ingest-handoff": "_handle_wiki_ingest_handoff",
     "wiki-ingest-trigger": "_handle_wiki_ingest_trigger",
     "record-human-approval": "_handle_record_human_approval",
