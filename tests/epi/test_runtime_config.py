@@ -37,6 +37,44 @@ def _write_fake_paper_search(tmp_path: Path, payload: dict) -> str:
     return str(script)
 
 
+def test_plugin_mcp_registration_uses_runtime_config_launcher():
+    plugin_root = Path(__file__).resolve().parents[2] / "plugins" / "epi"
+    mcp_config = json.loads((plugin_root / ".mcp.json").read_text(encoding="utf-8"))
+
+    server = mcp_config["mcpServers"]["paper-search-mcp"]
+
+    assert server["command"] == "python"
+    assert server["args"] == ["${CLAUDE_PLUGIN_ROOT}/scripts/paper_search_mcp_launcher.py"]
+    assert "paper_search_mcp.server" not in json.dumps(server)
+
+
+def test_paper_search_mcp_launcher_uses_runtime_config_command_and_provider_env(tmp_path, monkeypatch):
+    runtime_path = tmp_path / "runtime.json"
+    paper_search_env = tmp_path / "paper-search.env"
+    paper_search_env.write_text("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=researcher@example.org\n", encoding="utf-8")
+    _write_json(
+        runtime_path,
+        {
+            "paper_search_mcp": {
+                "command": "runtime-python",
+                "args": ["-m", "paper_search_mcp.server"],
+                "env_file": str(paper_search_env),
+            }
+        },
+    )
+    monkeypatch.setenv("EPI_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.setenv("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL", "")
+    monkeypatch.delenv("EPI_PAPER_SEARCH_MCP_COMMAND", raising=False)
+    monkeypatch.delenv("EPI_PAPER_SEARCH_MCP_ARGS", raising=False)
+
+    from epi.paper_search_mcp_launcher import build_launch_command
+
+    command = build_launch_command()
+
+    assert command == ["runtime-python", "-m", "paper_search_mcp.server"]
+    assert os.environ["PAPER_SEARCH_MCP_UNPAYWALL_EMAIL"] == "researcher@example.org"
+
+
 def test_apply_runtime_config_loads_plugin_level_commands_and_env_file(tmp_path, monkeypatch):
     runtime_path = tmp_path / "runtime.json"
     mineru_env = tmp_path / "mineru.env"
