@@ -67,11 +67,12 @@ def _ready_instruction(
     research_fields: list[str],
 ) -> str:
     return (
-        "Continue as the current wiki ingest agent. Load "
-        + ", ".join(required_skills)
-        + " before writing formal pages; use wiki-provenance for claim support and tag-taxonomy for final tags. "
+        "Continue by invoking PRW $paper-research-wiki for formal paper wiki writing. "
+        "Use wiki-ingest-brief.json as the canonical EPI source/evidence handoff; "
+        "keep epi-paper-deposition only as a legacy compatibility adapter. "
+        "Apply PRW provenance, tag, language, lint, and post-task-check policies through the PRW writing standard. "
         "EPI artifacts are source/evidence handoff only "
-        "and EPI itself may write only internal underscore folders. Re-read the source bundle before writing: "
+        "and EPI itself may write only internal underscore folders. Follow the source-first rule and re-read the source bundle before writing: "
         "paper.pdf, metadata.json, mineru/<slug>.md, mineru/paper.tex, mineru/images/*, and "
         "mineru/mineru-manifest.json. Compare this paper with the current batch or neighboring EPI source "
         "bundles before creating reusable concept or synthesis pages. Route final knowledge into these page "

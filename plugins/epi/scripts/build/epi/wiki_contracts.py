@@ -11,32 +11,31 @@ DEPOSITION_SKILL_COMPATIBILITY_ALIASES: tuple[str, ...] = (
 REQUIRED_WIKI_SKILLS: tuple[str, ...] = (
     PRW_CANONICAL_SKILL,
     EPI_DEPOSITION_SKILL,
-    "llm-wiki",
-    "wiki-ingest",
-    "wiki-context-pack",
-    "wiki-lint",
-    "wiki-stage-commit",
-    "wiki-status",
-    "wiki-query",
-    "wiki-provenance",
-    "tag-taxonomy",
 )
 
 QUALITY_ENHANCEMENT_WIKI_SKILLS: tuple[str, ...] = (
+    "wiki-lint",
+    "wiki-stage-commit",
+    "wiki-provenance",
+    "tag-taxonomy",
     "wiki-synthesize",
     "wiki-dedup",
     "cross-linker",
-    "tag-taxonomy",
 )
 
 OPTIONAL_WIKI_SKILLS: tuple[str, ...] = (
+    "llm-wiki",
+    "wiki-ingest",
+    "wiki-context-pack",
+    "wiki-status",
+    "wiki-query",
     "wiki-dashboard",
     "wiki-digest",
     "wiki-export",
 )
 
-# Code-enforcement copy of the page-family / frontmatter contract.
-# Human-canonical prose lives in plugins/PRW/rules/wiki-writing-standard.md (A5).
+# PRW rules are the human-readable canonical page-writing contract.
+# These constants are EPI-side validation mirrors for generated handoffs and records.
 FORMAL_PAGE_FAMILIES: tuple[dict[str, str], ...] = (
     {
         "name": "references",

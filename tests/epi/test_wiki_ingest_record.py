@@ -14,15 +14,6 @@ from epi.wiki_ingest_record import create_wiki_ingest_record
 EXPECTED_RESEARCH_WIKI_SKILLS = [
     "paper-research-wiki",
     "epi-paper-deposition",
-    "llm-wiki",
-    "wiki-ingest",
-    "wiki-context-pack",
-    "wiki-lint",
-    "wiki-stage-commit",
-    "wiki-status",
-    "wiki-query",
-    "wiki-provenance",
-    "tag-taxonomy",
 ]
 
 EXPECTED_RESEARCH_REVIEW_FIELDS = [
@@ -352,6 +343,7 @@ def _write_final_source_review(vault, slug, pages):
         "wiki_batch_ingest": {
             "status": "completed",
             "wiki_skill_used": EXPECTED_RESEARCH_WIKI_SKILLS,
+            "optional_helpers_used": ["wiki-provenance", "tag-taxonomy"],
             "paper_slugs": [slug],
         },
         "theory_reconstruction": {
@@ -552,6 +544,10 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     assert record["final_source_review"]["status"] == "verified"
     assert record["paths"]["final_source_review"] == str(source_review)
     assert record["final_source_review"]["wiki_batch_ingest"]["wiki_skill_used"] == EXPECTED_RESEARCH_WIKI_SKILLS
+    assert record["final_source_review"]["wiki_batch_ingest"].get("optional_helpers_used") == [
+        "wiki-provenance",
+        "tag-taxonomy",
+    ]
     rule_sources = [item["source"] for item in record["wiki_rule_source_model"]["resolution_order"]]
     assert any("paper-research-wiki" in source for source in rule_sources)
     prw_index = next(index for index, source in enumerate(rule_sources) if "paper-research-wiki" in source)
@@ -1345,7 +1341,31 @@ def test_create_wiki_ingest_record_requires_research_review_contract(tmp_path):
     payload["page_lifecycle"]["status"] = "not-a-real-state"
     _write_json(source_review, payload)
 
-    with pytest.raises(ValueError, match="tag-taxonomy.*formula_derivation.*page_lifecycle"):
+    with pytest.raises(ValueError, match="paper-research-wiki.*formula_derivation.*page_lifecycle"):
+        create_wiki_ingest_record(
+            vault,
+            slug,
+            [str(page)],
+            approved_by="codex-test",
+            source_review_path=str(source_review),
+        )
+
+
+def test_create_wiki_ingest_record_rejects_non_list_optional_helpers(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/fixture-paper.md",
+        _formal_page_content("references", "Fixture Paper"),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+    payload = json.loads(source_review.read_text(encoding="utf-8"))
+    payload["wiki_batch_ingest"]["optional_helpers_used"] = "wiki-provenance"
+    _write_json(source_review, payload)
+
+    with pytest.raises(ValueError, match="optional_helpers_used must be a list"):
         create_wiki_ingest_record(
             vault,
             slug,

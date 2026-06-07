@@ -133,6 +133,13 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
     )
     write_requirements = rule_source_model.get("write_contract_requirements") or []
     write_requirement_text = "\n".join(str(item) for item in write_requirements or [])
+    rule_source_policy_text = "\n".join(
+        str(item)
+        for item in [
+            rule_source_model.get("principle") if isinstance(rule_source_model, dict) else "",
+            ingest_policy.get("authority") if isinstance(ingest_policy, dict) else "",
+        ]
+    )
     source_bundle = brief.get("source_bundle") if isinstance(brief.get("source_bundle"), dict) else {}
     raw_artifacts = [
         str(item)
@@ -225,6 +232,15 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
             if isinstance(rule_source_model.get("execution_agent_policy"), dict)
             else {}
         )
+        helper_boundary_text = "\n".join(
+            str(item)
+            for item in [
+                resolution_source_text,
+                write_requirement_text,
+                rule_source_policy_text,
+                execution_agent_policy.get("local_skills_role") if isinstance(execution_agent_policy, dict) else "",
+            ]
+        ).lower()
         allowed_executor_text = "\n".join(
             str(item) for item in execution_agent_policy.get("allowed_executors", [])
         )
@@ -238,18 +254,18 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
         required_rule_sources = [
             "target vault AGENTS.md",
             "_meta/schema.md",
+            "paper-research-wiki",
             "Ar9av/obsidian-wiki",
             "kepano/obsidian-skills",
             "initiatione/obsidian-wiki-dev",
-            "local llm-wiki / wiki-ingest / obsidian-markdown skills",
         ]
         missing_rule_sources = [
             source for source in required_rule_sources if source not in resolution_source_text
         ]
         if missing_rule_sources:
             issues.append("wiki rule source model is incomplete")
-        if "adapter" not in resolution_source_text.lower() and "helper" not in resolution_source_text.lower():
-            issues.append("local wiki skills must be described as adapters or helpers")
+        if "helper" not in helper_boundary_text:
+            issues.append("external wiki skills must be described as optional helpers or references")
         if "Markdown vault" not in write_requirement_text or "source of truth" not in write_requirement_text:
             issues.append("wiki rule source model must preserve Markdown vault as source of truth")
     if issues:

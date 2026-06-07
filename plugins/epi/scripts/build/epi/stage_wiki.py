@@ -211,7 +211,7 @@ def _write_batch_handoff(
     title: str,
     staging_root: Path,
     wiki_ingest_brief_path: Path,
-    wiki_deposition_task_path: Path,
+    wiki_deposition_task_path: Path | None,
     reading_report_path: Path,
     source_reader_path: Path,
     wiki_ingest_brief: dict,
@@ -260,7 +260,7 @@ def _write_batch_handoff(
             "title": title,
             "staging_root": str(staging_root),
             "wiki_ingest_brief": str(wiki_ingest_brief_path),
-            "wiki_deposition_task": str(wiki_deposition_task_path),
+            "legacy_wiki_deposition_task": str(wiki_deposition_task_path) if wiki_deposition_task_path else None,
             "reading_report": str(reading_report_path),
             "source_reader": str(source_reader_path),
             "source_bundle": wiki_ingest_brief.get("source_bundle", {}),
@@ -886,8 +886,9 @@ def _build_wiki_ingest_brief(
         "reading_report": reading_report_target,
         "source_reader": source_reader_target,
         "wiki_ingest_brief": "wiki-ingest-brief.json",
-        "wiki_deposition_task": "wiki_deposition_task.json",
     }
+    if wiki_deposition_task_path:
+        entrypoints["legacy_wiki_deposition_task"] = "wiki_deposition_task.json"
     if "reader/evidence-map.json" in reader_artifacts:
         entrypoints["evidence_map"] = "reader/evidence-map.json"
     if "reader/claim-support.json" in reader_artifacts:
@@ -920,12 +921,13 @@ def _build_wiki_ingest_brief(
         "wiki_deposition_quality_gates": wiki_deposition_quality_gates(),
         "research_review_fields": research_review_fields(),
         "page_lifecycle_states": page_lifecycle_states(),
-        "wiki_deposition_task": {
+        "legacy_wiki_deposition_task": {
             "schema_version": "epi-wiki-deposition-task-v1",
-            "task_path": str(wiki_deposition_task_path or "wiki_deposition_task.json"),
-            "required_skills": required_wiki_skills(),
+            "status": "emitted" if wiki_deposition_task_path else "not-emitted",
+            "task_path": str(wiki_deposition_task_path) if wiki_deposition_task_path else None,
+            "canonical_handoff": "wiki-ingest-brief.json",
+            "reason": "wiki-ingest-brief.json is the canonical EPI-to-PRW handoff",
             "compatibility_aliases": deposition_skill_compatibility_aliases(),
-            "quality_gates": wiki_deposition_quality_gates(),
         },
         "agent_context_policy": agent_context_policy(),
         "wiki_framework_references": [
@@ -1262,7 +1264,14 @@ def _reading_report_lines(
     return lines
 
 
-def stage_paper(vault_path: Path, slug: str, paper_root: Path, workflow_mode: str = FAST_INGEST_MODE) -> Path:
+def stage_paper(
+    vault_path: Path,
+    slug: str,
+    paper_root: Path,
+    workflow_mode: str = FAST_INGEST_MODE,
+    *,
+    emit_legacy_deposition_task: bool = False,
+) -> Path:
     workflow_mode = normalize_ingest_mode(workflow_mode)
     reader_required = reader_required_for_mode(workflow_mode)
     critic_required = critic_required_for_mode(workflow_mode)
@@ -1314,7 +1323,7 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path, workflow_mode: st
         workflow_mode=workflow_mode,
         source_reader_target=source_reader_target,
         reading_report_target=reading_report_target,
-        wiki_deposition_task_path=str(wiki_deposition_task_path),
+        wiki_deposition_task_path=str(wiki_deposition_task_path) if emit_legacy_deposition_task else None,
         editorial_summary_text=editorial_summary_text,
         technical_reading_text=technical_reading_text,
         research_notes_text=research_notes_text,
@@ -1325,20 +1334,22 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path, workflow_mode: st
         critic_artifacts=critic_artifacts,
         full_text_evidence_index=full_text_evidence_index,
     )
-    wiki_deposition_task = _build_wiki_deposition_task(
-        vault_path=vault_path,
-        slug=slug,
-        title=title,
-        workflow_mode=workflow_mode,
-        paper_root=paper_root,
-        staging_root=staging_root,
-        wiki_ingest_brief_path=wiki_ingest_brief_path,
-        reading_report_path=reading_report_path,
-        source_reader_path=source_reader_path,
-        reader_artifacts=reader_artifacts,
-        critic_artifacts=critic_artifacts,
-        wiki_ingest_brief=wiki_ingest_brief,
-    )
+    wiki_deposition_task = None
+    if emit_legacy_deposition_task:
+        wiki_deposition_task = _build_wiki_deposition_task(
+            vault_path=vault_path,
+            slug=slug,
+            title=title,
+            workflow_mode=workflow_mode,
+            paper_root=paper_root,
+            staging_root=staging_root,
+            wiki_ingest_brief_path=wiki_ingest_brief_path,
+            reading_report_path=reading_report_path,
+            source_reader_path=source_reader_path,
+            reader_artifacts=reader_artifacts,
+            critic_artifacts=critic_artifacts,
+            wiki_ingest_brief=wiki_ingest_brief,
+        )
     source_handoff_text = _source_handoff_body(
         slug=slug,
         title=title,
@@ -1363,7 +1374,10 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path, workflow_mode: st
     if promotion_review_lines:
         source_reader.extend(["", *promotion_review_lines, ""])
     write_text_atomic(source_reader_path, "\n".join(source_reader))
-    write_json_atomic(wiki_deposition_task_path, wiki_deposition_task)
+    if wiki_deposition_task is not None:
+        write_json_atomic(wiki_deposition_task_path, wiki_deposition_task)
+    elif wiki_deposition_task_path.exists():
+        wiki_deposition_task_path.unlink()
     write_json_atomic(wiki_ingest_brief_path, wiki_ingest_brief)
     write_text_atomic(
         reading_report_path,
@@ -1394,18 +1408,19 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path, workflow_mode: st
         title=title,
         staging_root=staging_root,
         wiki_ingest_brief_path=wiki_ingest_brief_path,
-        wiki_deposition_task_path=wiki_deposition_task_path,
+        wiki_deposition_task_path=wiki_deposition_task_path if emit_legacy_deposition_task else None,
         reading_report_path=reading_report_path,
         source_reader_path=source_reader_path,
         wiki_ingest_brief=wiki_ingest_brief,
     )
     agent_handoff_paths = [
         str(wiki_ingest_brief_path),
-        str(wiki_deposition_task_path),
         str(batch_handoff_path),
         str(reading_report_path),
         str(source_reader_path),
     ]
+    if emit_legacy_deposition_task:
+        agent_handoff_paths.insert(1, str(wiki_deposition_task_path))
     plan = {
         "paper_slug": slug,
         "created_at": utc_now(),
@@ -1427,7 +1442,6 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path, workflow_mode: st
         "staged_evidence": [str(source_reader_path)],
         "staged_reports": [str(reading_report_path)],
         "wiki_ingest_brief_path": str(wiki_ingest_brief_path),
-        "wiki_deposition_task_path": str(wiki_deposition_task_path),
         "wiki_batch_ingest_brief_path": str(batch_handoff_path),
         "final_source_review_contract": wiki_ingest_brief["final_source_review_contract"],
         "formal_frontmatter_schema": formal_frontmatter_schema(),
@@ -1440,6 +1454,8 @@ def stage_paper(vault_path: Path, slug: str, paper_root: Path, workflow_mode: st
     }
     if reproduction_plan:
         plan["reproduction_plan_path"] = reproduction_plan_path
+    if emit_legacy_deposition_task:
+        plan["legacy_wiki_deposition_task_path"] = str(wiki_deposition_task_path)
     if research_decision:
         plan["research_decision_path"] = research_decision_path
         plan["recommendation"] = research_decision.get("recommendation")

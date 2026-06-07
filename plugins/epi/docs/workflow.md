@@ -86,4 +86,4 @@ Quality gates require Obsidian wikilinks, source bundle paths, `provenance.extra
 
 `final-source-review.json` must still record `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`. Novelty review separates author-claimed novelty from EPI-confirmed novelty.
 
-`wiki-ingest-brief.json` is the canonical handoff. `wiki_deposition_task.json` is a deprecated compatibility artifact, still read for old handoffs but not the new required source of truth. `epi-wiki-deposition` is only a compatibility alias.
+`wiki-ingest-brief.json` is the canonical EPI-to-PRW handoff. New staging does not require `wiki_deposition_task.json`; `wiki_deposition_task.json is legacy` compatibility only. The next formal write step is PRW `$paper-research-wiki`, while EPI keeps ownership of `paper-gate`, human approval, `wiki-ingest-trigger`, and `record-wiki-ingest`. `epi-paper-deposition` remains the compatibility adapter, and external wiki skills are optional helpers / policy references.

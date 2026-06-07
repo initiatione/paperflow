@@ -756,6 +756,9 @@ def _validate_wiki_batch_ingest_section(payload: dict[str, Any], slug: str, fail
     for skill in required_wiki_skills():
         if skill not in skills:
             failures.append(f"final source review wiki_batch_ingest must record {skill} skill usage")
+    optional_helpers = section.get("optional_helpers_used") or []
+    if optional_helpers and not isinstance(optional_helpers, list):
+        failures.append("final source review wiki_batch_ingest optional_helpers_used must be a list")
     paper_slugs = [str(item) for item in section.get("paper_slugs") or []]
     if slug not in paper_slugs:
         failures.append("final source review wiki_batch_ingest must include the recorded paper slug")

@@ -131,7 +131,8 @@ def _agent_checklist(
         "Read the EPI evidence handoff: "
         + ", ".join(str(path) for path in handoff_paths)
         + ".",
-        "Load the wiki-ingest skill before writing final pages; use EPI artifacts only as source/evidence inputs.",
+        "Invoke PRW $paper-research-wiki for formal wiki writing; use wiki-ingest-brief.json as the canonical source/evidence handoff.",
+        "External wiki skills such as llm-wiki, wiki-ingest, wiki-provenance, tag-taxonomy, and wiki-lint are optional helpers or internalized PRW policies, not required runtime dependencies.",
         "Batch deposition rule: compare this paper with the current batch or neighboring EPI source bundles before creating reusable concept or synthesis pages.",
         "source-first rule: read the source paper artifacts before any final wiki write: "
         + ", ".join(str(item) for item in raw_artifacts or primary_order)

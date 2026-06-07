@@ -8,55 +8,22 @@ description: >
 
 # EPI Paper Deposition
 
-Use this skill only as the compatibility adapter at the boundary where EPI stops being a paper evidence engine and the wiki layer starts writing formal knowledge. EPI Core prepares source bundles and audit artifacts under `_epi/`; those internal audit artifacts must not enter the formal graph. This adapter reads `wiki_deposition_task.json` and coordinates the formal wiki skills when PRW cannot be the direct entrypoint or when existing artifacts still name this EPI adapter.
+Use this skill only as the legacy compatibility adapter at the EPI-to-PRW boundary.
 
-Compatibility note: older EPI artifacts may say `epi-wiki-deposition`. Treat that as an alias for this skill.
+Canonical path: formal paper wiki work goes through PRW `$paper-research-wiki` using `_epi/staging/papers/<slug>/wiki-ingest-brief.json` as the handoff.
 
-Canonical user experience: when the `prw` plugin package (`plugins/PRW`) is installed, route formal paper wiki work through `$paper-research-wiki`. Users should be able to ask it to `提取` EPI papers, `检测` the wiki library, `更新` the wiki library, or `重link` paper knowledge without choosing internal workflow names. This EPI skill remains a compatibility bridge for existing `wiki_deposition_task.json` artifacts and record provenance that expects the EPI adapter stack.
-
-Formal page rewrites are PRW maintenance work. If the user asks to rewrite formal page, rewrite page, 重写某页, or 重写页面, route to `$paper-research-wiki` so PRW runs its graph-aware rewrite flow for dependent pages, tracking files, provenance sidecars, and QMD refresh. This adapter must not turn a rewrite into a one-page EPI edit.
+Legacy compatibility: older artifacts may say legacy `wiki_deposition_task.json` or `epi-wiki-deposition`. Treat those as legacy names and route the user to PRW after confirming that `wiki-ingest-brief.json` exists. If only the legacy task exists, ask EPI to regenerate or repair the brief before formal writes.
 
 ## Workflow Routing
 
 | Intent | Load |
 | --- | --- |
-| User-facing formal paper wiki writing, extraction, checks, updates, or relinking | `$paper-research-wiki` from PRW |
-| Compatibility staging from `wiki_deposition_task.json` when PRW cannot be the direct entrypoint | `workflows/formal-wiki-write.md` |
-| Preserve final claim support labels, evidence addresses, and source-review closure | `wiki-provenance/SKILL.md` |
-| Check existing related pages before writing | `wiki-context-pack`, then `wiki-query` or `wiki-status` |
-| Lint, stage-commit, or human-review final pages | `wiki-lint` and `wiki-stage-commit` |
-| Initialize, inspect, repair, or reset the target paper wiki vault | `wiki-setup/SKILL.md` |
+| User-facing formal paper wiki writing, extraction, checks, updates, relinking, or graph-aware rewrite | `$paper-research-wiki` from PRW |
+| Legacy handoff mentions `wiki_deposition_task.json` or `epi-wiki-deposition` | `workflows/formal-wiki-write.md` |
 
-## Required Inputs
+## Boundaries
 
-Before writing, the formal workflow must load `wiki_deposition_task.json`, `wiki-ingest-brief.json`, the staged reading report, raw metadata/PDF, MinerU Markdown/TeX/images/manifest, and the target vault `AGENTS.md` plus `_meta/*` contract files.
-
-Reader and critic files reduce reading cost when present. They are not source authority.
-
-## Skill Stack
-
-Use the PRW and obsidian-wiki layer explicitly: `$paper-research-wiki`, `llm-wiki`, `wiki-context-pack`, `wiki-ingest`, `wiki-lint`, `wiki-stage-commit`, `wiki-status`, `wiki-query`, `wiki-provenance`, and `tag-taxonomy`.
-
-Quality enhancement skills such as `wiki-synthesize`, `wiki-dedup`, and `cross-linker` are useful after the first staged pages exist.
-
-## Page Family Boundary
-
-Formal deposition may land in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`, chosen by the target vault contract and the wiki agent.
-
-Do not create generic `entities/`, `skills/`, `journal/`, or `projects/` pages for formal EPI deposition unless the target vault contract explicitly routes a secondary copy there.
-
-## Bootstrap Boundary
-
-Do not initialize, repair, reset, or silently create a paper wiki vault from this adapter. If vault structure is missing, switch to EPI `wiki-setup` first. PRW consumes an initialized vault contract; this adapter only bridges already prepared EPI handoff artifacts to the wiki-writing layer.
-
-## QMD Boundary
-
-QMD is a retrieval aid and must follow the target vault boundary. The `paper-research-wiki` qmd collection may index formal wiki pages in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`, plus `AGENTS.md`, `index.md`, `hot.md`, `log.md`, and `_meta/` contract pages.
-
-The qmd collection must ignore `_epi/**`, `.obsidian/**`, and `.claude/**`. This excludes `_epi/meta/formal-page-snapshots/`, `_epi/raw/<slug>/mineru/<slug>.md`, `_epi/raw/<slug>/mineru/paper.md`, `_epi/raw/<slug>/mineru/paper.tex`, and other MinerU source Markdown from QMD. Check with `qmd collection show paper-research-wiki`, `qmd ls paper-research-wiki/_epi`, and `qmd ls paper-research-wiki/_epi/meta/formal-page-snapshots` before trusting QMD results.
-
-## Frontmatter And Quality Gates
-
-Every formal page must include frontmatter fields `title`, `category`, `page_family`, `tags`, `aliases`, `sources`, `summary`, `provenance`, `base_confidence`, `lifecycle`, `lifecycle_changed`, `tier`, `created`, and `updated`. Frontmatter `sources` must contain only Obsidian source PDF links to `_epi/raw/<slug>/paper.pdf`. Prefer paper-title `obsidian://open?...paper.pdf` links so `_epi` does not enter the formal graph; legacy `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"` wikilinks are accepted for compatibility. Initial lifecycle is `draft` or `review-needed`; do not mark pages `source-reviewed` or `verified` until source review and lint gates pass.
-
-Before `record-wiki-ingest` or `wiki-stage-commit`, verify provenance, Obsidian wikilinks, source bundle paths, strict PDF-only frontmatter `sources`, page-family/category alignment, no `_epi/` formal pages, no forbidden formula blocks, derivation variable definitions and derivation chain, reference model/formula/experiment/limit coverage, and synthesis cross-paper comparison matrix. Internal `_epi/` pages must not enter the formal graph. If lint fails, repair staged pages before recording ingest completion.
+- EPI source bundles and `_epi/` artifacts are evidence inputs, not formal wiki pages.
+- EPI owns `paper-gate`, human approval records, and `record-wiki-ingest`.
+- PRW owns formal page writing, graph-aware rewrite, provenance sidecars, language gate, link repair, and post-task checks.
+- Internal `_epi/` pages must not enter the formal graph.

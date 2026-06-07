@@ -186,6 +186,22 @@ def test_paper_gate_reports_agent_handoff_ready_for_wiki_ingest(tmp_path):
     assert "compiled-targets" not in checks
 
 
+def test_paper_gate_accepts_complete_brief_without_legacy_deposition_task(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    _seed_paper_gate_fixture(vault, slug, staged=True)
+    task_path = vault / "_epi" / "staging" / "papers" / slug / "wiki_deposition_task.json"
+    if task_path.exists():
+        task_path.unlink()
+
+    gate = build_paper_gate(vault, slug)
+
+    assert gate["status"] in {"waiting_for_human_gate", "ready_for_wiki_ingest_agent"}
+    check_runs = {run["name"]: run["conclusion"] for run in gate["check_suite"]["check_runs"]}
+    assert check_runs["wiki-ingest-brief"] == "success"
+    assert "wiki-deposition-task" not in check_runs
+
+
 def test_paper_gate_marks_agent_handoff_approved_before_wiki_ingest(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"

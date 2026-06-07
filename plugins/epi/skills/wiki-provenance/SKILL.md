@@ -79,6 +79,6 @@ Load `references/page-provenance.md` for a fuller page and final-source-review c
 
 ## Literature Wiki Contract
 
-Apply provenance across the seven EPI paper wiki families: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. Use `wiki-provenance` with `tag-taxonomy` so evidence status and tags do not drift between single-paper pages, derivation pages, experiment pages, synthesis pages, and opportunity pages.
+Apply provenance across the seven EPI paper wiki families: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. `wiki-ingest-brief.json` is the canonical EPI-to-PRW handoff; `wiki_deposition_task.json is legacy` compatibility only. PRW `$paper-research-wiki` owns final writing, while `epi-paper-deposition` is the compatibility adapter. external wiki skills are optional helpers / policy references: use `wiki-provenance` and `tag-taxonomy` policies when they help keep evidence status and tags from drifting, but do not treat standalone helper skills as EPI runtime required stack.
 
 `final-source-review.json` must preserve `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`. Keep author-claimed novelty separate from EPI-confirmed novelty, and only mark pages `verified` after source reread, formula/figure review, and complete evidence paths.

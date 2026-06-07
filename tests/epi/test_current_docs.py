@@ -156,7 +156,7 @@ def test_progress_doc_records_status_verification_and_next_steps():
     text = _read("progress.md")
 
     assert "# EPI 插件进度说明" in text
-    assert "更新时间：2026-06-07" in text
+    assert "更新时间：2026-06-08" in text
     assert "高质量论文收集和整理" in text
     assert "config-setup" in text
     assert "paper-quality-critic" in text
@@ -542,11 +542,22 @@ def test_epi_literature_wiki_contract_documents_seven_page_families_and_research
     wiki_setup = (PLUGIN_ROOT / "skills" / "wiki-setup" / "SKILL.md").read_text(
         encoding="utf-8"
     )
+    progress = _read("progress.md")
     epi_deposition = (
         PLUGIN_ROOT / "skills" / "epi-paper-deposition" / "SKILL.md"
     ).read_text(encoding="utf-8")
     combined = "\n".join(
-        [workflow, structure, overview, linkage, paper_ingest, wiki_provenance, wiki_setup, epi_deposition]
+        [
+            workflow,
+            structure,
+            overview,
+            linkage,
+            paper_ingest,
+            wiki_provenance,
+            wiki_setup,
+            progress,
+            epi_deposition,
+        ]
     )
 
     for page_family in [
@@ -564,7 +575,6 @@ def test_epi_literature_wiki_contract_documents_seven_page_families_and_research
         assert page_family in paper_ingest
         assert page_family in wiki_provenance
         assert page_family in wiki_setup
-        assert page_family in epi_deposition
 
     for field in [
         "theory_reconstruction",
@@ -578,8 +588,17 @@ def test_epi_literature_wiki_contract_documents_seven_page_families_and_research
     ]:
         assert field in combined
 
-    for skill in [
+    for phrase in [
+        "wiki-ingest-brief.json",
+        "canonical EPI-to-PRW handoff",
+        "wiki_deposition_task.json is legacy",
+        "paper-research-wiki",
         "epi-paper-deposition",
+        "external wiki skills are optional helpers",
+    ]:
+        assert phrase in combined
+
+    for helper in [
         "llm-wiki",
         "wiki-ingest",
         "wiki-context-pack",
@@ -590,7 +609,7 @@ def test_epi_literature_wiki_contract_documents_seven_page_families_and_research
         "wiki-provenance",
         "tag-taxonomy",
     ]:
-        assert skill in combined
+        assert helper in combined
 
     assert "wiki_deposition_task.json" in combined
     assert "epi-wiki-deposition" in combined
@@ -708,8 +727,10 @@ def test_marketplace_and_readme_describe_profile_driven_generic_epi():
     assert "low-burden reading reports" in manifest_text
     assert "wiki handoff" in manifest_text
     assert "quality evolution" in manifest_text
-    assert "MinerU parsing" in manifest["description"]
-    assert "wiki handoff" in manifest["description"]
+    assert "MinerU parsing" in manifest_text
+    assert "wiki handoff" in manifest_text
+    assert "EPI-compatible PRW wiki" in manifest["description"]
+    assert "brief-first hand off to PRW" in manifest["interface"]["shortDescription"]
     assert "robotics" not in manifest["keywords"]
     assert "embodied-intelligence" not in manifest["keywords"]
     assert "control" not in manifest["keywords"]
@@ -776,6 +797,8 @@ def test_handoff_artifact_contract_marks_brief_canonical_and_task_deprecated():
 
     assert "wiki-ingest-brief.json" in linkage
     assert "wiki_deposition_task.json" in linkage
+    assert "canonical EPI-to-PRW handoff" in linkage
+    assert "wiki_deposition_task.json is legacy" in linkage
     assert "deprecated" in linkage.lower() or "已废弃" in linkage
 
 
@@ -822,6 +845,21 @@ def test_progress_md_snapshot_history_in_changelog():
     assert "下一步" in progress and "已知风险" in progress
     assert "CHANGELOG.md" in progress
     assert len(changelog.splitlines()) > 20
+
+
+def test_progress_doc_names_s3b_as_current_boundary_work():
+    progress = _read("progress.md")
+    changelog = (DOCS / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert "S3a 文档/契约 canonical 化已完成" in progress
+    assert "S3b brief-first machine-contract" in progress
+    assert "wiki-ingest-brief.json" in progress
+    assert "canonical EPI-to-PRW handoff" in progress
+    assert "wiki_deposition_task.json is legacy" in progress
+    assert "external wiki skills are optional helpers" in progress
+    assert "REQUIRED_WIKI_SKILLS" in progress
+    assert "S3a 文档/契约 canonical 化" in changelog
+    assert "完成 S3a 文档/契约 canonical 化并验证" not in progress
 
 
 def test_epi_docs_point_to_prw_canonical_for_page_family_frontmatter():

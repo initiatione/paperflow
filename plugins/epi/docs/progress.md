@@ -1,6 +1,6 @@
 # EPI 插件进度说明
 
-更新时间：2026-06-07。文档权威分工（doc map）见 `docs/epi-linkage.md` 顶部；本文档只记录当前源码树的状态快照、已知风险和下一步计划。逐轮变更历史见 `docs/CHANGELOG.md`。
+更新时间：2026-06-08。文档权威分工（doc map）见 `docs/epi-linkage.md` 顶部；本文档只记录当前源码树的状态快照、已知风险和下一步计划。逐轮变更历史见 `docs/CHANGELOG.md`。
 
 ## 当前定位
 
@@ -35,7 +35,11 @@ git diff --check
 
 Historical focused results preserved for comparison: `107 passed in 1.35s`、`55 passed in 0.42s`、`70 passed in 1.16s`、`287 passed in 30.16s`、`45 passed in 10.19s`。质量门历史信号：pass rate `1`，Plugin Eval `82/100`。Source coverage / read-preview full run historically reached `391 passed in 53.81s`; current release must rerun rather than inherit that snapshot.
 
-本轮 S3a 验收目标：`tests/epi/test_current_docs.py`、`tests/paper_research_wiki/test_plugin_contract.py`、`tests/test_marketplace_manifest.py`、`tests/epi/test_runtime_config.py` 和 `plugins/epi/tests/test_skill_bundle_contract.py` 必须保持通过；再跑 JSON manifest 校验和 `git diff --check`。
+S3a 文档/契约 canonical 化已完成并归档。当前实现队列是 S3b brief-first machine-contract：`wiki-ingest-brief.json` is the canonical EPI-to-PRW handoff，`wiki_deposition_task.json is legacy` compatibility only，`REQUIRED_WIKI_SKILLS` 要收敛到 PRW `$paper-research-wiki` 和 EPI `epi-paper-deposition` 两项，external wiki skills are optional helpers / policy references。
+
+- EPI/PRW boundary: `wiki-ingest-brief.json` is the canonical EPI-to-PRW handoff; `wiki_deposition_task.json is legacy` compatibility only; PRW `$paper-research-wiki` is the formal paper wiki writing layer; `epi-paper-deposition` is the compatibility adapter; external wiki skills are optional helpers / policy references.
+
+本轮 S3b 验收目标：`tests/epi/test_wiki_deposition_task.py`、`tests/epi/test_wiki_ingest_handoff.py`、`tests/epi/test_wiki_ingest_record.py`、`tests/epi/test_one_paper_ingest.py`、`tests/epi/test_paper_gate.py`、`tests/paper_research_wiki/test_plugin_contract.py`、`tests/epi/test_current_docs.py` 和 `plugins/epi/tests/test_skill_bundle_contract.py` 必须保持通过；再跑 JSON manifest 校验、stale wording grep 和 `git diff --check`。
 
 ## 发布前必须重跑
 
@@ -60,10 +64,11 @@ git diff --check
 
 ## 下一步计划
 
-1. 完成 S3a 文档/契约 canonical 化并验证。
-2. 发布本轮修复 commit，并从 GitHub/marketplace 重新安装 EPI/PRW，确认 installed cache 版本变为 `0.2.1`。
-3. 从新 Codex thread 运行 `doctor --json`、`config-status --json`、dry-run fixture smoke 和 `research-queue` 验证安装体验。
-4. 对目标 vault 补齐 `AGENTS.md` 和 `_meta/*.md`，再让 PRW 消费 `wiki-ingest-brief.json` 和 reading report。
+1. 完成 S3b brief-first machine-contract 的剩余 metadata/full verification：`wiki-ingest-brief.json` 已是 canonical EPI-to-PRW handoff，默认 staging 不再要求 `wiki_deposition_task.json`。
+2. 继续 S3b metadata、manifest、stale wording grep、full verification 和 integration decision。
+3. 发布本轮修复 commit，并从 GitHub/marketplace 重新安装 EPI/PRW，确认 installed cache 版本变为 `0.2.1`。
+4. 从新 Codex thread 运行 `doctor --json`、`config-status --json`、dry-run fixture smoke 和 `research-queue` 验证安装体验。
+5. 对目标 vault 补齐 `AGENTS.md` 和 `_meta/*.md`，再让 PRW 消费 `wiki-ingest-brief.json` 和 reading report。
 
 ## 已知风险
 

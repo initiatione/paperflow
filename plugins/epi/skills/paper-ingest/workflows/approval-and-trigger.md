@@ -28,11 +28,11 @@ python scripts\orchestrator.py wiki-ingest-trigger --slug <slug> --vault <vault>
 python scripts\orchestrator.py wiki-ingest-trigger --slug <slug> --vault <vault> --json
 ```
 
-`wiki-ingest-trigger` writes `_epi/staging/papers/<slug>/wiki-agent-trigger.json`, a machine-readable resume package for the current Claude, Codex, or other wiki-capable agent. It does not spawn a hidden background LLM process and does not write final pages.
+`wiki-ingest-trigger` writes `_epi/staging/papers/<slug>/wiki-agent-trigger.json`, a machine-readable resume package for PRW `$paper-research-wiki` or another wiki-capable agent following the PRW/vault contract. It does not spawn a hidden background LLM process and does not write final pages. The trigger points at `wiki-ingest-brief.json`, the canonical EPI-to-PRW handoff; `wiki_deposition_task.json is legacy` compatibility only.
 
 ## Record Final Wiki Ingest
 
-After the external wiki-ingest agent writes or stages final Markdown pages under the target vault contract, create `final-source-review.json`, then record completion:
+After PRW `$paper-research-wiki` or another wiki-capable agent following the PRW/vault contract writes or stages final Markdown pages, create `final-source-review.json`, then record completion:
 
 ```powershell
 python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-page.md> --approved-by <name> --source-review <final-source-review.json> --vault <vault>

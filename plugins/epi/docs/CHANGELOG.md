@@ -1,5 +1,9 @@
 # EPI/PRW Changelog
 
+## Unreleased
+
+- S3b brief-first machine-contract 进入实现队列：`wiki-ingest-brief.json` 作为新链路 canonical handoff，`wiki_deposition_task.json` 降为 legacy compatibility，`REQUIRED_WIKI_SKILLS` 将收敛到 PRW `$paper-research-wiki` 和 EPI `epi-paper-deposition`。
+
 ## 0.2.1 (2026-06-07)
 
 - S3a 文档/契约 canonical 化：A1 overview 导航化。

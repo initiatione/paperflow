@@ -400,7 +400,7 @@ def test_paper_discovery_keeps_policy_in_skill_and_references():
     assert not (SKILLS / "paper-discovery" / "README.md").exists()
 
 
-def test_epi_paper_deposition_documents_required_wiki_adapter_stack():
+def test_epi_paper_deposition_is_thin_legacy_adapter():
     deposition = (SKILLS / "epi-paper-deposition" / "SKILL.md").read_text(encoding="utf-8")
     formal_workflow = (
         SKILLS / "epi-paper-deposition" / "workflows" / "formal-wiki-write.md"
@@ -408,40 +408,37 @@ def test_epi_paper_deposition_documents_required_wiki_adapter_stack():
     combined = "\n".join([deposition, formal_workflow])
 
     assert "workflows/formal-wiki-write.md" in deposition
-    assert "wiki_deposition_task.json" in combined
+    assert "wiki-ingest-brief.json" in combined
+    assert "legacy `wiki_deposition_task.json`" in combined
     assert "epi-wiki-deposition" in deposition
-    for skill in [
-        "llm-wiki",
-        "wiki-ingest",
-        "wiki-context-pack",
-        "wiki-lint",
-        "wiki-stage-commit",
-        "wiki-status",
-        "wiki-query",
-        "wiki-provenance",
-        "tag-taxonomy",
-    ]:
-        assert skill in combined
-    for field in [
-        "title",
-        "category",
-        "page_family",
-        "sources",
-        "summary",
-        "provenance",
-        "base_confidence",
-        "lifecycle",
-        "tier",
-    ]:
-        assert field in combined
-    assert "draft` or `review-needed`" in combined
-    assert "only Obsidian source PDF links" in combined
-    assert "obsidian://open?...paper.pdf" in combined
-    assert "[[_epi/raw/<slug>/paper.pdf|<slug>]]" in combined
-    assert "accepted for compatibility" in combined
-    for phrase in ["metadata", "MinerU", "DOI", "arXiv"]:
-        assert phrase in combined
+    assert "$paper-research-wiki" in combined
+    assert "compatibility adapter" in combined
+    assert "llm-wiki" not in combined
+    assert "wiki-stage-commit" not in combined
+    assert "Required frontmatter fields" not in combined
     assert "must not enter the formal graph" in combined
+
+
+def test_epi_wiki_boundary_skill_docs_are_brief_first():
+    files = [
+        SKILLS / "paper-ingest" / "SKILL.md",
+        SKILLS / "paper-ingest" / "workflows" / "approval-and-trigger.md",
+        SKILLS / "wiki-setup" / "SKILL.md",
+        SKILLS / "wiki-provenance" / "SKILL.md",
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in files)
+
+    for phrase in [
+        "wiki-ingest-brief.json",
+        "canonical EPI-to-PRW handoff",
+        "wiki_deposition_task.json is legacy",
+        "paper-research-wiki",
+        "epi-paper-deposition",
+        "external wiki skills are optional helpers",
+        "record-wiki-ingest",
+        "final-source-review.json",
+    ]:
+        assert phrase in combined
 
 
 def test_prw_qmd_boundary_is_explicit_in_plugin_contracts():

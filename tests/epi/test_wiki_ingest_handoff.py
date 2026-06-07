@@ -9,15 +9,6 @@ from epi.wiki_ingest_trigger import build_wiki_ingest_trigger, render_wiki_inges
 EXPECTED_RESEARCH_WIKI_SKILLS = [
     "paper-research-wiki",
     "epi-paper-deposition",
-    "llm-wiki",
-    "wiki-ingest",
-    "wiki-context-pack",
-    "wiki-lint",
-    "wiki-stage-commit",
-    "wiki-status",
-    "wiki-query",
-    "wiki-provenance",
-    "tag-taxonomy",
 ]
 
 EXPECTED_FORMAL_PAGE_FAMILIES = [
@@ -420,8 +411,13 @@ def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_pat
     assert stored["agent_context_policy"] == trigger["agent_context_policy"]
     assert trigger["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
     assert "paper-research-wiki" in trigger["instruction"]
-    assert "tag-taxonomy" in trigger["instruction"]
-    assert "wiki-provenance" in trigger["instruction"]
+    assert "wiki-ingest-brief.json" in trigger["instruction"]
+    assert "Load llm-wiki" not in trigger["instruction"]
+    assert "tag-taxonomy" not in trigger["required_wiki_skills"]
+    assert "source-first" in trigger["instruction"]
+    assert "Preserve support status" in trigger["instruction"]
+    assert "PRW provenance" in trigger["instruction"]
+    assert "legacy compatibility adapter" in trigger["instruction"]
     for family in ["derivations/", "experiments/", "opportunities/"]:
         assert family in trigger["instruction"]
     assert "final-source-review.json" in trigger["instruction"]
@@ -449,8 +445,9 @@ def test_render_wiki_ingest_trigger_shows_resume_command_after_approval(tmp_path
     assert "# EPI Wiki Agent Trigger - fixture-paper" in output
     assert "ready_for_agent: true" in output
     assert "next_action: run-current-agent-as-wiki-ingest-agent" in output
-    assert "wiki-provenance" in output
-    assert "tag-taxonomy" in output
+    assert "wiki-ingest-brief.json" in output
+    assert "PRW provenance" in output
+    assert "legacy compatibility adapter" in output
     assert "derivations/" in output
     assert "experiments/" in output
     assert "opportunities/" in output
@@ -463,7 +460,8 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
 
-    output = render_wiki_ingest_handoff(build_wiki_ingest_handoff(vault, slug))
+    handoff = build_wiki_ingest_handoff(vault, slug)
+    output = render_wiki_ingest_handoff(handoff)
 
     assert "# EPI Wiki Ingest Handoff - fixture-paper" in output
     assert "next_action: run-wiki-ingest-agent" in output
@@ -481,7 +479,7 @@ def test_render_wiki_ingest_handoff_is_actionable_without_writing(tmp_path):
     assert "kepano/obsidian-skills" in output
     assert "paper-research-wiki" in output
     assert "local llm-wiki / wiki-ingest / obsidian-markdown skills" in output
-    assert "tag-taxonomy" in output
+    assert handoff["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
     assert "Do not write final pages from EPI suggested routes directly" in output
     assert "## Final Source Review" in output
     assert "suggested_output_path: final-source-review.json" in output

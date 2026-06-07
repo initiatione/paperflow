@@ -32,12 +32,15 @@ def test_epi_linkage_doc_defines_scope_pipeline_and_sync_rule():
     assert "propose-config-update" in text
     assert "证据强度与可信状态" in text
     assert "wiki-ingest-brief.json" in text
+    assert "canonical EPI-to-PRW handoff" in text
+    assert "wiki_deposition_task.json is legacy" in text
     assert "Wiki 沉淀价值" in text
     assert "wiki-ingest agent" in text
     assert "Claude" in text
     assert "Codex" in text
     assert "Ar9av/obsidian-wiki" in text
     assert "kepano/obsidian-skills" in text
+    assert "initiatione/obsidian-wiki-dev" in text
     assert "obsidian-wiki-dev" in text
     assert "vault contract" in text
     assert "不决定最终 wiki 页面" in text
@@ -52,6 +55,7 @@ def test_epi_linkage_doc_defines_scope_pipeline_and_sync_rule():
     assert "must_read_before_final_write" in text
     assert "write_contract_requirements" in text
     assert "本地 helper/adapters" in text
+    assert "external wiki skills are optional helpers" in text
     assert "Markdown vault 是 source of truth" in text
     assert "只读 handoff 渲染器" in text
     assert "agent checklist" in text

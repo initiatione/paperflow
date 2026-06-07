@@ -64,7 +64,7 @@ page-family/frontmatter 的人读 canonical 是 PRW `plugins/PRW/rules/wiki-writ
 
 正式页 frontmatter 至少覆盖 `title`、`category`、`page_family`、`tags`、`aliases`、`sources`、`summary`、`provenance`、`base_confidence`、`lifecycle`、`lifecycle_changed`、`tier`、`created`、`updated`。record 前的研究审阅字段包括 `theory_reconstruction`、`formula_derivation`、`figure_table_evidence`、`novelty_type`、`implementability`、`reproducibility_risk`、`research_gap`、`cost_level`。
 
-PRW `$paper-research-wiki` 是正式论文 wiki 写入和维护的用户级入口；`epi-paper-deposition` 只作为 EPI `wiki_deposition_task.json`、旧 handoff 和 record provenance 的 compatibility adapter，旧名 `epi-wiki-deposition` 只是兼容 alias。
+PRW `$paper-research-wiki` 是正式论文 wiki 写入和维护的用户级入口；`wiki-ingest-brief.json` 是 canonical EPI-to-PRW handoff。`wiki_deposition_task.json is legacy` compatibility only，`epi-paper-deposition` 只作为旧 handoff 和 record provenance 的 compatibility adapter，旧名 `epi-wiki-deposition` 只是兼容 alias。
 
 ## 安全边界
 

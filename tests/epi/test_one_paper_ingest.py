@@ -10,15 +10,6 @@ from epi.stage_wiki import stage_paper
 EXPECTED_RESEARCH_WIKI_SKILLS = [
     "paper-research-wiki",
     "epi-paper-deposition",
-    "llm-wiki",
-    "wiki-ingest",
-    "wiki-context-pack",
-    "wiki-lint",
-    "wiki-stage-commit",
-    "wiki-status",
-    "wiki-query",
-    "wiki-provenance",
-    "tag-taxonomy",
 ]
 
 EXPECTED_FORMAL_PAGE_FAMILIES = [
@@ -338,6 +329,9 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert promotion_plan["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
     assert promotion_plan["page_lifecycle_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
     assert promotion_plan["wiki_ingest_brief_path"] == str(wiki_ingest_brief_path)
+    assert not (staging_root / "wiki_deposition_task.json").exists()
+    assert "wiki_deposition_task_path" not in promotion_plan
+    assert "legacy_wiki_deposition_task_path" not in promotion_plan
     batch_handoff_path = tmp_path / "vault" / "_epi" / "staging" / "wiki-batches" / "pending" / "wiki-batch-ingest-brief.json"
     assert promotion_plan["wiki_batch_ingest_brief_path"] == str(batch_handoff_path)
     assert batch_handoff_path.is_file()

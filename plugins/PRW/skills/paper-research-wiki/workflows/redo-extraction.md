@@ -16,7 +16,7 @@ If the target is ambiguous, ask one short question. A reply of `默认` means re
 1. Read `../../../rules/wiki-writing-standard.md`.
 2. Read `../../paper-wiki-language/SKILL.md`; redo writing must fix language quality without changing evidence.
 3. Resolve the target vault and read `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
-4. Locate the relevant `_epi/staging/papers/*/wiki_deposition_task.json` and `wiki-ingest-brief.json`.
+4. Locate the relevant `_epi/staging/papers/*/wiki-ingest-brief.json`; it is the canonical EPI-to-PRW handoff. Treat `_epi/staging/papers/*/wiki_deposition_task.json` as legacy compatibility context only, and stop for EPI brief repair if only the task exists.
 5. Check `paper-gate` status or handoff status. Stop if source artifacts are missing or if human approval is the only unresolved gate.
 6. Read current formal pages named by previous `wiki-ingest-record.json`, `final-source-review.json`, page frontmatter `sources:`, or search hits in the seven page families.
 

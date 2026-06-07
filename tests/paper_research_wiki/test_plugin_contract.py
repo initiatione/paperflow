@@ -154,11 +154,29 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "link repair" in manifest["interface"]["longDescription"]
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
+    assert (
+        manifest["interface"]["shortDescription"]
+        == "v0.2.1 | Brief-first PRW deposition, ask, checks, update, relink, redo, record requests."
+    )
     for phrase in ["deposition", "ask", "checks", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
     for phrase in ["提取", "提问", "检测", "更新", "沉淀", "EPI", "link", "QMD"]:
         assert phrase in prompt_text
+
+
+def test_epi_manifest_describes_brief_first_prw_boundary():
+    manifest = _read_json(EPI_PLUGIN / ".codex-plugin" / "plugin.json")
+
+    assert manifest["version"] == "0.2.1"
+    assert (
+        manifest["description"]
+        == "Discover, acquire, parse, stage, approve, hand off, query, and record academic paper knowledge for an EPI-compatible PRW wiki."
+    )
+    assert (
+        manifest["interface"]["shortDescription"]
+        == "v0.2.1 | Find, vet, route sources, OA-acquire, brief-first hand off to PRW, wiki-ask, and record PRW requests."
+    )
 
 
 def test_marketplaces_register_paper_research_wiki():
@@ -398,6 +416,8 @@ def test_public_skill_defaults_epi_wiki_requests_to_deposition():
         "ready",
         "preflight",
         "沉淀",
+        "wiki-ingest-brief.json",
+        "legacy `wiki_deposition_task.json`",
         "wiki_deposition_task.json",
         "workflows/extract-papers.md",
         "workflows/check-wiki.md",
@@ -439,6 +459,8 @@ def test_epi_integration_docs_name_handoff_and_record_contracts():
     text = _read(PLUGIN / "docs" / "epi-integration.md")
 
     for phrase in [
+        "canonical handoff",
+        "legacy compatibility",
         "wiki_deposition_task.json",
         "wiki-ingest-brief.json",
         "final-source-review.json",
@@ -956,13 +978,11 @@ def test_epi_bridge_points_to_plugin_level_experience():
     for text in [skill, workflow, structure, linkage]:
         assert "paper-research-wiki" in text
     assert "$paper-research-wiki" in skill
-    assert "提取" in skill
-    assert "检测" in skill
-    assert "更新" in skill
-    assert "重link" in skill
+    assert "wiki-ingest-brief.json" in skill
+    assert "legacy `wiki_deposition_task.json`" in skill
+    assert "compatibility adapter" in skill
     for text in [skill, workflow]:
         assert "graph-aware rewrite" in text
-        assert "rewrite formal page" in text
         assert "$paper-research-wiki" in text
 
 
@@ -1016,6 +1036,21 @@ def test_prw_artifact_contract_marks_task_deprecated():
     assert "wiki-ingest-brief.json" in contract
     assert "wiki_deposition_task.json" in contract
     assert "deprecated" in contract.lower() or "已废弃" in contract
+
+
+def test_prw_epi_artifact_contract_is_brief_first():
+    contract = _read(PUBLIC_SKILL / "references" / "epi-artifact-contract.md")
+    extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
+    check = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    integration = _read(PLUGIN / "docs" / "epi-integration.md")
+    combined = "\n".join([contract, extract, check, integration])
+
+    assert "canonical handoff" in contract
+    assert "wiki-ingest-brief.json" in contract
+    assert "wiki_deposition_task.json" in contract
+    assert "legacy compatibility" in contract
+    assert "Locate `_epi/staging/papers/*/wiki-ingest-brief.json`" in extract
+    assert "Do not treat task-only legacy handoffs as ready" in combined
 
 
 def test_wiki_writing_standard_declares_itself_canonical():

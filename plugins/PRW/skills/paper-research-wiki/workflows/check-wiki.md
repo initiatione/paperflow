@@ -10,7 +10,7 @@ Check:
 
 - bootstrap contract from EPI `wiki-setup`: core `_epi` roots (`_epi/`, `_epi/raw/`, `_epi/staging/`, `_epi/meta/`, `_epi/policies/`), `_meta/`, `.obsidian`, `.git`, and the seven formal page roots; EPI `runs`, `cache`, `tmp`, `tmp-manual-pdfs`, `quarantine`, and `evolution` are on-demand directories, not bootstrap requirements
 - target vault contract files
-- pending EPI handoffs
+- pending EPI handoffs, using `_epi/staging/papers/*/wiki-ingest-brief.json` as canonical and treating task-only `wiki_deposition_task.json` folders as legacy-needs-brief-repair
 - staged pages
 - missing `final-source-review.json`
 - lint failures
