@@ -1,5 +1,7 @@
 # PRW Wiki Writing Standard
 
+This file is the canonical human-readable contract for PRW formal page families and frontmatter. EPI docs and other PRW rules/references should point here instead of copying the field list.
+
 This rule is mandatory for every PRW formal paper wiki write. It adapts Ar9av/obsidian-wiki `wiki-ingest`, `llm-wiki`, `wiki-lint`, `cross-linker`, `tag-taxonomy`, and `wiki-update` into the paper research wiki contract.
 
 Formal page prose must also follow `../skills/paper-wiki-language/SKILL.md`. Read that skill before drafting, rewriting, or materially repairing formal pages.

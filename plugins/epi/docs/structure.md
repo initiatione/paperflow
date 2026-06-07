@@ -1,6 +1,6 @@
 # EPI 插件结构说明
 
-本文档描述当前 EPI 插件的源代码结构、运行边界和主要产物位置。它回答“文件在哪里、谁负责什么、哪些目录不能被当成最终知识库写入入口”。若需要一份把结构和完整工作流放在一起的中文导航，先读 `docs/overview.zh.md`；端到端行为契约仍以 `docs/epi-linkage.md` 为准。
+本文档描述当前 EPI 插件的源代码结构、运行边界和主要产物位置。它回答“文件在哪里、谁负责什么、哪些目录不能被当成最终知识库写入入口”。文档权威分工（doc map）见 `docs/epi-linkage.md` 顶部；本文档只承担结构说明。若需要一份中文导航，先读 `docs/overview.zh.md`。
 
 ## 总体边界
 
@@ -298,6 +298,8 @@ python scripts\orchestrator.py evaluation-brief --target-asset <asset> --rationa
 ## Literature Wiki Contract
 
 正式论文沉淀页面家族是 `references/`、`concepts/`、`derivations/`、`experiments/`、`synthesis/`、`reports/`、`opportunities/`。EPI 只在 `_epi/` 中生成 evidence bundle、approval、trigger、record 和 `wiki_deposition_task.json`；最终页面由 PRW `$paper-research-wiki` 作为 canonical 写入和维护入口，`epi-paper-deposition` 只作为旧 artifact 或 record provenance 的 compatibility adapter，旧 `epi-wiki-deposition` 只作为兼容 alias。
+
+完整 page-family/frontmatter 契约见 PRW `plugins/PRW/rules/wiki-writing-standard.md`（canonical）。
 
 正式写入所需 skill 栈是 `prw` 插件包提供的 `$paper-research-wiki`、`epi-paper-deposition` compatibility adapter、`llm-wiki`、`wiki-ingest`、`wiki-context-pack`、`wiki-lint`、`wiki-stage-commit`、`wiki-status`、`wiki-query`、`wiki-provenance`、`tag-taxonomy`。正式页 frontmatter 至少包含 `title`、`category`、`page_family`、`tags`、`aliases`、`sources`、`summary`、`provenance`、`base_confidence`、`lifecycle`、`lifecycle_changed`、`tier`、`created`、`updated`。`category` 和 `page_family` 要匹配目录；初始状态只能是 `draft` 或 `review-needed`，不能默认宣称 `source-reviewed` 或 `verified`。
 

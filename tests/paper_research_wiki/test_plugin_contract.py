@@ -144,7 +144,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "prw"
-    assert manifest["version"] == "0.2.0"
+    assert manifest["version"] == "0.2.1"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Research Wiki"
     assert "academic paper knowledge" in manifest["description"]
@@ -1008,3 +1008,25 @@ def test_prw_defers_vault_bootstrap_to_epi_wiki_setup():
     assert "does not initialize" in integration
     assert "does not reset" in integration
     assert "missing vault structure" in combined
+
+
+def test_prw_artifact_contract_marks_task_deprecated():
+    contract = _read(PUBLIC_SKILL / "references" / "epi-artifact-contract.md")
+
+    assert "wiki-ingest-brief.json" in contract
+    assert "wiki_deposition_task.json" in contract
+    assert "deprecated" in contract.lower() or "已废弃" in contract
+
+
+def test_wiki_writing_standard_declares_itself_canonical():
+    rule = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+
+    assert "canonical" in rule.lower() or "唯一权威" in rule
+    assert "page" in rule.lower() and "frontmatter" in rule.lower()
+
+
+def test_ask_wiki_notes_epi_cli_is_same_source_fallback():
+    ask = _read(PUBLIC_SKILL / "workflows" / "ask-wiki.md")
+
+    assert "wiki-ask" in ask
+    assert ("fallback" in ask.lower()) or ("程序化" in ask) or ("同源" in ask)

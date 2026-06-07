@@ -4,6 +4,8 @@ Use this workflow for user research questions such as `提问`, `问 wiki`, `问
 
 This workflow is read-only. Use no `log.md` writes: do not write `log.md`, do not write formal pages, do not refresh QMD, and do not write EPI artifacts.
 
+This `ask_wiki` workflow is the conversational primary entrypoint. EPI `wiki-ask` CLI is the same-source fallback / 程序化 `--json` entry against the same formal graph.
+
 ## Flow
 
 Question -> Scope -> Formal graph retrieval -> Evidence check -> Answer labels -> Correction candidates -> Stop

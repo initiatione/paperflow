@@ -88,16 +88,12 @@ from epi.wiki_init import initialize_paper_wiki
 _LOCAL_TOOL_VERSION = "epi-local"
 
 
-def _write_json(path: Path, payload: object) -> None:
-    write_json_atomic(path, payload)
-
-
 def _ensure_candidate_metadata(paper_root: Path, candidate: dict) -> None:
     metadata_path = paper_root / "metadata.json"
     if metadata_path.exists():
         return
     paper_root.mkdir(parents=True, exist_ok=True)
-    _write_json(metadata_path, _metadata_from_candidate(candidate))
+    write_json_atomic(metadata_path, _metadata_from_candidate(candidate))
 
 
 def _refresh_run_index(vault_path: Path) -> None:
@@ -591,7 +587,7 @@ def _run_query_plan_discovery(
         )
 
     aggregate_raw_path = run_dir / "paper-search-raw.json"
-    _write_json(
+    write_json_atomic(
         aggregate_raw_path,
         {
             "query": query,
@@ -794,7 +790,7 @@ def _write_repair_run_state(
     output_paths["redo-records.jsonl"] = paper_root / "redo-records.jsonl"
     output_paths["report.md"] = run_dir / "report.md"
     output_paths["report.json"] = run_dir / "report.json"
-    _write_json(
+    write_json_atomic(
         run_dir / "run-state.json",
         {
             "stage": workflow_type,
@@ -855,7 +851,7 @@ def _write_repair_routed_report(
     report_payload["wiki_pages_written"] = []
     if record.get("revision_delta"):
         report_payload["revision_delta"] = record["revision_delta"]
-    _write_json(report_json_path, report_payload)
+    write_json_atomic(report_json_path, report_payload)
     _append_revision_delta_section(run_dir / "report.md", record.get("revision_delta"))
     _write_repair_run_state(
         run_dir,
@@ -955,7 +951,7 @@ def run_dry_run(
             resumed_session = None
     if query_plan:
         query_plan["source_routing"] = source_routing
-        _write_json(run_dir / "query-plan.json", query_plan)
+        write_json_atomic(run_dir / "query-plan.json", query_plan)
 
     state = {
         "stage": "paper-discovery-dry-run",
@@ -989,7 +985,7 @@ def run_dry_run(
             "query_variant_count": len(query_plan.get("query_variants") or []),
             "path": str(run_dir / "query-plan.json"),
         }
-    _write_json(run_dir / "run-state.json", state)
+    write_json_atomic(run_dir / "run-state.json", state)
 
     if resumed_session:
         search_record = rehydrate_search_record_from_review(resumed_session)
@@ -1004,14 +1000,14 @@ def run_dry_run(
             run_dir=run_dir,
             source_routing=source_routing,
         )
-    _write_json(run_dir / "search-record.json", search_record)
+    write_json_atomic(run_dir / "search-record.json", search_record)
     state["state"] = "discovered"
-    _write_json(run_dir / "run-state.json", state)
+    write_json_atomic(run_dir / "run-state.json", state)
 
     normalized = normalize_candidates(search_record.get("records", []))
-    _write_json(run_dir / "normalized.json", normalized)
+    write_json_atomic(run_dir / "normalized.json", normalized)
     state["state"] = "normalized"
-    _write_json(run_dir / "run-state.json", state)
+    write_json_atomic(run_dir / "run-state.json", state)
 
     query_exclude_terms = default_discovery_exclusion_terms(query)
     existing_library_index = load_existing_paper_index(config.vault_path)
@@ -1028,9 +1024,9 @@ def run_dry_run(
     }
     filtered = filter_report["kept"]
     rejected = filter_report["rejected"]
-    _write_json(run_dir / "filter-report.json", filter_report)
+    write_json_atomic(run_dir / "filter-report.json", filter_report)
     state["state"] = "filtered"
-    _write_json(run_dir / "run-state.json", state)
+    write_json_atomic(run_dir / "run-state.json", state)
 
     easyscholar_config = config_from_environment(
         config.vault_path,
@@ -1041,14 +1037,14 @@ def run_dry_run(
     )
     enriched_filtered, easyscholar_record = enrich_candidates_with_easyscholar(filtered, easyscholar_config)
     easyscholar_record_path = run_dir / "easyscholar-record.json"
-    _write_json(easyscholar_record_path, easyscholar_record)
+    write_json_atomic(easyscholar_record_path, easyscholar_record)
     state["state"] = "quality_enriched"
     state["easyscholar"] = {
         "enabled": easyscholar_record.get("enabled"),
         "summary": easyscholar_record.get("summary", {}),
         "record_path": str(easyscholar_record_path),
     }
-    _write_json(run_dir / "run-state.json", state)
+    write_json_atomic(run_dir / "run-state.json", state)
 
     ranked_pool = rank_candidates(
         enriched_filtered,
@@ -1057,9 +1053,9 @@ def run_dry_run(
         venue_tiers=_venue_tiers_from_profile(config, query_plan),
     )
     ranked = ranked_pool[: config.max_results]
-    _write_json(run_dir / "rank.json", ranked)
+    write_json_atomic(run_dir / "rank.json", ranked)
     state["state"] = "ranked"
-    _write_json(run_dir / "run-state.json", state)
+    write_json_atomic(run_dir / "run-state.json", state)
 
     errors = [search_record["error"]] if search_record.get("error") else []
     budget_usage = {
@@ -1186,7 +1182,7 @@ def run_dry_run(
             "query-plan.json": run_dir / "query-plan.json",
         }
     )
-    _write_json(run_dir / "run-state.json", state)
+    write_json_atomic(run_dir / "run-state.json", state)
     lifecycle = _auto_manage_run_lifecycle(config.vault_path)
     if lifecycle.get("deleted_count"):
         state["run_lifecycle"] = {
@@ -1195,7 +1191,7 @@ def run_dry_run(
             "manifest_path": lifecycle.get("manifest_path"),
             "policy": lifecycle.get("policy"),
         }
-        _write_json(run_dir / "run-state.json", state)
+        write_json_atomic(run_dir / "run-state.json", state)
     _refresh_run_index(config.vault_path)
     return run_dir
 
@@ -1244,7 +1240,7 @@ def run_one_paper_ingest(
         "paper_root": str(paper_root),
         "staging_root": str(staging_root),
     }
-    _write_json(paper_root / "run-manifest.json", run_manifest)
+    write_json_atomic(paper_root / "run-manifest.json", run_manifest)
     return {
         "paper_root": paper_root,
         "staging_root": staging_root,
@@ -1273,7 +1269,7 @@ def parse_paper_with_mineru(
 
 
 def _write_paper_run_state(paper_root: Path, state: dict) -> dict:
-    _write_json(paper_root / "run-state.json", state)
+    write_json_atomic(paper_root / "run-state.json", state)
     return state
 
 
@@ -1694,8 +1690,8 @@ def advance_paper_batch(
         f"paper:{result['paper_slug']}:run-state.json": file_sha256(raw_paper_root(vault_path, result["paper_slug"]) / "run-state.json")
         for result in results
     }
-    _write_json(run_dir / "batch-advance-record.json", batch)
-    _write_json(run_dir / "run-state.json", batch)
+    write_json_atomic(run_dir / "batch-advance-record.json", batch)
+    write_json_atomic(run_dir / "run-state.json", batch)
     write_report(
         run_dir,
         accepted,
@@ -1729,7 +1725,7 @@ def advance_paper_batch(
     report_payload["reproduction_plans"] = reproduction_plans
     if source_run_id is not None:
         report_payload["source_run_id"] = source_run_id
-    _write_json(report_json_path, report_payload)
+    write_json_atomic(report_json_path, report_payload)
     lifecycle = _auto_manage_run_lifecycle(vault_path)
     if lifecycle.get("deleted_count"):
         batch["run_lifecycle"] = {
@@ -1738,7 +1734,7 @@ def advance_paper_batch(
             "manifest_path": lifecycle.get("manifest_path"),
             "policy": lifecycle.get("policy"),
         }
-        _write_json(run_dir / "run-state.json", batch)
+        write_json_atomic(run_dir / "run-state.json", batch)
     _refresh_run_index(vault_path)
     return batch
 
@@ -2150,8 +2146,8 @@ def prepare_ranked_papers_from_run(
         },
         "output_artifact_hashes": _hash_paper_run_states(vault_path, results),
     }
-    _write_json(batch_run_dir / "batch-advance-record.json", batch)
-    _write_json(batch_run_dir / "run-state.json", batch)
+    write_json_atomic(batch_run_dir / "batch-advance-record.json", batch)
+    write_json_atomic(batch_run_dir / "run-state.json", batch)
     write_report(
         batch_run_dir,
         accepted,
@@ -2192,7 +2188,7 @@ def prepare_ranked_papers_from_run(
     report_payload["source_run_id"] = run_id
     report_payload["workflow_mode"] = workflow_mode
     report_payload["stops_after"] = "source-staging"
-    _write_json(report_json_path, report_payload)
+    write_json_atomic(report_json_path, report_payload)
     lifecycle = _auto_manage_run_lifecycle(vault_path)
     if lifecycle.get("deleted_count"):
         batch["run_lifecycle"] = {
@@ -2201,7 +2197,7 @@ def prepare_ranked_papers_from_run(
             "manifest_path": lifecycle.get("manifest_path"),
             "policy": lifecycle.get("policy"),
         }
-        _write_json(batch_run_dir / "run-state.json", batch)
+        write_json_atomic(batch_run_dir / "run-state.json", batch)
     _refresh_run_index(vault_path)
     return batch
 

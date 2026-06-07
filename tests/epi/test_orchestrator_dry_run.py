@@ -41,7 +41,7 @@ def _isolate_runtime_and_easyscholar_env(tmp_path, monkeypatch):
     monkeypatch.setenv("EPI_PAPER_SEARCH_MCP_DISABLED", "1")
 
 
-def test_write_json_uses_atomic_writer(tmp_path, monkeypatch):
+def test_ensure_candidate_metadata_uses_atomic_writer(tmp_path, monkeypatch):
     captured = {}
 
     def _fake_write_json_atomic(path, payload):
@@ -49,12 +49,17 @@ def test_write_json_uses_atomic_writer(tmp_path, monkeypatch):
         captured["payload"] = payload
 
     monkeypatch.setattr(orchestrator_module, "write_json_atomic", _fake_write_json_atomic, raising=False)
-    target = tmp_path / "state.json"
-    payload = {"state": "ok"}
+    monkeypatch.setattr(
+        orchestrator_module,
+        "_metadata_from_candidate",
+        lambda candidate: {"title": candidate["title"]},
+        raising=False,
+    )
+    payload = {"title": "Fixture Paper"}
 
-    orchestrator_module._write_json(target, payload)
+    orchestrator_module._ensure_candidate_metadata(tmp_path, payload)
 
-    assert captured == {"path": target, "payload": payload}
+    assert captured == {"path": tmp_path / "metadata.json", "payload": {"title": "Fixture Paper"}}
 
 
 def test_dry_run_writes_phase_1_artifacts(tmp_path):

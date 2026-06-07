@@ -35,6 +35,8 @@ OPTIONAL_WIKI_SKILLS: tuple[str, ...] = (
     "wiki-export",
 )
 
+# Code-enforcement copy of the page-family / frontmatter contract.
+# Human-canonical prose lives in plugins/PRW/rules/wiki-writing-standard.md (A5).
 FORMAL_PAGE_FAMILIES: tuple[dict[str, str], ...] = (
     {
         "name": "references",
@@ -106,6 +108,8 @@ VERIFIED_PAGE_REQUIREMENTS: tuple[str, ...] = (
     "final_source_review_complete",
 )
 
+# Code-enforcement copy of the page-family / frontmatter contract.
+# Human-canonical prose lives in plugins/PRW/rules/wiki-writing-standard.md (A5).
 FORMAL_FRONTMATTER_REQUIRED_FIELDS: tuple[str, ...] = (
     "title",
     "category",

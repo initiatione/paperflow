@@ -349,8 +349,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         ]
     )
 
-    assert manifest["version"] == "0.2.0"
-    assert "v0.2.0" in manifest["interface"]["shortDescription"]
+    assert manifest["version"] == "0.2.1"
+    assert "v0.2.1" in manifest["interface"]["shortDescription"]
     for phrase in [
         "search_papers",
         "source_coverage",
@@ -386,6 +386,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "source_routing",
         "provider_gaps",
         "unpaywall_email_missing",
+        "adaptive Python detection",
+        "import paper_search_mcp",
         "capabilities",
         "PAPER_SEARCH_MCP_CORE_API_KEY",
         "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL",
@@ -398,7 +400,7 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "source capability matrix",
         "wiki-ask",
         "read-only formal graph",
-        "0.2.0",
+        "0.2.1",
         "0.1.14",
         "0.1.11",
         "0.1.13",
@@ -706,7 +708,8 @@ def test_marketplace_and_readme_describe_profile_driven_generic_epi():
     assert "low-burden reading reports" in manifest_text
     assert "wiki handoff" in manifest_text
     assert "quality evolution" in manifest_text
-    assert "Search and rank academic papers" in manifest["description"]
+    assert "MinerU parsing" in manifest["description"]
+    assert "wiki handoff" in manifest["description"]
     assert "robotics" not in manifest["keywords"]
     assert "embodied-intelligence" not in manifest["keywords"]
     assert "control" not in manifest["keywords"]
@@ -750,3 +753,91 @@ def test_docs_document_resumable_reviews_and_evidence_index():
     assert "--refresh" in combined
     assert "evidence-index.json" in combined
     assert "_epi/meta/evidence-index.json" in combined
+
+
+def test_epi_plugin_description_reflects_full_pipeline():
+    manifest = json.loads((PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    desc = manifest["description"]
+
+    assert desc != "Search and rank academic papers for an EPI wiki."
+    assert any(k in desc for k in ["parse", "MinerU", "critic", "handoff", "wiki ingest"])
+
+
+def test_orchestrator_uses_write_json_atomic_without_private_alias():
+    text = (PLUGIN_ROOT / "scripts" / "build" / "epi" / "orchestrator.py").read_text(encoding="utf-8")
+
+    assert "def _write_json" not in text
+    assert "_write_json(" not in text
+    assert "write_json_atomic(" in text
+
+
+def test_handoff_artifact_contract_marks_brief_canonical_and_task_deprecated():
+    linkage = _read("epi-linkage.md")
+
+    assert "wiki-ingest-brief.json" in linkage
+    assert "wiki_deposition_task.json" in linkage
+    assert "deprecated" in linkage.lower() or "已废弃" in linkage
+
+
+def test_single_doc_map_in_linkage_others_point_to_it():
+    linkage = _read("epi-linkage.md")
+
+    for ref in [
+        "docs/structure.md",
+        "docs/progress.md",
+        "docs/config.md",
+        "docs/overview.zh.md",
+        "docs/workflow.md",
+    ]:
+        assert ref in linkage
+    for name in ["overview.zh.md", "structure.md", "progress.md"]:
+        assert "docs/epi-linkage.md" in _read(name)
+
+
+def test_overview_zh_is_navigation_not_second_pipeline():
+    text = _read("overview.zh.md")
+
+    assert text.count("\n") < 200
+    assert "docs/epi-linkage.md" in text
+    assert ("三层" in text) or ("心智模型" in text)
+    assert ("推荐阅读顺序" in text) or ("阅读顺序" in text)
+
+
+def test_workflow_md_is_short_entry_without_runbook_paragraphs():
+    text = _read("workflow.md")
+    longest_line = max((len(line) for line in text.splitlines()), default=0)
+
+    assert longest_line < 1200
+    assert "epi-linkage" in text
+    assert "EasyScholar" in text or "easyscholar" in text
+
+
+def test_progress_md_snapshot_history_in_changelog():
+    progress = _read("progress.md")
+    changelog_path = DOCS / "CHANGELOG.md"
+
+    assert changelog_path.exists()
+    changelog = changelog_path.read_text(encoding="utf-8")
+    assert "本轮相关变更范围" not in progress
+    assert "下一步" in progress and "已知风险" in progress
+    assert "CHANGELOG.md" in progress
+    assert len(changelog.splitlines()) > 20
+
+
+def test_epi_docs_point_to_prw_canonical_for_page_family_frontmatter():
+    assert "rules/wiki-writing-standard.md" in _read("epi-linkage.md")
+
+
+def test_read_only_ask_ownership_documented_epi_side():
+    linkage = _read("epi-linkage.md")
+
+    assert "wiki-ask" in linkage
+    assert ("fallback" in linkage.lower()) or ("程序化" in linkage) or ("对话优先 PRW" in linkage)
+
+
+def test_plugin_versions_bumped_to_0_2_1():
+    for rel in ["plugins/epi/.codex-plugin/plugin.json", "plugins/PRW/.codex-plugin/plugin.json"]:
+        manifest = json.loads((ROOT / rel).read_text(encoding="utf-8"))
+
+        assert manifest["version"] == "0.2.1"
+        assert "v0.2.1" in manifest["interface"]["shortDescription"]

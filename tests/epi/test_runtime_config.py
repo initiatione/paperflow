@@ -46,6 +46,45 @@ def test_plugin_mcp_registration_uses_runtime_config_launcher():
     assert server["command"] == "python"
     assert server["args"] == ["${CLAUDE_PLUGIN_ROOT}/scripts/paper_search_mcp_launcher.py"]
     assert "paper_search_mcp.server" not in json.dumps(server)
+    assert "miniconda" not in json.dumps(server).lower()
+
+
+def test_paper_search_mcp_launcher_detects_installed_python_when_configured_python_lacks_package(
+    tmp_path, monkeypatch
+):
+    runtime_path = tmp_path / "runtime.json"
+    installed_python = tmp_path / "envs" / "default" / "python.exe"
+    _write_json(
+        runtime_path,
+        {
+            "paper_search_mcp": {
+                "command": "python",
+                "args": ["-m", "paper_search_mcp.server"],
+            }
+        },
+    )
+    monkeypatch.setenv("EPI_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.delenv("EPI_PAPER_SEARCH_MCP_COMMAND", raising=False)
+    monkeypatch.delenv("EPI_PAPER_SEARCH_MCP_ARGS", raising=False)
+
+    import epi.paper_search_mcp_launcher as launcher
+
+    monkeypatch.setattr(
+        launcher,
+        "_candidate_python_commands",
+        lambda configured_command: [configured_command, str(installed_python)],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_python_can_import_paper_search_mcp",
+        lambda command: command == str(installed_python),
+        raising=False,
+    )
+
+    command = launcher.build_launch_command()
+
+    assert command == [str(installed_python), "-m", "paper_search_mcp.server"]
 
 
 def test_paper_search_mcp_launcher_uses_runtime_config_command_and_provider_env(tmp_path, monkeypatch):

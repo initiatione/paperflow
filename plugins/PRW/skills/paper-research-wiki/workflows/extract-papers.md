@@ -11,7 +11,7 @@ Before planning or writing pages, read `../../../rules/wiki-writing-standard.md`
 1. Resolve the target vault.
 2. Check the EPI `wiki-setup` bootstrap: core `_epi` roots (`_epi/`, `_epi/raw/`, `_epi/staging/`, `_epi/meta/`, `_epi/policies/`), `_meta/`, `.obsidian`, `.git`, and the seven formal page roots. If missing core vault structure blocks safe work, stop and point back to EPI `wiki-setup`; do not initialize or reset from PRW. Do not require `_epi/runs/`, `_epi/cache/`, `_epi/tmp/`, `_epi/tmp-manual-pdfs/`, `_epi/quarantine/`, or `_epi/evolution/`; EPI creates those on demand.
 3. Read target vault `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
-4. Locate `_epi/staging/papers/*/wiki_deposition_task.json`.
+4. Locate `_epi/staging/papers/*/wiki-ingest-brief.json`; read `_epi/staging/papers/*/wiki_deposition_task.json` only as a deprecated compatibility artifact.
 5. Run a readiness preflight and group papers as ready, needs human approval, blocked, or already recorded.
 6. For ready papers, read source bundle artifacts before writing: PDF, metadata, MinerU Markdown, TeX, images, manifest, reading report, and `wiki-ingest-brief.json`.
 

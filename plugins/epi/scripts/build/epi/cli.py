@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from epi import cli_routes, orchestrator as workflows
-from epi.artifacts import file_sha256, raw_paper_root, runs_root, utc_now
+from epi.artifacts import file_sha256, raw_paper_root, runs_root, utc_now, write_json_atomic
 from epi.cli_parser import build_parser
 from epi.config import (
     apply_config_update,
@@ -324,7 +324,7 @@ def _handle_promote_to_wiki(args: argparse.Namespace) -> int:
             ),
             encoding="utf-8",
         )
-        workflows._write_json(
+        write_json_atomic(
             run_dir / "run-state.json",
             {
                 "stage": "promote-to-wiki",

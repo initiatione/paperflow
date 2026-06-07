@@ -1,387 +1,33 @@
 # EPI 中文链路与结构总览
 
-本文档给继续开发者、使用 EPI 的 agent、以及需要审查最终 wiki 沉淀质量的人一个中文总览。它把插件结构和完整工作流放在同一张地图里，方便快速判断“下一步该用哪个 skill / CLI / artifact”。
-
-权威分工如下：
-
-- `docs/epi-linkage.md`：主链路维护契约，任何流程语义变化都要同步。
-- `docs/structure.md`：源码目录、模块职责、vault artifact 和发布边界。
-- `docs/workflow.md`：安装后日常使用的短入口。
-- 本文档：中文导航层，解释 EPI 如何从主题跟踪走到单篇论文阅读，再走到带 provenance 的 wiki 沉淀。
+文档权威分工（doc map）见 `docs/epi-linkage.md` 顶部；本文档只承担中文导航层，不复制完整 pipeline 事实。
 
 ## 一句话定位
 
-EPI 是一个 Codex 本地插件，用于把“持续关注某个研究方向”转成可审计的论文知识流水线：
+EPI 是通用论文插件，不默认任何学科方向。它把用户画像/config 和当前问题转成可审计的论文知识流水线：
 
 ```text
 主题/问题 -> 增量检索 -> 排序与去重 -> PDF 采集 -> MinerU 解析
--> source-first reader -> critic gate -> staging evidence package
--> human approval -> wiki ingest agent (Claude/Codex/other)
--> final-source-review -> record-wiki-ingest -> 后续检索/综合/演化
+-> source-first reader/critic -> staging evidence package
+-> human approval -> PRW/Codex/Claude wiki ingest agent
+-> final-source-review -> record-wiki-ingest
 ```
 
-它不替用户完成完整科研项目，也不固定某一学科方向。研究方向、正负关键词、venue prior、最终 wiki 结构和语言风格都来自用户配置、当前请求和目标 vault contract。
+完整 8 阶段链路事实、artifact 路径、CLI 语义和安全门见 `docs/epi-linkage.md` 的主链路章节；本文档只给继续开发和接手时的地图。
 
 ## 核心心智模型
 
-EPI 不是只有“一个 slug 跑完一条管道”。当前设计分三层：
+EPI 当前分三层工作：
 
 | 层级 | 解决的问题 | 主要能力 | 关键产物 |
 | --- | --- | --- | --- |
-| 主题纵向层 | 我持续关注的方向最近有什么新论文、有没有漏掉分支、先读哪几篇 | `topic-tracking`、`dry-run`、`research-queue`、coverage/backlog | `_epi/runs/*`、`research-queue.json`、主题 coverage/backlog 说明 |
-| 单篇证据层 | 这篇论文是否真的读懂了，公式/图/表有没有被保留下来 | acquire、MinerU、按需 reader/critic、paper-gate | `_epi/raw/<slug>/*`、按需 `reader/evidence-map.json`、`critic/critic-report.json` |
-| Wiki 沉淀层 | 最终页面里的 claim 能否回溯到原文证据 | `wiki-ingest-handoff`、`wiki-provenance`、`record-human-approval`、`record-wiki-ingest` | `_epi/staging/papers/<slug>/*`、`final-source-review.json`、`wiki-ingest-record.json` |
+| 主题纵向层 | 最近有什么新论文、是否漏掉分支、先读哪几篇 | `topic-tracking`、`dry-run`、`research-queue` | `_epi/runs/*`、`_epi/reviews/*`、coverage/backlog |
+| 单篇证据层 | 这篇论文是否真的读懂、公式/图/表是否保留 | acquire、MinerU、reader、critic、paper-gate | `_epi/raw/<slug>/*`、`evidence-index.json`、`claim-support.json` |
+| Wiki 沉淀层 | 最终页面里的 claim 能否回溯到原文证据 | `wiki-ingest-handoff`、`wiki-provenance`、`record-wiki-ingest` | `_epi/staging/papers/<slug>/*`、`final-source-review.json`、`wiki-ingest-record.json` |
 
-这三层分别保证广度、深度和可信回溯：
+三层分别保证广度、深度和可信回溯。reader/critic 是辅助导航和审计层，不替代 `paper.pdf`、MinerU Markdown、TeX、images 和 manifest。
 
-- 广度：多 query variants、多来源、去重、topic backlog、coverage gap、systematic-review snowballing。
-- 深度：不只读摘要，默认必须保留 PDF、MinerU Markdown、TeX、图片和 manifest；reader evidence 与 critic 只有在 reviewed/audited 模式或异常诊断时才作为辅助证据层。
-- 可信回溯：最终 wiki 页不能只写结论，还要把 source-grounded、metadata-only、inferred、unsupported 等证据层保留下来。
-
-## 工作流总链路
-
-### 0. 安装诊断与配置
-
-入口：
-
-```powershell
-python scripts\orchestrator.py doctor --json
-python scripts\orchestrator.py config-status --vault <vault> --json --include-values --include-runtime
-```
-
-职责：
-
-- 检查插件结构、skill bundle、模板和 wrapper 是否可用。
-- 检查 paper-search MCP/CLI、MinerU、Zotero 等外部能力是否配置。
-- 区分插件结构错误和外部依赖 warning。
-- 首次配置或修改配置必须走 `config-setup` skill，一次只问一个问题，最终确认前不运行写配置命令。
-
-配置分两层：
-
-- 研究画像配置：`<vault>/_epi/meta/epi-config.yaml`。
-- 本机 runtime 依赖：用户级 EPI runtime 配置，只记录命令路径和 env-file 路径，不保存 token 明文。
-
-### 1. 主题跟踪与论文发现
-
-入口：
-
-```powershell
-python scripts\orchestrator.py dry-run --query "<topic>" --max-results 20 --vault <vault> --json
-python scripts\orchestrator.py report --run-id <run-id> --vault <vault>
-```
-
-职责：
-
-- 根据用户画像、当前 query、positive/negative keywords、domains 和 venue prior 生成 `query-plan.json`。
-- 多 query variants 检索后合并候选，进行 DOI/arXiv/title/library 去重。
-- 默认排除 review/survey/meta 类综述，除非用户明确要综述。
-- 给出 `paper_type`、`quality_gate`、`quality_tier`、`ranking_rubric`、`ranking_confidence`。
-- 输出可扫读的推荐清单，而不是让用户读 raw JSON。
-
-关键产物：
-
-```text
-<vault>/_epi/runs/<run-id>/query-plan.json
-<vault>/_epi/runs/<run-id>/search-record.json
-<vault>/_epi/runs/<run-id>/normalized.json
-<vault>/_epi/runs/<run-id>/rank.json
-<vault>/_epi/runs/<run-id>/report.md
-<vault>/_epi/runs/<run-id>/report.json
-<vault>/_epi/runs/<run-id>/run-state.json
-<vault>/_epi/runs/index.json
-<vault>/_epi/runs/research-queue.json
-```
-
-`topic-tracking` 是这一层的外层 skill。它负责回答：
-
-- 上次之后有哪些 net-new 论文？
-- 哪些候选已经在库里，不该重复推荐？
-- 当前主题覆盖了哪些方法族、benchmark、应用场景和高被引簇？
-- backlog 里先读哪几篇最划算？
-- 系统综述模式下是否需要 forward/backward snowballing？
-
-### 2. 采集、解析与 raw 留痕
-
-入口：
-
-```powershell
-python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json
-python scripts\orchestrator.py parse-paper --slug <slug> --vault <vault>
-```
-
-职责：
-
-- 对 ranked papers 执行 PDF 下载或本地复制。
-- 失败时写清楚 `failure_class`、`retryable`、`recovery_hint`，避免把 403/502 误判为论文不存在；若无开放 PDF 且需要机构访问，写 `manual-download-required`、`manual_download.candidate_manual_urls`，让 agent 立即给用户 DOI/出版商链接和 organization/institution 手动下载提示。
-- 调用 MinerU 生成 Markdown、TeX、images、manifest。
-- 对已完整解析的论文使用 `--skip-existing`，避免补跑时浪费预算。
-
-关键产物：
-
-```text
-<vault>/_epi/raw/<slug>/paper.pdf
-<vault>/_epi/raw/<slug>/metadata.json
-<vault>/_epi/raw/<slug>/acquire-record.json
-<vault>/_epi/raw/<slug>/parse-record.json
-<vault>/_epi/raw/<slug>/mineru/<slug>.md
-<vault>/_epi/raw/<slug>/mineru/paper.tex
-<vault>/_epi/raw/<slug>/mineru/images/*
-<vault>/_epi/raw/<slug>/mineru/mineru-manifest.json
-<vault>/_epi/raw/<slug>/run-state.json
-```
-
-解析保真度应当对用户可见。对公式密集、图表密集或方法细节重要的论文，reader 和 wiki agent 不能只读 `mineru/<slug>.md`，还必须检查 TeX、图片、manifest，并在必要时回到 PDF。
-
-### 3. Source-First Reader
-
-入口通常由 `advance-paper`、`advance-ranked`、`ingest-one` 或 redo 命令内部触发。
-
-reader 不是最终知识库页面，而是降低阅读负担的证据导航层。它必须以源论文为中心：
-
-- `paper.pdf`
-- `metadata.json`
-- `mineru/<slug>.md`
-- `mineru/paper.tex`
-- `mineru/images/*`
-- `mineru/mineru-manifest.json`
-
-三角色输出：
-
-- `nature-sci-editor`：创新性、叙事价值、scope caveat。
-- `peer-reviewer`：方法、实验、baseline、metric、benchmark、复现条件。
-- `senior-domain-researcher`：理论启发、实验思路、可迁移知识点、应进入 wiki 的概念。
-
-关键产物：
-
-```text
-<vault>/_epi/raw/<slug>/reader/reader.md
-<vault>/_epi/raw/<slug>/reader/editorial-summary.md
-<vault>/_epi/raw/<slug>/reader/technical-reading.md
-<vault>/_epi/raw/<slug>/reader/research-notes.md
-<vault>/_epi/raw/<slug>/reader/figures.md
-<vault>/_epi/raw/<slug>/reader/reproducibility.md
-<vault>/_epi/raw/<slug>/reader/implementation-ideas.md
-<vault>/_epi/raw/<slug>/reader/evidence-map.json
-<vault>/_epi/raw/<slug>/reader/claim-support.json
-```
-
-`claim-support.json` 必须区分：
-
-- `source-grounded`：源论文直接支持。
-- `metadata-only`：只来自标题、摘要、DOI、venue、year 等元数据。
-- `inferred`：agent 基于证据做出的推断。
-- `unsupported`：没有足够证据，不能进入最终页当作事实。
-
-### 4. Critic 与 Paper Gate
-
-critic 是 `audited-ingest` 的质量门，不是默认快路径的硬边界。默认 `fast-ingest` 不运行 critic；若已有 critic report 且非 pass，则不能继续进入 source-staging 或 wiki ingest handoff。
-
-critic 组成：
-
-- `paper-quality-critic`
-- `parse-quality-critic`
-- `reader-quality-critic`
-- `editorial-significance-critic`
-- `peer-review-methods-critic`
-- `domain-fit-critic`
-
-关键产物：
-
-```text
-<vault>/_epi/raw/<slug>/critic/critic-report.json
-<vault>/_epi/raw/<slug>/critic/critic-quorum.json
-<vault>/_epi/raw/<slug>/critic/research-decision.json
-<vault>/_epi/raw/<slug>/critic/reader-revision-plan.json
-<vault>/_epi/raw/<slug>/critic/reproduction-plan.json
-```
-
-只读状态面板：
-
-```powershell
-python scripts\orchestrator.py paper-gate --slug <slug> --vault <vault> --json
-```
-
-`paper-gate` 判断下一步是：
-
-- 修复 reader / parse / metadata。
-- 等待 human approval。
-- 允许 wiki ingest agent 接手。
-- 已经记录 final wiki ingest 完成态。
-
-### 5. Staging Evidence Package
-
-默认 `fast-ingest` 在源材料完整后生成 source-staging；`reviewed-ingest` 需要 reader 完整；`audited-ingest` 需要 critic pass。staging 是给最终 wiki agent 的源材料交接包，不是最终页面。
-
-关键产物：
-
-```text
-<vault>/_epi/staging/papers/<slug>/briefs/reading-report.md
-<vault>/_epi/staging/papers/<slug>/wiki-ingest-brief.json
-<vault>/_epi/staging/papers/<slug>/promotion-plan.json
-```
-
-默认阅读入口是轻阅读报告：
-
-- `快速判断`
-- `论文身份`
-- `术语中英对照`
-- `理论与方法`
-- `实验/验证方式`
-- `证据强度与可信状态`
-- `主要 Caveat`
-- `Wiki 沉淀价值`
-- `沉淀建议`
-
-### 6. Wiki Ingest Handoff 与人类批准
-
-只读 handoff：
-
-```powershell
-python scripts\orchestrator.py wiki-ingest-handoff --slug <slug> --vault <vault> --json
-```
-
-前置批准：
-
-```powershell
-python scripts\orchestrator.py record-human-approval --slug <slug> --approved-by <name> --scope run-wiki-ingest-agent --vault <vault> --json
-```
-
-`record-human-approval` 只在当前 gate 无 failure checks 且唯一待办为 `human-approval` 时写入：
-
-```text
-<vault>/_epi/staging/papers/<slug>/human-approval.json
-```
-
-这个 artifact 是“允许外部 wiki ingest agent 写最终页”的机器可验证证据。没有它，`wiki-ingest-handoff` 不应显示 `ready_for_agent=true`，`record-wiki-ingest` 也不能事后补登记。
-
-批准后继续触发当前 agent：
-
-```powershell
-python scripts\orchestrator.py wiki-ingest-trigger --slug <slug> --vault <vault> --json
-```
-
-`wiki-ingest-trigger` 会写：
-
-```text
-<vault>/_epi/staging/papers/<slug>/wiki-agent-trigger.json
-```
-
-它不是后台自动拉起 Claude/Codex 的进程，也不写最终页；它把“当前 agent 可以开始按目标 vault contract、wiki-provenance 和 source-first closure 写 wiki”的指令、路径、checklist 和 final-source-review 合同固化下来。用户读完轻阅读报告后再次触发 `@EPI`，EPI 可以先看 `research-queue --bucket ready_to_promote --actions`，若 gate 已批准就执行 `wiki-ingest-trigger`，然后由当前 Claude/Codex/其他 wiki-capable agent 进入最终 wiki 写入。
-
-### 7. Final Wiki Ingest 与 Provenance
-
-最终 Obsidian/LLM Wiki 页面由 wiki ingest agent 写，不由 EPI 的固定 promotion 脚本决定路径。执行器可以是 Claude、Codex 或其他 wiki-capable agent，但必须先读取目标 vault contract：
-
-```text
-<vault>/AGENTS.md
-<vault>/_meta/agent-operating-contract.md
-<vault>/_meta/schema.md
-<vault>/_meta/taxonomy.md
-<vault>/_meta/directory-structure.md
-```
-
-最终页必须满足：
-
-- 读源论文 Markdown、TeX、图片、manifest 和必要时 PDF。
-- 不把 reader summary 当作原文替代品。
-- 每条重要 claim 保留支持状态。
-- 页面内保留 evidence address；如果本次生成了 reader，则可回到 `reader/evidence-map.json`，否则必须能回到 PDF、MinerU Markdown/TeX、图片和 manifest。
-- 对公式、图、表、实验结论、SOTA/优于 baseline 等高风险断言做 source-first 复核。
-- 写出 `final-source-review.json`，记录源工件 hash、公式复核、图表复核、PDF fallback 决策和 final page provenance。
-
-`wiki-provenance` skill 专门约束这一层。它的目标是防止半年后查询 wiki 时，把 agent 的推断误当成源论文事实。
-
-### 8. 完成态记录、Zotero 与后续查询
-
-完成态记录：
-
-```powershell
-python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-page.md> --approved-by <name> --source-review <final-source-review.json> --vault <vault> --json
-```
-
-`record-wiki-ingest` 不写最终页。它只做审计记录：
-
-- 重新检查 `paper-gate`。
-- 验证 pre-write `human-approval.json` 存在。
-- 要求 `--approved-by` 与批准 artifact 完全一致。
-- 验证最终 Markdown 页在目标 vault 内，且不在 `_epi/raw`、`_epi/staging`、`_epi/runs`、`.obsidian` 等内部目录。
-- 验证 `final-source-review.json` 中的 source-first closure。
-- 记录最终页路径、sha256、source review 和 approval。
-
-关键产物：
-
-```text
-<vault>/_epi/raw/<slug>/wiki-ingest-record.json
-<vault>/_epi/staging/papers/<slug>/wiki-ingest-record.json
-<vault>/_epi/raw/<slug>/zotero-record.json
-```
-
-后续查询和综合依赖这些元数据。EPI 自身的 `wiki-query` 是 legacy manifest/index 视角；`wiki-ask` 是 read-only formal graph 问答入口，会利用正式页 backlinks/outlinks/co-links 并标记证据、综合、推断和不确定性。真正的写入、修复、带引用沉淀和 provenance round-trip 仍需要目标 wiki skills 消费 final page metadata、claim support 和 evidence route。
-
-## 插件源码结构
-
-```text
-<plugin-root>/
-  .codex-plugin/
-    plugin.json
-  docs/
-    overview.zh.md
-    epi-linkage.md
-    structure.md
-    workflow.md
-    progress.md
-    config.md
-    evaluation.md
-    privacy.md
-    terms.md
-  scripts/
-    orchestrator.py
-    init_paper_wiki.py
-    build/epi/*.py
-  skills/
-    config-setup/
-    wiki-setup/
-    paper-discovery/
-    topic-tracking/
-    mineru-paper-parser/
-    paper-ingest/
-    wiki-provenance/
-    run-lifecycle/
-    zotero-sync/
-    skill-aware-evolve/
-  templates/
-  metric-packs/
-  vendor-notices/
-  coverage/
-```
-
-职责边界：
-
-- `.codex-plugin/plugin.json`：marketplace 元数据和 skill 入口声明。
-- `docs/`：用户与维护者可读的契约层。
-- `scripts/orchestrator.py`：插件公开 wrapper，用户和 skill 调 CLI 时使用。
-- `scripts/build/epi/`：实际 Python 实现。
-- `skills/`：Codex skill 入口，保持短小，复杂策略拆到 `references/`。
-- `templates/`：ranking、filter、interest、routing、critic checklist 示例。
-- `metric-packs/`：插件开发质量环使用的评估指标。
-- `coverage/`：发布评估需要时刷新的 coverage artifact。
-
-## 主要 Skill 分工
-
-| Skill | 何时使用 | 不负责什么 |
-| --- | --- | --- |
-| `config-setup` | 首次配置、修改 profile、runtime 或确认门 | 不跑论文流程 |
-| `wiki-setup` | 初始化、检查、修复、重置目标 paper wiki vault；初始化会自动 `git init` 但不自动 commit | 不检索论文、不写最终知识页 |
-| `paper-discovery` | 单轮检索、query plan、排序、报告 | 不维护长期主题账本 |
-| `topic-tracking` | 持续追踪、增量发现、coverage/backlog | 不替代底层检索/ranking |
-| `mineru-paper-parser` | PDF 到 Markdown/TeX/images/manifest | 不做学术结论判断 |
-| `paper-ingest` | 单篇 source bundle -> optional reader/critic -> source-staging -> handoff | 不直接写最终 Obsidian 页面 |
-| `wiki-provenance` | 审查最终页 claim support 和 evidence route | 不替代源论文重读 |
-| `run-lifecycle` | 清理 `_epi/runs` 过渡态 | 不删 raw/staging/final wiki |
-| `zotero-sync` | 本地 Zotero sidecar 记录 | 默认不调用外部 Zotero API |
-| `skill-aware-evolve` | 基于证据提出受控优化 | 不直接改用户配置或绕过验证 |
-
-## 常用命令速查
+## 常用入口
 
 ```powershell
 python scripts\orchestrator.py doctor --json
@@ -396,18 +42,40 @@ python scripts\orchestrator.py record-human-approval --slug <slug> --approved-by
 python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-page.md> --approved-by <name> --source-review <final-source-review.json> --vault <vault> --json
 ```
 
+## Skill 分工
+
+| Skill | 何时使用 | 边界 |
+| --- | --- | --- |
+| `config-setup` | 首次配置、修改 profile/runtime/确认门 | 不跑论文流程 |
+| `paper-discovery` | 单轮检索、query plan、排序、报告 | 不维护长期主题账本 |
+| `topic-tracking` | 持续追踪、net-new、coverage/backlog | 不替代底层检索 |
+| `paper-ingest` | 已选论文进入 raw、MinerU、source-staging、handoff | 不写最终 Obsidian 页面 |
+| `mineru-paper-parser` | PDF -> Markdown/TeX/images/manifest | 不做学术判断 |
+| `wiki-provenance` | 最终页 claim support 和 evidence route | 不替代源论文重读 |
+| `wiki-setup` | 初始化、检查、修复、重置 paper wiki vault | 不检索论文、不写最终知识页 |
+| `run-lifecycle` | 清理 `_epi/runs` 过渡态 | 不删 raw/staging/final wiki |
+| `skill-aware-evolve` | 基于证据提出受控优化 | 不直接改用户配置 |
+
+## 文献 Wiki 七类页面契约
+
+正式知识沉淀继续保留 7 类研究页面：`references/` 单篇证据页，`concepts/` 方法/理论/术语页，`derivations/` 推导与理论复建页，`experiments/` 复现与实现判断页，`synthesis/` 跨论文综合页，`reports/` 低负担阅读入口页，`opportunities/` 创新机会页。
+
+page-family/frontmatter 的人读 canonical 是 PRW `plugins/PRW/rules/wiki-writing-standard.md`。EPI 只在这里保留索引，不复制完整字段清单。
+
+正式页 frontmatter 至少覆盖 `title`、`category`、`page_family`、`tags`、`aliases`、`sources`、`summary`、`provenance`、`base_confidence`、`lifecycle`、`lifecycle_changed`、`tier`、`created`、`updated`。record 前的研究审阅字段包括 `theory_reconstruction`、`formula_derivation`、`figure_table_evidence`、`novelty_type`、`implementability`、`reproducibility_risk`、`research_gap`、`cost_level`。
+
+PRW `$paper-research-wiki` 是正式论文 wiki 写入和维护的用户级入口；`epi-paper-deposition` 只作为 EPI `wiki_deposition_task.json`、旧 handoff 和 record provenance 的 compatibility adapter，旧名 `epi-wiki-deposition` 只是兼容 alias。
+
 ## 安全边界
 
-- `dry-run` 只写 `_epi/runs`。
-- `prepare-ranked` 默认停在 `source-staging`，已经生成中文审批报告和 wiki-ingest handoff，但不进入 reader/critic 或最终 wiki 写入。
-- 默认 `fast-ingest` 不要求 critic pass；`audited-ingest` 和已有 critic report 的论文仍必须通过 critic。
+- `dry-run` 只写 `_epi/runs` 和 `_epi/reviews`。
+- `prepare-ranked` 默认停在 source-staging，不写最终 wiki。
 - agent-mediated wiki ingest 前必须有 `human-approval.json`。
 - final wiki agent 写页面前必须读目标 vault contract。
 - final wiki 页面必须保留 provenance，不把推断写成源论文事实。
 - `record-wiki-ingest` 只记录完成态，不改最终页。
-- legacy `promote-to-wiki` 只保留兼容用途，不是默认路径。
 - token、API key、MinerU token 不写入报告、文档或配置预览。
-- 安装 cache 不是源码开发位置，源码修改应在插件源码包内完成并通过发布/安装流程进入 cache。
+- 安装 cache 不是源码开发位置。
 
 ## 推荐阅读顺序
 
@@ -431,15 +99,3 @@ python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-pa
 8. `_epi/staging/papers/<slug>/wiki-ingest-brief.json`
 9. `final-source-review.json`
 10. `_epi/raw/<slug>/wiki-ingest-record.json`
-
-## 文献 Wiki 七类页面契约
-
-EPI 的目标不是把论文摘要塞进单页，也不是自己充当通用 wiki 作者，而是把论文发现、下载、MinerU 解析、source bundle、审批报告、`wiki_deposition_task.json` 和 record 做成稳定证据引擎。正式知识沉淀继续保留 7 类研究页面：`references/` 单篇证据页，`concepts/` 方法/理论/术语页，`derivations/` 推导与理论复建页，`experiments/` 复现与实现判断页，`synthesis/` 跨论文综合页，`reports/` 低负担阅读入口页，`opportunities/` 创新机会页。
-
-正式写入和维护的用户级入口是 PRW `$paper-research-wiki`；`epi-paper-deposition` 只作为 EPI `wiki_deposition_task.json`、旧 handoff 和 record provenance 的 compatibility adapter，旧名 `epi-wiki-deposition` 只作为兼容 alias。写入层必须显式使用/遵守 `$paper-research-wiki`、`llm-wiki`、`wiki-ingest`、`wiki-context-pack`、`wiki-lint`、`wiki-stage-commit`、`wiki-status`、`wiki-query`、`wiki-provenance`、`tag-taxonomy`。EPI Core 不直接写正式页，只生成 `_epi/` 内部证据、approval、trigger 和 record。
-
-正式页 frontmatter 至少包含 `title`、`category`、`page_family`、`tags`、`aliases`、`sources`、`summary`、`provenance`、`base_confidence`、`lifecycle`、`lifecycle_changed`、`tier`、`created`、`updated`。`category` 与 `page_family` 必须匹配所在七类目录；初始 `lifecycle` 只能是 `draft` 或 `review-needed`，不能默认写成 `source-reviewed` 或 `verified`。record 前的质量 gate 要检查 Obsidian wikilinks、source bundle 路径、provenance.extracted/inferred/ambiguous、禁止 `_epi/` 进入正式图谱、禁止 fenced `math`/`tex`/`latex` 公式块、`derivations/` 的变量定义和推导链、`references/` 的模型/公式/实验/限制，以及 `synthesis/` 的 cross-paper comparison matrix。
-
-QMD 只作为检索辅助，不是 source of truth。`paper-research-wiki` qmd collection 可索引七类正式页目录，加 `AGENTS.md`、`index.md`、`hot.md`、`log.md`、`_meta/` 合约页；必须 ignore `_epi/**`、`.obsidian/**`、`.claude/**`，所以 `_epi/meta/formal-page-snapshots/`、raw MinerU source Markdown 和 staging handoff 不进入 QMD。信任 QMD 前用 `qmd collection show paper-research-wiki`、`qmd ls paper-research-wiki/_epi`、`qmd ls paper-research-wiki/_epi/meta/formal-page-snapshots` 验证。
-
-`final-source-review.json` 仍需要覆盖 `theory_reconstruction`、`formula_derivation`、`figure_table_evidence`、`novelty_type`、`implementability`、`reproducibility_risk`、`research_gap`、`cost_level`。它记录 source reread、formula/figure review、证据路径和 source review 完整性；创新性判断必须区分 author-claimed novelty 和 EPI-confirmed novelty。
