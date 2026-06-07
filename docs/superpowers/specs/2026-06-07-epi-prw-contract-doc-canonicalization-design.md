@@ -1,13 +1,13 @@
 # S3 设计：EPI/PRW 文档与契约 canonical 化 + 边界澄清
 
 - **日期**：2026-06-07
-- **状态**：设计待用户复审（spec self-review 已过）
+- **状态**：S3a 已实现并验证；C1/C2 的 brief-first machine-contract 变更仍在 S3b（见 `docs/superpowers/plans/2026-06-07-epi-prw-brief-canonical-boundary.md`）
 - **所属 program**：EPI/PRW 跨平台 skill-based-architecture 迁移（S1 跨平台外壳/打包｜S2 skill 目录结构｜**S3 本文档**｜S4 EPI→PRW 主动续接提醒）。用户选择从 S3 起步。
 - **审计来源**：`docs/audits/2026-06-07-epi-prw-optimization-audit.md`
 
 ## 1. 目标与非目标
 
-**目标**：消除 EPI/PRW 文档与契约层的重复、漂移与自相矛盾，统一"谁写 wiki"的自我模型，并修两处机械问题。覆盖审计项 **A1–A5、C1–C4、E1、D3**。
+**目标**：消除 EPI/PRW 文档与契约层的重复、漂移与自相矛盾，统一"谁写 wiki"的自我模型，并修两处机械问题。S3a 已覆盖 **A1–A5、C3、C4、E1、D3**；**C1/C2** 是仍待执行的 S3b 机器契约变更。
 
 **非目标（明确不在 S3）**：
 - S1（`.claude-plugin/` 清单、`CLAUDE.md` 外壳、SessionStart hook、跨平台打包）。
