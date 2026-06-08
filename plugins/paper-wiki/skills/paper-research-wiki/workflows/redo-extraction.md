@@ -4,6 +4,8 @@ Use this when the user asks PRW to 重做, 重新提取, 更详细提取, 批量
 
 This workflow is for deliberate re-deposition. It is stronger than ordinary update: PRW must re-read the source bundle, compare existing wiki pages, and produce a controlled rewrite or staged patch.
 
+If the paper is a survey/review (detection signals in `../references/survey-page-anatomy.md`), write or repair the `references/` page with the survey map/hub spine from that contract — not the method spine. Keep survey routing additive: taxonomy → `concepts/`, cross-method landscape → `synthesis/`, gaps → `opportunities/`; do not create `derivations/` pages from a survey's borrowed illustrative formulas or `experiments/` pages for a survey. Reframe any existing such pages honestly rather than forcing the survey through them.
+
 ## Modes
 
 - single paper: target one slug, title, DOI, arXiv id, selected page, or selected EPI handoff.
@@ -75,6 +77,7 @@ For deep extraction, inspect the paper through these lenses:
 - reusable methods or concepts
 - cross-paper contradictions, confirmations, and research gaps
 - opportunities for follow-up experiments or literature review sections
+- for a survey/review: review type and coverage (PRISMA/inclusion criteria), the taxonomy, a per-branch method landscape with representative studies and reported results, the evidence-tier distribution, and the reading map to primary sources (follow `../references/survey-page-anatomy.md`)
 
 ## Write Plan
 

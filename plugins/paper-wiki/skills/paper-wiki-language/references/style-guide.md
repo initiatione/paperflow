@@ -58,7 +58,7 @@ Good headings name the durable role:
 - `## 可复用的设计`
 - `## 局限和未覆盖问题`
 
-For `references/` pages, use the canonical section spine in `../../paper-research-wiki/references/references-page-anatomy.md`: `证据钩子 / 原文与证据入口 / 问题设定 / 核心机制 / 实验设置与证据边界 / 局限与未覆盖问题 / Provenance`. This spine is preferred for new writes; current approved heading aliases remain acceptable during repairs when the section role is clear.
+For `references/` pages, use the canonical section spine in `../../paper-research-wiki/references/references-page-anatomy.md`: `证据钩子 / 原文与证据入口 / 问题设定 / 核心机制 / 实验设置与证据边界 / 局限与未覆盖问题 / Provenance`. This spine is preferred for new writes that cover primary papers; current approved heading aliases remain acceptable during repairs when the section role is clear. If the source is a survey/review, switch to `../../paper-research-wiki/references/survey-page-anatomy.md` instead of forcing the method-paper spine.
 
 For concept, derivation, experiment, synthesis, and opportunity pages, make headings page-specific:
 

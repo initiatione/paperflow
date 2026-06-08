@@ -93,9 +93,9 @@ updated: 2026-06-04
 ## Provenance
 ```
 
-The template above shows the `references/` shape. For the full section-by-section references contract — body skeleton, depth/precision rules (mechanism-contrast, graph integration), stance vocabulary, provenance schema, and a self-check — follow `../skills/paper-research-wiki/references/references-page-anatomy.md`. The other families (`concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, `opportunities/`) keep the required frontmatter fields but use family-specific source cardinality and body structure per `../skills/paper-wiki-language/SKILL.md`.
+The template above shows the `references/` shape. For the full section-by-section references contract — body skeleton, depth/precision rules (mechanism-contrast, graph integration), stance vocabulary, provenance schema, and a self-check — follow `../skills/paper-research-wiki/references/references-page-anatomy.md`. When the source paper is a survey/review, follow `../skills/paper-research-wiki/references/survey-page-anatomy.md` instead — it owns the survey map/hub spine, the survey detection signals, and the `evidence/literature-review` tier. The other families (`concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, `opportunities/`) keep the required frontmatter fields but use family-specific source cardinality and body structure per `../skills/paper-wiki-language/SKILL.md`.
 
-`tags:` uses five facets: `domain/`, `method/` (one or more), `task/`, `topic/` (optional), and a required `evidence/` tier (`simulation`, `hardware-in-the-loop`, `pool-trial`, `sea-trial`, or `real-data-driven-simulation`). The `evidence/` facet is what prevents a simulation paper from being cited as field-proven.
+`tags:` uses five facets: `domain/`, `method/` (one or more), `task/`, `topic/` (optional), and a required `evidence/` tier (`simulation`, `hardware-in-the-loop`, `pool-trial`, `sea-trial`, `real-data-driven-simulation`, or `literature-review` for survey/review papers). The `evidence/` facet is what prevents a simulation paper from being cited as field-proven, and `literature-review` marks a survey as secondary evidence rather than a primary result.
 
 Required frontmatter fields:
 

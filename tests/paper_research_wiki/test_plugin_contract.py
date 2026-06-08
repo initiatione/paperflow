@@ -25,6 +25,7 @@ REFERENCES = {
     "page-provenance.md",
     "page-family-contract.md",
     "references-page-anatomy.md",
+    "survey-page-anatomy.md",
     "upstream-obsidian-wiki-map.md",
 }
 FORMAL_PAGE_FAMILIES = {

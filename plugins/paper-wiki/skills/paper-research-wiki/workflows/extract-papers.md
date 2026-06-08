@@ -6,6 +6,8 @@ This workflow adapts Ar9av/obsidian-wiki `wiki-ingest`: do not summarize papers 
 
 Before planning or writing pages, read `../../../rules/wiki-writing-standard.md` and `../../paper-wiki-language/SKILL.md`; treat them as mandatory page-writing and language contracts. When writing or repairing `references/` pages, also read `../references/references-page-anatomy.md` — the binding section-by-section references contract.
 
+Detect survey/review papers and route them differently. A paper is a survey/review when any hold: the `method/review` tag is present; the title/venue says review or survey; the body has a PRISMA flow or a taxonomy figure organizing many cited works; or its results are aggregated from cited studies ("no datasets were generated or analysed"). For such papers, write the `references/` page with the **survey map/hub spine** in `../references/survey-page-anatomy.md` (not the method spine), and route durable knowledge to existing families: taxonomy → `concepts/`, cross-method landscape → `synthesis/`, gaps → `opportunities/`. Do not spawn a `derivations/` page from a survey's borrowed illustrative formulas, and do not spawn an `experiments/` page — a survey runs no experiments of its own. A paper that proposes a method and also surveys the field stays a primary paper (method spine).
+
 ## Preflight
 
 1. Resolve the target vault.

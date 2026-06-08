@@ -6,6 +6,16 @@ references-specific deep contract. Read it before drafting, rewriting, or materi
 reference page. It was distilled from the vault's reviewed exemplar pages (ALMPC, MPQ-DPG,
 RLBMPA-COI, IPF) and validated against held-out papers.
 
+## Document-type gate
+
+This file is the **single-method (primary) paper** contract. If the source paper is a **survey or
+review**, this spine misfires — a survey has no single mechanism and runs no experiment of its own, so
+forcing `核心机制` / `实验设置与证据边界` turns borrowed illustrative formulas into fake contributions
+and produces a `derivations/`/`experiments/` page for a paper that derived and ran nothing. Stop and
+follow `survey-page-anatomy.md` instead (the survey map/hub spine, the detection signals, and the
+survey frontmatter incl. `evidence/literature-review`). Use the method spine below for primary papers,
+including a paper that *proposes a method and also surveys the field*.
+
 ## What a reference page is for
 
 A reference page is **not** a paper abstract and **not** a translation. It is a *reusable evidence
