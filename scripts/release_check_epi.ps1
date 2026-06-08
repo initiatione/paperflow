@@ -1,5 +1,5 @@
 param(
-    [string]$PluginRoot = "plugins/epi",
+    [string]$PluginRoot = "plugins/paper-source",
     [string]$PytestTarget = "tests/epi",
     [string]$SkillValidateScript = $env:SKILL_VALIDATE_SCRIPT,
     [string]$PluginValidateScript = $env:PLUGIN_VALIDATE_SCRIPT,

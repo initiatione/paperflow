@@ -65,7 +65,7 @@ def test_record_feedback_appends_jsonl(tmp_path):
     second = record_feedback(
         tmp_path,
         feedback_type="plugin-eval",
-        target="plugins/epi",
+        target="plugins/paper-source",
         message="Token budget warning reviewed.",
         source="plugin-eval",
     )
@@ -89,7 +89,7 @@ def test_record_feedback_updates_run_local_summary_when_run_id_is_provided(tmp_p
     second = record_feedback(
         tmp_path,
         feedback_type="plugin-eval",
-        target="plugins/epi",
+        target="plugins/paper-source",
         message="Whitelist policy confirmed.",
         source="plugin-eval",
         run_id="run-123",
@@ -469,7 +469,7 @@ def test_propose_evolution_rejects_unbounded_target_asset_paths(tmp_path):
         propose_evolution(
             tmp_path,
             reflection_type="OPTIMIZATION",
-            target_asset="../plugins/epi/scripts/build/epi/orchestrator.py",
+            target_asset="../plugins/paper-source/scripts/build/epi/orchestrator.py",
             rationale="Do not allow path traversal evolution targets.",
             proposed_change={"anything": True},
             evidence=["_epi/runs/feedback.jsonl#4"],

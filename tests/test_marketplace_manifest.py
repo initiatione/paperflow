@@ -9,30 +9,30 @@ def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_marketplace_manifests_expose_paperflow_bundle_with_epi_and_prw_machine_names():
+def test_marketplace_manifests_expose_paperflow_bundle_with_stage2_machine_names():
     for rel in [".agents/plugins/marketplace.json", "marketplace.json"]:
         payload = _load(ROOT / rel)
         plugin_names = [plugin["name"] for plugin in payload["plugins"]]
 
-        assert payload["name"] == "paper-search"
+        assert payload["name"] == "paperflow"
         assert payload["interface"]["displayName"] == "PaperFlow"
-        assert plugin_names == ["epi", "prw"]
+        assert plugin_names == ["paper-source", "paper-wiki"]
         assert "mineru-paper-parser" not in plugin_names
 
 
-def test_stage1_naming_preserves_machine_facing_plugin_names_and_paths():
+def test_stage2_naming_uses_paperflow_plugin_names_and_paths():
     root_marketplace = _load(ROOT / "marketplace.json")
     agent_marketplace = _load(ROOT / ".agents" / "plugins" / "marketplace.json")
 
     for payload in [root_marketplace, agent_marketplace]:
-        assert payload["name"] == "paper-search"
+        assert payload["name"] == "paperflow"
         assert payload["interface"]["displayName"] == "PaperFlow"
         entries = {plugin["name"]: plugin for plugin in payload["plugins"]}
-        assert set(entries) == {"epi", "prw"}
-        assert entries["epi"]["source"]["path"] == "./plugins/epi"
-        assert entries["prw"]["source"]["path"] == "./plugins/PRW"
-        assert "paper-source" not in entries
-        assert "paper-wiki" not in entries
+        assert set(entries) == {"paper-source", "paper-wiki"}
+        assert entries["paper-source"]["source"]["path"] == "./plugins/paper-source"
+        assert entries["paper-wiki"]["source"]["path"] == "./plugins/paper-wiki"
+        assert "epi" not in entries
+        assert "prw" not in entries
         assert "ps" not in entries
         assert "pw" not in entries
 

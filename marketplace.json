@@ -1,14 +1,14 @@
 {
-  "name": "paper-search",
+  "name": "paperflow",
   "interface": {
     "displayName": "PaperFlow"
   },
   "plugins": [
     {
-      "name": "epi",
+      "name": "paper-source",
       "source": {
         "source": "local",
-        "path": "./plugins/epi"
+        "path": "./plugins/paper-source"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -17,10 +17,10 @@
       "category": "Productivity"
     },
     {
-      "name": "prw",
+      "name": "paper-wiki",
       "source": {
         "source": "local",
-        "path": "./plugins/PRW"
+        "path": "./plugins/paper-wiki"
       },
       "policy": {
         "installation": "AVAILABLE",

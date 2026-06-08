@@ -1,0 +1,40 @@
+{
+  "name": "paper-source",
+  "version": "0.2.1",
+  "description": "Paper Source (formerly EPI) discovers, acquires, parses, stages, approves, hands off, queries, and records academic paper source evidence for a Paper Wiki-compatible vault.",
+  "author": {
+    "name": "liuchf"
+  },
+  "license": "MIT",
+  "keywords": [
+    "papers",
+    "academic",
+    "research",
+    "literature",
+    "knowledge-base",
+    "obsidian",
+    "zotero",
+    "mineru"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Paper Source",
+    "shortDescription": "v0.2.1 | Paper Source (formerly EPI): find, vet, parse, hand off to Paper Wiki, and record.",
+    "longDescription": "Paper Source, formerly EPI, packages a Codex workflow for profile-driven academic paper discovery, MCP-backed multi-source source coverage, provider-readiness-aware source routing, OA-first PDF acquisition with manual download cards when no direct PDF is available, lightweight PDF identity verification before MinerU, non-authoritative retrieval preview, source-first bundle preservation, MinerU parsing, bounded lifecycle cleanup, optional reader/critic review, low-burden reading reports, Chinese-first approval reports, Paper Wiki handoff, read-only formal graph wiki-ask, final-source-review recording, and proposal-based quality evolution. It derives search terms, venue prior, ranking, and wiki/reader emphasis from the user's config plus the current request, blocks incomplete or mismatched source bundles before final deposition, and prepares handoffs for Paper Wiki or another wiki-capable agent to write into the target Obsidian/LLM Wiki according to that vault's contract.",
+    "developerName": "liuchf",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/initiatione/paper-search",
+    "privacyPolicyURL": "https://github.com/initiatione/paper-search/blob/main/plugins/paper-source/docs/privacy.md",
+    "termsOfServiceURL": "https://github.com/initiatione/paper-search/blob/main/plugins/paper-source/docs/terms.md",
+    "defaultPrompt": [
+      "Set up Paper Source (formerly EPI) configuration.",
+      "Use PS / Paper Source to search and rank high-quality papers.",
+      "Prepare ranked papers through MinerU parse, source bundle audit, Chinese approval report, Paper Wiki handoff, and paper gate.",
+      "Ask read-only questions against the formal paper wiki graph with Paper Source wiki-ask fallback."
+    ]
+  }
+}

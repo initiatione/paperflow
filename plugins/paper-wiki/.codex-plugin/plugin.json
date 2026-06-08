@@ -1,0 +1,41 @@
+{
+  "name": "paper-wiki",
+  "version": "0.2.1",
+  "description": "Paper Wiki (formerly PRW) extracts, checks, updates, and relinks source-map-grounded academic paper knowledge in a Paper Source-compatible Obsidian/LLM Wiki.",
+  "author": {
+    "name": "liuchf"
+  },
+  "license": "MIT",
+  "keywords": [
+    "papers",
+    "academic",
+    "research",
+    "wiki",
+    "obsidian",
+    "provenance",
+    "epi",
+    "language",
+    "style"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Paper Wiki",
+    "shortDescription": "v0.2.1 | Paper Wiki (formerly PRW): ask, deposit, check, update, relink, and redo.",
+    "longDescription": "Paper Wiki, formerly PRW, gives users one plugin-level assistant for Paper Source/EPI-collected papers. The default path is to inspect Paper Source handoffs, identify ready papers, and deposit them into the wiki while keeping detailed provenance, source-map-first reference writing, formula reasoning chains, evidence figure cards, page-family rules, formal-page language style, link repair, linting, taxonomy maintenance, QMD-compatible indexing, and a post-task check inside internal workflows so users do not need to learn many skill names.",
+    "developerName": "liuchf",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/initiatione/paper-search",
+    "privacyPolicyURL": "https://github.com/initiatione/paper-search/blob/main/plugins/paper-wiki/docs/privacy.md",
+    "termsOfServiceURL": "https://github.com/initiatione/paper-search/blob/main/plugins/paper-wiki/docs/terms.md",
+    "defaultPrompt": [
+      "Use PW / Paper Wiki (formerly PRW) to 提取并直接沉淀 Paper Source/EPI 抓下来的论文到 wiki。",
+      "Use PW / Paper Wiki to 根据论文 wiki 提问并回答，标记证据、综合判断、推断和纠错候选。",
+      "Use PW / Paper Wiki to 检测论文 wiki 库的状态、缺口、link 混乱和待处理任务。",
+      "Use PW / Paper Wiki to 更新论文 wiki 库，继续沉淀、重link、兼容 QMD，并修复 ready 的论文。"
+    ]
+  }
+}

@@ -3,8 +3,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DOCS = ROOT / "plugins" / "epi" / "docs"
-PLUGIN_ROOT = ROOT / "plugins" / "epi"
+DOCS = ROOT / "plugins" / "paper-source" / "docs"
+PLUGIN_ROOT = ROOT / "plugins" / "paper-source"
 
 
 def _read(name: str) -> str:
@@ -98,9 +98,10 @@ def test_root_plugin_development_rules_require_version_and_doc_sync():
         "Paper Source",
         "Paper Wiki",
         "display name",
-        "machine-facing name",
-        "`epi`",
-        "`prw`",
+        "machine names",
+        "`paper-source`",
+        "`paper-wiki`",
+        "pre-Stage-2",
         "PS/PW",
         "开发完成后必须同步文档信息",
         "$skill-creator",
@@ -114,16 +115,16 @@ def test_root_plugin_development_rules_require_version_and_doc_sync():
         assert phrase in rules
 
     for command in [
-        "python -m pytest tests\\paper_research_wiki\\test_plugin_contract.py plugins\\epi\\tests\\test_skill_bundle_contract.py tests\\test_marketplace_manifest.py -q",
-        "python -m json.tool plugins\\epi\\.codex-plugin\\plugin.json",
-        "python -m json.tool plugins\\PRW\\.codex-plugin\\plugin.json",
+        "python -m pytest tests\\paper_research_wiki\\test_plugin_contract.py plugins\\paper-source\\tests\\test_skill_bundle_contract.py tests\\test_marketplace_manifest.py -q",
+        "python -m json.tool plugins\\paper-source\\.codex-plugin\\plugin.json",
+        "python -m json.tool plugins\\paper-wiki\\.codex-plugin\\plugin.json",
         "PLUGIN_VALIDATE_SCRIPT",
         "git diff --check",
     ]:
         assert command in rules
 
 
-def test_root_readme_documents_paperflow_stage1_names_and_legacy_aliases():
+def test_root_readme_documents_paperflow_stage2_names_and_legacy_aliases():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     for phrase in [
@@ -132,11 +133,14 @@ def test_root_readme_documents_paperflow_stage1_names_and_legacy_aliases():
         "Paper Wiki (formerly PRW)",
         "PS",
         "PW",
-        "`paper-search`",
+        "`paperflow`",
+        "`paper-source`",
+        "`paper-wiki`",
         "`epi`",
         "`prw`",
         "machine-facing",
         "legacy alias",
+        "pre-Stage-2",
     ]:
         assert phrase in readme
 
@@ -178,7 +182,7 @@ def test_structure_doc_covers_current_plugin_boundaries():
     assert "raw_cleanup.py" in text
     assert "candidate_pdf_urls" in text
     assert "paper_search_mcp.env_file" in text
-    assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
+    assert r"%USERPROFILE%\.codex\plugins\paperflow\paper-source\runtime.json" in text
 
 
 def test_progress_doc_records_status_verification_and_next_steps():
@@ -792,16 +796,16 @@ def test_marketplace_and_readme_describe_profile_driven_generic_epi():
 
 
 def test_docs_document_resumable_reviews_and_evidence_index():
-    workflow = (ROOT / "plugins" / "epi" / "docs" / "workflow.md").read_text(encoding="utf-8")
-    structure = (ROOT / "plugins" / "epi" / "docs" / "structure.md").read_text(encoding="utf-8")
+    workflow = (ROOT / "plugins" / "paper-source" / "docs" / "workflow.md").read_text(encoding="utf-8")
+    structure = (ROOT / "plugins" / "paper-source" / "docs" / "structure.md").read_text(encoding="utf-8")
     discovery = (
-        ROOT / "plugins" / "epi" / "skills" / "paper-discovery" / "workflows" / "run-discovery.md"
+        ROOT / "plugins" / "paper-source" / "skills" / "paper-discovery" / "workflows" / "run-discovery.md"
     ).read_text(encoding="utf-8")
     ingest = (
-        ROOT / "plugins" / "epi" / "skills" / "paper-ingest" / "workflows" / "prepare-ranked.md"
+        ROOT / "plugins" / "paper-source" / "skills" / "paper-ingest" / "workflows" / "prepare-ranked.md"
     ).read_text(encoding="utf-8")
     provenance = (
-        ROOT / "plugins" / "epi" / "skills" / "wiki-provenance" / "SKILL.md"
+        ROOT / "plugins" / "paper-source" / "skills" / "wiki-provenance" / "SKILL.md"
     ).read_text(encoding="utf-8")
     combined = "\n".join([workflow, structure, discovery, ingest, provenance])
     assert "_epi/reviews" in combined
@@ -819,7 +823,7 @@ def test_epi_plugin_description_reflects_full_pipeline():
     assert any(k in desc for k in ["parse", "MinerU", "critic", "handoff", "wiki ingest"])
 
 
-def test_epi_user_docs_use_paper_source_and_paper_wiki_stage1_names():
+def test_epi_user_docs_use_paper_source_and_paper_wiki_stage2_names():
     combined = "\n".join([
         _read("workflow.md"),
         _read("structure.md"),
@@ -833,8 +837,9 @@ def test_epi_user_docs_use_paper_source_and_paper_wiki_stage1_names():
         "formerly PRW",
         "PS/PW",
         "machine-facing name",
-        "`epi`",
-        "`prw`",
+        "`paper-source`",
+        "`paper-wiki`",
+        "pre-Stage-2",
     ]:
         assert phrase in combined
 
@@ -846,14 +851,14 @@ def test_epi_user_docs_use_paper_source_and_paper_wiki_stage1_names():
         assert phrase in combined
 
 
-def test_stage1_does_not_create_ps_pw_machine_entrypoints():
+def test_short_aliases_do_not_create_ps_pw_machine_entrypoints():
     checked_files = [
         ROOT / "marketplace.json",
         ROOT / ".agents" / "plugins" / "marketplace.json",
-        ROOT / "plugins" / "epi" / ".codex-plugin" / "plugin.json",
-        ROOT / "plugins" / "PRW" / ".codex-plugin" / "plugin.json",
-        ROOT / "plugins" / "epi" / "skills" / "routing.yaml",
-        ROOT / "plugins" / "PRW" / "skills" / "routing.yaml",
+        ROOT / "plugins" / "paper-source" / ".codex-plugin" / "plugin.json",
+        ROOT / "plugins" / "paper-wiki" / ".codex-plugin" / "plugin.json",
+        ROOT / "plugins" / "paper-source" / "skills" / "routing.yaml",
+        ROOT / "plugins" / "paper-wiki" / "skills" / "routing.yaml",
     ]
     combined = "\n".join(path.read_text(encoding="utf-8") for path in checked_files)
 
@@ -955,7 +960,7 @@ def test_read_only_ask_ownership_documented_epi_side():
 
 
 def test_plugin_versions_bumped_to_0_2_1():
-    for rel in ["plugins/epi/.codex-plugin/plugin.json", "plugins/PRW/.codex-plugin/plugin.json"]:
+    for rel in ["plugins/paper-source/.codex-plugin/plugin.json", "plugins/paper-wiki/.codex-plugin/plugin.json"]:
         manifest = json.loads((ROOT / rel).read_text(encoding="utf-8"))
 
         assert manifest["version"] == "0.2.1"

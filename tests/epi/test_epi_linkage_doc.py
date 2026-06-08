@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-LINKAGE_DOC = ROOT / "plugins" / "epi" / "docs" / "epi-linkage.md"
+LINKAGE_DOC = ROOT / "plugins" / "paper-source" / "docs" / "epi-linkage.md"
 
 
 def test_epi_linkage_doc_defines_scope_pipeline_and_sync_rule():

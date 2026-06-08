@@ -38,7 +38,7 @@ def _write_fake_paper_search(tmp_path: Path, payload: dict) -> str:
 
 
 def test_plugin_mcp_registration_uses_runtime_config_launcher():
-    plugin_root = Path(__file__).resolve().parents[2] / "plugins" / "epi"
+    plugin_root = Path(__file__).resolve().parents[2] / "plugins" / "paper-source"
     mcp_config = json.loads((plugin_root / ".mcp.json").read_text(encoding="utf-8"))
 
     server = mcp_config["mcpServers"]["paper-search-mcp"]

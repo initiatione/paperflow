@@ -1,6 +1,6 @@
 # Plugin Development Rules
 
-本文档是 `D:\paper-search` 的插件开发门禁。适用于 `plugins/epi`、`plugins/PRW` 以及后续新增的 Codex marketplace 插件。每次修改插件源码、skill、workflow、文档、测试或 marketplace 可见行为时，都必须按本规范收尾。
+本文档是 `D:\paper-search` 的插件开发门禁。适用于 `plugins/paper-source`、`plugins/paper-wiki` 以及后续新增的 Codex marketplace 插件。每次修改插件源码、skill、workflow、文档、测试或 marketplace 可见行为时，都必须按本规范收尾。
 
 ## 版本同步
 
@@ -38,11 +38,11 @@
 开发完成后必须同步文档信息。按影响面更新：
 
 - 仓库级说明：`README.md`，用于安装、结构、开发规范入口和发布边界。
-- EPI 主链路：`plugins/epi/docs/epi-linkage.md`。
-- EPI 结构：`plugins/epi/docs/structure.md`。
-- EPI 工作流短入口：`plugins/epi/docs/workflow.md`。
-- EPI 进度和验证：`plugins/epi/docs/progress.md`。
-- PRW 结构/工作流/集成：`plugins/PRW/docs/structure.md`、`plugins/PRW/docs/workflow.md`、`plugins/PRW/docs/epi-integration.md`。
+- EPI 主链路：`plugins/paper-source/docs/epi-linkage.md`。
+- EPI 结构：`plugins/paper-source/docs/structure.md`。
+- EPI 工作流短入口：`plugins/paper-source/docs/workflow.md`。
+- EPI 进度和验证：`plugins/paper-source/docs/progress.md`。
+- PRW 结构/工作流/集成：`plugins/paper-wiki/docs/structure.md`、`plugins/paper-wiki/docs/workflow.md`、`plugins/paper-wiki/docs/epi-integration.md`。
 - 对应 skill 的 `SKILL.md`、`workflows/*.md`、`references/*.md`、`skills/routing.yaml`。
 
 文档必须写清楚：
@@ -55,15 +55,17 @@
 
 ## 命名边界
 
-PaperFlow 是 bundle/product 的 display name；当前 marketplace machine-facing name 仍是 `paper-search`。
+Current machine names:
 
-Paper Source 是 `plugins/epi` 的 display name；当前插件 machine-facing name 仍是 `epi`。EPI 是 legacy alias，至少保留一个 minor 版本周期。
+PaperFlow 是 bundle/product 的 display name；当前 marketplace machine-facing name 是 `paperflow`。`paper-search` 只保留为仓库 URL、外部 `paper-search-mcp` / `paper-search` CLI 名称和 pre-Stage-2 安装缓存线索。
 
-Paper Wiki 是 `plugins/PRW` 的 display name；当前插件 machine-facing name 仍是 `prw`。PRW 是 legacy alias，至少保留一个 minor 版本周期。
+Paper Source 是 `plugins/paper-source` 的 display name；当前插件 machine-facing name 是 `paper-source`。EPI / `epi` 是 pre-Stage-2 legacy alias 和内部 artifact/skill 历史词。
+
+Paper Wiki 是 `plugins/paper-wiki` 的 display name；当前插件 machine-facing name 是 `paper-wiki`。PRW / `prw` 是 pre-Stage-2 legacy alias 和内部 artifact/skill 历史词。
 
 PS/PW 只作为自然语言别名和触发短语使用，不新增 `$PS`、`$PW`、`ps`、`pw` 插件或 skill 入口。
 
-阶段 1 禁止改目录名、manifest `name`、artifact schema、CLI/MCP 名称、安装缓存路径或历史字段；只改用户可见 display/copy/routing trigger。凡是指机器名、路径、历史 artifact、legacy compatibility 的位置，保留 `epi` / `prw` / EPI / PRW 并解释清楚。
+Stage 2 已经硬切目录名、manifest `name`、marketplace `name` 和用户级 runtime 默认路径。不要再新增可安装的 `epi` / `prw` shim；凡是指历史 artifact、legacy compatibility、Python 包名、`_epi/` vault 根、旧 skill 名或外部 `paper-search` MCP/CLI 的位置，保留原词并解释清楚。
 
 ## Skill-Based Architecture
 
@@ -85,8 +87,8 @@ PS/PW 只作为自然语言别名和触发短语使用，不新增 `$PS`、`$PW`
 
 当前两个插件的边界是：
 
-- Paper Source (`epi`, formerly EPI)：论文发现、排序、PDF 获取、MinerU、source bundle、reader/critic、staging、approval/gate/record、`wiki-setup` vault bootstrap。
-- Paper Wiki (`prw`, formerly PRW)：正式论文 wiki 页面写入、检查、更新、redo/deep extraction、relink、语言 gate、tracking/QMD 兼容和 post-task check。
+- Paper Source (`paper-source`, formerly EPI / `epi`)：论文发现、排序、PDF 获取、MinerU、source bundle、reader/critic、staging、approval/gate/record、`wiki-setup` vault bootstrap。
+- Paper Wiki (`paper-wiki`, formerly PRW / `prw`)：正式论文 wiki 页面写入、检查、更新、redo/deep extraction、relink、语言 gate、tracking/QMD 兼容和 post-task check。
 - `epi-paper-deposition`：Paper Source/EPI compatibility adapter，不是用户级正式写页主入口。
 - Paper Wiki 不初始化、修复、reset 或静默创建 vault 结构；缺 `_epi/`、`_meta/`、`.obsidian`、`.git` 或正式页面根目录时，指回 Paper Source/EPI `wiki-setup`。
 
@@ -97,9 +99,9 @@ PS/PW 只作为自然语言别名和触发短语使用，不新增 `$PS`、`$PW`
 每次插件改动至少运行：
 
 ```powershell
-python -m pytest tests\paper_research_wiki\test_plugin_contract.py plugins\epi\tests\test_skill_bundle_contract.py tests\test_marketplace_manifest.py -q
-python -m json.tool plugins\epi\.codex-plugin\plugin.json > $null
-python -m json.tool plugins\PRW\.codex-plugin\plugin.json > $null
+python -m pytest tests\paper_research_wiki\test_plugin_contract.py plugins\paper-source\tests\test_skill_bundle_contract.py tests\test_marketplace_manifest.py -q
+python -m json.tool plugins\paper-source\.codex-plugin\plugin.json > $null
+python -m json.tool plugins\paper-wiki\.codex-plugin\plugin.json > $null
 git diff --check
 ```
 
@@ -108,7 +110,7 @@ git diff --check
 - EPI handoff/schema 生成物：`tests\epi\test_wiki_deposition_task.py`、`tests\epi\test_one_paper_ingest.py`、`tests\epi\test_wiki_ingest_handoff.py`、`tests\epi\test_wiki_ingest_record.py`。
 - EPI config/doctor/runtime：`tests\epi\test_runtime_config.py`、`tests\epi\test_doctor_cli.py`、`tests\epi\test_config_onboarding_docs.py`。
 - PRW 页面写入/语言/链接规则：`tests\paper_research_wiki\test_plugin_contract.py`。
-- Marketplace 或 manifest 改动：根 marketplace contract tests、`plugin.json` JSON 解析检查、必要时安装缓存验证；如果当前机器配置了 `PLUGIN_VALIDATE_SCRIPT`，再分别运行 `python $env:PLUGIN_VALIDATE_SCRIPT plugins\epi` 和 `python $env:PLUGIN_VALIDATE_SCRIPT plugins\PRW`，不要引用不存在的固定 validator 路径。
+- Marketplace 或 manifest 改动：根 marketplace contract tests、`plugin.json` JSON 解析检查、必要时安装缓存验证；如果当前机器配置了 `PLUGIN_VALIDATE_SCRIPT`，再分别运行 `python $env:PLUGIN_VALIDATE_SCRIPT plugins\paper-source` 和 `python $env:PLUGIN_VALIDATE_SCRIPT plugins\paper-wiki`，不要引用不存在的固定 validator 路径。
 
 如果运行了安装缓存或真实 vault 验证，必须明确报告路径，例如 `C:\Users\liuchf\.codex\plugins\cache\paper-search\...` 或 `D:\paper-research-wiki`。不要把 source checkout 结果和 installed runtime 结果混为一谈。
 

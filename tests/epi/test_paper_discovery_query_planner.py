@@ -7,7 +7,7 @@ from epi.query_planner import build_query_plan
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PLANNER = ROOT / "plugins" / "epi" / "skills" / "paper-discovery" / "scripts" / "query-planner.py"
+PLANNER = ROOT / "plugins" / "paper-source" / "skills" / "paper-discovery" / "scripts" / "query-planner.py"
 
 
 def test_query_planner_generates_profile_derived_non_review_plan():

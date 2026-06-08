@@ -2,8 +2,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_DOC = ROOT / "plugins" / "epi" / "docs" / "config.md"
-SKILL_DIR = ROOT / "plugins" / "epi" / "skills"
+CONFIG_DOC = ROOT / "plugins" / "paper-source" / "docs" / "config.md"
+SKILL_DIR = ROOT / "plugins" / "paper-source" / "skills"
 
 
 def _read(path: Path) -> str:
@@ -36,7 +36,7 @@ def test_config_doc_defines_plain_chinese_eight_step_onboarding_script():
     assert "技术预览" in text
     assert "YAML" in text
     assert "等用户明确确认后" in text
-    assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
+    assert r"%USERPROFILE%\.codex\plugins\paperflow\paper-source\runtime.json" in text
     assert "runtime.json 不保存 token 明文" in text
     assert "mineru.env" in text
     assert "EPI 是通用插件，不默认任何学科" in text
@@ -97,7 +97,7 @@ def test_wiki_setup_skill_owns_vault_initialization_and_reset_confirmation():
     assert "no-write inspection" in combined
     assert "epi-repository-migrate --vault <vault> --preview --json" in text
     assert "epi-repository-cleanup --vault <vault> --preview --json" in text
-    assert r"%USERPROFILE%\.codex\plugins\paper-search\epi\runtime.json" in text
+    assert r"%USERPROFILE%\.codex\plugins\paperflow\paper-source\runtime.json" in text
     assert "config-status --vault <vault> --json --include-values --include-runtime" in reset_workflow
     assert "确认重置 EPI wiki" in reset_workflow
     assert "确认同时重置 EPI config" in reset_workflow

@@ -4,8 +4,8 @@ import re
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PLUGIN = ROOT / "plugins" / "PRW"
-EPI_PLUGIN = ROOT / "plugins" / "epi"
+PLUGIN = ROOT / "plugins" / "paper-wiki"
+EPI_PLUGIN = ROOT / "plugins" / "paper-source"
 PUBLIC_SKILL = PLUGIN / "skills" / "paper-research-wiki"
 MARKETPLACES = [
     ROOT / "marketplace.json",
@@ -143,7 +143,7 @@ def _load_prw_routing():
 def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["name"] == "prw"
+    assert manifest["name"] == "paper-wiki"
     assert manifest["version"] == "0.2.1"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
@@ -172,7 +172,7 @@ def test_epi_manifest_describes_brief_first_prw_boundary():
     manifest = _read_json(EPI_PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["version"] == "0.2.1"
-    assert manifest["name"] == "epi"
+    assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert (
         manifest["description"]
@@ -192,11 +192,12 @@ def test_marketplaces_register_paper_research_wiki():
         marketplace = _read_json(marketplace_path)
         entries = {entry["name"]: entry for entry in marketplace["plugins"]}
 
-        assert "prw" in entries, marketplace_path
-        entry = entries["prw"]
+        assert "paper-wiki" in entries, marketplace_path
+        assert "paper-source" in entries, marketplace_path
+        entry = entries["paper-wiki"]
         assert entry["source"] == {
             "source": "local",
-            "path": "./plugins/PRW",
+            "path": "./plugins/paper-wiki",
         }
         assert entry["policy"] == {
             "installation": "AVAILABLE",
@@ -954,7 +955,7 @@ def test_skill_ui_metadata_uses_single_public_skill():
         assert phrase in metadata
 
 
-def test_paper_wiki_stage1_aliases_are_natural_language_only():
+def test_paper_wiki_short_aliases_are_natural_language_only():
     routing = _read(PLUGIN / "skills" / "routing.yaml")
     skill = _read(PUBLIC_SKILL / "SKILL.md")
     metadata = _read(PUBLIC_SKILL / "agents" / "openai.yaml")
@@ -968,7 +969,7 @@ def test_paper_wiki_stage1_aliases_are_natural_language_only():
     assert ("name: " + "pw") not in routing.lower()
 
 
-def test_prw_user_docs_use_paper_wiki_and_paper_source_stage1_names():
+def test_prw_user_docs_use_paper_wiki_and_paper_source_stage2_names():
     workflow = _read(PLUGIN / "docs" / "workflow.md")
     structure = _read(PLUGIN / "docs" / "structure.md")
     integration = _read(PLUGIN / "docs" / "epi-integration.md")
@@ -982,8 +983,9 @@ def test_prw_user_docs_use_paper_wiki_and_paper_source_stage1_names():
         "PW",
         "PS",
         "machine-facing",
-        "`prw`",
-        "`epi`",
+        "`paper-wiki`",
+        "`paper-source`",
+        "pre-Stage-2",
     ]:
         assert phrase in combined
 
@@ -1036,18 +1038,18 @@ def test_all_prw_skills_have_ui_metadata():
 
 
 def test_epi_bridge_points_to_plugin_level_experience():
-    skill = _read(ROOT / "plugins" / "epi" / "skills" / "epi-paper-deposition" / "SKILL.md")
+    skill = _read(ROOT / "plugins" / "paper-source" / "skills" / "epi-paper-deposition" / "SKILL.md")
     workflow = _read(
         ROOT
         / "plugins"
-        / "epi"
+        / "paper-source"
         / "skills"
         / "epi-paper-deposition"
         / "workflows"
         / "formal-wiki-write.md"
     )
-    structure = _read(ROOT / "plugins" / "epi" / "docs" / "structure.md")
-    linkage = _read(ROOT / "plugins" / "epi" / "docs" / "epi-linkage.md")
+    structure = _read(ROOT / "plugins" / "paper-source" / "docs" / "structure.md")
+    linkage = _read(ROOT / "plugins" / "paper-source" / "docs" / "epi-linkage.md")
 
     for text in [skill, workflow, structure, linkage]:
         assert "paper-research-wiki" in text

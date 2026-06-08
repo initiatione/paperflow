@@ -14,7 +14,7 @@ def _seed_plugin_root(tmp_path):
     _write_json(
         plugin_root / ".codex-plugin" / "plugin.json",
         {
-            "name": "epi",
+            "name": "paper-source",
             "version": "0.1.0-test",
             "description": "Fixture EPI plugin",
             "author": {"name": "test"},
@@ -167,7 +167,7 @@ def test_doctor_json_reports_structured_checks(tmp_path, monkeypatch, capsys):
 
     assert exit_code == 0
     assert payload["overall_status"] == "ok"
-    assert payload["plugin"]["name"] == "epi"
+    assert payload["plugin"]["name"] == "paper-source"
     assert payload["plugin"]["version"] == "0.1.0-test"
     assert payload["default_vault"] == str((tmp_path / "vault").resolve())
     assert {check["name"]: check["status"] for check in payload["checks"]}["paper_search_mcp"] == "warning"

@@ -5,7 +5,7 @@ from pathlib import Path
 import runpy
 
 
-PLUGIN_ROOT = Path(__file__).resolve().parents[2] / "plugins" / "epi"
+PLUGIN_ROOT = Path(__file__).resolve().parents[2] / "plugins" / "paper-source"
 
 
 def _load_module(path, name):
