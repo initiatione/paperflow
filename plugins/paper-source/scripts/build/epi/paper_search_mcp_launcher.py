@@ -41,23 +41,45 @@ def build_launch_command() -> list[str]:
     command = os.environ.get("EPI_PAPER_SEARCH_MCP_COMMAND") or "python"
     args = shlex.split(os.environ.get("EPI_PAPER_SEARCH_MCP_ARGS") or "-m paper_search_mcp.server")
     if _should_autodetect_python(command, args):
-        command = _select_paper_search_python(command)
+        selected = _select_paper_search_python(command)
+        if selected is None:
+            raise RuntimeError(_missing_paper_search_mcp_message())
+        command = selected
     return [command, *args]
 
 
 def _should_autodetect_python(command: str, args: list[str]) -> bool:
-    return _is_unqualified_python_command(command) and args[:2] == ["-m", "paper_search_mcp.server"]
+    return _is_python_command(command) and _is_paper_search_mcp_server_args(args)
+
+
+def _is_paper_search_mcp_server_args(args: list[str]) -> bool:
+    return args[:2] == ["-m", "paper_search_mcp.server"]
+
+
+def _is_python_command(command: str) -> bool:
+    command_name = command.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    return command_name in {"python", "python.exe", "python3", "python3.exe"}
 
 
 def _is_unqualified_python_command(command: str) -> bool:
     return command.lower() in {"python", "python.exe", "python3", "python3.exe"}
 
 
-def _select_paper_search_python(configured_command: str) -> str:
+def _select_paper_search_python(configured_command: str) -> str | None:
     for candidate in _candidate_python_commands(configured_command):
         if _python_can_import_paper_search_mcp(candidate):
             return candidate
-    return configured_command
+    return None
+
+
+def _missing_paper_search_mcp_message() -> str:
+    runtime_path = os.environ.get("EPI_RUNTIME_CONFIG") or "<CODEX_HOME>/plugins/paperflow/paper-source/runtime.json"
+    return (
+        "paper-search-mcp launcher could not find a Python interpreter that can import "
+        "paper_search_mcp. Install paper-search-mcp into a Python environment, or set "
+        "paper_search_mcp.command in runtime.json / EPI_PAPER_SEARCH_MCP_COMMAND to the "
+        f"interpreter that provides it. Runtime config path: {runtime_path}"
+    )
 
 
 def _candidate_python_commands(configured_command: str) -> list[str]:
@@ -155,7 +177,16 @@ def _python_can_import_paper_search_mcp(command: str) -> bool:
 
 
 def main() -> int:
-    process = subprocess.run(build_launch_command())
+    try:
+        command = build_launch_command()
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    try:
+        process = subprocess.run(command)
+    except OSError as exc:
+        print(f"paper-search-mcp launcher could not start command {command!r}: {exc}", file=sys.stderr)
+        return 1
     return process.returncode
 
 

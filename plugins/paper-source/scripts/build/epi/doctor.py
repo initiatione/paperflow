@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
 import webbrowser
 from pathlib import Path
 
@@ -72,6 +74,10 @@ SETUP_GUIDES = {
         ],
     },
 }
+
+MCP_SECTION_PATTERN = re.compile(
+    r"""^\s*\[\s*mcp_servers\s*\.\s*(?:"paper-search-mcp"|'paper-search-mcp'|paper-search-mcp)\s*\]\s*$"""
+)
 
 
 def _check_path(plugin_root: Path, relative_path: str) -> dict:
@@ -248,6 +254,142 @@ def _check_paper_search_provider_readiness() -> dict:
     }
 
 
+def _codex_home() -> Path:
+    configured = os.environ.get("CODEX_HOME")
+    return Path(configured).expanduser() if configured else Path.home() / ".codex"
+
+
+def _check_codex_mcp_registration() -> dict:
+    config_path = _codex_home() / "config.toml"
+    if not config_path.exists():
+        return {
+            "name": "codex_mcp_registration",
+            "status": "ok",
+            "path": str(config_path),
+            "message": "Codex config.toml not present; plugin .mcp.json self-registration is not shadowed here",
+            "shadowing_static_config": False,
+        }
+    try:
+        lines = config_path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return {
+            "name": "codex_mcp_registration",
+            "status": "warning",
+            "path": str(config_path),
+            "message": f"could not read Codex config.toml to check paper-search-mcp registration: {exc}",
+            "shadowing_static_config": None,
+        }
+    for line_number, line in enumerate(lines, start=1):
+        if MCP_SECTION_PATTERN.match(line):
+            return {
+                "name": "codex_mcp_registration",
+                "status": "warning",
+                "path": str(config_path),
+                "line": line_number,
+                "message": (
+                    "user-level [mcp_servers.paper-search-mcp] can shadow the Paper Source plugin .mcp.json "
+                    "self-registration; remove that static block unless intentionally overriding the plugin"
+                ),
+                "shadowing_static_config": True,
+            }
+    return {
+        "name": "codex_mcp_registration",
+        "status": "ok",
+        "path": str(config_path),
+        "message": "no user-level paper-search-mcp static registration found",
+        "shadowing_static_config": False,
+    }
+
+
+def _expand_plugin_path(plugin_root: Path, value: str) -> Path:
+    expanded = value.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root))
+    return Path(expanded).expanduser()
+
+
+def _looks_like_path(value: str) -> bool:
+    return any(separator in value for separator in ("/", "\\")) or bool(Path(value).drive)
+
+
+def _outer_command_available(plugin_root: Path, command: str) -> bool:
+    if not command:
+        return False
+    if _looks_like_path(command) or "${CLAUDE_PLUGIN_ROOT}" in command:
+        return _expand_plugin_path(plugin_root, command).exists()
+    return shutil.which(command) is not None
+
+
+def _launcher_script_from_args(plugin_root: Path, args: list[object]) -> Path | None:
+    for arg in args:
+        text = str(arg)
+        if "paper_search_mcp_launcher.py" in text:
+            return _expand_plugin_path(plugin_root, text)
+    return None
+
+
+def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
+    mcp_path = plugin_root / ".mcp.json"
+    if not mcp_path.exists():
+        return {
+            "name": "mcp_outer_launcher",
+            "status": "warning",
+            "path": str(mcp_path),
+            "server": "paper-search-mcp",
+            "error": "plugin_mcp_json_missing",
+            "message": "plugin .mcp.json is missing; paper-search-mcp self-registration will not be installed",
+        }
+    try:
+        payload = json.loads(mcp_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {
+            "name": "mcp_outer_launcher",
+            "status": "warning",
+            "path": str(mcp_path),
+            "server": "paper-search-mcp",
+            "error": "plugin_mcp_json_unreadable",
+            "message": f"plugin .mcp.json could not be read: {exc}",
+        }
+    servers = payload.get("mcpServers") if isinstance(payload, dict) else None
+    server = servers.get("paper-search-mcp") if isinstance(servers, dict) else None
+    if not isinstance(server, dict):
+        return {
+            "name": "mcp_outer_launcher",
+            "status": "warning",
+            "path": str(mcp_path),
+            "server": "paper-search-mcp",
+            "error": "paper_search_mcp_registration_missing",
+            "message": "plugin .mcp.json does not register paper-search-mcp",
+        }
+    command = str(server.get("command") or "")
+    raw_args = server.get("args")
+    args = raw_args if isinstance(raw_args, list) else []
+    launcher_script = _launcher_script_from_args(plugin_root, args)
+    launcher_script_exists = bool(launcher_script and launcher_script.exists())
+    command_available = _outer_command_available(plugin_root, command)
+    error = None
+    if not command_available:
+        error = "outer_command_not_found"
+    elif not launcher_script_exists:
+        error = "launcher_script_not_found"
+    status = "warning" if error else "ok"
+    return {
+        "name": "mcp_outer_launcher",
+        "status": status,
+        "path": str(mcp_path),
+        "server": "paper-search-mcp",
+        "command": command,
+        "args": [str(arg) for arg in args],
+        "outer_command_available": command_available,
+        "launcher_script": str(launcher_script) if launcher_script else None,
+        "launcher_script_exists": launcher_script_exists,
+        "error": error,
+        "message": (
+            "plugin .mcp.json outer launcher is available"
+            if not error
+            else "plugin .mcp.json outer command or launcher script is missing; Codex may fail before runtime.json is loaded"
+        ),
+    }
+
+
 def _check_epi_config(vault_path: Path) -> dict:
     status = config_status(vault_path)
     configured = bool(status["configured"])
@@ -409,7 +551,9 @@ def collect_doctor_report(
     checks.extend(_check_path(plugin_root, relative_path) for relative_path in REQUIRED_PATHS if relative_path != ".codex-plugin/plugin.json")
     checks.append(_check_skill_bundle_contract(plugin_root))
     checks.append(_check_epi_config(vault_path))
+    checks.append(_check_mcp_outer_launcher(plugin_root))
     checks.append(_check_paper_search_mcp_server())
+    checks.append(_check_codex_mcp_registration())
     checks.append(_check_paper_search(paper_search_command))
     checks.append(_check_paper_search_provider_readiness())
     checks.append(_check_mineru_command(plugin_root, mineru_command))

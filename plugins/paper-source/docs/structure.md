@@ -107,7 +107,7 @@ scripts/build/epi/
 - `config.py` 负责 `_epi/meta/epi-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。旧 `_meta/epi-config.yaml` 只作为迁移/兼容读取来源。
 - `config_protection.py` 负责共享确认口令和 config 保护白名单，供 reset、repair、restore 复用。
 - `wiki_reset.py` 负责 wiki reset 执行器：preview、确认口令、备份/删除、config 默认保护、初始化和 reset manifest。
-- `doctor.py` 负责只读健康检查；外部依赖缺失是 warning，插件结构缺失才 error。
+- `doctor.py` 负责只读健康检查；外部依赖缺失是 warning，插件结构缺失才 error。它还报告 `mcp_outer_launcher` 和 `codex_mcp_registration`，用于区分插件 `.mcp.json` 外层 bootstrap 不可启动、用户级 `config.toml` 静态 MCP 覆盖、runtime.json 内层解释器失效这几层问题。
 - `runtime_config.py` 负责从 `%USERPROFILE%\.codex\plugins\paperflow\paper-source\runtime.json` 加载本机依赖配置，只补缺失的进程环境变量，不覆盖显式 env，不保存 token 明文；paper-search provider key/email 只能通过 `paper_search_mcp.env_file` 或显式进程环境进入。
 - `paper_search_adapter.py` 优先调用外部 `paper-search-mcp` stdio server，并在失败、超时或空结果时回退到 `paper-search` CLI，把上游输出标准化为 EPI 候选记录；`plan_source_routing` 会把 Google Scholar 等 `unstable` source 默认降级，并把 Unpaywall email 缺失写成 `source_routing.provider_gaps` / `unpaywall_email_missing`；dry-run report 会保留 `source_coverage`，包含 `sources_used`、`source_results`、`errors`、`raw_total`、`deduped_total`、`query_count`、source capability matrix、provider readiness、source routing 和 provider gaps；`doctor --json` 也会输出 `paper_search_provider_readiness`，暴露 Unpaywall/CORE/Semantic Scholar/Google Scholar/DOAJ/Zenodo provider env 缺口；acquire 后可调用 MCP `read_<source>_paper` 或 CLI read 写 non-authoritative retrieval preview。
 - `review_sessions.py` 负责 `_epi/reviews/<review-id>/` 的 default resume 状态：signature、`state.json`、`candidates.json`、`shortlist.json`、`fetch_plan.json`、`coverage.json`、`provider-cache/query-*.json`、resume 计数和 provider-call skip 记录。

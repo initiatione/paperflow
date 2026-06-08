@@ -1,5 +1,6 @@
 import json
 import sys
+from pathlib import Path
 
 from epi.orchestrator import main
 
@@ -99,7 +100,29 @@ def _seed_plugin_root(tmp_path):
     return plugin_root
 
 
-def _run_orchestrator_cli(monkeypatch, capsys, *args):
+def _write_plugin_mcp(plugin_root, command="python", args=None):
+    (plugin_root / "scripts" / "paper_search_mcp_launcher.py").write_text("# launcher\n", encoding="utf-8")
+    _write_json(
+        plugin_root / ".mcp.json",
+        {
+            "mcpServers": {
+                "paper-search-mcp": {
+                    "command": command,
+                    "args": args or ["${CLAUDE_PLUGIN_ROOT}/scripts/paper_search_mcp_launcher.py"],
+                }
+            }
+        },
+    )
+
+
+def _run_orchestrator_cli(monkeypatch, capsys, *args, codex_home=None):
+    plugin_root = None
+    for index, arg in enumerate(args):
+        if arg == "--plugin-root" and index + 1 < len(args):
+            plugin_root = Path(args[index + 1])
+            break
+    selected_codex_home = Path(codex_home) if codex_home else (plugin_root.parent if plugin_root else Path.cwd()) / "codex-home"
+    monkeypatch.setenv("CODEX_HOME", str(selected_codex_home))
     monkeypatch.setattr(sys, "argv", ["epi.orchestrator", *args])
     exit_code = main()
     output = capsys.readouterr().out
@@ -194,6 +217,69 @@ def test_doctor_json_reports_structured_checks(tmp_path, monkeypatch, capsys):
     assert readiness["providers"]["google_scholar"]["status"] == "missing_optional_env"
     assert readiness["capabilities"]["crossref"]["read"] == "info-only"
     assert readiness["capabilities"]["openalex"]["download"] == "unsupported"
+    registration = {check["name"]: check for check in payload["checks"]}["codex_mcp_registration"]
+    assert registration["status"] == "ok"
+    assert registration["shadowing_static_config"] is False
+
+
+def test_doctor_warns_when_user_config_shadows_plugin_mcp_registration(tmp_path, monkeypatch, capsys):
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    (codex_home / "config.toml").write_text(
+        "[mcp_servers.paper-search-mcp]\n"
+        'command = "D:/MiniConda/envs/default/python.exe"\n'
+        'args = ["-m", "paper_search_mcp.server"]\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+    plugin_root = _seed_plugin_root(tmp_path)
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "doctor",
+        "--plugin-root",
+        str(plugin_root),
+        "--vault",
+        str(tmp_path / "vault"),
+        "--json",
+        codex_home=codex_home,
+    )
+
+    payload = json.loads(output)
+    registration = {check["name"]: check for check in payload["checks"]}["codex_mcp_registration"]
+
+    assert exit_code == 0
+    assert registration["status"] == "warning"
+    assert registration["shadowing_static_config"] is True
+    assert registration["line"] == 1
+    assert "shadow" in registration["message"]
+
+
+def test_doctor_warns_when_plugin_mcp_outer_launcher_command_is_missing(tmp_path, monkeypatch, capsys):
+    plugin_root = _seed_plugin_root(tmp_path)
+    _write_plugin_mcp(plugin_root, command="missing-python-for-mcp-launcher")
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "doctor",
+        "--plugin-root",
+        str(plugin_root),
+        "--vault",
+        str(tmp_path / "vault"),
+        "--json",
+    )
+
+    payload = json.loads(output)
+    outer_launcher = {check["name"]: check for check in payload["checks"]}["mcp_outer_launcher"]
+
+    assert exit_code == 0
+    assert outer_launcher["status"] == "warning"
+    assert outer_launcher["server"] == "paper-search-mcp"
+    assert outer_launcher["command"] == "missing-python-for-mcp-launcher"
+    assert outer_launcher["error"] == "outer_command_not_found"
+    assert outer_launcher["launcher_script_exists"] is True
 
 
 def test_doctor_reports_skill_agent_and_workflow_discovery_contract(tmp_path, monkeypatch, capsys):

@@ -47,6 +47,20 @@ def test_plugin_mcp_registration_uses_runtime_config_launcher():
     assert server["args"] == ["${CLAUDE_PLUGIN_ROOT}/scripts/paper_search_mcp_launcher.py"]
     assert "paper_search_mcp.server" not in json.dumps(server)
     assert "miniconda" not in json.dumps(server).lower()
+    assert "cmd" not in json.dumps(server).lower()
+    assert "env" not in server
+    assert "EPI_PAPER_SEARCH_MCP_LAUNCHER_DEBUG_LOG" not in json.dumps(server)
+    assert (plugin_root / "scripts" / "paper_search_mcp_launcher.py").exists()
+    assert (plugin_root / "scripts" / "paper_search_mcp_launcher.cmd").exists()
+
+
+def test_windows_cmd_launcher_is_cache_compatibility_only():
+    plugin_root = Path(__file__).resolve().parents[2] / "plugins" / "paper-source"
+    cmd_launcher = (plugin_root / "scripts" / "paper_search_mcp_launcher.cmd").read_text(encoding="utf-8")
+
+    assert "import paper_search_mcp" in cmd_launcher
+    assert "import sys" not in cmd_launcher
+    assert "EPI_PAPER_SEARCH_MCP_LAUNCHER_DEBUG_LOG" in cmd_launcher
 
 
 def test_paper_search_mcp_launcher_detects_installed_python_when_configured_python_lacks_package(
@@ -85,6 +99,64 @@ def test_paper_search_mcp_launcher_detects_installed_python_when_configured_pyth
     command = launcher.build_launch_command()
 
     assert command == [str(installed_python), "-m", "paper_search_mcp.server"]
+
+
+def test_paper_search_mcp_launcher_detects_installed_python_when_configured_python_path_lacks_package(
+    tmp_path, monkeypatch
+):
+    runtime_path = tmp_path / "runtime.json"
+    configured_python = tmp_path / "envs" / "stale" / "python.exe"
+    installed_python = tmp_path / "envs" / "default" / "python.exe"
+    _write_json(
+        runtime_path,
+        {
+            "paper_search_mcp": {
+                "command": str(configured_python),
+                "args": ["-m", "paper_search_mcp.server"],
+            }
+        },
+    )
+    monkeypatch.setenv("EPI_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.delenv("EPI_PAPER_SEARCH_MCP_COMMAND", raising=False)
+    monkeypatch.delenv("EPI_PAPER_SEARCH_MCP_ARGS", raising=False)
+
+    import epi.paper_search_mcp_launcher as launcher
+
+    monkeypatch.setattr(
+        launcher,
+        "_candidate_python_commands",
+        lambda configured_command: [configured_command, str(installed_python)],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_python_can_import_paper_search_mcp",
+        lambda command: command == str(installed_python),
+        raising=False,
+    )
+
+    command = launcher.build_launch_command()
+
+    assert command == [str(installed_python), "-m", "paper_search_mcp.server"]
+
+
+def test_paper_search_mcp_launcher_fails_fast_when_package_is_missing(monkeypatch, capsys):
+    monkeypatch.setenv("EPI_RUNTIME_CONFIG", str(Path("missing-runtime.json")))
+    monkeypatch.delenv("EPI_PAPER_SEARCH_MCP_COMMAND", raising=False)
+    monkeypatch.delenv("EPI_PAPER_SEARCH_MCP_ARGS", raising=False)
+
+    import epi.paper_search_mcp_launcher as launcher
+
+    monkeypatch.setattr(launcher, "_candidate_python_commands", lambda configured_command: ["missing-python"], raising=False)
+    monkeypatch.setattr(launcher, "_python_can_import_paper_search_mcp", lambda command: False, raising=False)
+
+    exit_code = launcher.main()
+
+    assert exit_code == 1
+    stderr = capsys.readouterr().err
+    assert "paper_search_mcp" in stderr
+    assert "runtime.json" in stderr
+    assert "EPI_PAPER_SEARCH_MCP_COMMAND" in stderr
 
 
 def test_paper_search_mcp_launcher_uses_runtime_config_command_and_provider_env(tmp_path, monkeypatch):
@@ -211,6 +283,45 @@ def test_apply_runtime_config_loads_paper_search_provider_env_file(tmp_path, mon
     assert "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY" in status["applied_env"]
     assert "researcher@example.org" not in json.dumps(status)
     assert "semantic-key" not in json.dumps(status)
+
+
+def test_apply_runtime_config_loads_all_documented_paper_search_provider_env_keys(tmp_path, monkeypatch):
+    runtime_path = tmp_path / "runtime.json"
+    paper_search_env = tmp_path / "paper-search.env"
+    paper_search_env.write_text(
+        "\n".join(
+            [
+                "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=researcher@example.org",
+                "PAPER_SEARCH_MCP_CORE_API_KEY=core-key",
+                "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY=semantic-key",
+                "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL=https://proxy.example.org",
+                "PAPER_SEARCH_MCP_DOAJ_API_KEY=doaj-key",
+                "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN=zenodo-token",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _write_json(runtime_path, {"paper_search_mcp": {"env_file": str(paper_search_env)}})
+    monkeypatch.setenv("EPI_RUNTIME_CONFIG", str(runtime_path))
+    for key in [
+        "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL",
+        "PAPER_SEARCH_MCP_CORE_API_KEY",
+        "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY",
+        "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL",
+        "PAPER_SEARCH_MCP_DOAJ_API_KEY",
+        "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    status = apply_runtime_config()
+
+    assert os.environ["PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL"] == "https://proxy.example.org"
+    assert os.environ["PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN"] == "zenodo-token"
+    assert "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL" in status["applied_env"]
+    assert "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN" in status["applied_env"]
+    assert "https://proxy.example.org" not in json.dumps(status)
+    assert "zenodo-token" not in json.dumps(status)
 
 
 def test_apply_runtime_config_does_not_override_explicit_environment(tmp_path, monkeypatch):

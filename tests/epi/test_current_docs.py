@@ -419,6 +419,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "source_routing",
         "provider_gaps",
         "unpaywall_email_missing",
+        "mcp_outer_launcher",
+        "codex_mcp_registration",
         "adaptive Python detection",
         "import paper_search_mcp",
         "capabilities",
