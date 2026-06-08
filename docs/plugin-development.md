@@ -112,7 +112,7 @@ git diff --check
 - PRW 页面写入/语言/链接规则：`tests\paper_research_wiki\test_plugin_contract.py`。
 - Marketplace 或 manifest 改动：根 marketplace contract tests、`plugin.json` JSON 解析检查、必要时安装缓存验证；如果当前机器配置了 `PLUGIN_VALIDATE_SCRIPT`，再分别运行 `python $env:PLUGIN_VALIDATE_SCRIPT plugins\paper-source` 和 `python $env:PLUGIN_VALIDATE_SCRIPT plugins\paper-wiki`，不要引用不存在的固定 validator 路径。
 
-如果运行了安装缓存或真实 vault 验证，必须明确报告路径，例如 `C:\Users\liuchf\.codex\plugins\cache\paper-search\...` 或 `D:\paper-research-wiki`。不要把 source checkout 结果和 installed runtime 结果混为一谈。
+如果运行了安装缓存或真实 vault 验证，必须明确报告路径，例如当前安装缓存 `C:\Users\liuchf\.codex\.tmp\marketplaces\paperflow\plugins\paper-source` / `C:\Users\liuchf\.codex\.tmp\marketplaces\paperflow\plugins\paper-wiki`，或真实 vault `D:\paper-research-wiki`。旧 `%USERPROFILE%\.codex\plugins\cache\paper-search\...` 只能作为 pre-Stage-2 缓存线索，不是当前运行态证明。不要把 source checkout 结果和 installed runtime 结果混为一谈。
 
 ## 发布与安装缓存
 

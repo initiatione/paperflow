@@ -291,7 +291,7 @@ node <plugin-eval.js> analyze <plugin-root> --format markdown
 python scripts\orchestrator.py evaluation-brief --target-asset <asset> --rationale "<text>" --proposed-change-json "<json>" --before-metrics-json "<json>" --after-metrics-json "<json>"
 ```
 
-安装副本在 `%USERPROFILE%\.codex\plugins\cache\paperflow\paper-source\<version>`。旧缓存可能仍存在 `%USERPROFILE%\.codex\plugins\cache\paper-search\epi\<version>`；那只是 pre-Stage-2 installed cache 线索，不是当前源码入口。源码改动必须先提交并通过 GitHub/marketplace 升级流程进入安装副本；不要把安装 cache 当成开发源。
+当前 Codex 运行态安装副本以 `codex plugin list` 为准；在本机应显示为 `%USERPROFILE%\.codex\.tmp\marketplaces\paperflow\plugins\paper-source`。旧缓存可能仍存在 `%USERPROFILE%\.codex\plugins\cache\paperflow\paper-source\<version>` 或 `%USERPROFILE%\.codex\plugins\cache\paper-search\epi\<version>`；那些只是 cache 线索或 pre-Stage-2 installed cache 线索，不是当前源码入口。源码改动必须先提交并通过 GitHub/marketplace 升级流程进入安装副本；不要把安装 cache 当成开发源。
 
 用户级 runtime 配置不放在安装 cache 版本目录，而放在 `%USERPROFILE%\.codex\plugins\paperflow\paper-source\runtime.json`，用于保存 MCP/CLI/MinerU 命令路径、`mineru.env` 路径，以及 `paper_search_mcp.env_file` / `easyscholar.env_file` 这类 secret env file 路径；插件升级 cache 不应覆盖它。
 

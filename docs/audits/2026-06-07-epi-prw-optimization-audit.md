@@ -152,14 +152,14 @@ EPI 侧 `wiki_query.py`(805) 提供 CLI `wiki-ask`；PRW 侧 `ask_wiki` route + 
 `orchestrator.py:91` `_write_json` 仅 `return write_json_atomic(...)`，被调用 30×。**已核实不是原子性绕过**，只是冗余私有别名。**修复**：直接调 `write_json_atomic`，删别名。顺手清理，零风险。
 
 ### D-约束（非问题，执行须知）
-宿主 `tests/epi` 有 300+ 测试（`progress.md` 记 303 passing），加 `plugins/epi/tests` 的 skill-bundle contract + `tests/paper_research_wiki` 的 PRW contract。任何 D 类重构必须：TDD、保持全绿、bump 两个 `plugin.json` 版本、同步受测文档（`test_current_docs.py` / `test_epi_linkage_doc.py` 会校验 docs）。
+宿主 `tests/epi` 有 300+ 测试（`progress.md` 记 303 passing），加 `plugins/paper-source/tests` 的 skill-bundle contract + `tests/paper_research_wiki` 的 PRW contract。任何 D 类重构必须：TDD、保持全绿、bump 两个 `plugin.json` 版本、同步受测文档（`test_current_docs.py` / `test_epi_linkage_doc.py` 会校验 docs）。
 
 ---
 
 ## E. Manifest / 元数据卫生（快速赢）
 
 ### E1 [P3·FORM] EPI `plugin.json` `description` 过时
-`plugins/epi/.codex-plugin/plugin.json:4` `"description": "Search and rank academic papers for an EPI wiki."` 只覆盖检索排序，与同文件 `shortDescription`(行 22，全链路) / `longDescription`(行 23) 及 README 矛盾。marketplace 列表可能展示这条短的。
+`plugins/paper-source/.codex-plugin/plugin.json:4` 曾只覆盖检索排序；Stage 2 后当前 `description` 已改为 Paper Source 全链路定位。若后续再动 manifest，仍要检查它与同文件 `shortDescription` / `longDescription` 及 README 是否一致，因为 marketplace 列表可能展示这条短描述。
 
 **修复**：一行改写成与 longDescription 一致的全链路定位。**工作量**：极低。PRW 的 `description`(行 4) 较准确，可对照。
 

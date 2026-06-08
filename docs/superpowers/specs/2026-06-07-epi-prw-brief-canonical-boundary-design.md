@@ -251,9 +251,9 @@ The implementation plan should avoid broad prose rewrites unless needed to make 
 After implementation, run:
 
 ```powershell
-python -m pytest tests/epi tests/paper_research_wiki plugins/epi/tests -q
-python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\epi
-python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\PRW
+python -m pytest tests/epi tests/paper_research_wiki plugins/paper-source/tests -q
+python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\paper-source
+python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\paper-wiki
 ```
 
 If the default Python cannot import validator dependencies on this machine, use `D:\MiniConda\python.exe` for validator runs.

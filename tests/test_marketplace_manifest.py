@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,3 +42,35 @@ def test_readme_frames_mineru_as_internal_helper():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "not as a separate marketplace plugin" in text
+
+
+def test_current_docs_do_not_use_pre_stage2_plugin_paths_as_live_paths():
+    excluded = {
+        ROOT / "docs" / "superpowers" / "specs" / "2026-06-08-paperflow-stage1-naming-design.md",
+        ROOT / "docs" / "superpowers" / "specs" / "2026-06-08-paperflow-stage2-machine-rename-design.md",
+    }
+    roots = [
+        ROOT / "README.md",
+        ROOT / "docs",
+        ROOT / "plugins",
+        ROOT / "tests",
+        ROOT / "marketplace.json",
+        ROOT / ".agents" / "plugins" / "marketplace.json",
+    ]
+    pattern = re.compile(r"plugins[\\/](?:epi|PRW)(?=[\\/`\s]|$)")
+    offenders = []
+
+    for root in roots:
+        paths = [root] if root.is_file() else root.rglob("*")
+        for path in paths:
+            if not path.is_file():
+                continue
+            if path in excluded or "archive" in path.parts or "__pycache__" in path.parts:
+                continue
+            if path.suffix.lower() not in {".md", ".json", ".py", ".yaml", ".yml", ".ps1"}:
+                continue
+            text = path.read_text(encoding="utf-8")
+            if pattern.search(text):
+                offenders.append(str(path.relative_to(ROOT)))
+
+    assert offenders == []

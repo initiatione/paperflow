@@ -13,45 +13,45 @@
 ## Current Evidence
 
 - Approved spec: `docs/superpowers/specs/2026-06-07-epi-prw-brief-canonical-boundary-design.md`.
-- Current `plugins/epi/scripts/build/epi/wiki_contracts.py` still lists external wiki skills in `REQUIRED_WIKI_SKILLS`.
-- Current `plugins/epi/scripts/build/epi/stage_wiki.py` always writes `_epi/staging/papers/<slug>/wiki_deposition_task.json` and includes it in `promotion-plan.json` agent handoff paths.
-- Current `plugins/PRW/skills/paper-research-wiki/workflows/extract-papers.md` locates `wiki_deposition_task.json` during preflight.
-- Current `plugins/PRW/docs/epi-integration.md` says required inputs include both `wiki_deposition_task.json` and `wiki-ingest-brief.json`.
+- Current `plugins/paper-source/scripts/build/epi/wiki_contracts.py` still lists external wiki skills in `REQUIRED_WIKI_SKILLS`.
+- Current `plugins/paper-source/scripts/build/epi/stage_wiki.py` always writes `_epi/staging/papers/<slug>/wiki_deposition_task.json` and includes it in `promotion-plan.json` agent handoff paths.
+- Current `plugins/paper-wiki/skills/paper-research-wiki/workflows/extract-papers.md` locates `wiki_deposition_task.json` during preflight.
+- Current `plugins/paper-wiki/docs/epi-integration.md` says required inputs include both `wiki_deposition_task.json` and `wiki-ingest-brief.json`.
 - Current tests encode the old broad required stack and old task-required behavior.
 
 ## File Structure
 
 Implementation will modify existing files only:
 
-- `plugins/epi/scripts/build/epi/wiki_contracts.py`: required/optional skill constants and validation mirror comment.
-- `plugins/epi/scripts/build/epi/stage_wiki.py`: brief-first staging, optional legacy task generation, batch handoff metadata.
-- `plugins/epi/scripts/build/epi/paper_gate.py`: brief-first ready check wording and required rule-source expectations.
-- `plugins/epi/scripts/build/epi/wiki_ingest_handoff.py`: handoff checklist and rendered text.
-- `plugins/epi/scripts/build/epi/wiki_ingest_trigger.py`: PRW-first trigger instruction.
-- `plugins/epi/scripts/build/epi/wiki_ingest_record.py`: final-source-review skill usage validation and optional legacy sidecar recording.
+- `plugins/paper-source/scripts/build/epi/wiki_contracts.py`: required/optional skill constants and validation mirror comment.
+- `plugins/paper-source/scripts/build/epi/stage_wiki.py`: brief-first staging, optional legacy task generation, batch handoff metadata.
+- `plugins/paper-source/scripts/build/epi/paper_gate.py`: brief-first ready check wording and required rule-source expectations.
+- `plugins/paper-source/scripts/build/epi/wiki_ingest_handoff.py`: handoff checklist and rendered text.
+- `plugins/paper-source/scripts/build/epi/wiki_ingest_trigger.py`: PRW-first trigger instruction.
+- `plugins/paper-source/scripts/build/epi/wiki_ingest_record.py`: final-source-review skill usage validation and optional legacy sidecar recording.
 - `tests/epi/test_wiki_deposition_task.py`: rename and update to brief-canonical staging tests plus explicit legacy generation test.
 - `tests/epi/test_wiki_ingest_handoff.py`: new required skill stack, optional helper/reference expectations, PRW trigger text.
 - `tests/epi/test_wiki_ingest_record.py`: final review accepts new required stack and records optional legacy task when present.
 - `tests/epi/test_paper_gate.py`: missing brief fails; missing task does not fail.
 - `tests/epi/test_one_paper_ingest.py`: default ingest produces canonical brief and does not depend on task.
 - `tests/paper_research_wiki/test_plugin_contract.py`: PRW brief-first intake contract and unchanged formal-page quality checks.
-- `plugins/PRW/skills/paper-research-wiki/references/epi-artifact-contract.md`: brief canonical, task legacy.
-- `plugins/PRW/skills/paper-research-wiki/workflows/extract-papers.md`: locate `wiki-ingest-brief.json` first.
-- `plugins/PRW/skills/paper-research-wiki/workflows/check-wiki.md`: pending handoffs use brief-first readiness.
-- `plugins/PRW/docs/epi-integration.md`: EPI/PRW boundary contract.
-- `plugins/PRW/skills/paper-research-wiki/SKILL.md`: always-apply wording for brief canonical and legacy task.
-- `plugins/epi/skills/epi-paper-deposition/SKILL.md`: thin legacy compatibility adapter.
-- `plugins/epi/skills/epi-paper-deposition/workflows/formal-wiki-write.md`: thin workflow that requires brief-first recovery before PRW writing.
-- `plugins/epi/skills/paper-ingest/SKILL.md`: brief-first formal deposition wording.
-- `plugins/epi/skills/paper-ingest/workflows/approval-and-trigger.md`: PRW trigger wording.
-- `plugins/epi/docs/epi-linkage.md`, `plugins/epi/docs/workflow.md`, `plugins/epi/docs/structure.md`, `plugins/epi/docs/progress.md`: detailed but single-model boundary docs.
-- `plugins/epi/.codex-plugin/plugin.json`, `plugins/PRW/.codex-plugin/plugin.json`: bump patch version and short descriptions.
+- `plugins/paper-wiki/skills/paper-research-wiki/references/epi-artifact-contract.md`: brief canonical, task legacy.
+- `plugins/paper-wiki/skills/paper-research-wiki/workflows/extract-papers.md`: locate `wiki-ingest-brief.json` first.
+- `plugins/paper-wiki/skills/paper-research-wiki/workflows/check-wiki.md`: pending handoffs use brief-first readiness.
+- `plugins/paper-wiki/docs/epi-integration.md`: EPI/PRW boundary contract.
+- `plugins/paper-wiki/skills/paper-research-wiki/SKILL.md`: always-apply wording for brief canonical and legacy task.
+- `plugins/paper-source/skills/epi-paper-deposition/SKILL.md`: thin legacy compatibility adapter.
+- `plugins/paper-source/skills/epi-paper-deposition/workflows/formal-wiki-write.md`: thin workflow that requires brief-first recovery before PRW writing.
+- `plugins/paper-source/skills/paper-ingest/SKILL.md`: brief-first formal deposition wording.
+- `plugins/paper-source/skills/paper-ingest/workflows/approval-and-trigger.md`: PRW trigger wording.
+- `plugins/paper-source/docs/epi-linkage.md`, `plugins/paper-source/docs/workflow.md`, `plugins/paper-source/docs/structure.md`, `plugins/paper-source/docs/progress.md`: detailed but single-model boundary docs.
+- `plugins/paper-source/.codex-plugin/plugin.json`, `plugins/paper-wiki/.codex-plugin/plugin.json`: bump patch version and short descriptions.
 
 Do not edit the existing formal-page writing rules except to preserve their references:
 
-- `plugins/PRW/rules/wiki-writing-standard.md`
-- `plugins/PRW/rules/formal-page-frontmatter.md`
-- `plugins/PRW/skills/paper-wiki-language/**`
+- `plugins/paper-wiki/rules/wiki-writing-standard.md`
+- `plugins/paper-wiki/rules/formal-page-frontmatter.md`
+- `plugins/paper-wiki/skills/paper-wiki-language/**`
 - existing formal pages in `D:\paper-research-wiki`
 
 ## Implementation Tasks
@@ -63,7 +63,7 @@ Do not edit the existing formal-page writing rules except to preserve their refe
 - Modify: `tests/epi/test_wiki_ingest_handoff.py`
 - Modify: `tests/epi/test_wiki_ingest_record.py`
 - Modify: `tests/epi/test_one_paper_ingest.py`
-- Modify: `plugins/epi/scripts/build/epi/wiki_contracts.py`
+- Modify: `plugins/paper-source/scripts/build/epi/wiki_contracts.py`
 
 - [ ] **Step 1: Update test expected skill constants**
 
@@ -171,7 +171,7 @@ Expected: remaining failures are about `wiki_deposition_task.json` still being g
 Run:
 
 ```powershell
-git add tests/epi/test_wiki_deposition_task.py tests/epi/test_wiki_ingest_handoff.py tests/epi/test_wiki_ingest_record.py tests/epi/test_one_paper_ingest.py plugins/epi/scripts/build/epi/wiki_contracts.py
+git add tests/epi/test_wiki_deposition_task.py tests/epi/test_wiki_ingest_handoff.py tests/epi/test_wiki_ingest_record.py tests/epi/test_one_paper_ingest.py plugins/paper-source/scripts/build/epi/wiki_contracts.py
 git commit -m "feat: shrink EPI required wiki skill contract"
 ```
 
@@ -179,7 +179,7 @@ git commit -m "feat: shrink EPI required wiki skill contract"
 
 **Files:**
 - Modify: `tests/epi/test_wiki_deposition_task.py`
-- Modify: `plugins/epi/scripts/build/epi/stage_wiki.py`
+- Modify: `plugins/paper-source/scripts/build/epi/stage_wiki.py`
 
 - [ ] **Step 1: Rename and rewrite default staging test**
 
@@ -255,7 +255,7 @@ Expected: failure with `TypeError: stage_paper() got an unexpected keyword argum
 
 - [ ] **Step 4: Update `stage_paper` signature**
 
-In `plugins/epi/scripts/build/epi/stage_wiki.py`, change:
+In `plugins/paper-source/scripts/build/epi/stage_wiki.py`, change:
 
 ```python
 def stage_paper(vault_path: Path, slug: str, paper_root: Path, workflow_mode: str = FAST_INGEST_MODE) -> Path:
@@ -400,7 +400,7 @@ Expected: PASS or only failures in tests that still assert old `wiki_deposition_
 Run:
 
 ```powershell
-git add tests/epi/test_wiki_deposition_task.py tests/epi/test_one_paper_ingest.py plugins/epi/scripts/build/epi/stage_wiki.py
+git add tests/epi/test_wiki_deposition_task.py tests/epi/test_one_paper_ingest.py plugins/paper-source/scripts/build/epi/stage_wiki.py
 git commit -m "feat: make wiki ingest brief the default staging handoff"
 ```
 
@@ -410,10 +410,10 @@ git commit -m "feat: make wiki ingest brief the default staging handoff"
 - Modify: `tests/epi/test_paper_gate.py`
 - Modify: `tests/epi/test_wiki_ingest_handoff.py`
 - Modify: `tests/epi/test_wiki_ingest_record.py`
-- Modify: `plugins/epi/scripts/build/epi/paper_gate.py`
-- Modify: `plugins/epi/scripts/build/epi/wiki_ingest_handoff.py`
-- Modify: `plugins/epi/scripts/build/epi/wiki_ingest_trigger.py`
-- Modify: `plugins/epi/scripts/build/epi/wiki_ingest_record.py`
+- Modify: `plugins/paper-source/scripts/build/epi/paper_gate.py`
+- Modify: `plugins/paper-source/scripts/build/epi/wiki_ingest_handoff.py`
+- Modify: `plugins/paper-source/scripts/build/epi/wiki_ingest_trigger.py`
+- Modify: `plugins/paper-source/scripts/build/epi/wiki_ingest_record.py`
 
 - [ ] **Step 1: Add paper-gate no-task ready test**
 
@@ -486,7 +486,7 @@ Expected: failures in trigger instruction wording and paper-gate rule-source exp
 
 - [ ] **Step 5: Update `paper_gate.py` rule-source expectations**
 
-In `plugins/epi/scripts/build/epi/paper_gate.py`, change:
+In `plugins/paper-source/scripts/build/epi/paper_gate.py`, change:
 
 ```python
 required_rule_sources = [
@@ -585,7 +585,7 @@ Expected: PASS.
 Run:
 
 ```powershell
-git add tests/epi/test_paper_gate.py tests/epi/test_wiki_ingest_handoff.py tests/epi/test_wiki_ingest_record.py plugins/epi/scripts/build/epi/paper_gate.py plugins/epi/scripts/build/epi/wiki_ingest_handoff.py plugins/epi/scripts/build/epi/wiki_ingest_trigger.py plugins/epi/scripts/build/epi/wiki_ingest_record.py
+git add tests/epi/test_paper_gate.py tests/epi/test_wiki_ingest_handoff.py tests/epi/test_wiki_ingest_record.py plugins/paper-source/scripts/build/epi/paper_gate.py plugins/paper-source/scripts/build/epi/wiki_ingest_handoff.py plugins/paper-source/scripts/build/epi/wiki_ingest_trigger.py plugins/paper-source/scripts/build/epi/wiki_ingest_record.py
 git commit -m "feat: route EPI handoffs through PRW brief-first boundary"
 ```
 
@@ -593,11 +593,11 @@ git commit -m "feat: route EPI handoffs through PRW brief-first boundary"
 
 **Files:**
 - Modify: `tests/paper_research_wiki/test_plugin_contract.py`
-- Modify: `plugins/PRW/skills/paper-research-wiki/references/epi-artifact-contract.md`
-- Modify: `plugins/PRW/skills/paper-research-wiki/workflows/extract-papers.md`
-- Modify: `plugins/PRW/skills/paper-research-wiki/workflows/check-wiki.md`
-- Modify: `plugins/PRW/docs/epi-integration.md`
-- Modify: `plugins/PRW/skills/paper-research-wiki/SKILL.md`
+- Modify: `plugins/paper-wiki/skills/paper-research-wiki/references/epi-artifact-contract.md`
+- Modify: `plugins/paper-wiki/skills/paper-research-wiki/workflows/extract-papers.md`
+- Modify: `plugins/paper-wiki/skills/paper-research-wiki/workflows/check-wiki.md`
+- Modify: `plugins/paper-wiki/docs/epi-integration.md`
+- Modify: `plugins/paper-wiki/skills/paper-research-wiki/SKILL.md`
 
 - [ ] **Step 1: Update PRW contract tests for brief-first language**
 
@@ -732,7 +732,7 @@ Expected: PASS.
 Run:
 
 ```powershell
-git add tests/paper_research_wiki/test_plugin_contract.py plugins/PRW/skills/paper-research-wiki/references/epi-artifact-contract.md plugins/PRW/skills/paper-research-wiki/workflows/extract-papers.md plugins/PRW/skills/paper-research-wiki/workflows/check-wiki.md plugins/PRW/docs/epi-integration.md plugins/PRW/skills/paper-research-wiki/SKILL.md
+git add tests/paper_research_wiki/test_plugin_contract.py plugins/paper-wiki/skills/paper-research-wiki/references/epi-artifact-contract.md plugins/paper-wiki/skills/paper-research-wiki/workflows/extract-papers.md plugins/paper-wiki/skills/paper-research-wiki/workflows/check-wiki.md plugins/paper-wiki/docs/epi-integration.md plugins/paper-wiki/skills/paper-research-wiki/SKILL.md
 git commit -m "docs: make PRW EPI intake brief-first"
 ```
 
@@ -740,10 +740,10 @@ git commit -m "docs: make PRW EPI intake brief-first"
 
 **Files:**
 - Modify: `tests/epi/test_wiki_deposition_task.py`
-- Modify: `plugins/epi/tests/test_skill_bundle_contract.py`
+- Modify: `plugins/paper-source/tests/test_skill_bundle_contract.py`
 - Modify: `tests/paper_research_wiki/test_plugin_contract.py`
-- Modify: `plugins/epi/skills/epi-paper-deposition/SKILL.md`
-- Modify: `plugins/epi/skills/epi-paper-deposition/workflows/formal-wiki-write.md`
+- Modify: `plugins/paper-source/skills/epi-paper-deposition/SKILL.md`
+- Modify: `plugins/paper-source/skills/epi-paper-deposition/workflows/formal-wiki-write.md`
 
 - [ ] **Step 1: Update adapter tests to require thin alias**
 
@@ -759,7 +759,7 @@ assert "wiki-stage-commit" not in text
 assert "Required frontmatter fields" not in text
 ```
 
-In `plugins/epi/tests/test_skill_bundle_contract.py`, update `test_epi_paper_deposition_documents_required_wiki_adapter_stack` to:
+In `plugins/paper-source/tests/test_skill_bundle_contract.py`, update `test_epi_paper_deposition_documents_required_wiki_adapter_stack` to:
 
 ```python
 def test_epi_paper_deposition_is_thin_legacy_adapter():
@@ -786,7 +786,7 @@ def test_epi_paper_deposition_is_thin_legacy_adapter():
 Run:
 
 ```powershell
-python -m pytest tests/epi/test_wiki_deposition_task.py plugins/epi/tests/test_skill_bundle_contract.py tests/paper_research_wiki/test_plugin_contract.py::test_epi_bridge_points_to_plugin_level_experience -q
+python -m pytest tests/epi/test_wiki_deposition_task.py plugins/paper-source/tests/test_skill_bundle_contract.py tests/paper_research_wiki/test_plugin_contract.py::test_epi_bridge_points_to_plugin_level_experience -q
 ```
 
 Expected: failures because adapter docs still contain full stack and repeated frontmatter/page-family rules.
@@ -848,7 +848,7 @@ Internal `_epi/` pages must not enter the formal graph.
 Run:
 
 ```powershell
-python -m pytest tests/epi/test_wiki_deposition_task.py plugins/epi/tests/test_skill_bundle_contract.py tests/paper_research_wiki/test_plugin_contract.py::test_epi_bridge_points_to_plugin_level_experience -q
+python -m pytest tests/epi/test_wiki_deposition_task.py plugins/paper-source/tests/test_skill_bundle_contract.py tests/paper_research_wiki/test_plugin_contract.py::test_epi_bridge_points_to_plugin_level_experience -q
 ```
 
 Expected: PASS.
@@ -858,7 +858,7 @@ Expected: PASS.
 Run:
 
 ```powershell
-git add tests/epi/test_wiki_deposition_task.py plugins/epi/tests/test_skill_bundle_contract.py tests/paper_research_wiki/test_plugin_contract.py plugins/epi/skills/epi-paper-deposition/SKILL.md plugins/epi/skills/epi-paper-deposition/workflows/formal-wiki-write.md
+git add tests/epi/test_wiki_deposition_task.py plugins/paper-source/tests/test_skill_bundle_contract.py tests/paper_research_wiki/test_plugin_contract.py plugins/paper-source/skills/epi-paper-deposition/SKILL.md plugins/paper-source/skills/epi-paper-deposition/workflows/formal-wiki-write.md
 git commit -m "docs: thin EPI deposition compatibility adapter"
 ```
 
@@ -867,14 +867,14 @@ git commit -m "docs: thin EPI deposition compatibility adapter"
 **Files:**
 - Modify: `tests/epi/test_current_docs.py`
 - Modify: `tests/epi/test_epi_linkage_doc.py`
-- Modify: `plugins/epi/docs/epi-linkage.md`
-- Modify: `plugins/epi/docs/workflow.md`
-- Modify: `plugins/epi/docs/structure.md`
-- Modify: `plugins/epi/docs/progress.md`
-- Modify: `plugins/epi/skills/paper-ingest/SKILL.md`
-- Modify: `plugins/epi/skills/paper-ingest/workflows/approval-and-trigger.md`
-- Modify: `plugins/epi/skills/wiki-setup/SKILL.md`
-- Modify: `plugins/epi/skills/wiki-provenance/SKILL.md`
+- Modify: `plugins/paper-source/docs/epi-linkage.md`
+- Modify: `plugins/paper-source/docs/workflow.md`
+- Modify: `plugins/paper-source/docs/structure.md`
+- Modify: `plugins/paper-source/docs/progress.md`
+- Modify: `plugins/paper-source/skills/paper-ingest/SKILL.md`
+- Modify: `plugins/paper-source/skills/paper-ingest/workflows/approval-and-trigger.md`
+- Modify: `plugins/paper-source/skills/wiki-setup/SKILL.md`
+- Modify: `plugins/paper-source/skills/wiki-provenance/SKILL.md`
 
 - [ ] **Step 1: Update docs tests**
 
@@ -968,7 +968,7 @@ In `wiki-provenance/SKILL.md`, keep provenance requirements mandatory but avoid 
 Run:
 
 ```powershell
-python -m pytest tests/epi/test_current_docs.py tests/epi/test_epi_linkage_doc.py plugins/epi/tests/test_skill_bundle_contract.py -q
+python -m pytest tests/epi/test_current_docs.py tests/epi/test_epi_linkage_doc.py plugins/paper-source/tests/test_skill_bundle_contract.py -q
 ```
 
 Expected: PASS.
@@ -978,15 +978,15 @@ Expected: PASS.
 Run:
 
 ```powershell
-git add tests/epi/test_current_docs.py tests/epi/test_epi_linkage_doc.py plugins/epi/docs/epi-linkage.md plugins/epi/docs/workflow.md plugins/epi/docs/structure.md plugins/epi/docs/progress.md plugins/epi/skills/paper-ingest/SKILL.md plugins/epi/skills/paper-ingest/workflows/approval-and-trigger.md plugins/epi/skills/wiki-setup/SKILL.md plugins/epi/skills/wiki-provenance/SKILL.md
+git add tests/epi/test_current_docs.py tests/epi/test_epi_linkage_doc.py plugins/paper-source/docs/epi-linkage.md plugins/paper-source/docs/workflow.md plugins/paper-source/docs/structure.md plugins/paper-source/docs/progress.md plugins/paper-source/skills/paper-ingest/SKILL.md plugins/paper-source/skills/paper-ingest/workflows/approval-and-trigger.md plugins/paper-source/skills/wiki-setup/SKILL.md plugins/paper-source/skills/wiki-provenance/SKILL.md
 git commit -m "docs: align EPI docs with brief-first PRW boundary"
 ```
 
 ### Task 7: Version Bump And Plugin Metadata
 
 **Files:**
-- Modify: `plugins/epi/.codex-plugin/plugin.json`
-- Modify: `plugins/PRW/.codex-plugin/plugin.json`
+- Modify: `plugins/paper-source/.codex-plugin/plugin.json`
+- Modify: `plugins/paper-wiki/.codex-plugin/plugin.json`
 - Modify: `tests/paper_research_wiki/test_plugin_contract.py`
 
 - [ ] **Step 1: Update metadata tests**
@@ -996,7 +996,7 @@ In `tests/paper_research_wiki/test_plugin_contract.py`, update plugin version ex
 Search for EPI version assertions and update exact `0.2.0` expectations to `0.2.1`:
 
 ```powershell
-rg -n "\"0\\.2\\.0\"|v0\\.2\\.0" tests plugins/epi/tests plugins/epi/.codex-plugin plugins/PRW/.codex-plugin
+rg -n "\"0\\.2\\.0\"|v0\\.2\\.0" tests plugins/paper-source/tests plugins/paper-source/.codex-plugin plugins/paper-wiki/.codex-plugin
 ```
 
 - [ ] **Step 2: Run metadata tests and confirm failure**
@@ -1004,14 +1004,14 @@ rg -n "\"0\\.2\\.0\"|v0\\.2\\.0" tests plugins/epi/tests plugins/epi/.codex-plug
 Run:
 
 ```powershell
-python -m pytest tests/paper_research_wiki/test_plugin_contract.py plugins/epi/tests -q
+python -m pytest tests/paper_research_wiki/test_plugin_contract.py plugins/paper-source/tests -q
 ```
 
 Expected: failures on plugin version metadata until JSON files are updated.
 
 - [ ] **Step 3: Bump EPI plugin metadata**
 
-In `plugins/epi/.codex-plugin/plugin.json`:
+In `plugins/paper-source/.codex-plugin/plugin.json`:
 
 ```json
 "version": "0.2.1"
@@ -1031,7 +1031,7 @@ Change `interface.shortDescription` prefix to:
 
 - [ ] **Step 4: Bump PRW plugin metadata**
 
-In `plugins/PRW/.codex-plugin/plugin.json`:
+In `plugins/paper-wiki/.codex-plugin/plugin.json`:
 
 ```json
 "version": "0.2.1"
@@ -1050,7 +1050,7 @@ Keep `description` unchanged in this task because it already covers PRW's source
 Run:
 
 ```powershell
-python -m pytest tests/paper_research_wiki/test_plugin_contract.py plugins/epi/tests -q
+python -m pytest tests/paper_research_wiki/test_plugin_contract.py plugins/paper-source/tests -q
 ```
 
 Expected: PASS.
@@ -1060,7 +1060,7 @@ Expected: PASS.
 Run:
 
 ```powershell
-git add plugins/epi/.codex-plugin/plugin.json plugins/PRW/.codex-plugin/plugin.json tests/paper_research_wiki/test_plugin_contract.py plugins/epi/tests
+git add plugins/paper-source/.codex-plugin/plugin.json plugins/paper-wiki/.codex-plugin/plugin.json tests/paper_research_wiki/test_plugin_contract.py plugins/paper-source/tests
 git commit -m "chore: bump EPI PRW boundary contract versions"
 ```
 
@@ -1074,7 +1074,7 @@ git commit -m "chore: bump EPI PRW boundary contract versions"
 Run:
 
 ```powershell
-python -m pytest tests/epi tests/paper_research_wiki plugins/epi/tests -q
+python -m pytest tests/epi tests/paper_research_wiki plugins/paper-source/tests -q
 ```
 
 Expected: PASS.
@@ -1084,15 +1084,15 @@ Expected: PASS.
 Run with default Python first:
 
 ```powershell
-python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\epi
-python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\PRW
+python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\paper-source
+python C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\paper-wiki
 ```
 
 Expected: PASS. If default Python fails with `ModuleNotFoundError` for validator dependencies, rerun:
 
 ```powershell
-D:\MiniConda\python.exe C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\epi
-D:\MiniConda\python.exe C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\PRW
+D:\MiniConda\python.exe C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\paper-source
+D:\MiniConda\python.exe C:\Users\liuchf\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py D:\paper-search\plugins\paper-wiki
 ```
 
 Expected: PASS.
@@ -1112,7 +1112,7 @@ Expected: no hits that describe external wiki skills or `wiki_deposition_task.js
 Run:
 
 ```powershell
-rg -n "wiki_deposition_task_path|wiki_deposition_task\"|wiki_deposition_task.json" plugins/epi/scripts/build/epi tests/epi tests/paper_research_wiki plugins/PRW plugins/epi/skills plugins/epi/docs
+rg -n "wiki_deposition_task_path|wiki_deposition_task\"|wiki_deposition_task.json" plugins/paper-source/scripts/build/epi tests/epi tests/paper_research_wiki plugins/paper-wiki plugins/paper-source/skills plugins/paper-source/docs
 ```
 
 Expected: remaining hits are in legacy compatibility docs/tests, optional sidecar recording, or explicit legacy-generation paths. No new-flow gate, handoff, trigger, or PRW preflight should require the task file.
@@ -1125,14 +1125,14 @@ Run:
 git status --short
 ```
 
-Expected: only intended files changed. Do not stage pre-existing unrelated changes such as `plugins/epi/docs/config.md`, `plugins/epi/scripts/build/epi/paper_search_mcp_launcher.py`, `tests/epi/test_current_docs.py`, or `tests/epi/test_runtime_config.py` unless this implementation intentionally modified them.
+Expected: only intended files changed. Do not stage pre-existing unrelated changes such as `plugins/paper-source/docs/config.md`, `plugins/paper-source/scripts/build/epi/paper_search_mcp_launcher.py`, `tests/epi/test_current_docs.py`, or `tests/epi/test_runtime_config.py` unless this implementation intentionally modified them.
 
 - [ ] **Step 6: Commit final verification fixes if needed**
 
 If Step 1 through Step 4 exposed small fixes in files already touched by this implementation, stage only those implementation files:
 
 ```powershell
-git add plugins/epi/scripts/build/epi plugins/epi/skills plugins/epi/docs plugins/epi/.codex-plugin/plugin.json plugins/PRW/skills plugins/PRW/docs plugins/PRW/.codex-plugin/plugin.json tests/epi tests/paper_research_wiki plugins/epi/tests
+git add plugins/paper-source/scripts/build/epi plugins/paper-source/skills plugins/paper-source/docs plugins/paper-source/.codex-plugin/plugin.json plugins/paper-wiki/skills plugins/paper-wiki/docs plugins/paper-wiki/.codex-plugin/plugin.json tests/epi tests/paper_research_wiki plugins/paper-source/tests
 git commit -m "test: verify EPI PRW brief-first boundary"
 ```
 

@@ -34,7 +34,7 @@
 - **`overview.zh.md`** = 纯导航层：保留"三层心智模型表 + artifact 速查 + 推荐阅读顺序"，删除逐阶段 artifact/命令重述，改为指向 `epi-linkage.md` 锚点。
 - **`workflow.md`** = 安装后短入口：第 47、70 行的巨段拆成"命令清单 + 一句话职责 + 指向 epi-linkage 链接"；保留 easyscholar 契约提及（测试要求）。
 - **doc map（权威分工）** = 只在 `epi-linkage.md` 顶部声明一处；`overview.zh.md`/`structure.md`/`progress.md`/`workflow.md` 顶部各保留一行指针。
-- **`progress.md`** = 当前状态快照（定位/最近健康检查/已知风险/下一步）；历史逐轮变更与 file-list 迁出到新建的 `plugins/epi/docs/CHANGELOG.md`。
+- **`progress.md`** = 当前状态快照（定位/最近健康检查/已知风险/下一步）；历史逐轮变更与 file-list 迁出到新建的 `plugins/paper-source/docs/CHANGELOG.md`。
 - **page-family/frontmatter canonical** = PRW `rules/wiki-writing-standard.md`；EPI 4 文档 + PRW `page-families.md`/`page-family-contract.md`/`formal-page-frontmatter.md` 改为指向它（保留 code 执行常量）。
 - **`epi-paper-deposition`** = 薄 compatibility alias（SKILL≈20–25 行、`formal-wiki-write.md`≈15–20 行）：保留测试锚点（`formal-wiki-write.md`、`wiki_deposition_task.json`、`epi-wiki-deposition`、`$paper-research-wiki`、route `category: compatibility`），删除 external-stack runbook 与重复的 page-family/frontmatter/QMD 重述。
 - **`REQUIRED_WIKI_SKILLS`** 仅含 `paper-research-wiki` + `epi-paper-deposition`；external（`llm-wiki`/`wiki-ingest`/`wiki-context-pack`/`wiki-lint`/`wiki-stage-commit`/`wiki-status`/`wiki-query`/`tag-taxonomy`）移入 `OPTIONAL_WIKI_SKILLS`。
@@ -54,7 +54,7 @@
 `epi-linkage.md` 顶部"配套文档"段落升级为唯一权威分工声明（保留现有 `docs/structure.md`/`docs/progress.md`/`docs/config.md` 指针，`test_current_docs.py:77-79` 要求）。`overview.zh.md:5-10`、`structure.md:3`、`progress.md:3` 的层级声明改为一行"权威分工见 `epi-linkage.md`"。
 
 ### A4 — `progress.md` 瘦身
-保留 `test_current_docs.py:155` 要求的 status/verification/next-steps 段落 + "当前定位 + 最近一轮健康检查 + 已知风险"。把"本轮/上一轮变更范围 + file-list"（行 64-277）迁到新 `plugins/epi/docs/CHANGELOG.md`，progress.md 留一行指针。
+保留 `test_current_docs.py:155` 要求的 status/verification/next-steps 段落 + "当前定位 + 最近一轮健康检查 + 已知风险"。把"本轮/上一轮变更范围 + file-list"（行 64-277）迁到新 `plugins/paper-source/docs/CHANGELOG.md`，progress.md 留一行指针。
 
 ### A5 — page-family/frontmatter canonical 指向
 PRW `rules/wiki-writing-standard.md` 为人读 canonical。EPI `workflow.md`/`epi-linkage.md`/`structure.md`/`overview.zh.md` 中的"七类目录 + frontmatter 字段"列表保留**最小必要**（测试断言的）并加"完整 contract 见 PRW `rules/wiki-writing-standard.md`"。代码常量 `wiki_contracts.py:109 FORMAL_FRONTMATTER_REQUIRED_FIELDS` 等保留为执行层，加注释指明人读 canonical 位置。**风险**：S2 可能移动 PRW `rules/` 路径 → 届时更新这些 cross-ref（见 §7）。
@@ -74,7 +74,7 @@ PRW `rules/wiki-writing-standard.md` 为人读 canonical。EPI `workflow.md`/`ep
 `epi-artifact-contract.md`、`epi-linkage.md`、`structure.md`、PRW `extract-papers.md`/`epi-integration.md`：声明 canonical=`wiki-ingest-brief.json`、`wiki_deposition_task.json`=deprecated（仍读兼容，迁移意图）。代码与相关测试不动。
 
 ### E1 — `plugin.json` description
-`plugins/epi/.codex-plugin/plugin.json:4` `description` 改为全链路定位（与 `longDescription` 一致的精简版）。检查 `test_marketplace_manifest.py` 是否断言该字段。
+`plugins/paper-source/.codex-plugin/plugin.json:4` `description` 改为全链路定位（与 `longDescription` 一致的精简版）。检查 `test_marketplace_manifest.py` 是否断言该字段。
 
 ### D3 — 删 `_write_json` 别名
 `orchestrator.py:91` 删 `_write_json`，全部 `_write_json` 调用点改为直接 `write_json_atomic`（已核实语义等价；精确计数 plan 阶段定，grep 显示 `_write_json`/`write_json_atomic` 合计约 30 处）。全测试保持绿。
@@ -100,7 +100,7 @@ PRW `rules/wiki-writing-standard.md` 为人读 canonical。EPI `workflow.md`/`ep
 - **C2 跨码/文档一致性**：必须同一 PR 内改 `wiki_contracts.py` + brief/gate + 文档 + 测试，避免 doc↔brief 不一致（这正是选 (a) 深度的原因）。
 
 ## 8. 验收
-- `pytest tests/epi tests/paper_research_wiki plugins/epi/tests -q` 全绿。
+- `pytest tests/epi tests/paper_research_wiki plugins/paper-source/tests -q` 全绿。
 - EPI/PRW plugin validation 通过；`plugin.json` 版本=`0.2.1`。
 - 抽查：`epi-linkage.md` 仍含 `test_epi_linkage_doc.py` 要求的事实；`overview.zh.md` 无逐阶段重述；`workflow.md` 无 >300 字巨段；`REQUIRED_WIKI_SKILLS` 仅 2 项；`epi-paper-deposition` 两文件均 ≤25 行且保留锚点；EPI `plugin.json.description` 全链路化。
 - doc↔code 一致：生成的 `wiki-ingest-brief.json` required skills 与文档表述一致。

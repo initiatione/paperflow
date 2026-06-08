@@ -13,8 +13,8 @@
 ### Task 1: Source Bundle Audit
 
 **Files:**
-- Create: `plugins/epi/scripts/build/epi/source_bundle_audit.py`
-- Modify: `plugins/epi/scripts/build/epi/paper_gate.py`
+- Create: `plugins/paper-source/scripts/build/epi/source_bundle_audit.py`
+- Modify: `plugins/paper-source/scripts/build/epi/paper_gate.py`
 - Test: `tests/epi/test_source_bundle_audit.py`
 - Test: `tests/epi/test_paper_gate.py`
 
@@ -27,11 +27,11 @@
 ### Task 2: Formal Wiki Language Gate
 
 **Files:**
-- Create: `plugins/epi/scripts/build/epi/wiki_language.py`
-- Create: `plugins/epi/scripts/build/epi/wiki_handoff_contracts.py`
-- Modify: `plugins/epi/scripts/build/epi/wiki_contracts.py`
-- Modify: `plugins/epi/scripts/build/epi/wiki_ingest_record.py`
-- Modify: `plugins/epi/scripts/build/epi/stage_wiki.py`
+- Create: `plugins/paper-source/scripts/build/epi/wiki_language.py`
+- Create: `plugins/paper-source/scripts/build/epi/wiki_handoff_contracts.py`
+- Modify: `plugins/paper-source/scripts/build/epi/wiki_contracts.py`
+- Modify: `plugins/paper-source/scripts/build/epi/wiki_ingest_record.py`
+- Modify: `plugins/paper-source/scripts/build/epi/stage_wiki.py`
 - Test: `tests/epi/test_wiki_ingest_record.py`
 - Test: `tests/epi/test_wiki_deposition_task.py`
 
@@ -48,8 +48,8 @@
 ### Task 3: CLI Routing Split
 
 **Files:**
-- Create: `plugins/epi/scripts/build/epi/cli_routes.py`
-- Modify: `plugins/epi/scripts/build/epi/cli.py`
+- Create: `plugins/paper-source/scripts/build/epi/cli_routes.py`
+- Modify: `plugins/paper-source/scripts/build/epi/cli.py`
 - Test: `tests/epi/test_cli_parser.py`
 
 - [ ] Move argparse subcommand registration helpers into `cli_routes.py`.
@@ -60,8 +60,8 @@
 ### Task 4: Orchestrator Workflow Split
 
 **Files:**
-- Create: `plugins/epi/scripts/build/epi/wiki_record_workflows.py`
-- Modify: `plugins/epi/scripts/build/epi/orchestrator.py`
+- Create: `plugins/paper-source/scripts/build/epi/wiki_record_workflows.py`
+- Modify: `plugins/paper-source/scripts/build/epi/orchestrator.py`
 - Test: `tests/epi/test_wiki_ingest_record.py`
 - Test: `tests/epi/test_paper_gate.py`
 
@@ -73,8 +73,8 @@
 ### Task 5: Graph Visibility Split
 
 **Files:**
-- Create: `plugins/epi/scripts/build/epi/graph_visibility.py`
-- Modify: `plugins/epi/scripts/build/epi/wiki_init.py`
+- Create: `plugins/paper-source/scripts/build/epi/graph_visibility.py`
+- Modify: `plugins/paper-source/scripts/build/epi/wiki_init.py`
 - Test: `tests/epi/test_wiki_init.py`
 
 - [ ] Add failing test for graph filter helper and over-escaped filter repair.
@@ -85,7 +85,7 @@
 ### Task 6: Run Index Atomic Writes
 
 **Files:**
-- Modify: `plugins/epi/scripts/build/epi/run_index.py`
+- Modify: `plugins/paper-source/scripts/build/epi/run_index.py`
 - Test: `tests/epi/test_run_index_dashboard.py`
 
 - [ ] Add failing test proving machine JSON writes use `write_json_atomic`.
@@ -95,14 +95,14 @@
 ### Task 7: Docs, Skills, Version, And Verification
 
 **Files:**
-- Modify: `plugins/epi/skills/epi-paper-deposition/SKILL.md`
-- Modify: `plugins/epi/skills/wiki-provenance/SKILL.md`
-- Modify: `plugins/epi/skills/run-lifecycle/SKILL.md`
-- Modify: `plugins/epi/docs/workflow.md`
-- Modify: `plugins/epi/docs/recovery.md`
-- Modify: `plugins/epi/docs/progress.md`
-- Modify: `plugins/epi/docs/structure.md`
-- Modify: `plugins/epi/.codex-plugin/plugin.json`
+- Modify: `plugins/paper-source/skills/epi-paper-deposition/SKILL.md`
+- Modify: `plugins/paper-source/skills/wiki-provenance/SKILL.md`
+- Modify: `plugins/paper-source/skills/run-lifecycle/SKILL.md`
+- Modify: `plugins/paper-source/docs/workflow.md`
+- Modify: `plugins/paper-source/docs/recovery.md`
+- Modify: `plugins/paper-source/docs/progress.md`
+- Modify: `plugins/paper-source/docs/structure.md`
+- Modify: `plugins/paper-source/.codex-plugin/plugin.json`
 - Test: `tests/epi/test_current_docs.py`
 
 - [ ] Document raw bundle completeness, Chinese-default formal prose, hash-bound final-source-review refresh, graph repair, run index audit, clean-worker delegation, and router/workflow module boundaries.
