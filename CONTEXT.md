@@ -39,3 +39,24 @@ A stable identifier used by manifests, plugin installation, artifacts, tests, or
 ### Capability Gap
 
 A missing cooperating plugin or missing upstream artifact that prevents a later workflow step but does not invalidate earlier completed work.
+
+### Research Brief
+
+A clarified, task-scoped research intent that Paper Source can use before discovery or tracking. It is not a long-term research profile, a query plan, or a Paper Source-to-Paper Wiki handoff.
+
+Alias: 研究任务简报.
+_Avoid_: Question-refiner output, query brief, research profile, wiki-ingest brief
+
+### Research Profile
+
+A long-term description of the user's default research interests, domains, keywords, exclusions, and venue preferences in Paper Source. It provides background preferences for many tasks, while a Research Brief captures one current task.
+
+Alias: 研究画像, 默认研究兴趣.
+_Avoid_: Research Brief, query plan, wiki-ingest brief
+
+### Research Grill
+
+A Paper Source conversation entrypoint that challenges and clarifies a user's research intent before a Research Brief is confirmed. It is a questioning workflow, not the persisted artifact itself.
+
+Machine-facing skill name: `research-grill-me`.
+_Avoid_: Question-refiner, Research Brief, query plan
