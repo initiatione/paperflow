@@ -899,6 +899,42 @@ def test_paper_wiki_scopes_reference_single_source_separately_from_synthesis_pag
     assert "same frontmatter contract" not in standard
 
 
+def test_paper_wiki_supports_frontmatter_only_github_metadata_repair():
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+
+    for phrase in [
+        "Frontmatter-Only Metadata Repair",
+        "verified `github:` property",
+        "Keep `sources:` PDF-only",
+        "do not add GitHub, DOI, arXiv, README, metadata, or MinerU paths to frontmatter `sources:`",
+        "Do not automatically run the full graph-aware rewrite path",
+        "Escalate to Graph-Aware Rewrite only if the metadata changes a claim",
+    ]:
+        assert phrase in update
+
+    for phrase in [
+        "repository links belong in a separate frontmatter property such as `github:`",
+        "not in `sources:`",
+        "frontmatter-only metadata repair",
+        "targeted static repository verification",
+        "whether the code was run locally",
+    ]:
+        assert phrase in standard
+
+    for phrase in [
+        "Frontmatter-only metadata repair",
+        "verified `github:` property",
+        "keep `sources:` PDF-only",
+        "Do not trigger graph-aware rewrite",
+        "paper-wiki-record-request.json",
+        "record-wiki-ingest",
+        "metadata-only path",
+    ]:
+        assert phrase in workflow_doc
+
+
 def test_references_page_anatomy_keeps_graph_integration_as_quality_rule_not_heading():
     anatomy = _read(PUBLIC_SKILL / "references" / "references-page-anatomy.md")
     style = _read(PLUGIN / "skills" / "paper-wiki-language" / "references" / "style-guide.md")

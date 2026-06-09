@@ -253,6 +253,10 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     assert "profile or current request" in search_protocol
     assert "domain_focus_terms" in search_protocol
     assert "hard anchor gate" in search_protocol
+    assert "targeted verification fallback only after a Paper Source candidate or run artifact exists" in search_protocol
+    assert "Do not use Firecrawl, generic web search, publisher search, or GitHub search as the primary discovery provider" in search_protocol
+    assert "Default to `dry-run` resume" in search_protocol
+    assert "Treat repository checks as code evidence verification, not as paper discovery" in search_protocol
     assert "publisher PDF blocks" in search_protocol
     assert "two-stage-retrieval.md" in search_protocol
     assert "citation-graph.md" in search_protocol
@@ -287,6 +291,10 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     assert "citation graph expansion" in output_format
     assert "Paper Source 实测证据" in output_format
     assert "Method-only leakage" in anti_patterns
+    assert "Do not present a Firecrawl/web-only result set as a Paper Source recommendation" in output_format
+    assert "Web-first discovery" in anti_patterns
+    assert "Repeat provider loop" in anti_patterns
+    assert "Repository as paper identity" in anti_patterns
 
 
 def test_paper_ingest_source_first_reading_reference_exists():

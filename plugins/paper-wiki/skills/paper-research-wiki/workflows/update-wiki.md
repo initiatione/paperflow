@@ -16,6 +16,16 @@ Read `../../../rules/wiki-writing-standard.md` first. For repairs that touch for
 8. Preserve Paper Source boundaries for human approval and `record-wiki-ingest`.
 9. Run `workflows/check-wiki.md` after writing as the post-task check.
 
+## Frontmatter-Only Metadata Repair
+
+Use this lightweight path when the user asks only to add or repair formal page metadata that does not change claims, formulas, figure/table evidence, evidence tier, relationships, aliases with semantic impact, lifecycle, or page body prose. Typical examples are adding a verified `github:` property for a code-bearing paper, normalizing a non-semantic property value, or exposing an already-verified repository link in the page properties.
+
+1. Confirm the target page already exists and the source paper identity is unchanged.
+2. Verify the metadata against an existing Paper Source artifact when available, such as `_paper_source/raw/<slug>/code-verification.json`, metadata, or prior source review. If no source artifact exists, perform one targeted repository/DOI/arXiv check and record the verification boundary in the completion report.
+3. Keep `sources:` PDF-only. Put repository links in `github:` or the page body evidence section; do not add GitHub, DOI, arXiv, README, metadata, or MinerU paths to frontmatter `sources:`.
+4. Do not automatically run the full graph-aware rewrite path, dependent-page rewrite, `final-source-review.json` refresh, or `paper-wiki-record-request.json` creation for a metadata-only repair. Escalate to Graph-Aware Rewrite only if the metadata changes a claim, evidence boundary, relationship, lifecycle, or downstream synthesis.
+5. Still run a targeted post-task check for frontmatter validity, changed file paths, source PDF link preservation, and the next Paper Source/Paper Wiki action.
+
 ## Graph-Aware Rewrite
 
 Use this path when the user asks to 重写某页, 重写页面, rewrite formal page, rewrite page, or when an update is a material rewrite of a formal page. A graph-aware rewrite treats the target page and its dependent formal pages as one transaction.

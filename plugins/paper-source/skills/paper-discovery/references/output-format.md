@@ -22,6 +22,7 @@ Then add `Paper Source 实测证据` with:
 
 - run path
 - `source_mode`
+- whether the answer came from a fresh Paper Source run, a resumed review session, or an existing run artifact; if live web search was used, label it as targeted verification and name the candidate identity it verified
 - query strategy: `query_plan_multi_query`, `single_query`, or fixture mode
 - query plan summary: domain, concept blocks, query variants
 - candidate pool size before/after dedup/filter when available
@@ -38,3 +39,5 @@ Then add `Paper Source 实测证据` with:
 Quality metrics must be current evidence, not memory or guesses. Verify citation counts, impact factor/quartile, CiteScore, publisher/venue metadata, EasyScholar venue metrics, or code availability when available; otherwise write `未核实` for that field.
 
 For each recommendation, avoid raw JSON and long abstracts. Use links when verified. If the kept list is long, still list all kept papers; use shorter notes for lower-priority items rather than omitting them. Rejected review/survey papers should not appear in `推荐优先看` when the user asked to exclude them.
+
+Do not present a Firecrawl/web-only result set as a Paper Source recommendation. If no Paper Source run/candidate artifact exists yet, say that discovery has not been run and run or request a Paper Source dry-run before making a reading recommendation.

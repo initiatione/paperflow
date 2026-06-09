@@ -817,6 +817,27 @@ def test_docs_document_resumable_reviews_and_evidence_index():
     assert "_paper_source/meta/evidence-index.json" in combined
 
 
+def test_linkage_doc_enforces_paper_source_first_discovery_boundary():
+    linkage = _read("paper-source-linkage.md")
+
+    for phrase in [
+        "Paper Source run/candidate artifact",
+        "paper_search_mcp.search_papers",
+        "Firecrawl",
+        "generic web search",
+        "GitHub search",
+        "targeted verification",
+        "primary discovery provider",
+        "Firecrawl/web-only result set",
+        "_paper_source/reviews/<review-id>/",
+        "report --run-id",
+        "--refresh",
+        "reproducibility/code evidence verification",
+        "paper identity discovery",
+    ]:
+        assert phrase in linkage
+
+
 def test_paper_source_plugin_description_reflects_full_pipeline():
     manifest = json.loads((PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
     desc = manifest["description"]

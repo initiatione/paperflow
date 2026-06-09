@@ -119,6 +119,8 @@ Do not set `lifecycle: reviewed`, `verified`, or `source-reviewed` automatically
 
 `sources:` contains clickable original-paper PDF links only. `references/ pages` use exactly one clickable original-paper PDF link. Canonical form: a Markdown link displayed with the paper title, pointing at `obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf`. The path is `_paper_source/raw/<slug>/paper.pdf`, with no `papers/` segment. The wikilink form `"[[_paper_source/raw/<slug>/paper.pdf|<slug>]]"` is also accepted for Paper Source-generated pages; the legacy `_epi` wikilink remains accepted for existing artifacts. `concepts/, derivations/, experiments/, synthesis/, reports/, and opportunities/` use one or more clickable original-paper PDF links for the papers the page materially uses. Do not use plain path text, an alias such as `原论文 PDF`, or metadata/MinerU/DOI/arXiv entries in frontmatter `sources`; put those in the body evidence section or the Provenance section.
 
+For code-bearing papers, repository links belong in a separate frontmatter property such as `github:` or in the body evidence section, not in `sources:`. Adding a verified `github:` property is a frontmatter-only metadata repair when it does not alter claims, evidence tiers, formulas, relationships, lifecycle, or page body prose. Prefer an existing Paper Source code-verification artifact when available; otherwise label the check as targeted static repository verification and state whether the code was run locally.
+
 ## Body Rules
 
 - Write durable knowledge, not per-paper abstracts.

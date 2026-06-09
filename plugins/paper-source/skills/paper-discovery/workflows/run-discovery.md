@@ -24,6 +24,8 @@ python skills\paper-discovery\scripts\query-planner.py --topic "<review topic>" 
 Default `dry-run` writes `_paper_source/runs/<run-id>/query-plan.json`, records `research_mode`, runs query variants, and excludes review/survey/meta candidates unless reviews are explicitly requested.
 It also writes or resumes `_paper_source/reviews/<review-id>/` by default. A repeated matching dry-run uses default resume from the review session and skips provider calls; use `--refresh` to force a new provider search, or `--no-resume` only for debugging.
 
+Do not start with Firecrawl, generic web search, publisher search, or GitHub search for paper recommendations. Use those tools only after `dry-run`, a resumed review session, or a user-provided DOI/arXiv/title has produced a candidate identity that needs targeted verification.
+
 ## Dry Run
 
 ```powershell
