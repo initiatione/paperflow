@@ -26,7 +26,7 @@ SOURCE_SCOPE_VALUES = {
     "manual_sources_provided",
 }
 
-_SLUG_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
+_SLUG_RE = re.compile(r"^\d{8}-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
 _FILENAME_SAFE_RE = re.compile(r"[^A-Za-z0-9_-]+")
 _REQUIRED_TEXT_FIELDS = ("slug", "title", "task", "domain_scope")
 _REQUIRED_LIST_FIELDS = ("specific_questions", "keywords")
@@ -46,7 +46,7 @@ def validate_slug(slug: str) -> str:
     if not value:
         raise ResearchBriefValidationError("slug is required")
     if not _SLUG_RE.fullmatch(value):
-        raise ResearchBriefValidationError(f"slug is unsafe: {value}")
+        raise ResearchBriefValidationError(f"slug must follow YYYYMMDD-<topic> lowercase kebab-case: {value}")
     return value
 
 
@@ -151,6 +151,22 @@ def validate_research_brief_payload(payload: dict[str, Any], *, formal_use: bool
             raise ResearchBriefValidationError("content_hash does not match payload")
 
     return normalized
+
+
+def _validate_persisted_research_brief_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ResearchBriefValidationError("payload must be an object")
+    if payload.get("schema_version") != SCHEMA_VERSION:
+        raise ResearchBriefValidationError(f"schema_version must be {SCHEMA_VERSION}")
+
+    content_hash = payload.get("content_hash")
+    if not isinstance(content_hash, str) or not content_hash:
+        raise ResearchBriefValidationError("content_hash is required")
+    expected_hash = json_sha256(_content_hash_payload(payload))
+    if content_hash != expected_hash:
+        raise ResearchBriefValidationError("content_hash does not match payload")
+
+    return validate_research_brief_payload(payload)
 
 
 def _new_payload(answers: dict[str, Any], *, timestamp: str) -> dict[str, Any]:
@@ -304,13 +320,21 @@ def create_research_brief(vault_path: Path, answers: dict[str, Any], *, now: str
     timestamp = now or utc_now()
     payload = _new_payload(answers, timestamp=timestamp)
     brief_dir = research_briefs_root(Path(vault_path)) / payload["slug"]
+    if (brief_dir / "research-brief.json").exists():
+        raise ResearchBriefValidationError(f"research brief already exists: {brief_dir / 'research-brief.json'}")
     return _write_research_brief_artifacts(brief_dir, payload)
 
 
 def load_research_brief(path: Path, *, allow_draft: bool = False) -> dict[str, Any]:
     json_path = Path(path)
     payload = json.loads(json_path.read_text(encoding="utf-8"))
-    validated = validate_research_brief_payload(payload)
+    validated = _validate_persisted_research_brief_payload(payload)
+    status = validated["status"]
+    if status == "draft":
+        if not allow_draft:
+            raise ResearchBriefValidationError("draft research brief requires allow_draft=True")
+    elif status != "confirmed":
+        raise ResearchBriefValidationError("status must be confirmed for formal use")
     metadata = research_brief_metadata(json_path, validated)
     metadata.update({"payload": validated, "allow_draft": allow_draft})
     return metadata
@@ -319,7 +343,7 @@ def load_research_brief(path: Path, *, allow_draft: bool = False) -> dict[str, A
 def revise_research_brief(path: Path, answers: dict[str, Any], *, now: str | None = None) -> dict[str, Any]:
     timestamp = now or utc_now()
     json_path = Path(path)
-    current = load_research_brief(json_path)["payload"]
+    current = load_research_brief(json_path, allow_draft=True)["payload"]
     revised = _revised_payload(current, answers, timestamp=timestamp)
 
     revisions_dir = json_path.parent / "revisions"

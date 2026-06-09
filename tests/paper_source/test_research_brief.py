@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 import pytest
 
@@ -37,6 +38,14 @@ def _answers(slug="20260609-auv-current-disturbance-control", status="confirmed"
     }
 
 
+def _rewrite_json(path, payload):
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _json_path(result):
+    return Path(result["json_path"])
+
+
 def test_create_research_brief_writes_managed_artifacts(tmp_path):
     result = create_research_brief(tmp_path, _answers(), now="2026-06-09T12:00:00Z")
 
@@ -67,9 +76,21 @@ def test_create_research_brief_writes_managed_artifacts(tmp_path):
     assert result["hash"] == payload["content_hash"]
 
 
+def test_create_research_brief_rejects_duplicate_slug(tmp_path):
+    create_research_brief(tmp_path, _answers(), now="2026-06-09T12:00:00Z")
+
+    with pytest.raises(ResearchBriefValidationError, match="already exists"):
+        create_research_brief(tmp_path, _answers(), now="2026-06-09T13:00:00Z")
+
+
 def test_slug_validation_rejects_unsafe_names(tmp_path):
     with pytest.raises(ResearchBriefValidationError, match="slug"):
         create_research_brief(tmp_path, _answers(slug="../bad"), now="2026-06-09T12:00:00Z")
+
+
+def test_slug_validation_requires_yyyymmdd_prefix(tmp_path):
+    with pytest.raises(ResearchBriefValidationError, match="YYYYMMDD"):
+        create_research_brief(tmp_path, _answers(slug="auv-current-disturbance-control"), now="2026-06-09T12:00:00Z")
 
 
 def test_validate_requires_minimum_complete_fields():
@@ -79,15 +100,55 @@ def test_validate_requires_minimum_complete_fields():
         validate_research_brief_payload(payload)
 
 
-def test_draft_is_valid_but_not_formal_use_eligible(tmp_path):
+def test_default_load_rejects_draft_but_allow_draft_loads_metadata(tmp_path):
     result = create_research_brief(tmp_path, _answers(status="draft"), now="2026-06-09T12:00:00Z")
-    loaded = load_research_brief(result["json_path"])
+
+    with pytest.raises(ResearchBriefValidationError, match="allow_draft"):
+        load_research_brief(result["json_path"])
+
+    loaded = load_research_brief(result["json_path"], allow_draft=True)
     assert loaded["payload"]["status"] == "draft"
     assert loaded["formal_use_eligible"] is False
 
 
+def test_load_research_brief_rejects_missing_schema_version(tmp_path):
+    result = create_research_brief(tmp_path, _answers(), now="2026-06-09T12:00:00Z")
+    json_path = _json_path(result)
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    payload.pop("schema_version")
+    _rewrite_json(json_path, payload)
+
+    with pytest.raises(ResearchBriefValidationError, match="schema_version"):
+        load_research_brief(json_path)
+
+
+def test_load_research_brief_rejects_missing_or_tampered_content_hash(tmp_path):
+    missing = create_research_brief(tmp_path, _answers(), now="2026-06-09T12:00:00Z")
+    missing_path = _json_path(missing)
+    missing_payload = json.loads(missing_path.read_text(encoding="utf-8"))
+    missing_payload.pop("content_hash")
+    _rewrite_json(missing_path, missing_payload)
+
+    with pytest.raises(ResearchBriefValidationError, match="content_hash"):
+        load_research_brief(missing_path)
+
+    tampered = create_research_brief(
+        tmp_path,
+        _answers(slug="20260609-auv-hash-tamper"),
+        now="2026-06-09T13:00:00Z",
+    )
+    tampered_path = _json_path(tampered)
+    tampered_payload = json.loads(tampered_path.read_text(encoding="utf-8"))
+    tampered_payload["task"] = "Tampered after hashing."
+    _rewrite_json(tampered_path, tampered_payload)
+
+    with pytest.raises(ResearchBriefValidationError, match="content_hash"):
+        load_research_brief(tampered_path)
+
+
 def test_confirmed_revision_preserves_prior_json_snapshot(tmp_path):
     created = create_research_brief(tmp_path, _answers(), now="2026-06-09T12:00:00Z")
+    prior_payload = json.loads(_json_path(created).read_text(encoding="utf-8"))
     revised = _answers()
     revised["task"] = "Find AUV current-disturbance control papers with field trials."
 
@@ -98,3 +159,6 @@ def test_confirmed_revision_preserves_prior_json_snapshot(tmp_path):
     assert payload["revision_number"] == 2
     assert payload["supersedes_hash"] == created["hash"]
     assert len(snapshots) == 1
+    snapshot_payload = json.loads(snapshots[0].read_text(encoding="utf-8"))
+    assert snapshot_payload == prior_payload
+    assert snapshot_payload["content_hash"] == created["hash"]
