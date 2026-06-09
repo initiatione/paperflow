@@ -525,6 +525,60 @@ def build_query_plan(
     }
 
 
+def build_query_plan_from_research_brief(
+    brief: dict[str, Any],
+    *,
+    max_queries: int = 8,
+    profile: str = "general_academic_research",
+    domains: list[str] | None = None,
+    positive_keywords: list[str] | None = None,
+    negative_keywords: list[str] | None = None,
+    venue_prior: list[str] | None = None,
+) -> dict[str, Any]:
+    topic = str(brief.get("task") or "").strip()
+    domain_scope = str(brief.get("domain_scope") or "").strip()
+    keywords = _as_terms(brief.get("keywords") or [])
+    questions = _as_terms(brief.get("specific_questions") or [])
+    exclusions = _as_terms(brief.get("exclusions") or [])
+    review_policy = brief.get("review_policy") if isinstance(brief.get("review_policy"), dict) else {}
+    review_policy_type = str(review_policy.get("type") or "exclude")
+    non_review = review_policy_type == "exclude"
+    source_scope = brief.get("source_scope") if isinstance(brief.get("source_scope"), dict) else {}
+    output_goal = brief.get("output_goal") if isinstance(brief.get("output_goal"), dict) else {}
+
+    plan = build_query_plan(
+        topic=topic,
+        domain="profile",
+        non_review=non_review,
+        max_queries=max_queries,
+        profile=profile,
+        domains=domains,
+        positive_keywords=positive_keywords,
+        negative_keywords=negative_keywords,
+        venue_prior=venue_prior,
+    )
+    blocks = plan["concept_blocks"]
+    blocks["domain_terms"] = unique(([domain_scope] if domain_scope else []) + _as_terms(domains) + blocks["domain_terms"])
+    blocks["domain_focus_terms"] = unique(([domain_scope] if domain_scope else []) + blocks.get("domain_focus_terms", []))
+    blocks["method_or_topic_terms"] = unique(keywords + blocks["method_or_topic_terms"])
+    blocks["problem_terms"] = unique(questions + blocks["problem_terms"])
+    blocks["exclusions"] = unique(exclusions + blocks["exclusions"])
+    if non_review:
+        blocks["exclusions"] = unique(blocks["exclusions"] + ["review", "survey"])
+    plan["domain"] = "research-brief"
+    plan["query_variants"] = build_queries(blocks, topic, non_review, max(1, max_queries))
+    plan["research_brief"] = {
+        "slug": brief.get("slug"),
+        "status": brief.get("status"),
+        "revision_number": brief.get("revision_number"),
+        "review_policy": review_policy_type,
+        "source_scope": source_scope.get("type"),
+        "output_goal": output_goal.get("type"),
+        "precedence": "brief_overrides_profile",
+    }
+    return plan
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate a deterministic Paper Source paper discovery query plan.")
     parser.add_argument("--topic", required=True)

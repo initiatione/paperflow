@@ -124,7 +124,10 @@ def build_parser() -> argparse.ArgumentParser:
     epi_cleanup.add_argument("--json", action="store_true")
 
     dry_run = subparsers.add_parser("dry-run")
-    dry_run.add_argument("--query", required=True)
+    dry_run_query_input = dry_run.add_mutually_exclusive_group(required=True)
+    dry_run_query_input.add_argument("--query", default=None)
+    dry_run_query_input.add_argument("--from-brief", type=Path, default=None)
+    dry_run.add_argument("--allow-draft-brief", action="store_true")
     dry_run.add_argument("--max-results", type=int, default=None)
     _add_common_vault(dry_run)
     dry_run.add_argument("--plugin-root", type=Path, default=_default_plugin_root())

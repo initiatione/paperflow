@@ -39,6 +39,15 @@ def _run_review_payload(run_dir: Path) -> dict | None:
     return review if isinstance(review, dict) else None
 
 
+def _run_research_brief_payload(run_dir: Path) -> dict | None:
+    try:
+        state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+    brief = state.get("research_brief")
+    return brief if isinstance(brief, dict) else None
+
+
 def _handle_doctor(args: argparse.Namespace) -> int:
     report = collect_doctor_report(
         plugin_root=args.plugin_root,
@@ -259,6 +268,8 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
         plugin_root=args.plugin_root,
         vault_path=args.vault,
         query=args.query,
+        from_brief=args.from_brief,
+        allow_draft_brief=args.allow_draft_brief,
         max_results=args.max_results,
         fixture_path=args.fixture,
         paper_search_command=args.paper_search_command,
@@ -286,9 +297,18 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
         review_payload = _run_review_payload(run_dir)
         if review_payload:
             payload["review"] = review_payload
+        brief_payload = _run_research_brief_payload(run_dir)
+        if brief_payload:
+            payload["research_brief"] = brief_payload
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         print(f"run_dir={run_dir}")
+        brief_payload = _run_research_brief_payload(run_dir)
+        if brief_payload:
+            print(
+                f"research_brief={brief_payload.get('slug')} "
+                f"status={brief_payload.get('status')} overrides_profile=true"
+            )
     return 0
 
 

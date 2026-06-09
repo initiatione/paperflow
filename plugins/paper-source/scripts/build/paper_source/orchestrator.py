@@ -37,10 +37,11 @@ from paper_source.paper_search_adapter import (
     paper_search_source_capabilities,
     plan_source_routing,
 )
-from paper_source.query_planner import build_query_plan, infer_research_mode, topic_focus_terms
+from paper_source.query_planner import build_query_plan, build_query_plan_from_research_brief, infer_research_mode, topic_focus_terms
 from paper_source.raw_cleanup import cleanup_failed_raw_paper
 from paper_source.rank_papers import rank_candidates
 from paper_source.redo import redo_acquire, redo_parse, redo_read, redo_read_recritic, recritic
+from paper_source.research_brief import ResearchBriefValidationError, load_research_brief
 from paper_source.report_run import write_report
 from paper_source.review_sessions import (
     build_review_signature,
@@ -892,7 +893,7 @@ def _write_repair_routed_report(
 def run_dry_run(
     plugin_root: Path,
     vault_path: Path,
-    query: str,
+    query: str | None,
     max_results: int | None,
     fixture_path: Path | None = None,
     paper_search_command: str | None = None,
@@ -903,8 +904,30 @@ def run_dry_run(
     enable_easyscholar: bool = True,
     resume: bool = True,
     refresh: bool = False,
+    from_brief: Path | None = None,
+    allow_draft_brief: bool = False,
 ) -> Path:
     config = load_config(plugin_root=plugin_root, vault_path=vault_path, max_results=max_results)
+    brief_payload: dict | None = None
+    brief_metadata: dict | None = None
+    if from_brief is not None:
+        try:
+            loaded_brief = load_research_brief(from_brief, allow_draft=allow_draft_brief)
+        except ResearchBriefValidationError as exc:
+            raise ValueError(str(exc)) from exc
+        brief_payload = loaded_brief["payload"]
+        brief_metadata = {
+            "path": loaded_brief["json_path"],
+            "slug": loaded_brief["slug"],
+            "hash": loaded_brief["hash"],
+            "status": loaded_brief["status"],
+            "revision_number": loaded_brief["revision_number"],
+            "formal_use_eligible": loaded_brief["formal_use_eligible"],
+            "allow_draft": allow_draft_brief,
+        }
+        query = brief_payload["task"]
+    if not query:
+        raise ValueError("query or from_brief is required")
     configured_paper_search_command = (
         config.paper_search_command if config.paper_search_command not in {None, "", "paper-search"} else None
     )
@@ -914,16 +937,26 @@ def run_dry_run(
     effective_sources = source_routing.get("selected_sources") or requested_sources
     run_id, run_dir = _new_run_dir(config.vault_path)
     started_at = utc_now()
-    query_plan = (
-        _build_dry_run_query_plan(
-            query,
-            domain=query_plan_domain,
-            max_queries=query_plan_max_queries,
-            config=config,
+    query_plan = None
+    if use_query_plan:
+        query_plan = (
+            build_query_plan_from_research_brief(
+                brief_payload,
+                max_queries=max(1, query_plan_max_queries),
+                profile=config.profile,
+                domains=config.domains,
+                positive_keywords=config.positive_keywords,
+                negative_keywords=config.negative_keywords,
+                venue_prior=config.venue_prior,
+            )
+            if brief_payload is not None
+            else _build_dry_run_query_plan(
+                query,
+                domain=query_plan_domain,
+                max_queries=query_plan_max_queries,
+                config=config,
+            )
         )
-        if use_query_plan
-        else None
-    )
     if query_plan:
         _apply_exact_lookup_query_plan(query_plan, source_routing)
     research_mode = (query_plan or {}).get("research_mode") or infer_research_mode(query)
@@ -945,6 +978,7 @@ def run_dry_run(
             "query_plan_domain": query_plan_domain,
             "query_plan_max_queries": query_plan_max_queries,
             "enable_easyscholar": bool(enable_easyscholar and config.easyscholar_enabled),
+            "research_brief": brief_metadata or {},
         }
     )
     resumed_session = None
@@ -983,6 +1017,8 @@ def run_dry_run(
             "report_run",
         ),
     }
+    if brief_metadata:
+        state["research_brief"] = brief_metadata
     if query_plan:
         state["query_plan"] = {
             "domain": query_plan.get("domain"),
@@ -1004,6 +1040,8 @@ def run_dry_run(
             run_dir=run_dir,
             source_routing=source_routing,
         )
+    if brief_metadata:
+        search_record["research_brief"] = brief_metadata
     write_json_atomic(run_dir / "search-record.json", search_record)
     state["state"] = "discovered"
     write_json_atomic(run_dir / "run-state.json", state)
@@ -1133,6 +1171,8 @@ def run_dry_run(
         },
         "review_session": review_session_payload,
     }
+    if brief_metadata:
+        discovery_context["research_brief"] = brief_metadata
     next_actions = ["Review accepted dry-run candidates before advancing ranked papers."]
     if rejected:
         next_actions.append("Refine the query or domain profile if too many candidates were rejected.")
@@ -1168,9 +1208,12 @@ def run_dry_run(
                 "profile": config.profile,
                 "query_plan": query_plan,
                 "source_routing": source_routing,
+                "research_brief": brief_metadata,
             }
         )
     }
+    if brief_metadata:
+        input_hashes["research-brief.json"] = brief_metadata["hash"]
     if fixture_path is not None and fixture_path.exists():
         input_hashes["fixture.json"] = file_sha256(fixture_path)
     state["input_artifact_hashes"] = input_hashes
