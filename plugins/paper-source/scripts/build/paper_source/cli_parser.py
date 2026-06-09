@@ -71,6 +71,22 @@ def build_parser() -> argparse.ArgumentParser:
     config_restore.add_argument("--confirmed-by", required=True)
     config_restore.add_argument("--json", action="store_true")
 
+    research_brief = subparsers.add_parser("research-brief")
+    research_brief_subparsers = research_brief.add_subparsers(dest="research_brief_action", required=True)
+
+    research_brief_create = research_brief_subparsers.add_parser("create")
+    research_brief_create.add_argument("--answers-json", type=Path, required=True)
+    _add_common_vault(research_brief_create)
+    research_brief_create.add_argument("--json", action="store_true")
+
+    research_brief_validate = research_brief_subparsers.add_parser("validate")
+    research_brief_validate.add_argument("--brief", type=Path, required=True)
+    research_brief_validate.add_argument("--json", action="store_true")
+
+    research_brief_list = research_brief_subparsers.add_parser("list")
+    _add_common_vault(research_brief_list)
+    research_brief_list.add_argument("--json", action="store_true")
+
     wiki_reset = subparsers.add_parser("wiki-reset")
     _add_common_vault(wiki_reset)
     wiki_reset.add_argument("--confirmed-by", default=None)

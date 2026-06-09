@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 
+from paper_source import research_brief
 from paper_source import cli_routes, orchestrator as workflows
 from paper_source.artifacts import file_sha256, raw_paper_root, runs_root, utc_now, write_json_atomic
 from paper_source.cli_parser import build_parser
@@ -116,6 +117,140 @@ def _handle_apply_config_update(args: argparse.Namespace) -> int:
         print("diff:")
         print(result["diff"])
     return 0
+
+
+def _research_brief_output(result: dict) -> dict:
+    payload = result.get("payload") if isinstance(result.get("payload"), dict) else {}
+    return {
+        "brief_slug": result.get("slug") or payload.get("slug"),
+        "status": result.get("status") or payload.get("status"),
+        "revision_number": result.get("revision_number") or payload.get("revision_number"),
+        "path": result.get("json_path"),
+        "json_path": result.get("json_path"),
+        "markdown_path": result.get("markdown_path"),
+        "agent_brief_path": result.get("agent_brief_path"),
+        "hash": result.get("hash") or payload.get("content_hash"),
+    }
+
+
+def _research_brief_validation_result(path: Path) -> tuple[dict, int]:
+    json_path = Path(path)
+    payload: dict = {}
+    try:
+        raw = _load_json(json_path)
+        if isinstance(raw, dict):
+            payload = raw
+        result = research_brief.load_research_brief(json_path, allow_draft=True)
+    except (json.JSONDecodeError, OSError, research_brief.ResearchBriefValidationError) as exc:
+        brief_slug = payload.get("slug")
+        try:
+            brief_slug = research_brief.validate_slug(brief_slug)
+        except research_brief.ResearchBriefValidationError:
+            brief_slug = None
+        return (
+            {
+                "valid": False,
+                "brief_slug": brief_slug,
+                "status": payload.get("status"),
+                "revision_number": payload.get("revision_number"),
+                "path": str(json_path),
+                "hash": payload.get("content_hash"),
+                "errors": [str(exc)],
+            },
+            1,
+        )
+    output = _research_brief_output(result)
+    return (
+        {
+            "valid": True,
+            "brief_slug": output["brief_slug"],
+            "status": output["status"],
+            "revision_number": output["revision_number"],
+            "path": output["path"],
+            "hash": output["hash"],
+            "errors": [],
+        },
+        0,
+    )
+
+
+def _compact_research_brief_entry(result: dict) -> dict:
+    payload = result["payload"]
+    return {
+        "brief_slug": payload["slug"],
+        "status": payload["status"],
+        "title": payload["title"],
+        "task": payload["task"],
+        "created_at": payload["created_at"],
+        "updated_at": payload["updated_at"],
+        "revision_number": payload["revision_number"],
+        "last_used_at": None,
+        "path": result["json_path"],
+    }
+
+
+def _list_research_briefs(vault_path: Path) -> dict:
+    root = research_brief.research_briefs_root(vault_path)
+    briefs: list[dict] = []
+    errors: list[dict] = []
+    if not root.exists():
+        return {"briefs": briefs, "errors": errors}
+    for brief_dir in sorted(path for path in root.iterdir() if path.is_dir()):
+        json_path = brief_dir / "research-brief.json"
+        if not json_path.exists():
+            continue
+        try:
+            loaded = research_brief.load_research_brief(json_path, allow_draft=True)
+        except (json.JSONDecodeError, OSError, research_brief.ResearchBriefValidationError) as exc:
+            errors.append({"path": str(json_path), "error": str(exc)})
+            continue
+        briefs.append(_compact_research_brief_entry(loaded))
+    return {"briefs": briefs, "errors": errors}
+
+
+def _handle_research_brief(args: argparse.Namespace) -> int:
+    if args.research_brief_action == "create":
+        answers = _load_json(args.answers_json)
+        if not isinstance(answers, dict):
+            raise ValueError("answers-json must contain a JSON object")
+        result = research_brief.create_research_brief(args.vault, answers)
+        output = _research_brief_output(result)
+        if args.json:
+            print(json.dumps(output, ensure_ascii=False, indent=2))
+        else:
+            print(f"brief_slug={output['brief_slug']}")
+            print(f"json_path={output['json_path']}")
+            print(f"markdown_path={output['markdown_path']}")
+            print(f"agent_brief_path={output['agent_brief_path']}")
+        return 0
+
+    if args.research_brief_action == "validate":
+        result, exit_code = _research_brief_validation_result(args.brief)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print(f"valid={str(result['valid']).lower()}")
+            print(f"brief_slug={result['brief_slug']}")
+            print(f"path={result['path']}")
+            for error in result["errors"]:
+                print(f"error={error}")
+        return exit_code
+
+    if args.research_brief_action == "list":
+        result = _list_research_briefs(args.vault)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            for entry in result["briefs"]:
+                print(
+                    f"brief_slug={entry['brief_slug']} status={entry['status']} "
+                    f"revision_number={entry['revision_number']} path={entry['path']}"
+                )
+            for error in result["errors"]:
+                print(f"error_path={error['path']} error={error['error']}")
+        return 0
+
+    raise ValueError(f"unsupported research-brief action: {args.research_brief_action}")
 
 
 def _handle_dry_run(args: argparse.Namespace) -> int:

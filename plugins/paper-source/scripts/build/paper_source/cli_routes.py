@@ -15,6 +15,7 @@ HANDLER_NAMES: dict[str, str] = {
     "apply-config-update": "_handle_apply_config_update",
     "config-recover": "_handle_config_recover",
     "config-restore": "_handle_config_restore",
+    "research-brief": "_handle_research_brief",
     "wiki-reset": "_handle_wiki_reset",
     "wiki-repair": "_handle_wiki_repair",
     "paper-source-repository-migrate": "_handle_paper_source_repository_migrate",
