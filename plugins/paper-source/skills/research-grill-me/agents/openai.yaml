@@ -1,4 +1,4 @@
 interface:
   display_name: "Research Grill"
-  short_description: "Grill research direction into a brief"
-  default_prompt: "Use $research-grill-me to turn my research direction into a confirmed Paper Source Research Brief."
+  short_description: "Grill research direction into brief and prompt"
+  default_prompt: "Use $research-grill-me to turn my research direction into a confirmed Paper Source Research Brief and a reusable deep-research prompt."

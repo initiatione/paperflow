@@ -21,7 +21,7 @@ These terms are also recorded in `CONTEXT.md`.
 | Research Profile | The long-term default research interests, domains, keywords, exclusions, and venue preferences in Paper Source config. |
 | Research Grill | The Paper Source conversation entrypoint that challenges and clarifies research intent before a Research Brief is confirmed. |
 
-Avoid calling the artifact `question-refiner output`, `query brief`, `research profile`, or `wiki-ingest brief`. The external `question-refiner` pattern may inspire the questioning workflow, but Paper Source's domain artifact is Research Brief.
+Avoid calling the artifact `question-refiner output`, `query brief`, `research profile`, or `wiki-ingest brief`. The external `question-refiner` pattern may inspire the questioning workflow and chat-visible deep-research prompt, but Paper Source's domain artifact is Research Brief.
 
 ## Goals
 
@@ -265,7 +265,7 @@ The run must not mutate the Research Brief merely because it used it. `last_used
 
 ## Query Planner Integration
 
-Do not render a Research Brief into one string and call that the query.
+Do not render a Research Brief into one string and call that the query. A chat-visible general deep-research prompt may be produced as companion copy for the user, but it must not replace the structured Research Brief or drive `dry-run`.
 
 `Research Brief + Research Profile -> Query Plan`
 
@@ -414,6 +414,7 @@ If skill metadata changes, run plugin validation against `plugins/paper-source`.
 - `CONTEXT.md` defines Research Brief, Research Profile, and Research Grill.
 - Paper Source has a primary `research-grill-me` route and skill folder.
 - `research-grill-me` follows one-question-at-a-time strong questioning with recommended answers.
+- `research-grill-me` outputs a chat-visible general deep-research prompt alongside the confirmation summary.
 - A confirmed Research Brief is persisted under `_paper_source/research-briefs/YYYYMMDD-<slug>/`.
 - Each brief directory has `research-brief.json`, Chinese `research-brief.md`, English `agent-brief.md`, and revision support.
 - Research Brief schema records field provenance and required fields.

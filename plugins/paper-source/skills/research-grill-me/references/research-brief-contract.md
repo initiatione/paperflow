@@ -34,9 +34,56 @@ Read before asking when available:
 
 There is no fixed round count. Continue only until the minimum complete brief is safe to produce.
 
+## Chat Deep-Research Prompt
+
+When the minimum complete brief is safe to present, output a chat-visible general deep-research prompt in the same conversation turn as the Chinese confirmation summary. Use English Markdown headings and fill the content in the user's working language; default to Chinese when the user writes Chinese.
+
+The deep-research prompt is companion copy for reuse in another deep-research tool or manual review. It is not the canonical Paper Source artifact, not a Paper Wiki handoff, and must not be passed to `dry-run` as a freeform query.
+
+Use this template:
+
+```markdown
+### TASK
+
+[A clear, concrete statement of what should be researched.]
+
+### CONTEXT/BACKGROUND
+
+[Why this research matters, who will use it, and what decision or workflow it should support.]
+
+### SPECIFIC QUESTIONS OR SUBTASKS
+
+1. [Concrete research question or subtask.]
+2. [Concrete research question or subtask.]
+3. [Concrete research question or subtask.]
+
+### KEYWORDS
+
+[Required and high-value terms, synonyms, methods, datasets, venues, organisms, systems, or applications.]
+
+### CONSTRAINTS
+
+- Domain scope: [hard topical boundaries]
+- Timeframe: [date range or "unspecified"]
+- Geography or deployment context: [if relevant]
+- Source types: [academic papers, benchmarks, datasets, standards, patents, reports, etc.]
+- Exclusions: [terms, methods, paper types, or claims to avoid]
+- Unknowns: [gaps that should remain visible rather than guessed]
+
+### OUTPUT FORMAT
+
+- [Expected artifact: report, prioritized paper list, evidence table, reproduction plan, literature-review seed, etc.]
+- [Expected depth and length]
+- Citation requirements: include author or organization, publication date, source title, URL or DOI, and page/section/figure locator when available.
+
+### FINAL INSTRUCTIONS
+
+Do not answer from memory alone. Search systematically, compare source quality, mark unsupported claims, and ask for clarification if the task remains ambiguous.
+```
+
 ## Confirmation And Creation
 
-Before confirmed creation, present a Chinese summary covering task, domain scope, questions, keywords, exclusions, source scope, output goal, and unknowns. Ask for explicit confirmation; do not treat silence or a vague "ok" as confirmation if material fields are still uncertain.
+Before confirmed creation, present a Chinese summary covering task, domain scope, questions, keywords, exclusions, source scope, output goal, and unknowns. Include the chat-visible general deep-research prompt after that summary. Ask for explicit confirmation; do not treat silence or a vague "ok" as confirmation if material fields are still uncertain.
 
 After confirmation, write an answers JSON and run:
 

@@ -49,8 +49,10 @@ routes:
     category: primary
     triggers:
       - clarify a research direction
+      - refine a research question
       - grill my research idea
       - build a Research Brief
+      - deep-research prompt
       - 研究简报
       - 帮我梳理科研方向
       - 强追问科研问题
@@ -58,6 +60,7 @@ routes:
     skill: research-grill-me/SKILL.md
     notes:
       - one decision point per turn with a recommended answer
+      - output a chat-visible general deep-research prompt alongside the confirmation summary
       - Research Briefs override Research Profile for the current task
       - Research Briefs cannot bypass source-staging or Paper Wiki handoff gates
   topic_tracking:

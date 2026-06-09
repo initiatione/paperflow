@@ -1,13 +1,14 @@
 ---
 name: research-grill-me
 description: >
-  Use when the user asks Paper Source / PS to clarify a research direction, build a Research Brief,
-  "研究简报", "帮我梳理科研方向", "强追问科研问题", or prepare a formal Paper Source search.
+  Use when the user asks Paper Source / PS to clarify a research direction, refine a vague research
+  question, build a Research Brief, produce a deep-research prompt, "研究简报", "帮我梳理科研方向",
+  "强追问科研问题", or prepare a formal Paper Source search.
 ---
 
 # Research Grill
 
-Use this to turn an under-specified research direction into a confirmed Paper Source Research Brief. Be demanding but efficient: ask one decision point per turn, give a recommended answer, and explain why the decision affects Paper Source.
+Use this to turn an under-specified research direction into a confirmed Paper Source Research Brief plus a chat-visible general deep-research prompt. Be demanding but efficient: ask one decision point per turn, give a recommended answer, and explain why the decision affects Paper Source.
 
 ## Contract
 
@@ -15,7 +16,8 @@ Use this to turn an under-specified research direction into a confirmed Paper So
 - Ask strong questions with one decision point per turn; each turn includes a recommended answer.
 - Explain why the decision affects Paper Source query planning, source scope, ranking, or handoff gates.
 - Use no fixed round count; stop when the minimum complete brief can be produced.
-- Before creating a confirmed brief, show a Chinese confirmation summary and require explicit user confirmation.
+- Before creating a confirmed brief, show a Chinese confirmation summary and a chat-visible general deep-research prompt, then require explicit user confirmation.
+- The deep-research prompt is companion copy for the user; it does not replace `research-brief.json`, `research-brief.md`, `agent-brief.md`, or downstream Paper Source commands.
 - `research-brief.md` is user-facing Chinese; `agent-brief.md` is English.
 - Create artifacts only with `research-brief create --answers-json <answers.json> --vault <vault>`.
 - Route formal discovery through `dry-run --from-brief <research-brief.json>`.

@@ -41,6 +41,26 @@ def test_research_grill_skill_entrypoint_defines_questioning_contract():
         assert phrase in skill
 
 
+def test_research_grill_outputs_general_deep_research_prompt_in_chat():
+    skill = _read(RESEARCH_GRILL / "SKILL.md")
+    contract = _read(RESEARCH_GRILL / "references" / "research-brief-contract.md")
+    agent_metadata = _read(RESEARCH_GRILL / "agents" / "openai.yaml")
+    combined = "\n".join([skill, contract, agent_metadata])
+
+    for phrase in [
+        "chat-visible general deep-research prompt",
+        "deep-research prompt is companion copy",
+        "### TASK",
+        "### CONTEXT/BACKGROUND",
+        "### SPECIFIC QUESTIONS OR SUBTASKS",
+        "### KEYWORDS",
+        "### CONSTRAINTS",
+        "### OUTPUT FORMAT",
+        "### FINAL INSTRUCTIONS",
+    ]:
+        assert phrase in combined
+
+
 def test_research_grill_docs_preserve_paper_source_and_paper_wiki_boundaries():
     files = [
         RESEARCH_GRILL / "SKILL.md",
