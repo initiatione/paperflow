@@ -31,6 +31,27 @@ _FILENAME_SAFE_RE = re.compile(r"[^A-Za-z0-9_-]+")
 _REQUIRED_TEXT_FIELDS = ("slug", "title", "task", "domain_scope")
 _REQUIRED_LIST_FIELDS = ("specific_questions", "keywords")
 _OPTIONAL_LIST_FIELDS = ("exclusions", "unknowns")
+_PERSISTED_V1_FIELDS = {
+    "schema_version",
+    "status",
+    "slug",
+    "title",
+    "task",
+    "domain_scope",
+    "specific_questions",
+    "keywords",
+    "exclusions",
+    "review_policy",
+    "source_scope",
+    "output_goal",
+    "unknowns",
+    "field_sources",
+    "revision_number",
+    "created_at",
+    "updated_at",
+    "supersedes_hash",
+    "content_hash",
+}
 
 
 class ResearchBriefValidationError(ValueError):
@@ -158,8 +179,23 @@ def validate_research_brief_payload(payload: dict[str, Any], *, formal_use: bool
 def _validate_persisted_research_brief_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ResearchBriefValidationError("payload must be an object")
+    payload_keys = set(payload)
+    missing_fields = sorted(_PERSISTED_V1_FIELDS - payload_keys)
+    if missing_fields:
+        raise ResearchBriefValidationError(f"missing persisted fields: {missing_fields}")
+    unexpected_fields = sorted(payload_keys - _PERSISTED_V1_FIELDS)
+    if unexpected_fields:
+        raise ResearchBriefValidationError(f"unexpected persisted fields: {unexpected_fields}")
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise ResearchBriefValidationError(f"schema_version must be {SCHEMA_VERSION}")
+    if not isinstance(payload.get("revision_number"), int) or payload["revision_number"] < 1:
+        raise ResearchBriefValidationError("revision_number must be a positive integer")
+    for field in ("created_at", "updated_at"):
+        if not isinstance(payload.get(field), str) or not payload[field].strip():
+            raise ResearchBriefValidationError(f"{field} must be a non-empty string")
+    supersedes_hash = payload.get("supersedes_hash")
+    if supersedes_hash is not None and (not isinstance(supersedes_hash, str) or not supersedes_hash):
+        raise ResearchBriefValidationError("supersedes_hash must be null or a non-empty string")
 
     content_hash = payload.get("content_hash")
     if not isinstance(content_hash, str) or not content_hash:

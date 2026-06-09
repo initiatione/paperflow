@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from paper_source.artifacts import json_sha256
 from paper_source.research_brief import (
     ResearchBriefValidationError,
     create_research_brief,
@@ -40,6 +41,13 @@ def _answers(slug="20260609-auv-current-disturbance-control", status="confirmed"
 
 def _rewrite_json(path, payload):
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _rewrite_json_with_recomputed_hash(path, payload):
+    payload = dict(payload)
+    payload.pop("content_hash", None)
+    payload["content_hash"] = json_sha256(payload)
+    _rewrite_json(path, payload)
 
 
 def _json_path(result):
@@ -149,6 +157,39 @@ def test_load_research_brief_rejects_missing_or_tampered_content_hash(tmp_path):
 
     with pytest.raises(ResearchBriefValidationError, match="content_hash"):
         load_research_brief(tampered_path)
+
+
+def test_load_research_brief_rejects_persisted_missing_revision_number_after_rehash(tmp_path):
+    result = create_research_brief(tmp_path, _answers(), now="2026-06-09T12:00:00Z")
+    json_path = _json_path(result)
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    payload.pop("revision_number")
+    _rewrite_json_with_recomputed_hash(json_path, payload)
+
+    with pytest.raises(ResearchBriefValidationError, match="revision_number"):
+        load_research_brief(json_path)
+
+
+def test_load_research_brief_rejects_persisted_wrong_revision_number_type_after_rehash(tmp_path):
+    result = create_research_brief(tmp_path, _answers(), now="2026-06-09T12:00:00Z")
+    json_path = _json_path(result)
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    payload["revision_number"] = "1"
+    _rewrite_json_with_recomputed_hash(json_path, payload)
+
+    with pytest.raises(ResearchBriefValidationError, match="revision_number"):
+        load_research_brief(json_path)
+
+
+def test_load_research_brief_rejects_unexpected_top_level_key_after_rehash(tmp_path):
+    result = create_research_brief(tmp_path, _answers(), now="2026-06-09T12:00:00Z")
+    json_path = _json_path(result)
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    payload["unexpected"] = "extra"
+    _rewrite_json_with_recomputed_hash(json_path, payload)
+
+    with pytest.raises(ResearchBriefValidationError, match="unexpected"):
+        load_research_brief(json_path)
 
 
 def test_confirmed_revision_preserves_prior_json_snapshot(tmp_path):
