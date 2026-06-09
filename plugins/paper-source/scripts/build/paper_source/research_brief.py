@@ -26,7 +26,7 @@ SOURCE_SCOPE_VALUES = {
     "manual_sources_provided",
 }
 
-_SLUG_RE = re.compile(r"^\d{8}-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
+_SLUG_RE = re.compile(r"^\d{8}-[a-z0-9]+(?:-[a-z0-9]+)*$")
 _FILENAME_SAFE_RE = re.compile(r"[^A-Za-z0-9_-]+")
 _REQUIRED_TEXT_FIELDS = ("slug", "title", "task", "domain_scope")
 _REQUIRED_LIST_FIELDS = ("specific_questions", "keywords")
@@ -46,7 +46,9 @@ def validate_slug(slug: str) -> str:
     if not value:
         raise ResearchBriefValidationError("slug is required")
     if not _SLUG_RE.fullmatch(value):
-        raise ResearchBriefValidationError(f"slug must follow YYYYMMDD-<topic> lowercase kebab-case: {value}")
+        raise ResearchBriefValidationError(
+            f"slug must follow YYYYMMDD-<topic> lowercase ASCII kebab-case with single hyphen separators: {value}"
+        )
     return value
 
 

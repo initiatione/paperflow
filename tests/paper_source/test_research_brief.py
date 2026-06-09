@@ -93,6 +93,11 @@ def test_slug_validation_requires_yyyymmdd_prefix(tmp_path):
         create_research_brief(tmp_path, _answers(slug="auv-current-disturbance-control"), now="2026-06-09T12:00:00Z")
 
 
+def test_slug_validation_rejects_double_hyphen_separators(tmp_path):
+    with pytest.raises(ResearchBriefValidationError, match="single hyphen"):
+        create_research_brief(tmp_path, _answers(slug="20260609-auv--current"), now="2026-06-09T12:00:00Z")
+
+
 def test_validate_requires_minimum_complete_fields():
     payload = _answers()
     payload["task"] = ""
