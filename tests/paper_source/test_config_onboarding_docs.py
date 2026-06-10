@@ -304,6 +304,6 @@ def test_paper_ingest_source_first_reading_reference_exists():
     assert "references/source-first-reading.md" in ingest
     assert "Claim Cards" in source_first
     assert "Formula And Figure Rules" in source_first
-    assert "`mineru/paper.tex` only when native TeX exists" in source_first
+    assert "`mineru/paper.tex` only when non-empty native TeX exists" in source_first
     assert "mineru/images/*" in source_first
     assert "reader/claim-support.json" in source_first

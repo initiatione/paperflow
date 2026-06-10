@@ -46,7 +46,7 @@ For systematic review mode, state whether backward/forward snowballing has been 
 After `prepare-ranked`, summarize whether the reader can be trusted:
 
 - Markdown present and non-empty.
-- TeX present and whether it is native or Markdown fallback.
+- Non-empty native TeX present, or Markdown-only parse requiring formula review from MinerU Markdown/PDF.
 - Image/figure count and whether images were reviewed.
 - Manifest present and complete.
 - Parse warning/error text, including done-but-no-Markdown cases.

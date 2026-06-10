@@ -155,6 +155,7 @@ def test_ask_wiki_uses_formal_graph_backlinks_colinks_and_reports_correction_can
     assert source_evidence["exists"] is True
     assert source_evidence["formal_graph_node"] is False
     assert source_evidence["artifacts"]["mineru_markdown"] is True
+    assert source_evidence["artifacts"]["mineru_tex"] is True
 
     assert any(
         candidate["kind"] == "broken_wikilink" and candidate["target"] == "Missing Evidence Node"
@@ -166,6 +167,30 @@ def test_ask_wiki_uses_formal_graph_backlinks_colinks_and_reports_correction_can
         for candidate in result["correction_candidates"]
     )
     assert (vault / "log.md").read_text(encoding="utf-8") == "do not change this log\n"
+
+
+def test_ask_wiki_source_evidence_treats_empty_tex_as_absent(tmp_path):
+    vault = tmp_path / "vault"
+    raw_root = vault / "_paper_source" / "raw" / "example"
+    (raw_root / "mineru" / "images").mkdir(parents=True, exist_ok=True)
+    (raw_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
+    (raw_root / "metadata.json").write_text('{"title": "fixture"}\n', encoding="utf-8")
+    (raw_root / "mineru" / "example.md").write_text("mineru markdown\n", encoding="utf-8")
+    (raw_root / "mineru" / "paper.tex").write_text("", encoding="utf-8")
+    _write_formal_page(
+        vault,
+        "references/empty-tex-source.md",
+        "Empty TeX Source",
+        "Empty TeX Source discusses source evidence handling.",
+        aliases=["Empty TeX Source"],
+    )
+
+    result = ask_wiki(vault, question="Empty TeX Source", limit=3)
+
+    pages = {page["path"]: page for page in result["pages"]}
+    source_evidence = pages["references/empty-tex-source.md"]["source_evidence"][0]
+    assert source_evidence["artifacts"]["mineru_markdown"] is True
+    assert source_evidence["artifacts"]["mineru_tex"] is False
 
 
 def test_render_wiki_ask_labels_evidence_synthesis_inference_uncertainty_and_correction_loop(tmp_path):

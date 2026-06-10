@@ -25,7 +25,7 @@ Acquisition order is OA-first:
 
 Successful MCP fallback acquisition writes `fallback_chain`, `use_scihub=false` by default, `doi`, `title`, `mcp_server_probe`, `upstream.tool`, and `identity_check` into `acquire-record.json`. Treat those fields as acquisition provenance, not as proof that the paper itself was read.
 
-After acquire success, Paper Source may call MCP `read_<source>_paper` or CLI read and write `paper-search-read-preview.txt`. The matching `acquire-record.json.retrieval_preview` is a non-authoritative retrieval preview sidecar for checking upstream text extraction depth; it is not replacing MinerU, and final wiki ingest must still use `paper.pdf` plus MinerU Markdown/TeX/images/manifest.
+After acquire success, Paper Source may call MCP `read_<source>_paper` or CLI read and write `paper-search-read-preview.txt`. The matching `acquire-record.json.retrieval_preview` is a non-authoritative retrieval preview sidecar for checking upstream text extraction depth; it is not replacing MinerU, and final wiki ingest must still use `paper.pdf` plus MinerU Markdown/images/manifest and optional non-empty native TeX.
 
 ## Reviewed Or Audited Mode
 
@@ -57,7 +57,7 @@ Failed acquire attempts that never downloaded `paper.pdf` are not library entrie
 
 For slow MinerU jobs, pass `--mineru-timeout <seconds>` or set `PAPER_SOURCE_MINERU_TIMEOUT`. Legacy `EPI_MINERU_TIMEOUT` remains accepted for existing environments. Complete parse reuse requires `parse-record.json status=success`, not just a Markdown file.
 
-After MinerU parse success, Paper Source writes `_paper_source/raw/<slug>/evidence-index.json` and refreshes `_paper_source/meta/evidence-index.json`. Treat `evidence-index.json` as a full-text page/section/chunk locator for later claim support and wiki provenance; it is generated from MinerU Markdown and does not replace `paper.pdf`, `mineru/<slug>.md`, `mineru/images/*`, `mineru/mineru-manifest.json`, figure/formula indexes, or optional native `mineru/paper.tex`.
+After MinerU parse success, Paper Source writes `_paper_source/raw/<slug>/evidence-index.json` and refreshes `_paper_source/meta/evidence-index.json`. Treat `evidence-index.json` as a full-text page/section/chunk locator for later claim support and wiki provenance; it is generated from MinerU Markdown and does not replace `paper.pdf`, `mineru/<slug>.md`, `mineru/images/*`, `mineru/mineru-manifest.json`, figure/formula indexes, or optional non-empty native `mineru/paper.tex`.
 
 ## Source-First Handoff Check
 
@@ -73,7 +73,7 @@ The handoff must require source artifacts:
 - `paper.pdf`
 - `metadata.json`
 - `mineru/<slug>.md`
-- `mineru/paper.tex` when native TeX exists
+- `mineru/paper.tex` when non-empty native TeX exists
 - `mineru/images/*`
 - `mineru/mineru-manifest.json`
 

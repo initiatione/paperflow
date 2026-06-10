@@ -26,6 +26,17 @@ def resolved_mineru_markdown_relative_path(paper_root: Path) -> str:
     return resolve_mineru_markdown_path(paper_root).relative_to(paper_root).as_posix()
 
 
+def is_nonempty_file(path: Path) -> bool:
+    try:
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
+
+
+def has_nonempty_mineru_tex(paper_root: Path) -> bool:
+    return is_nonempty_file(paper_root / "mineru" / "paper.tex")
+
+
 def is_mineru_markdown_artifact(value: str) -> bool:
     normalized = str(value or "").replace("\\", "/").strip()
     return normalized.startswith("mineru/") and normalized.endswith(".md")
@@ -39,7 +50,7 @@ def source_first_artifacts(paper_root: Path) -> list[str]:
         "mineru/images/*",
         "mineru/mineru-manifest.json",
     ]
-    if (paper_root / "mineru" / "paper.tex").is_file():
+    if has_nonempty_mineru_tex(paper_root):
         artifacts.insert(3, "mineru/paper.tex")
     return artifacts
 

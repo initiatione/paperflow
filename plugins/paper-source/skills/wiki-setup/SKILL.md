@@ -51,7 +51,7 @@ The core `_paper_source` bootstrap must include `_paper_source\README.md`, `_pap
 
 Seed vault contract files for wiki-ingest agents: `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`.
 
-Defaults are source-first for paper research: final pages read `mineru\<slug>.md`, `mineru\paper.tex`, `mineru\images\*`, and `mineru\mineru-manifest.json`; reader/critic outputs are aids.
+Defaults are source-first for paper research: final pages read `mineru\<slug>.md`, `mineru\images\*`, `mineru\mineru-manifest.json`, and `mineru\paper.tex` only when it exists as non-empty native TeX; reader/critic outputs are aids.
 
 For existing vaults with old top-level operational roots, migrate before or after initialization:
 

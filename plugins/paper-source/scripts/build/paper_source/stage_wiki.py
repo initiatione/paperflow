@@ -11,7 +11,7 @@ from paper_source.artifacts import (
     write_json_atomic,
     write_text_atomic,
 )
-from paper_source.source_artifacts import canonical_source_first_artifacts, source_first_artifacts
+from paper_source.source_artifacts import canonical_source_first_artifacts, has_nonempty_mineru_tex, source_first_artifacts
 from paper_source.wiki_contracts import (
     PAPER_SOURCE_DEPOSITION_SKILL,
     PAPER_WIKI_CANONICAL_SKILL,
@@ -236,7 +236,7 @@ def _source_handoff_body(*, slug: str, title: str, workflow_mode: str, reader_te
         "- Required source artifacts for final wiki writing:",
         *[f"  - {artifact}" for artifact in _source_first_artifacts(slug)],
         "",
-        "Final wiki pages must be written by wiki-ingest from the source paper, MinerU Markdown/TeX, images, and manifest. This file is an internal navigator, not a final wiki page.",
+        "Final wiki pages must be written by wiki-ingest from the source paper, MinerU Markdown, images, manifest, and optional non-empty native TeX. This file is an internal navigator, not a final wiki page.",
     ]
     return "\n".join(source_lines)
 
@@ -588,7 +588,7 @@ def _reading_trust_payload(research_decision: dict, reproduction_plan: dict) -> 
             "status": "source-ready",
             "read_mode": (
                 "默认 fast-ingest：本报告只用于候选批准；未运行 reader/critic，正式 Wiki 必须从原论文、"
-                "MinerU Markdown/TeX、图片和 manifest 重读后写入。"
+                "MinerU Markdown、图片、manifest 和非空原生 TeX（若存在）重读后写入。"
             ),
             "blocking_lenses": [],
             "warning_reviewers": [],
@@ -801,7 +801,7 @@ def _primary_source_reading_order(source_markdown: str, paper_root: Path | None)
         "formula-index.json",
         "asset-normalization-record.json",
     ]
-    if paper_root is not None and (paper_root / "mineru" / "paper.tex").is_file():
+    if paper_root is not None and has_nonempty_mineru_tex(paper_root):
         order.insert(2, "mineru/paper.tex")
     return order
 
@@ -823,7 +823,7 @@ def _paper_deposition_paths(
         "metadata": str(paper_root / "metadata.json"),
         "paper_pdf": str(paper_root / "paper.pdf"),
         "paper_md": str(paper_root / source_markdown),
-        "paper_tex": str(paper_root / "mineru" / "paper.tex") if (paper_root / "mineru" / "paper.tex").is_file() else None,
+        "paper_tex": str(paper_root / "mineru" / "paper.tex") if has_nonempty_mineru_tex(paper_root) else None,
         "images": str(paper_root / "mineru" / "images"),
         "mineru_manifest": str(paper_root / "mineru" / "mineru-manifest.json"),
         "formula_index": str(paper_root / "formula-index.json"),
@@ -1048,7 +1048,7 @@ def _build_wiki_ingest_brief(
                 f"Read the source paper artifacts ({source_markdown}, mineru/images/*, "
                 "mineru/mineru-manifest.json, figure-index.json, formula-index.json, and "
                 "asset-normalization-record.json) before final wiki writing; read mineru/paper.tex only when "
-                "that optional native TeX artifact exists. Reader and critic outputs, "
+                "that optional native TeX artifact exists and is non-empty. Reader and critic outputs, "
                 "when present, are optional navigation and quality signals, not substitutes for the source paper."
             ),
             "reader_critic_policy": (
@@ -1187,7 +1187,7 @@ def _wiki_ingest_brief_report_lines(wiki_ingest_brief: dict) -> list[str]:
         f"- 已跟踪证据 claim：{evidence.get('claim_count', 0)}",
         f"- 可选 reader/critic 辅助证据：{aid_text}",
         "- 正式路径、frontmatter、标签、链接、合并策略和 staged writes 均由目标 vault contract 与 wiki skill 决定。",
-        "- 进入正式写入前必须读取原论文、MinerU Markdown/TeX、图片和 manifest；reader/critic 只有在本次模式实际生成时才作为辅助。",
+        "- 进入正式写入前必须读取原论文、MinerU Markdown、图片、manifest 和非空原生 TeX（若存在）；reader/critic 只有在本次模式实际生成时才作为辅助。",
     ]
 
 
@@ -1228,7 +1228,7 @@ def _reading_report_lines(
     reader_method_line = (
         f"- reader 技术线索：{_reader_take_or_note(method_take, 'reader 技术摘要未达到审批报告可读标准；正式写入时请回到原文方法章节和 evidence map。')}"
         if reader_available
-        else "- source-first 复核重点：正式写入时从 MinerU Markdown/TeX、图片、manifest 和必要时的 PDF 回读方法、公式、图表和实验设置。"
+        else "- source-first 复核重点：正式写入时从 MinerU Markdown、图片、manifest、非空原生 TeX（若存在）和必要时的 PDF 回读方法、公式、图表和实验设置。"
     )
     fit_line = (
         f"- 研究方向贴合度：{_reader_take_or_note(fit_take, '需要由 wiki skill 在批量沉淀时结合目标 vault taxonomy 判断。')}"
@@ -1250,7 +1250,7 @@ def _reading_report_lines(
             ]
         )
     else:
-        evidence_lines.append("- 默认快路径未生成 reader evidence map；正式页证据以原论文、MinerU Markdown/TeX、图片和 manifest 为准。")
+        evidence_lines.append("- 默认快路径未生成 reader evidence map；正式页证据以原论文、MinerU Markdown、图片、manifest 和非空原生 TeX（若存在）为准。")
     if research_decision:
         quality_lines = [
             f"- critic 共识：{panel.get('consensus', research_decision.get('recommendation', ''))}",

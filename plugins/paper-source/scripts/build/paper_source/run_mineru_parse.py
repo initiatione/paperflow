@@ -15,7 +15,7 @@ from paper_source.artifacts import LEGACY_EPI_ROOT_NAME, PAPER_SOURCE_ROOT_NAME
 from paper_source.asset_normalization import count_preserved_images, normalize_mineru_assets
 from paper_source.evidence_index import build_paper_evidence_index
 from paper_source.runtime_config import apply_runtime_config
-from paper_source.source_artifacts import canonical_mineru_markdown_path
+from paper_source.source_artifacts import canonical_mineru_markdown_path, is_nonempty_file
 
 
 def _plugin_root() -> Path:
@@ -224,7 +224,7 @@ def _markdown_to_latex(markdown: str) -> str:
 
 def _existing_tex_path(mineru_dir: Path) -> Path | None:
     tex_path = mineru_dir / "paper.tex"
-    return tex_path if tex_path.is_file() else None
+    return tex_path if is_nonempty_file(tex_path) else None
 
 
 def _record_tex_artifact(record: dict, output_hashes: dict[str, str], mineru_dir: Path, tex_source: str) -> None:
@@ -408,6 +408,9 @@ def run_mineru_command(
         shutil.copyfile(tex_candidates[0], mineru_dir / "paper.tex")
         tex_source = "mineru-native"
     else:
+        stale_tex = mineru_dir / "paper.tex"
+        if stale_tex.exists() or stale_tex.is_symlink():
+            stale_tex.unlink()
         tex_source = "paused-no-native-tex"
     image_dir = markdown_path.parent / "images"
     image_count = _copy_tree_contents(image_dir, mineru_dir / "images")
@@ -480,10 +483,13 @@ def materialize_mineru_fixture(
     if legacy_markdown_path.exists() or legacy_markdown_path.is_symlink():
         legacy_markdown_path.unlink()
     shutil.copyfile(markdown_path, mineru_markdown_path)
-    if tex_path:
+    if tex_path and is_nonempty_file(tex_path):
         shutil.copyfile(tex_path, mineru_dir / "paper.tex")
         tex_source = "fixture-native"
     else:
+        stale_tex = mineru_dir / "paper.tex"
+        if stale_tex.exists() or stale_tex.is_symlink():
+            stale_tex.unlink()
         tex_source = "paused-no-native-tex"
     (mineru_dir / "images").mkdir(exist_ok=True)
     image_count = 0
@@ -504,7 +510,7 @@ def materialize_mineru_fixture(
                     "file_name": "paper.pdf",
                     "state": "done",
                     "markdown_path": f"{paper_root.name}.md",
-                    "tex_path": "paper.tex",
+                    "tex_path": "paper.tex" if tex_source == "fixture-native" else None,
                     "image_count": image_count,
                 }
             ],
@@ -533,7 +539,7 @@ def materialize_mineru_fixture(
     input_hashes = {
         "fixture_markdown": file_sha256(markdown_path),
     }
-    if tex_path:
+    if tex_path and is_nonempty_file(tex_path):
         input_hashes["fixture_tex"] = file_sha256(tex_path)
     parse_record["input_artifact_hashes"] = input_hashes
     output_artifact_hashes = {

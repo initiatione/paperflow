@@ -24,7 +24,7 @@ from paper_source.doctor import collect_doctor_report, open_setup_links, render_
 from paper_source.paper_source_repository import cleanup_paper_source_repository, migrate_legacy_paper_source_roots
 from paper_source.report_run import load_run_report
 from paper_source.runtime_config import apply_runtime_config
-from paper_source.source_artifacts import resolve_mineru_markdown_path, resolved_mineru_markdown_relative_path
+from paper_source.source_artifacts import is_nonempty_file, resolve_mineru_markdown_path, resolved_mineru_markdown_relative_path
 from paper_source.wiki_reset import reset_wiki_vault
 
 
@@ -632,7 +632,7 @@ def _handle_redo_parse(args: argparse.Namespace) -> int:
         reason=args.reason,
     )
     input_hashes = {"input_markdown": file_sha256(args.mineru_md)}
-    if args.mineru_tex is not None and args.mineru_tex.exists():
+    if args.mineru_tex is not None and is_nonempty_file(args.mineru_tex):
         input_hashes["input_tex"] = file_sha256(args.mineru_tex)
     workflows._write_repair_routed_report(
         args.vault.resolve(),

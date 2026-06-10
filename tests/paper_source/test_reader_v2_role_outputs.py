@@ -125,6 +125,39 @@ def test_reader_v2_emits_source_first_optional_artifact_claims_and_hashes(tmp_pa
     assert claim_support["support_counts"]["metadata-only"] >= 1
 
 
+def test_reader_v2_ignores_empty_tex_optional_artifact(tmp_path):
+    paper_root = _write_reader_v2_fixture(tmp_path)
+    mineru_dir = paper_root / "mineru"
+    (mineru_dir / "paper.tex").write_text("", encoding="utf-8")
+    (mineru_dir / "mineru-manifest.json").write_text(
+        json.dumps(
+            {
+                "batch_id": "source-first-batch",
+                "outputs": [
+                    {
+                        "file_name": "paper.pdf",
+                        "state": "done",
+                        "image_count": 0,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    reader_record = generate_reader_outputs(paper_root)
+
+    reader_dir = paper_root / "reader"
+    technical = (reader_dir / "technical-reading.md").read_text(encoding="utf-8")
+    evidence_map = json.loads((reader_dir / "evidence-map.json").read_text(encoding="utf-8"))
+    sources = {claim["source"] for claim in evidence_map["claims"]}
+
+    assert "Evidence: source=mineru/paper.tex" not in technical
+    assert "mineru/paper.tex" not in reader_record["input_artifact_hashes"]
+    assert "mineru/paper.tex" not in sources
+    assert "mineru/mineru-manifest.json" in reader_record["input_artifact_hashes"]
+
+
 def test_critic_rejects_reader_when_required_role_artifact_is_missing(tmp_path):
     paper_root = _write_reader_v2_fixture(tmp_path)
     generate_reader_outputs(paper_root)

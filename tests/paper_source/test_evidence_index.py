@@ -56,6 +56,15 @@ def test_build_paper_evidence_index_records_null_page_without_marker(tmp_path):
     assert "page markers not found" in index["warnings"]
 
 
+def test_build_paper_evidence_index_treats_empty_tex_as_absent(tmp_path):
+    vault, paper_root = _seed_paper(tmp_path)
+    (paper_root / "mineru" / "paper.tex").write_text("", encoding="utf-8")
+
+    index = build_paper_evidence_index(paper_root, vault_path=vault)
+
+    assert index["source_artifacts"]["mineru_tex"] is None
+
+
 def test_refresh_vault_evidence_index_records_paper_entry(tmp_path):
     vault, paper_root = _seed_paper(tmp_path)
     paper_index = build_paper_evidence_index(paper_root, vault_path=vault)

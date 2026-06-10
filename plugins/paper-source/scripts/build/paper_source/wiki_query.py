@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from paper_source.artifacts import LEGACY_EPI_ROOT_NAME, PAPER_SOURCE_ROOT_NAME
+from paper_source.source_artifacts import has_nonempty_mineru_tex
 
 
 ROLE_LABELS = {
@@ -176,7 +177,7 @@ def _source_evidence_for_page(vault_path: Path, page: dict) -> list[dict]:
                     "paper.pdf": paper_pdf.is_file(),
                     "metadata.json": (paper_root / "metadata.json").is_file(),
                     "mineru_markdown": bool(mineru_markdowns),
-                    "mineru_tex": (mineru_root / "paper.tex").is_file(),
+                    "mineru_tex": has_nonempty_mineru_tex(paper_root),
                     "mineru_images": (mineru_root / "images").is_dir(),
                 },
             }

@@ -14,7 +14,12 @@ from paper_source.reader_protocol import (
 )
 from paper_source.reader_outputs import write_role_reader_outputs
 from paper_source.reader_revision_guidance import render_role_revision_focus_section
-from paper_source.source_artifacts import resolve_mineru_markdown_path, resolved_mineru_markdown_relative_path
+from paper_source.source_artifacts import (
+    has_nonempty_mineru_tex,
+    is_nonempty_file,
+    resolve_mineru_markdown_path,
+    resolved_mineru_markdown_relative_path,
+)
 
 
 def _revision_guidance_text(reader_dir: Path) -> str:
@@ -40,7 +45,7 @@ def generate_reader_outputs(paper_root: Path) -> dict:
     paper_pdf_path = paper_root / "paper.pdf"
     paper_tex_path = paper_root / "mineru" / "paper.tex"
     mineru_manifest_path = paper_root / "mineru" / "mineru-manifest.json"
-    paper_tex_text = paper_tex_path.read_text(encoding="utf-8", errors="ignore") if paper_tex_path.exists() else ""
+    paper_tex_text = paper_tex_path.read_text(encoding="utf-8", errors="ignore") if has_nonempty_mineru_tex(paper_root) else ""
     mineru_manifest = _read_optional_json_object(mineru_manifest_path)
     sections = markdown_sections(mineru_text)
     title = metadata.get("title", "Untitled Paper")
@@ -212,7 +217,7 @@ def generate_reader_outputs(paper_root: Path) -> dict:
         "mineru/mineru-manifest.json": mineru_manifest_path,
     }
     for label, path in optional_inputs.items():
-        if path.exists():
+        if is_nonempty_file(path):
             input_artifact_hashes[label] = file_sha256(path)
 
     return {

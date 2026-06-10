@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from paper_source.artifacts import file_sha256, utc_now, write_json_atomic, write_text_atomic
-from paper_source.source_artifacts import resolve_mineru_markdown_path
+from paper_source.source_artifacts import has_nonempty_mineru_tex, resolve_mineru_markdown_path
 
 
 SCHEMA_VERSION = "paper-source-asset-normalization-v1"
@@ -513,7 +513,7 @@ def normalize_mineru_assets(paper_root: Path, *, execute: bool = False) -> dict[
                 "latex": markdown_latex or tex_latex,
                 "source": "mineru-markdown" if markdown_latex else "mineru-tex",
                 "markdown_locator": f"{markdown_path.name}:L{ref.line_index + 1}",
-                "tex_locator": "paper.tex" if tex_path.exists() else None,
+                "tex_locator": "paper.tex" if has_nonempty_mineru_tex(paper_root) else None,
                 "dropped_image_refs": [old_relative],
                 "confidence": "high" if markdown_latex else "medium",
                 "warnings": ["formula-like image has LaTeX evidence and is excluded from evidence figures"],

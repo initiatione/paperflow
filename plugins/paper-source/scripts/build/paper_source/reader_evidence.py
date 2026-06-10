@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from paper_source.claim_support import classify_claim_support
-from paper_source.source_artifacts import resolve_mineru_markdown_path
+from paper_source.source_artifacts import has_nonempty_mineru_tex, resolve_mineru_markdown_path
 
 
 REQUIRED_READER_ROLES = {
@@ -81,7 +81,7 @@ def _validate_evidence_reference(
     elif source == "mineru/paper.tex":
         tex_path = paper_root / "mineru" / "paper.tex"
         cue = parsed.get("cue")
-        if not tex_path.exists():
+        if not has_nonempty_mineru_tex(paper_root):
             return [f"{label}: missing mineru TeX for Evidence: {_evidence_address(parsed)}"]
         if not cue:
             return [f"{label}: missing TeX cue for Evidence: {_evidence_address(parsed)}"]

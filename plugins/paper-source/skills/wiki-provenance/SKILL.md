@@ -14,7 +14,7 @@ No durable wiki claim without support status and evidence route. Preserve the di
 
 ## Read Before Writing
 
-Load the handoff/trigger (`wiki-ingest-handoff`, `wiki-agent-trigger.json`, `wiki-ingest-brief.json`), source bundle (`paper.pdf`, `metadata.json`, MinerU Markdown/TeX/images/manifest), evidence aids (`evidence-index.json`, reader maps, critic reports), reading report, and target vault `AGENTS.md` / `_meta/*`.
+Load the handoff/trigger (`wiki-ingest-handoff`, `wiki-agent-trigger.json`, `wiki-ingest-brief.json`), source bundle (`paper.pdf`, `metadata.json`, MinerU Markdown/images/manifest, optional non-empty native TeX), evidence aids (`evidence-index.json`, reader maps, critic reports), reading report, and target vault `AGENTS.md` / `_meta/*`.
 
 ## Claim Statuses
 

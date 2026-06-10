@@ -143,7 +143,7 @@ def _agent_checklist(
             + ", ".join(str(item) for item in [evidence_map_artifact, claim_support_artifact] if item)
             + "."
             if evidence_map_artifact or claim_support_artifact
-            else "No reader claim map is required for this workflow mode; derive support status directly from paper.pdf, metadata, MinerU Markdown/TeX, images, and manifest."
+            else "No reader claim map is required for this workflow mode; derive support status directly from paper.pdf, metadata, MinerU Markdown, images, manifest, and optional non-empty native TeX."
         ),
         "Optional reader/critic aids actually present: "
         + (", ".join(str(item) for item in optional_evidence_aids) if optional_evidence_aids else "none; this is source-only fast-ingest.")

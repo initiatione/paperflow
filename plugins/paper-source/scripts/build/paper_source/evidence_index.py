@@ -14,7 +14,11 @@ from paper_source.artifacts import (
     vault_relative,
     write_json_atomic,
 )
-from paper_source.source_artifacts import resolve_mineru_markdown_path, resolved_mineru_markdown_relative_path
+from paper_source.source_artifacts import (
+    has_nonempty_mineru_tex,
+    resolve_mineru_markdown_path,
+    resolved_mineru_markdown_relative_path,
+)
 
 PAGE_MARKER = re.compile(
     r"^\s*(?:\[\[page:(\d+)\]\]|<!--\s*page[:=\s]+(\d+)\s*-->|-{3,}\s*page\s+(\d+)\s*-{3,})\s*$",
@@ -184,7 +188,7 @@ def build_paper_evidence_index(
             "metadata": "metadata.json",
             "paper_pdf": "paper.pdf",
             "mineru_markdown": markdown_relative,
-            "mineru_tex": "mineru/paper.tex",
+            "mineru_tex": "mineru/paper.tex" if has_nonempty_mineru_tex(paper_root) else None,
             "mineru_manifest": "mineru/mineru-manifest.json",
             "images": "mineru/images",
         },

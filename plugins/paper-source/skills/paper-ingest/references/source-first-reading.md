@@ -8,14 +8,14 @@ Read or inspect source artifacts in this order:
 
 1. `metadata.json` for identity, venue, year, DOI/arXiv, PDF/code/source hints.
 2. `mineru/<slug>.md` for section-level content and local evidence anchors.
-3. `mineru/paper.tex` only when native TeX exists; otherwise review formulas directly from MinerU Markdown and use PDF fallback when needed.
+3. `mineru/paper.tex` only when non-empty native TeX exists; otherwise review formulas directly from MinerU Markdown and use PDF fallback when needed.
 4. `mineru/images/*` plus `reader/figures.md` for figure/table/image interpretation.
 5. `mineru/mineru-manifest.json` for parse completeness and uncertainty.
 6. `paper.pdf` when Markdown/TeX/images conflict or important content is missing.
 
 Reader and critic outputs are navigation aids; they never replace the source paper.
 
-Parse-quality review should treat `mineru/<slug>.md`, `images/*`, `mineru-manifest.json`, `parse-record.json`, figure/formula indexes, and optional native `paper.tex` as one evidence bundle when parse succeeded.
+Parse-quality review should treat `mineru/<slug>.md`, `images/*`, `mineru-manifest.json`, `parse-record.json`, figure/formula indexes, and optional non-empty native `paper.tex` as one evidence bundle when parse succeeded.
 
 ## Approval Report Rules
 
@@ -50,7 +50,7 @@ Final wiki ingest must read the source bundle again:
 - `paper.pdf`
 - `metadata.json`
 - `mineru/<slug>.md`
-- `mineru/paper.tex` when native TeX exists
+- `mineru/paper.tex` when non-empty native TeX exists
 - `mineru/images/*`
 - `mineru/mineru-manifest.json`
 

@@ -56,7 +56,7 @@ Required reading before final wiki writing:
 - `mineru/paper.md` or `mineru/<slug>.md`
 - `mineru/images/*`
 - `mineru/mineru-manifest.json`
-- optional native `mineru/paper.tex` when present
+- optional non-empty native `mineru/paper.tex` when present
 
 ## Obsidian math rendering
 
@@ -90,7 +90,7 @@ AGENT_OPERATING_CONTRACT_MD = """# Agent Operating Contract
 
 - Keep Markdown vault files as the source of truth.
 - Treat `reader/` and critic outputs as navigation and quality signals, not substitutes for the source paper.
-- Review `mineru/paper.md` or `mineru/<slug>.md`, `mineru/images/*`, `mineru/mineru-manifest.json`, and optional native `mineru/paper.tex` before final wiki writing.
+- Review `mineru/paper.md` or `mineru/<slug>.md`, `mineru/images/*`, `mineru/mineru-manifest.json`, and optional non-empty native `mineru/paper.tex` before final wiki writing.
 - Preserve central formulas, figures, tables, and image evidence when distilling claims.
 - Render formulas with Obsidian math delimiters: inline `$...$`, block `$$...$$`. Never place final-page formulas in fenced `math`, `tex`, or `latex` code blocks.
 - Search existing pages before creating new ones.

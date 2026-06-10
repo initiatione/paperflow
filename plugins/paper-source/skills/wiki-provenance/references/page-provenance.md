@@ -12,7 +12,7 @@ Adapt field names to the target vault contract, but preserve these facts somewhe
 - Final review artifacts: `final-source-review.json`, `wiki-ingest-record.json`, human approval record.
 - Support status summary: count of source-grounded, metadata-only, inferred, and unsupported claims.
 
-Frontmatter `sources` must contain only Obsidian source PDF links to `_paper_source/raw/<slug>/paper.pdf`. Prefer paper-title `obsidian://open?...paper.pdf` links so `_paper_source` does not enter the formal graph; legacy `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"` wikilinks are accepted for compatibility. Metadata, MinerU Markdown/TeX, DOI/arXiv URLs, figure paths, and other evidence details belong in body provenance, not frontmatter `sources`.
+Frontmatter `sources` must contain only Obsidian source PDF links to `_paper_source/raw/<slug>/paper.pdf`. Prefer paper-title `obsidian://open?...paper.pdf` links so `_paper_source` does not enter the formal graph; legacy `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"` wikilinks are accepted for compatibility. Metadata, MinerU Markdown, optional non-empty native TeX, DOI/arXiv URLs, figure paths, and other evidence details belong in body provenance, not frontmatter `sources`.
 
 ## Claim Line Contract
 
@@ -46,7 +46,7 @@ When inline evidence would make the page noisy, use a compact local block:
 ```markdown
 ## Provenance
 
-- Source bundle: paper.pdf; metadata.json; mineru/<slug>.md; mineru/paper.tex; mineru/images; mineru/mineru-manifest.json
+- Source bundle: paper.pdf; metadata.json; mineru/<slug>.md; mineru/images; mineru/mineru-manifest.json; optional non-empty native mineru/paper.tex
 - Evidence maps: reader/evidence-map.json; reader/claim-support.json
 - Final source review: final-source-review.json
 - Support status: source-grounded=<n>; metadata-only=<n>; inferred=<n>; unsupported=0

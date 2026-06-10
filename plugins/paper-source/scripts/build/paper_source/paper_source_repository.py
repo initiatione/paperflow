@@ -73,7 +73,7 @@ This `_paper_source` folder is the internal Paper Source workspace for source-fi
 
 ## Core Structure
 
-- `_paper_source/raw/<slug>/`: durable source paper bundle. Keep `paper.pdf`, `metadata.json`, MinerU Markdown/TeX/images/manifest, and acquisition/parse records here.
+- `_paper_source/raw/<slug>/`: durable source paper bundle. Keep `paper.pdf`, `metadata.json`, MinerU Markdown/images/manifest, optional non-empty native TeX, and acquisition/parse records here.
 - `_paper_source/staging/papers/<slug>/`: per-paper evidence handoff for Paper Wiki. These files are not formal wiki pages.
 - `_paper_source/staging/wiki-batches/pending/wiki-batch-ingest-brief.json`: batch handoff for wiki skill deposition.
 - `_paper_source/meta/`: Paper Source config, config history, formal-page snapshots, and bounded maintenance records.

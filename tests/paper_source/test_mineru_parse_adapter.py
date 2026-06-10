@@ -188,6 +188,9 @@ def test_mineru_command_keeps_single_canonical_slug_markdown(tmp_path):
 
 def test_mineru_command_pauses_tex_fallback_and_removes_success_work_copies(tmp_path):
     paper_root = _seed_paper_root(tmp_path)
+    stale_tex = paper_root / "mineru" / "paper.tex"
+    stale_tex.parent.mkdir(parents=True)
+    stale_tex.write_text("\\section{Stale fallback}\n", encoding="utf-8")
     command = [sys.executable, str(_write_markdown_only_success_command(tmp_path))]
 
     record = run_mineru_command(paper_root, command=command)

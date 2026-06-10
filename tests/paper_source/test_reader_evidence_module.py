@@ -187,6 +187,25 @@ def test_reader_evidence_module_validates_tex_manifest_and_pdf_sources(tmp_path)
     assert evidence == ["Validated 4 structured reader evidence address(es)"]
 
 
+def test_reader_evidence_module_rejects_empty_tex_evidence_source(tmp_path):
+    paper_root = _write_reader_evidence_fixture(tmp_path)
+    mineru_dir = paper_root / "mineru"
+    (mineru_dir / "paper.tex").write_text("", encoding="utf-8")
+
+    passed, evidence = validate_reader_evidence(
+        paper_root,
+        {
+            "reader/technical-reading.md": (
+                "- TeX formula cue detected: equation.\n"
+                "  Evidence: source=mineru/paper.tex; cue=equation\n"
+            ),
+        },
+    )
+
+    assert passed is False
+    assert any("missing mineru TeX" in item for item in evidence)
+
+
 def test_reader_evidence_map_and_claim_support_accept_source_first_optional_sources(tmp_path):
     paper_root = _write_reader_evidence_fixture(tmp_path)
     mineru_dir = paper_root / "mineru"

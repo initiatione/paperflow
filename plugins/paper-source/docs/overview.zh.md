@@ -50,7 +50,7 @@ python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-pa
 | `paper-discovery` | 单轮检索、query plan、排序、报告 | 不维护长期主题账本 |
 | `topic-tracking` | 持续追踪、net-new、coverage/backlog | 不替代底层检索 |
 | `paper-ingest` | 已选论文进入 raw、MinerU、source-staging、handoff | 不写最终 Obsidian 页面 |
-| `mineru-paper-parser` | PDF -> Markdown/TeX/images/manifest | 不做学术判断 |
+| `mineru-paper-parser` | PDF -> Markdown/images/manifest，可选非空原生 TeX | 不做学术判断 |
 | `wiki-provenance` | 最终页 claim support 和 evidence route | 不替代源论文重读 |
 | `wiki-setup` | 初始化、检查、修复、重置 paper wiki vault | 不检索论文、不写最终知识页 |
 | `run-lifecycle` | 清理 `_paper_source/runs` 过渡态 | 不删 raw/staging/final wiki |

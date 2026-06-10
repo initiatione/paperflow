@@ -64,7 +64,11 @@ from paper_source.run_index import (
 from paper_source.run_critic import run_critics
 from paper_source.run_mineru_parse import materialize_mineru_fixture, run_mineru_command
 from paper_source.skill_aware_evolve import activate_evolution, propose_evolution, query_evolution, render_evolution_query
-from paper_source.source_artifacts import canonical_mineru_markdown_relative_path, resolve_mineru_markdown_path
+from paper_source.source_artifacts import (
+    canonical_mineru_markdown_relative_path,
+    has_nonempty_mineru_tex,
+    resolve_mineru_markdown_path,
+)
 from paper_source.stage_wiki import (
     AUDITED_INGEST_MODE,
     FAST_INGEST_MODE,
@@ -670,6 +674,9 @@ def _repair_report_contract(vault_path: Path, slug: str, record: dict) -> tuple[
             ["redo-parse the reacquired PDF"],
         )
     if stage == "redo-parse":
+        changed_artifacts = [canonical_mineru_markdown_relative_path(slug)]
+        if has_nonempty_mineru_tex(raw_paper_root(vault_path, slug)):
+            changed_artifacts.append("mineru/paper.tex")
         return (
             {
                 "slug": slug,
@@ -679,7 +686,7 @@ def _repair_report_contract(vault_path: Path, slug: str, record: dict) -> tuple[
                 "next_action": "redo-read",
                 "human_gate_required": False,
             },
-            [canonical_mineru_markdown_relative_path(slug), "mineru/paper.tex"],
+            changed_artifacts,
             ["redo-read the reparsed paper"],
         )
     if stage == "redo-read":

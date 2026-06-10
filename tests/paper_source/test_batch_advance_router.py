@@ -415,9 +415,14 @@ def test_prepare_ranked_papers_repairs_incomplete_existing_parse_outputs(tmp_pat
     assert result["state"] == "staged"
     assert result["last_action"] == "staging"
     assert result["stage_record"]["status"] == "success"
-    assert (mineru_dir / "paper.tex").stat().st_size == 0
+    assert not (mineru_dir / "paper.tex").exists()
     assert not (paper_root / "reader" / "reader.md").exists()
-    assert (vault / "_paper_source" / "staging" / "papers" / "incomplete-parse" / "promotion-plan.json").is_file()
+    staging_root = vault / "_paper_source" / "staging" / "papers" / "incomplete-parse"
+    assert (staging_root / "promotion-plan.json").is_file()
+    wiki_ingest_brief = json.loads((staging_root / "wiki-ingest-brief.json").read_text(encoding="utf-8"))
+    assert "mineru/paper.tex" not in wiki_ingest_brief["source_bundle"]["raw_artifacts"]
+    assert "mineru/paper.tex" not in wiki_ingest_brief["source_bundle"]["primary_source_reading_order"]
+    assert "mineru/paper.tex" not in wiki_ingest_brief["final_source_review_contract"]["required_artifacts"]
 
 
 def test_prepare_ranked_papers_records_failed_candidate_and_continues(tmp_path, monkeypatch):

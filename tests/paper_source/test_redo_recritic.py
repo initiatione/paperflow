@@ -336,10 +336,11 @@ def test_redo_parse_cli_writes_routed_report_with_changed_artifacts(tmp_path, mo
         {"paper_slug": slug, "state": "reparsed", "next_action": "redo-read"}
     ]
     canonical_mineru_md = f"mineru/{slug}.md"
-    assert report_json["changed_artifacts"] == [canonical_mineru_md, "mineru/paper.tex"]
+    assert report_json["changed_artifacts"] == [canonical_mineru_md]
     assert report_json["next_actions"] == ["redo-read the reparsed paper"]
     assert report_json["wiki_pages_written"] == []
-    assert "mineru/paper.tex" in report_md
+    assert "mineru/paper.tex" not in report_md
+    assert not (paper_root / "mineru" / "paper.tex").exists()
     _assert_repair_run_state_contract(
         run_dir,
         workflow_type="redo-parse",
@@ -347,7 +348,7 @@ def test_redo_parse_cli_writes_routed_report_with_changed_artifacts(tmp_path, mo
         slug=slug,
         vault=vault,
         required_input_hash_keys=["input_markdown"],
-        required_output_hash_keys=[canonical_mineru_md, "mineru/paper.tex", "redo-records.jsonl"],
+        required_output_hash_keys=[canonical_mineru_md, "redo-records.jsonl"],
     )
     run_state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
     assert run_state["input_artifact_hashes"]["input_markdown"] == expected_markdown_hash
