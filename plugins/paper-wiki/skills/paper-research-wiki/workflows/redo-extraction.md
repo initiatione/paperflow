@@ -28,17 +28,17 @@ source reread is mandatory. Do not redo from existing wiki text alone.
 
 For every selected paper, re-read:
 
-- PDF
 - metadata
 - MinerU Markdown
-- TeX
 - images
 - MinerU manifest
+- `figure-index.json`
+- `formula-index.json`
 - reading report
 - `wiki-ingest-brief.json`
 - prior `final-source-review.json` when present
 
-Reader or critic outputs may guide attention, but they do not replace the PDF, MinerU Markdown, TeX, images, or manifest.
+MinerU Markdown is the primary source for formulas, notation, method context, and prose. Only fall back to the PDF, `formula-index.json`, `figure-index.json`, or image evidence when Markdown is missing, wrong, ambiguous, or insufficient. If non-empty native `mineru/paper.tex` exists, use it only as an optional cross-check. Reader or critic outputs may guide attention, but they do not replace the source reread.
 
 ## Compare Existing Pages
 

@@ -150,16 +150,48 @@ def _raw_paper_path_from_source(value: str) -> str | None:
     return None
 
 
+def _raw_paper_paths_from_text(text: str) -> list[tuple[str, str]]:
+    paths: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for uri_match in RAW_PAPER_URI_PATTERN.finditer(text):
+        slug = unquote(uri_match.group("slug"))
+        raw_path = f"{PAPER_SOURCE_ROOT_NAME}/raw/{slug}/paper.pdf"
+        if raw_path not in seen:
+            paths.append((raw_path, uri_match.group(0)))
+            seen.add(raw_path)
+    for path_match in RAW_PAPER_PATH_PATTERN.finditer(text):
+        slug = path_match.group("slug")
+        raw_path = f"{PAPER_SOURCE_ROOT_NAME}/raw/{slug}/paper.pdf"
+        if raw_path not in seen:
+            paths.append((raw_path, path_match.group(0)))
+            seen.add(raw_path)
+    return paths
+
+
+def _source_evidence_values(page: dict) -> list[tuple[str, str]]:
+    values: list[tuple[str, str]] = []
+    body = str(page.get("body") or "")
+    values.extend(_raw_paper_paths_from_text(body))
+
+    # Legacy compatibility only: old formal pages sometimes stored source PDFs in
+    # frontmatter `sources` or as internal wikilinks. New pages must use the body
+    # `## 原文与证据入口` Markdown link instead.
+    for source in _as_list(page.get("frontmatter", {}).get("sources")):
+        raw_path = _raw_paper_path_from_source(source)
+        if raw_path:
+            values.append((raw_path, source))
+    for link in page.get("links", []):
+        raw_path = _raw_paper_path_from_source(str(link))
+        if raw_path:
+            values.append((raw_path, str(link)))
+    return values
+
+
 def _source_evidence_for_page(vault_path: Path, page: dict) -> list[dict]:
     evidence: list[dict] = []
     seen_paths: set[str] = set()
-    source_values = [
-        *_as_list(page.get("frontmatter", {}).get("sources")),
-        *[str(link) for link in page.get("links", [])],
-    ]
-    for source in source_values:
-        raw_path = _raw_paper_path_from_source(source)
-        if not raw_path or raw_path in seen_paths:
+    for raw_path, source in _source_evidence_values(page):
+        if raw_path in seen_paths:
             continue
         seen_paths.add(raw_path)
         paper_pdf = vault_path / raw_path
@@ -269,16 +301,20 @@ def _build_graph(pages: dict[str, dict], registry: dict[str, set[str]]) -> tuple
     for relative, page in pages.items():
         for target in page["links"]:
             if target.startswith(INTERNAL_SOURCE_PREFIXES):
-                if _is_raw_paper_pdf_link(target):
-                    continue
                 key = ("forbidden_internal_graph_link", relative, target)
                 if key not in seen_corrections:
+                    message = (
+                        "Formal page uses an internal wikilink for source PDF; use a Markdown "
+                        "`obsidian://` link in `## 原文与证据入口` instead."
+                        if _is_raw_paper_pdf_link(target)
+                        else "Formal page body links a Paper Source internal artifact as graph content."
+                    )
                     corrections.append(
                         {
                             "kind": "forbidden_internal_graph_link",
                             "source": relative,
                             "target": target,
-                            "message": "Formal page body links a Paper Source internal artifact as graph content.",
+                            "message": message,
                         }
                     )
                     seen_corrections.add(key)
@@ -458,36 +494,55 @@ def _source_frontmatter_corrections(vault_path: Path, pages: dict[str, dict], se
         page = pages.get(relative)
         if not page:
             continue
+        body_source_paths = [raw_path for raw_path, _source in _raw_paper_paths_from_text(str(page.get("body") or ""))]
         sources = _as_list(page.get("frontmatter", {}).get("sources"))
-        if relative.startswith("references/") and not sources:
+        if relative.startswith("references/") and not body_source_paths:
+            corrections.append(
+                {
+                    "kind": "source_pdf_body_link_missing",
+                    "source": relative,
+                    "target": "## 原文与证据入口",
+                    "message": "Reference page has no body source PDF link in `## 原文与证据入口`.",
+                }
+            )
+        for source in sources:
+            raw_path = _raw_paper_path_from_source(source)
+            if raw_path is None:
+                if source.startswith("[[") or source.startswith("obsidian://") or source.startswith("_paper_source/") or source.startswith("_epi/"):
+                    corrections.append(
+                        {
+                            "kind": "source_frontmatter_mismatch",
+                            "source": relative,
+                            "target": source,
+                            "message": "Frontmatter `sources` must be scan-friendly short labels; put source PDF links in `## 原文与证据入口`.",
+                        }
+                    )
+                continue
             corrections.append(
                 {
                     "kind": "source_frontmatter_mismatch",
                     "source": relative,
-                    "target": "sources",
-                    "message": "Reference page has no frontmatter source link to _paper_source/raw/<slug>/paper.pdf.",
+                    "target": source,
+                    "message": "Frontmatter `sources` contains a source PDF link; use a short source label and move the PDF URI to `## 原文与证据入口`.",
                 }
             )
-            continue
-        for source in sources:
-            raw_path = _raw_paper_path_from_source(source)
-            if raw_path is None:
-                corrections.append(
-                    {
-                        "kind": "source_frontmatter_mismatch",
-                        "source": relative,
-                        "target": source,
-                        "message": "Frontmatter source does not point to _paper_source/raw/<slug>/paper.pdf.",
-                    }
-                )
-                continue
             if not (vault_path / raw_path).is_file():
                 corrections.append(
                     {
                         "kind": "source_frontmatter_mismatch",
                         "source": relative,
                         "target": raw_path,
-                        "message": "Frontmatter source points to a missing source PDF artifact.",
+                        "message": "Source PDF link points to a missing source artifact.",
+                    }
+                )
+        for raw_path in body_source_paths:
+            if not (vault_path / raw_path).is_file():
+                corrections.append(
+                    {
+                        "kind": "source_pdf_body_link_missing",
+                        "source": relative,
+                        "target": raw_path,
+                        "message": "Body source PDF link points to a missing source artifact.",
                     }
                 )
     return corrections

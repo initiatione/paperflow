@@ -177,7 +177,8 @@ def test_structure_doc_covers_current_plugin_boundaries():
     assert "agent-mediated" in text
     assert "claim-support" in text
     assert "parse-quality-critic" in text
-    assert "MinerU Markdown、TeX、images、manifest" in text
+    assert "MinerU Markdown、images、manifest、figure/formula indexes" in text
+    assert "可选非空原生 TeX" in text
     assert "不要把安装 cache 当成开发源" in text
     assert "runtime_config.py" in text
     assert "raw_cleanup.py" in text
@@ -383,8 +384,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         ]
     )
 
-    assert manifest["version"] == "0.2.3"
-    assert "v0.2.3" in manifest["interface"]["shortDescription"]
+    assert manifest["version"] == "0.2.4"
+    assert "v0.2.4" in manifest["interface"]["shortDescription"]
     for phrase in [
         "search_papers",
         "source_coverage",
@@ -436,6 +437,7 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "source capability matrix",
         "wiki-ask",
         "read-only formal graph",
+        "0.2.4",
         "0.2.3",
         "0.2.2",
         "0.2.1",
@@ -675,8 +677,9 @@ def test_paper_source_literature_wiki_contract_documents_seven_page_families_and
         "frontmatter",
         "category",
         "page_family",
-        "draft` or `review-needed`",
-        "do not mark pages `source-reviewed` or `verified`",
+        "Initial lifecycle is `draft`",
+        "old `review-needed` pages are legacy repair inputs",
+        "Do not use `source-reviewed` or `verified` as formal page lifecycle states",
         "forbidden formula blocks",
         "Obsidian wikilinks",
         "tag-taxonomy",
@@ -763,7 +766,7 @@ def test_marketplace_and_readme_describe_profile_driven_generic_paper_source():
     assert "Paper Source" in manifest_text
     assert "Paper Wiki" in manifest_text
     assert manifest["description"].startswith("Paper Source")
-    assert manifest["interface"]["shortDescription"].startswith("v0.2.3 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v0.2.4 | Paper Source:")
     assert "profile-driven discovery" in manifest_text
     assert "Paper Wiki handoff" in manifest_text
     assert "MinerU" in manifest_text
@@ -980,8 +983,8 @@ def test_read_only_ask_ownership_documented_paper_source_side():
 
 def test_plugin_versions_track_current_plugin_changes():
     expected = {
-        "plugins/paper-source/.codex-plugin/plugin.json": "0.2.3",
-        "plugins/paper-wiki/.codex-plugin/plugin.json": "0.2.2",
+        "plugins/paper-source/.codex-plugin/plugin.json": "0.2.4",
+        "plugins/paper-wiki/.codex-plugin/plugin.json": "0.2.3",
     }
     for rel, version in expected.items():
         manifest = json.loads((ROOT / rel).read_text(encoding="utf-8"))

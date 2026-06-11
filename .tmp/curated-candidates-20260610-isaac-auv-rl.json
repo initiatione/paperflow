@@ -1,0 +1,1669 @@
+[
+  {
+    "id": "arxiv:2512.13359v2",
+    "slug": "fast-policy-learning-for-6-dof-position-control-of-underwater-vehicles",
+    "title": "Fast Policy Learning for 6-DOF Position Control of Underwater Vehicles",
+    "authors": [
+      "Sümer Tunçay",
+      "Alain Andres",
+      "Ignacio Carlucho"
+    ],
+    "year": 2025,
+    "venue": "",
+    "abstract": "Autonomous Underwater Vehicles (AUVs) require reliable six-degree-of-freedom (6-DOF) position control to operate effectively in complex and dynamic marine environments. Traditional controllers are effective under nominal conditions but exhibit degraded performance when faced with unmodeled dynamics or environmental disturbances. Reinforcement learning (RL) provides a powerful alternative but training is typically slow and sim-to-real transfer remains challenging. This work introduces a GPU accelerated RL training pipeline built in JAX and MuJoCo-XLA (MJX). By jointly JIT-compiling large-scale parallel physics simulation and learning updates, we achieve training times of under two minutes. Through systematic evaluation of multiple RL algorithms, we show robust 6-DOF trajectory tracking and effective disturbance rejection in real underwater experiments, with policies transferred zero-shot from simulation.",
+    "doi": null,
+    "arxiv_id": "2512.13359v2",
+    "pdf_url": "https://arxiv.org/pdf/2512.13359v2",
+    "pdf_urls": [
+      "https://arxiv.org/pdf/2512.13359v2"
+    ],
+    "code_url": null,
+    "citation_count": 0,
+    "sources": [
+      "arxiv"
+    ],
+    "alternate_sources": [
+      {
+        "source": "arxiv",
+        "paper_id": "2512.13359v2"
+      }
+    ],
+    "alternate_pdf_urls": [
+      {
+        "source": "arxiv",
+        "url": "https://arxiv.org/pdf/2512.13359v2"
+      }
+    ],
+    "raw_records": [
+      {
+        "source": "arxiv",
+        "title": "Fast Policy Learning for 6-DOF Position Control of Underwater Vehicles",
+        "authors": [
+          "Sümer Tunçay",
+          "Alain Andres",
+          "Ignacio Carlucho"
+        ],
+        "year": 2025,
+        "venue": "",
+        "abstract": "Autonomous Underwater Vehicles (AUVs) require reliable six-degree-of-freedom (6-DOF) position control to operate effectively in complex and dynamic marine environments. Traditional controllers are effective under nominal conditions but exhibit degraded performance when faced with unmodeled dynamics or environmental disturbances. Reinforcement learning (RL) provides a powerful alternative but training is typically slow and sim-to-real transfer remains challenging. This work introduces a GPU accelerated RL training pipeline built in JAX and MuJoCo-XLA (MJX). By jointly JIT-compiling large-scale parallel physics simulation and learning updates, we achieve training times of under two minutes. Through systematic evaluation of multiple RL algorithms, we show robust 6-DOF trajectory tracking and effective disturbance rejection in real underwater experiments, with policies transferred zero-shot from simulation.",
+        "doi": null,
+        "arxiv_id": "2512.13359v2",
+        "pdf_url": "https://arxiv.org/pdf/2512.13359v2",
+        "url": "http://arxiv.org/abs/2512.13359v2",
+        "code_url": null,
+        "citation_count": 0,
+        "raw_record": {
+          "paper_id": "2512.13359v2",
+          "title": "Fast Policy Learning for 6-DOF Position Control of Underwater Vehicles",
+          "authors": "Sümer Tunçay; Alain Andres; Ignacio Carlucho",
+          "abstract": "Autonomous Underwater Vehicles (AUVs) require reliable six-degree-of-freedom (6-DOF) position control to operate effectively in complex and dynamic marine environments. Traditional controllers are effective under nominal conditions but exhibit degraded performance when faced with unmodeled dynamics or environmental disturbances. Reinforcement learning (RL) provides a powerful alternative but training is typically slow and sim-to-real transfer remains challenging. This work introduces a GPU accelerated RL training pipeline built in JAX and MuJoCo-XLA (MJX). By jointly JIT-compiling large-scale parallel physics simulation and learning updates, we achieve training times of under two minutes. Through systematic evaluation of multiple RL algorithms, we show robust 6-DOF trajectory tracking and effective disturbance rejection in real underwater experiments, with policies transferred zero-shot from simulation.",
+          "doi": "",
+          "published_date": "2025-12-15T14:12:32",
+          "pdf_url": "https://arxiv.org/pdf/2512.13359v2",
+          "url": "http://arxiv.org/abs/2512.13359v2",
+          "source": "arxiv",
+          "updated_date": "2026-01-31T18:31:01",
+          "categories": "cs.RO; cs.LG",
+          "keywords": "",
+          "citations": 0,
+          "references": "",
+          "extra": ""
+        },
+        "query_variant": "Find and stage five papers related to Learning to Swim that support Isaac Sim / Isaac Lab plus AUV reinforcement-learning research, prioritizing AUV RL, 6-DOF control, zero-shot sim-to-real transfer, domain randomization, and underwater simulation platforms or benchmarks.",
+        "query_variant_index": 1
+      }
+    ],
+    "filter_reasons": [],
+    "filter_status": "kept",
+    "verified_metrics": {
+      "easyscholar": {
+        "status": "no_publication_name",
+        "publication_name": null,
+        "source": "easyscholar",
+        "metrics": {},
+        "warnings": []
+      }
+    },
+    "quality_signals": {
+      "easyscholar": {
+        "score": 0.0,
+        "evidence": [],
+        "cautions": []
+      }
+    },
+    "easyscholar_status": "no_publication_name",
+    "score": 0.3667,
+    "ranking_signals": {
+      "topic_score": 0.1304,
+      "venue_score": 0.45,
+      "citation_score": 0.0,
+      "freshness_score": 1.0,
+      "pdf_score": 1.0,
+      "code_score": 0.0,
+      "benchmark_score": 0.3333,
+      "reproducibility_terms_score": 0.0,
+      "easyscholar_score": 0.0,
+      "negative_keyword_penalty": 0.0,
+      "editorial_score": 0.4002,
+      "peer_review_score": 0.3833,
+      "domain_fit_score": 0.1304,
+      "reproducibility_score": 0.0
+    },
+    "paper_type": "method",
+    "classification_confidence": 0.95,
+    "classification_evidence": [
+      "method:algorithm",
+      "method:model",
+      "method:control",
+      "method:controller",
+      "method:policy"
+    ],
+    "paper_classification": {
+      "schema_version": "paper-source-paper-classification-v1",
+      "primary_type": "method",
+      "secondary_types": [
+        "system",
+        "application"
+      ],
+      "confidence": 0.95,
+      "evidence": [
+        "method:algorithm",
+        "method:model",
+        "method:control",
+        "method:controller",
+        "method:policy"
+      ],
+      "type_scores": {
+        "method": 5,
+        "system": 2,
+        "application": 2
+      }
+    },
+    "quality_tier": "Reject",
+    "quality_gate": {
+      "schema_version": "paper-source-quality-gate-v1",
+      "tier": "Reject",
+      "paper_type": "method",
+      "evidence": [
+        "stable_identifier",
+        "pdf_available",
+        "generic_venue_metadata"
+      ],
+      "cautions": [
+        "weak_benchmark_signal",
+        "weak_reproducibility_signal"
+      ],
+      "blocking_reasons": [
+        "weak_topic_fit"
+      ]
+    },
+    "ranking_rubric": {
+      "schema_version": "paper-source-ranking-rubric-v1",
+      "paper_type": "method",
+      "dimensions": {
+        "relevance": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "method_rigor": {
+          "score": 0.3558,
+          "signals": [
+            "benchmark_signal",
+            "citation_signal",
+            "pdf_available"
+          ]
+        },
+        "evidence_sufficiency": {
+          "score": 0.4167,
+          "signals": [
+            "pdf_available",
+            "benchmark_signal",
+            "citation_signal",
+            "reproducibility_signal"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.0,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        },
+        "source_confidence": {
+          "score": 0.4575,
+          "signals": [
+            "venue_prior",
+            "citation_signal",
+            "pdf_available"
+          ]
+        }
+      },
+      "ranking_confidence": 0.7915,
+      "score_explanation": [
+        "Score combines profile/topic relevance, venue prior, citations, recency, PDF/code availability, and reproducibility evidence.",
+        "Classified as method from title/abstract evidence."
+      ]
+    },
+    "ranking_confidence": 0.7915,
+    "ranking_protocol": {
+      "schema_version": "paper-source-ranking-protocol-v1",
+      "decision": "review-candidate",
+      "matched_positive_keywords": [
+        "reinforcement learning",
+        "sim-to-real",
+        "auv"
+      ],
+      "matched_negative_keywords": [],
+      "reasons": [
+        "matched keywords: reinforcement learning, sim-to-real, auv"
+      ],
+      "cautions": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ],
+      "lenses": {
+        "editorial": {
+          "score": 0.4002,
+          "signals": [
+            "venue_tier",
+            "freshness",
+            "topic_relevance"
+          ]
+        },
+        "peer_review": {
+          "score": 0.3833,
+          "signals": [
+            "citation_signal",
+            "benchmark_signal",
+            "pdf_available"
+          ]
+        },
+        "domain_fit": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.0,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        }
+      },
+      "paper_type": "method",
+      "classification_confidence": 0.95,
+      "quality_tier": "Reject",
+      "quality_gate": {
+        "schema_version": "paper-source-quality-gate-v1",
+        "tier": "Reject",
+        "paper_type": "method",
+        "evidence": [
+          "stable_identifier",
+          "pdf_available",
+          "generic_venue_metadata"
+        ],
+        "cautions": [
+          "weak_benchmark_signal",
+          "weak_reproducibility_signal"
+        ],
+        "blocking_reasons": [
+          "weak_topic_fit"
+        ]
+      },
+      "rubric_scores": {
+        "relevance": 0.1304,
+        "method_rigor": 0.3558,
+        "evidence_sufficiency": 0.4167,
+        "reproducibility": 0.0,
+        "source_confidence": 0.4575
+      },
+      "ranking_confidence": 0.7915
+    },
+    "ranking_rationale": {
+      "schema_version": "paper-source-ranking-rationale-v1",
+      "recommendation": "review-candidate",
+      "one_sentence": "review before ingest: the paper may match the topic, but ranking checks found signals that need human or critic attention first.",
+      "user_interest_match": {
+        "positive_keywords": [
+          "reinforcement learning",
+          "sim-to-real",
+          "auv"
+        ],
+        "negative_keywords": []
+      },
+      "role_views": {
+        "nature_sci_editor": {
+          "lens": "editorial significance",
+          "take": "Editorial value is plausible but not yet strong enough to prioritize without review."
+        },
+        "peer_reviewer": {
+          "lens": "method and evidence",
+          "take": "Method evidence looks thin; check baselines, metrics, and experimental setup before ingest."
+        },
+        "senior_domain_researcher": {
+          "lens": "theory and experiment transfer",
+          "take": "Domain fit is partial; keep it in review unless it fills a specific wiki gap."
+        }
+      },
+      "wiki_deposition": {
+        "value": "If advanced, distill into reference, concept, synthesis, and low-burden reading report pages.",
+        "suggested_pages": [
+          "references",
+          "concepts",
+          "synthesis",
+          "reports"
+        ]
+      },
+      "review_before_ingest": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ]
+    }
+  },
+  {
+    "id": "arxiv:2310.11075v1",
+    "slug": "sim-to-real-transfer-of-adaptive-control-parameters-for-auv-stabilization-under-current-disturba",
+    "title": "Sim-to-Real Transfer of Adaptive Control Parameters for AUV Stabilization under Current Disturbance",
+    "authors": [
+      "Thomas Chaffre",
+      "Jonathan Wheare",
+      "Andrew Lammas",
+      "Paulo Santos",
+      "Gilles Le Chenadec",
+      "Karl Sammut",
+      "Benoit Clement"
+    ],
+    "year": 2023,
+    "venue": "",
+    "abstract": "Learning-based adaptive control methods hold the premise of enabling autonomous agents to reduce the effect of process variations with minimal human intervention. However, its application to autonomous underwater vehicles (AUVs) has so far been restricted due to 1) unknown dynamics under the form of sea current disturbance that we can not model properly nor measure due to limited sensor capability and 2) the nonlinearity of AUVs tasks where the controller response at some operating points must be overly conservative in order to satisfy the specification at other operating points. Deep Reinforcement Learning (DRL) can alleviates these limitations by training general-purpose neural network policies, but applications of DRL algorithms to AUVs have been restricted to simulated environments, due to their inherent high sample complexity and distribution shift problem. This paper presents a novel approach, merging the Maximum Entropy Deep Reinforcement Learning framework with a classic model-based control architecture, to formulate an adaptive controller. Within this framework, we introduce a Sim-to-Real transfer strategy comprising the following components: a bio-inspired experience replay mechanism, an enhanced domain randomisation technique, and an evaluation protocol executed on a physical platform. Our experimental assessments demonstrate that this method effectively learns proficient policies from suboptimal simulated models of the AUV, resulting in control performance 3 times higher when transferred to a real-world vehicle, compared to its model-based nonadaptive but optimal counterpart.",
+    "doi": null,
+    "arxiv_id": "2310.11075v1",
+    "pdf_url": "https://arxiv.org/pdf/2310.11075v1",
+    "pdf_urls": [
+      "https://arxiv.org/pdf/2310.11075v1"
+    ],
+    "code_url": null,
+    "citation_count": 0,
+    "sources": [
+      "arxiv"
+    ],
+    "alternate_sources": [
+      {
+        "source": "arxiv",
+        "paper_id": "2310.11075v1"
+      }
+    ],
+    "alternate_pdf_urls": [
+      {
+        "source": "arxiv",
+        "url": "https://arxiv.org/pdf/2310.11075v1"
+      }
+    ],
+    "raw_records": [
+      {
+        "source": "arxiv",
+        "title": "Sim-to-Real Transfer of Adaptive Control Parameters for AUV Stabilization under Current Disturbance",
+        "authors": [
+          "Thomas Chaffre",
+          "Jonathan Wheare",
+          "Andrew Lammas",
+          "Paulo Santos",
+          "Gilles Le Chenadec",
+          "Karl Sammut",
+          "Benoit Clement"
+        ],
+        "year": 2023,
+        "venue": "",
+        "abstract": "Learning-based adaptive control methods hold the premise of enabling autonomous agents to reduce the effect of process variations with minimal human intervention. However, its application to autonomous underwater vehicles (AUVs) has so far been restricted due to 1) unknown dynamics under the form of sea current disturbance that we can not model properly nor measure due to limited sensor capability and 2) the nonlinearity of AUVs tasks where the controller response at some operating points must be overly conservative in order to satisfy the specification at other operating points. Deep Reinforcement Learning (DRL) can alleviates these limitations by training general-purpose neural network policies, but applications of DRL algorithms to AUVs have been restricted to simulated environments, due to their inherent high sample complexity and distribution shift problem. This paper presents a novel approach, merging the Maximum Entropy Deep Reinforcement Learning framework with a classic model-based control architecture, to formulate an adaptive controller. Within this framework, we introduce a Sim-to-Real transfer strategy comprising the following components: a bio-inspired experience replay mechanism, an enhanced domain randomisation technique, and an evaluation protocol executed on a physical platform. Our experimental assessments demonstrate that this method effectively learns proficient policies from suboptimal simulated models of the AUV, resulting in control performance 3 times higher when transferred to a real-world vehicle, compared to its model-based nonadaptive but optimal counterpart.",
+        "doi": null,
+        "arxiv_id": "2310.11075v1",
+        "pdf_url": "https://arxiv.org/pdf/2310.11075v1",
+        "url": "http://arxiv.org/abs/2310.11075v1",
+        "code_url": null,
+        "citation_count": 0,
+        "raw_record": {
+          "paper_id": "2310.11075v1",
+          "title": "Sim-to-Real Transfer of Adaptive Control Parameters for AUV Stabilization under Current Disturbance",
+          "authors": "Thomas Chaffre; Jonathan Wheare; Andrew Lammas; Paulo Santos; Gilles Le Chenadec; Karl Sammut; Benoit Clement",
+          "abstract": "Learning-based adaptive control methods hold the premise of enabling autonomous agents to reduce the effect of process variations with minimal human intervention. However, its application to autonomous underwater vehicles (AUVs) has so far been restricted due to 1) unknown dynamics under the form of sea current disturbance that we can not model properly nor measure due to limited sensor capability and 2) the nonlinearity of AUVs tasks where the controller response at some operating points must be overly conservative in order to satisfy the specification at other operating points. Deep Reinforcement Learning (DRL) can alleviates these limitations by training general-purpose neural network policies, but applications of DRL algorithms to AUVs have been restricted to simulated environments, due to their inherent high sample complexity and distribution shift problem. This paper presents a novel approach, merging the Maximum Entropy Deep Reinforcement Learning framework with a classic model-based control architecture, to formulate an adaptive controller. Within this framework, we introduce a Sim-to-Real transfer strategy comprising the following components: a bio-inspired experience replay mechanism, an enhanced domain randomisation technique, and an evaluation protocol executed on a physical platform. Our experimental assessments demonstrate that this method effectively learns proficient policies from suboptimal simulated models of the AUV, resulting in control performance 3 times higher when transferred to a real-world vehicle, compared to its model-based nonadaptive but optimal counterpart.",
+          "doi": "",
+          "published_date": "2023-10-17T08:46:56",
+          "pdf_url": "https://arxiv.org/pdf/2310.11075v1",
+          "url": "http://arxiv.org/abs/2310.11075v1",
+          "source": "arxiv",
+          "updated_date": "2023-10-17T08:46:56",
+          "categories": "cs.RO; cs.AI; eess.SY",
+          "keywords": "",
+          "citations": 0,
+          "references": "",
+          "extra": ""
+        },
+        "query_variant": "Find and stage five papers related to Learning to Swim that support Isaac Sim / Isaac Lab plus AUV reinforcement-learning research, prioritizing AUV RL, 6-DOF control, zero-shot sim-to-real transfer, domain randomization, and underwater simulation platforms or benchmarks.",
+        "query_variant_index": 1
+      }
+    ],
+    "filter_reasons": [],
+    "filter_status": "kept",
+    "verified_metrics": {
+      "easyscholar": {
+        "status": "no_publication_name",
+        "publication_name": null,
+        "source": "easyscholar",
+        "metrics": {},
+        "warnings": []
+      }
+    },
+    "quality_signals": {
+      "easyscholar": {
+        "score": 0.0,
+        "evidence": [],
+        "cautions": []
+      }
+    },
+    "easyscholar_status": "no_publication_name",
+    "score": 0.3367,
+    "ranking_signals": {
+      "topic_score": 0.1304,
+      "venue_score": 0.45,
+      "citation_score": 0.0,
+      "freshness_score": 0.7,
+      "pdf_score": 1.0,
+      "code_score": 0.0,
+      "benchmark_score": 0.3333,
+      "reproducibility_terms_score": 0.0,
+      "easyscholar_score": 0.0,
+      "negative_keyword_penalty": 0.0,
+      "editorial_score": 0.3402,
+      "peer_review_score": 0.3833,
+      "domain_fit_score": 0.1304,
+      "reproducibility_score": 0.0
+    },
+    "paper_type": "method",
+    "classification_confidence": 0.95,
+    "classification_evidence": [
+      "method:method",
+      "method:algorithm",
+      "method:approach",
+      "method:framework",
+      "method:model"
+    ],
+    "paper_classification": {
+      "schema_version": "paper-source-paper-classification-v1",
+      "primary_type": "method",
+      "secondary_types": [
+        "application",
+        "system"
+      ],
+      "confidence": 0.95,
+      "evidence": [
+        "method:method",
+        "method:algorithm",
+        "method:approach",
+        "method:framework",
+        "method:model"
+      ],
+      "type_scores": {
+        "method": 8,
+        "application": 3,
+        "system": 1
+      }
+    },
+    "quality_tier": "Reject",
+    "quality_gate": {
+      "schema_version": "paper-source-quality-gate-v1",
+      "tier": "Reject",
+      "paper_type": "method",
+      "evidence": [
+        "stable_identifier",
+        "pdf_available",
+        "generic_venue_metadata"
+      ],
+      "cautions": [
+        "weak_benchmark_signal",
+        "weak_reproducibility_signal"
+      ],
+      "blocking_reasons": [
+        "weak_topic_fit"
+      ]
+    },
+    "ranking_rubric": {
+      "schema_version": "paper-source-ranking-rubric-v1",
+      "paper_type": "method",
+      "dimensions": {
+        "relevance": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "method_rigor": {
+          "score": 0.3558,
+          "signals": [
+            "benchmark_signal",
+            "citation_signal",
+            "pdf_available"
+          ]
+        },
+        "evidence_sufficiency": {
+          "score": 0.4167,
+          "signals": [
+            "pdf_available",
+            "benchmark_signal",
+            "citation_signal",
+            "reproducibility_signal"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.0,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        },
+        "source_confidence": {
+          "score": 0.4575,
+          "signals": [
+            "venue_prior",
+            "citation_signal",
+            "pdf_available"
+          ]
+        }
+      },
+      "ranking_confidence": 0.7915,
+      "score_explanation": [
+        "Score combines profile/topic relevance, venue prior, citations, recency, PDF/code availability, and reproducibility evidence.",
+        "Classified as method from title/abstract evidence."
+      ]
+    },
+    "ranking_confidence": 0.7915,
+    "ranking_protocol": {
+      "schema_version": "paper-source-ranking-protocol-v1",
+      "decision": "review-candidate",
+      "matched_positive_keywords": [
+        "reinforcement learning",
+        "sim-to-real",
+        "auv"
+      ],
+      "matched_negative_keywords": [],
+      "reasons": [
+        "matched keywords: reinforcement learning, sim-to-real, auv"
+      ],
+      "cautions": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ],
+      "lenses": {
+        "editorial": {
+          "score": 0.3402,
+          "signals": [
+            "venue_tier",
+            "freshness",
+            "topic_relevance"
+          ]
+        },
+        "peer_review": {
+          "score": 0.3833,
+          "signals": [
+            "citation_signal",
+            "benchmark_signal",
+            "pdf_available"
+          ]
+        },
+        "domain_fit": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.0,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        }
+      },
+      "paper_type": "method",
+      "classification_confidence": 0.95,
+      "quality_tier": "Reject",
+      "quality_gate": {
+        "schema_version": "paper-source-quality-gate-v1",
+        "tier": "Reject",
+        "paper_type": "method",
+        "evidence": [
+          "stable_identifier",
+          "pdf_available",
+          "generic_venue_metadata"
+        ],
+        "cautions": [
+          "weak_benchmark_signal",
+          "weak_reproducibility_signal"
+        ],
+        "blocking_reasons": [
+          "weak_topic_fit"
+        ]
+      },
+      "rubric_scores": {
+        "relevance": 0.1304,
+        "method_rigor": 0.3558,
+        "evidence_sufficiency": 0.4167,
+        "reproducibility": 0.0,
+        "source_confidence": 0.4575
+      },
+      "ranking_confidence": 0.7915
+    },
+    "ranking_rationale": {
+      "schema_version": "paper-source-ranking-rationale-v1",
+      "recommendation": "review-candidate",
+      "one_sentence": "review before ingest: the paper may match the topic, but ranking checks found signals that need human or critic attention first.",
+      "user_interest_match": {
+        "positive_keywords": [
+          "reinforcement learning",
+          "sim-to-real",
+          "auv"
+        ],
+        "negative_keywords": []
+      },
+      "role_views": {
+        "nature_sci_editor": {
+          "lens": "editorial significance",
+          "take": "Editorial value is plausible but not yet strong enough to prioritize without review."
+        },
+        "peer_reviewer": {
+          "lens": "method and evidence",
+          "take": "Method evidence looks thin; check baselines, metrics, and experimental setup before ingest."
+        },
+        "senior_domain_researcher": {
+          "lens": "theory and experiment transfer",
+          "take": "Domain fit is partial; keep it in review unless it fills a specific wiki gap."
+        }
+      },
+      "wiki_deposition": {
+        "value": "If advanced, distill into reference, concept, synthesis, and low-burden reading report pages.",
+        "suggested_pages": [
+          "references",
+          "concepts",
+          "synthesis",
+          "reports"
+        ]
+      },
+      "review_before_ingest": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ]
+    }
+  },
+  {
+    "id": "arxiv:2507.11283v2",
+    "slug": "ocean-diviner-a-diffusion-augmented-reinforcement-learning-framework-for-auv-robust-control-in-u",
+    "title": "Ocean Diviner: A Diffusion-Augmented Reinforcement Learning Framework for AUV Robust Control in Underwater Tasks",
+    "authors": [
+      "Jingzehua Xu",
+      "Guanwen Xie",
+      "Weiyi Liu",
+      "Jiwei Tang",
+      "Ziteng Yang",
+      "Tianxiang Xing",
+      "Yiyuan Yang",
+      "Shuai Zhang",
+      "Xiaofan Li"
+    ],
+    "year": 2025,
+    "venue": "",
+    "abstract": "Autonomous Underwater Vehicles (AUVs) are essential for marine exploration, yet their control remains highly challenging due to nonlinear dynamics and uncertain environmental disturbances. This paper presents a diffusion-augmented Reinforcement Learning (RL) framework for robust AUV control, aiming to improve AUV's adaptability in dynamic underwater environments. The proposed framework integrates two core innovations: (1) A diffusion-based action generation framework that produces physically feasible and high-quality actions, enhanced by a high-dimensional state encoding mechanism combining current observations with historical states and actions through a novel diffusion U-Net architecture, significantly improving long-horizon planning capacity for robust control. (2) A sample-efficient hybrid learning architecture that synergizes diffusion-guided exploration with RL policy optimization, where the diffusion model generates diverse candidate actions and the RL critic selects the optimal action, achieving higher exploration efficiency and policy stability in dynamic underwater environments. Extensive simulation experiments validate the framework's superior robustness and flexibility, outperforming conventional control methods in challenging marine conditions, offering enhanced adaptability and reliability for AUV operations in underwater tasks. Finally, we will release the code publicly soon to support future research in this area.",
+    "doi": null,
+    "arxiv_id": "2507.11283v2",
+    "pdf_url": "https://arxiv.org/pdf/2507.11283v2",
+    "pdf_urls": [
+      "https://arxiv.org/pdf/2507.11283v2"
+    ],
+    "code_url": null,
+    "citation_count": 0,
+    "sources": [
+      "arxiv"
+    ],
+    "alternate_sources": [
+      {
+        "source": "arxiv",
+        "paper_id": "2507.11283v2"
+      }
+    ],
+    "alternate_pdf_urls": [
+      {
+        "source": "arxiv",
+        "url": "https://arxiv.org/pdf/2507.11283v2"
+      }
+    ],
+    "raw_records": [
+      {
+        "source": "arxiv",
+        "title": "Ocean Diviner: A Diffusion-Augmented Reinforcement Learning Framework for AUV Robust Control in Underwater Tasks",
+        "authors": [
+          "Jingzehua Xu",
+          "Guanwen Xie",
+          "Weiyi Liu",
+          "Jiwei Tang",
+          "Ziteng Yang",
+          "Tianxiang Xing",
+          "Yiyuan Yang",
+          "Shuai Zhang",
+          "Xiaofan Li"
+        ],
+        "year": 2025,
+        "venue": "",
+        "abstract": "Autonomous Underwater Vehicles (AUVs) are essential for marine exploration, yet their control remains highly challenging due to nonlinear dynamics and uncertain environmental disturbances. This paper presents a diffusion-augmented Reinforcement Learning (RL) framework for robust AUV control, aiming to improve AUV's adaptability in dynamic underwater environments. The proposed framework integrates two core innovations: (1) A diffusion-based action generation framework that produces physically feasible and high-quality actions, enhanced by a high-dimensional state encoding mechanism combining current observations with historical states and actions through a novel diffusion U-Net architecture, significantly improving long-horizon planning capacity for robust control. (2) A sample-efficient hybrid learning architecture that synergizes diffusion-guided exploration with RL policy optimization, where the diffusion model generates diverse candidate actions and the RL critic selects the optimal action, achieving higher exploration efficiency and policy stability in dynamic underwater environments. Extensive simulation experiments validate the framework's superior robustness and flexibility, outperforming conventional control methods in challenging marine conditions, offering enhanced adaptability and reliability for AUV operations in underwater tasks. Finally, we will release the code publicly soon to support future research in this area.",
+        "doi": null,
+        "arxiv_id": "2507.11283v2",
+        "pdf_url": "https://arxiv.org/pdf/2507.11283v2",
+        "url": "http://arxiv.org/abs/2507.11283v2",
+        "code_url": null,
+        "citation_count": 0,
+        "raw_record": {
+          "paper_id": "2507.11283v2",
+          "title": "Ocean Diviner: A Diffusion-Augmented Reinforcement Learning Framework for AUV Robust Control in Underwater Tasks",
+          "authors": "Jingzehua Xu; Guanwen Xie; Weiyi Liu; Jiwei Tang; Ziteng Yang; Tianxiang Xing; Yiyuan Yang; Shuai Zhang; Xiaofan Li",
+          "abstract": "Autonomous Underwater Vehicles (AUVs) are essential for marine exploration, yet their control remains highly challenging due to nonlinear dynamics and uncertain environmental disturbances. This paper presents a diffusion-augmented Reinforcement Learning (RL) framework for robust AUV control, aiming to improve AUV's adaptability in dynamic underwater environments. The proposed framework integrates two core innovations: (1) A diffusion-based action generation framework that produces physically feasible and high-quality actions, enhanced by a high-dimensional state encoding mechanism combining current observations with historical states and actions through a novel diffusion U-Net architecture, significantly improving long-horizon planning capacity for robust control. (2) A sample-efficient hybrid learning architecture that synergizes diffusion-guided exploration with RL policy optimization, where the diffusion model generates diverse candidate actions and the RL critic selects the optimal action, achieving higher exploration efficiency and policy stability in dynamic underwater environments. Extensive simulation experiments validate the framework's superior robustness and flexibility, outperforming conventional control methods in challenging marine conditions, offering enhanced adaptability and reliability for AUV operations in underwater tasks. Finally, we will release the code publicly soon to support future research in this area.",
+          "doi": "",
+          "published_date": "2025-07-15T13:00:58",
+          "pdf_url": "https://arxiv.org/pdf/2507.11283v2",
+          "url": "http://arxiv.org/abs/2507.11283v2",
+          "source": "arxiv",
+          "updated_date": "2025-09-30T13:39:12",
+          "categories": "cs.RO; eess.SY",
+          "keywords": "",
+          "citations": 0,
+          "references": "",
+          "extra": ""
+        },
+        "query_variant": "Find and stage five papers related to Learning to Swim that support Isaac Sim / Isaac Lab plus AUV reinforcement-learning research, prioritizing AUV RL, 6-DOF control, zero-shot sim-to-real transfer, domain randomization, and underwater simulation platforms or benchmarks.",
+        "query_variant_index": 1
+      }
+    ],
+    "filter_reasons": [],
+    "filter_status": "kept",
+    "verified_metrics": {
+      "easyscholar": {
+        "status": "no_publication_name",
+        "publication_name": null,
+        "source": "easyscholar",
+        "metrics": {},
+        "warnings": []
+      }
+    },
+    "quality_signals": {
+      "easyscholar": {
+        "score": 0.0,
+        "evidence": [],
+        "cautions": []
+      }
+    },
+    "easyscholar_status": "no_publication_name",
+    "score": 0.3667,
+    "ranking_signals": {
+      "topic_score": 0.1304,
+      "venue_score": 0.45,
+      "citation_score": 0.0,
+      "freshness_score": 1.0,
+      "pdf_score": 1.0,
+      "code_score": 0.0,
+      "benchmark_score": 0.3333,
+      "reproducibility_terms_score": 0.3333,
+      "easyscholar_score": 0.0,
+      "negative_keyword_penalty": 0.0,
+      "editorial_score": 0.4002,
+      "peer_review_score": 0.3833,
+      "domain_fit_score": 0.1304,
+      "reproducibility_score": 0.1333
+    },
+    "paper_type": "method",
+    "classification_confidence": 0.95,
+    "classification_evidence": [
+      "method:method",
+      "method:framework",
+      "method:model",
+      "method:architecture",
+      "method:control"
+    ],
+    "paper_classification": {
+      "schema_version": "paper-source-paper-classification-v1",
+      "primary_type": "method",
+      "secondary_types": [
+        "application"
+      ],
+      "confidence": 0.95,
+      "evidence": [
+        "method:method",
+        "method:framework",
+        "method:model",
+        "method:architecture",
+        "method:control"
+      ],
+      "type_scores": {
+        "method": 6,
+        "application": 1
+      }
+    },
+    "quality_tier": "Reject",
+    "quality_gate": {
+      "schema_version": "paper-source-quality-gate-v1",
+      "tier": "Reject",
+      "paper_type": "method",
+      "evidence": [
+        "stable_identifier",
+        "pdf_available",
+        "generic_venue_metadata"
+      ],
+      "cautions": [
+        "weak_benchmark_signal",
+        "weak_reproducibility_signal"
+      ],
+      "blocking_reasons": [
+        "weak_topic_fit"
+      ]
+    },
+    "ranking_rubric": {
+      "schema_version": "paper-source-ranking-rubric-v1",
+      "paper_type": "method",
+      "dimensions": {
+        "relevance": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "method_rigor": {
+          "score": 0.3558,
+          "signals": [
+            "benchmark_signal",
+            "citation_signal",
+            "pdf_available"
+          ]
+        },
+        "evidence_sufficiency": {
+          "score": 0.4366,
+          "signals": [
+            "pdf_available",
+            "benchmark_signal",
+            "citation_signal",
+            "reproducibility_signal"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.1333,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        },
+        "source_confidence": {
+          "score": 0.4575,
+          "signals": [
+            "venue_prior",
+            "citation_signal",
+            "pdf_available"
+          ]
+        }
+      },
+      "ranking_confidence": 0.7915,
+      "score_explanation": [
+        "Score combines profile/topic relevance, venue prior, citations, recency, PDF/code availability, and reproducibility evidence.",
+        "Classified as method from title/abstract evidence."
+      ]
+    },
+    "ranking_confidence": 0.7915,
+    "ranking_protocol": {
+      "schema_version": "paper-source-ranking-protocol-v1",
+      "decision": "review-candidate",
+      "matched_positive_keywords": [
+        "reinforcement learning",
+        "auv",
+        "auv control"
+      ],
+      "matched_negative_keywords": [],
+      "reasons": [
+        "matched keywords: reinforcement learning, auv, auv control"
+      ],
+      "cautions": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ],
+      "lenses": {
+        "editorial": {
+          "score": 0.4002,
+          "signals": [
+            "venue_tier",
+            "freshness",
+            "topic_relevance"
+          ]
+        },
+        "peer_review": {
+          "score": 0.3833,
+          "signals": [
+            "citation_signal",
+            "benchmark_signal",
+            "pdf_available"
+          ]
+        },
+        "domain_fit": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.1333,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        }
+      },
+      "paper_type": "method",
+      "classification_confidence": 0.95,
+      "quality_tier": "Reject",
+      "quality_gate": {
+        "schema_version": "paper-source-quality-gate-v1",
+        "tier": "Reject",
+        "paper_type": "method",
+        "evidence": [
+          "stable_identifier",
+          "pdf_available",
+          "generic_venue_metadata"
+        ],
+        "cautions": [
+          "weak_benchmark_signal",
+          "weak_reproducibility_signal"
+        ],
+        "blocking_reasons": [
+          "weak_topic_fit"
+        ]
+      },
+      "rubric_scores": {
+        "relevance": 0.1304,
+        "method_rigor": 0.3558,
+        "evidence_sufficiency": 0.4366,
+        "reproducibility": 0.1333,
+        "source_confidence": 0.4575
+      },
+      "ranking_confidence": 0.7915
+    },
+    "ranking_rationale": {
+      "schema_version": "paper-source-ranking-rationale-v1",
+      "recommendation": "review-candidate",
+      "one_sentence": "review before ingest: the paper may match the topic, but ranking checks found signals that need human or critic attention first.",
+      "user_interest_match": {
+        "positive_keywords": [
+          "reinforcement learning",
+          "auv",
+          "auv control"
+        ],
+        "negative_keywords": []
+      },
+      "role_views": {
+        "nature_sci_editor": {
+          "lens": "editorial significance",
+          "take": "Editorial value is plausible but not yet strong enough to prioritize without review."
+        },
+        "peer_reviewer": {
+          "lens": "method and evidence",
+          "take": "Method evidence looks thin; check baselines, metrics, and experimental setup before ingest."
+        },
+        "senior_domain_researcher": {
+          "lens": "theory and experiment transfer",
+          "take": "Domain fit is partial; keep it in review unless it fills a specific wiki gap."
+        }
+      },
+      "wiki_deposition": {
+        "value": "If advanced, distill into reference, concept, synthesis, and low-burden reading report pages.",
+        "suggested_pages": [
+          "references",
+          "concepts",
+          "synthesis",
+          "reports"
+        ]
+      },
+      "review_before_ingest": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ]
+    }
+  },
+  {
+    "id": "arxiv:2209.02862v1",
+    "slug": "dave-aquatic-virtual-environment-toward-a-general-underwater-robotics-simulator",
+    "title": "DAVE Aquatic Virtual Environment: Toward a General Underwater Robotics Simulator",
+    "authors": [
+      "Mabel M. Zhang",
+      "Woen-Sug Choi",
+      "Jessica Herman",
+      "Duane Davis",
+      "Carson Vogt",
+      "Michael McCarrin",
+      "Yadunund Vijay",
+      "Dharini Dutia",
+      "William Lew",
+      "Steven Peters",
+      "Brian Bingham"
+    ],
+    "year": 2022,
+    "venue": "",
+    "abstract": "We present DAVE Aquatic Virtual Environment (DAVE), an open source simulation stack for underwater robots, sensors, and environments. Conventional robotics simulators are not designed to address unique challenges that come with the marine environment, including but not limited to environment conditions that vary spatially and temporally, impaired or challenging perception, and the unavailability of data in a generally unexplored environment. Given the variety of sensors and platforms, wheels are often reinvented for specific use cases that inevitably resist wider adoption.\n  Building on existing simulators, we provide a framework to help speed up the development and evaluation of algorithms that would otherwise require expensive and time-consuming operations at sea. The framework includes basic building blocks (e.g., new vehicles, water-tracking Doppler Velocity Logger, physics-based multibeam sonar) as well as development tools (e.g., dynamic bathymetry spawning, ocean currents), which allows the user to focus on methodology rather than software infrastructure. We demonstrate usage through example scenarios, bathymetric data import, user interfaces for data inspection and motion planning for manipulation, and visualizations.",
+    "doi": null,
+    "arxiv_id": "2209.02862v1",
+    "pdf_url": "https://arxiv.org/pdf/2209.02862v1",
+    "pdf_urls": [
+      "https://arxiv.org/pdf/2209.02862v1"
+    ],
+    "code_url": null,
+    "citation_count": 0,
+    "sources": [
+      "arxiv"
+    ],
+    "alternate_sources": [
+      {
+        "source": "arxiv",
+        "paper_id": "2209.02862v1"
+      }
+    ],
+    "alternate_pdf_urls": [
+      {
+        "source": "arxiv",
+        "url": "https://arxiv.org/pdf/2209.02862v1"
+      }
+    ],
+    "raw_records": [
+      {
+        "source": "arxiv",
+        "title": "DAVE Aquatic Virtual Environment: Toward a General Underwater Robotics Simulator",
+        "authors": [
+          "Mabel M. Zhang",
+          "Woen-Sug Choi",
+          "Jessica Herman",
+          "Duane Davis",
+          "Carson Vogt",
+          "Michael McCarrin",
+          "Yadunund Vijay",
+          "Dharini Dutia",
+          "William Lew",
+          "Steven Peters",
+          "Brian Bingham"
+        ],
+        "year": 2022,
+        "venue": "",
+        "abstract": "We present DAVE Aquatic Virtual Environment (DAVE), an open source simulation stack for underwater robots, sensors, and environments. Conventional robotics simulators are not designed to address unique challenges that come with the marine environment, including but not limited to environment conditions that vary spatially and temporally, impaired or challenging perception, and the unavailability of data in a generally unexplored environment. Given the variety of sensors and platforms, wheels are often reinvented for specific use cases that inevitably resist wider adoption.\n  Building on existing simulators, we provide a framework to help speed up the development and evaluation of algorithms that would otherwise require expensive and time-consuming operations at sea. The framework includes basic building blocks (e.g., new vehicles, water-tracking Doppler Velocity Logger, physics-based multibeam sonar) as well as development tools (e.g., dynamic bathymetry spawning, ocean currents), which allows the user to focus on methodology rather than software infrastructure. We demonstrate usage through example scenarios, bathymetric data import, user interfaces for data inspection and motion planning for manipulation, and visualizations.",
+        "doi": null,
+        "arxiv_id": "2209.02862v1",
+        "pdf_url": "https://arxiv.org/pdf/2209.02862v1",
+        "url": "http://arxiv.org/abs/2209.02862v1",
+        "code_url": null,
+        "citation_count": 0,
+        "raw_record": {
+          "paper_id": "2209.02862v1",
+          "title": "DAVE Aquatic Virtual Environment: Toward a General Underwater Robotics Simulator",
+          "authors": "Mabel M. Zhang; Woen-Sug Choi; Jessica Herman; Duane Davis; Carson Vogt; Michael McCarrin; Yadunund Vijay; Dharini Dutia; William Lew; Steven Peters; Brian Bingham",
+          "abstract": "We present DAVE Aquatic Virtual Environment (DAVE), an open source simulation stack for underwater robots, sensors, and environments. Conventional robotics simulators are not designed to address unique challenges that come with the marine environment, including but not limited to environment conditions that vary spatially and temporally, impaired or challenging perception, and the unavailability of data in a generally unexplored environment. Given the variety of sensors and platforms, wheels are often reinvented for specific use cases that inevitably resist wider adoption.\n  Building on existing simulators, we provide a framework to help speed up the development and evaluation of algorithms that would otherwise require expensive and time-consuming operations at sea. The framework includes basic building blocks (e.g., new vehicles, water-tracking Doppler Velocity Logger, physics-based multibeam sonar) as well as development tools (e.g., dynamic bathymetry spawning, ocean currents), which allows the user to focus on methodology rather than software infrastructure. We demonstrate usage through example scenarios, bathymetric data import, user interfaces for data inspection and motion planning for manipulation, and visualizations.",
+          "doi": "",
+          "published_date": "2022-09-06T23:54:17",
+          "pdf_url": "https://arxiv.org/pdf/2209.02862v1",
+          "url": "http://arxiv.org/abs/2209.02862v1",
+          "source": "arxiv",
+          "updated_date": "2022-09-06T23:54:17",
+          "categories": "cs.RO",
+          "keywords": "",
+          "citations": 0,
+          "references": "",
+          "extra": ""
+        }
+      }
+    ],
+    "filter_reasons": [],
+    "filter_status": "kept",
+    "verified_metrics": {
+      "easyscholar": {
+        "status": "no_publication_name",
+        "publication_name": null,
+        "source": "easyscholar",
+        "metrics": {},
+        "warnings": []
+      }
+    },
+    "quality_signals": {
+      "easyscholar": {
+        "score": 0.0,
+        "evidence": [],
+        "cautions": []
+      }
+    },
+    "easyscholar_status": "no_publication_name",
+    "score": 0.3367,
+    "ranking_signals": {
+      "topic_score": 0.1304,
+      "venue_score": 0.45,
+      "citation_score": 0.0,
+      "freshness_score": 0.7,
+      "pdf_score": 1.0,
+      "code_score": 0.0,
+      "benchmark_score": 0.3333,
+      "reproducibility_terms_score": 0.6667,
+      "easyscholar_score": 0.0,
+      "negative_keyword_penalty": 0.0,
+      "editorial_score": 0.3402,
+      "peer_review_score": 0.3833,
+      "domain_fit_score": 0.1304,
+      "reproducibility_score": 0.2667
+    },
+    "paper_type": "method",
+    "classification_confidence": 0.81,
+    "classification_evidence": [
+      "method:method",
+      "method:algorithm",
+      "method:framework"
+    ],
+    "paper_classification": {
+      "schema_version": "paper-source-paper-classification-v1",
+      "primary_type": "method",
+      "secondary_types": [
+        "system",
+        "application",
+        "reproducibility"
+      ],
+      "confidence": 0.81,
+      "evidence": [
+        "method:method",
+        "method:algorithm",
+        "method:framework"
+      ],
+      "type_scores": {
+        "method": 3,
+        "system": 2,
+        "application": 1,
+        "reproducibility": 1
+      }
+    },
+    "quality_tier": "Reject",
+    "quality_gate": {
+      "schema_version": "paper-source-quality-gate-v1",
+      "tier": "Reject",
+      "paper_type": "method",
+      "evidence": [
+        "stable_identifier",
+        "pdf_available",
+        "generic_venue_metadata"
+      ],
+      "cautions": [
+        "weak_benchmark_signal",
+        "weak_reproducibility_signal"
+      ],
+      "blocking_reasons": [
+        "weak_topic_fit"
+      ]
+    },
+    "ranking_rubric": {
+      "schema_version": "paper-source-ranking-rubric-v1",
+      "paper_type": "method",
+      "dimensions": {
+        "relevance": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "method_rigor": {
+          "score": 0.3558,
+          "signals": [
+            "benchmark_signal",
+            "citation_signal",
+            "pdf_available"
+          ]
+        },
+        "evidence_sufficiency": {
+          "score": 0.4567,
+          "signals": [
+            "pdf_available",
+            "benchmark_signal",
+            "citation_signal",
+            "reproducibility_signal"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.2667,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        },
+        "source_confidence": {
+          "score": 0.4575,
+          "signals": [
+            "venue_prior",
+            "citation_signal",
+            "pdf_available"
+          ]
+        }
+      },
+      "ranking_confidence": 0.7915,
+      "score_explanation": [
+        "Score combines profile/topic relevance, venue prior, citations, recency, PDF/code availability, and reproducibility evidence.",
+        "Classified as method from title/abstract evidence."
+      ]
+    },
+    "ranking_confidence": 0.7915,
+    "ranking_protocol": {
+      "schema_version": "paper-source-ranking-protocol-v1",
+      "decision": "review-candidate",
+      "matched_positive_keywords": [
+        "underwater robot",
+        "robotics",
+        "underwater robotics simulator"
+      ],
+      "matched_negative_keywords": [],
+      "reasons": [
+        "matched keywords: underwater robot, robotics, underwater robotics simulator"
+      ],
+      "cautions": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ],
+      "lenses": {
+        "editorial": {
+          "score": 0.3402,
+          "signals": [
+            "venue_tier",
+            "freshness",
+            "topic_relevance"
+          ]
+        },
+        "peer_review": {
+          "score": 0.3833,
+          "signals": [
+            "citation_signal",
+            "benchmark_signal",
+            "pdf_available"
+          ]
+        },
+        "domain_fit": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.2667,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        }
+      },
+      "paper_type": "method",
+      "classification_confidence": 0.81,
+      "quality_tier": "Reject",
+      "quality_gate": {
+        "schema_version": "paper-source-quality-gate-v1",
+        "tier": "Reject",
+        "paper_type": "method",
+        "evidence": [
+          "stable_identifier",
+          "pdf_available",
+          "generic_venue_metadata"
+        ],
+        "cautions": [
+          "weak_benchmark_signal",
+          "weak_reproducibility_signal"
+        ],
+        "blocking_reasons": [
+          "weak_topic_fit"
+        ]
+      },
+      "rubric_scores": {
+        "relevance": 0.1304,
+        "method_rigor": 0.3558,
+        "evidence_sufficiency": 0.4567,
+        "reproducibility": 0.2667,
+        "source_confidence": 0.4575
+      },
+      "ranking_confidence": 0.7915
+    },
+    "ranking_rationale": {
+      "schema_version": "paper-source-ranking-rationale-v1",
+      "recommendation": "review-candidate",
+      "one_sentence": "review before ingest: the paper may match the topic, but ranking checks found signals that need human or critic attention first.",
+      "user_interest_match": {
+        "positive_keywords": [
+          "underwater robot",
+          "robotics",
+          "underwater robotics simulator"
+        ],
+        "negative_keywords": []
+      },
+      "role_views": {
+        "nature_sci_editor": {
+          "lens": "editorial significance",
+          "take": "Editorial value is plausible but not yet strong enough to prioritize without review."
+        },
+        "peer_reviewer": {
+          "lens": "method and evidence",
+          "take": "Method evidence looks thin; check baselines, metrics, and experimental setup before ingest."
+        },
+        "senior_domain_researcher": {
+          "lens": "theory and experiment transfer",
+          "take": "Domain fit is partial; keep it in review unless it fills a specific wiki gap."
+        }
+      },
+      "wiki_deposition": {
+        "value": "If advanced, distill into reference, concept, synthesis, and low-burden reading report pages.",
+        "suggested_pages": [
+          "references",
+          "concepts",
+          "synthesis",
+          "reports"
+        ]
+      },
+      "review_before_ingest": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ]
+    }
+  },
+  {
+    "id": "arxiv:2511.07687v1",
+    "slug": "testing-and-evaluation-of-underwater-vehicle-using-hardware-in-the-loop-simulation-with-holoocea",
+    "title": "Testing and Evaluation of Underwater Vehicle Using Hardware-In-The-Loop Simulation with HoloOcean",
+    "authors": [
+      "Braden Meyers",
+      "Joshua G. Mangelson"
+    ],
+    "year": 2025,
+    "venue": "",
+    "abstract": "Testing marine robotics systems in controlled environments before field tests is challenging, especially when acoustic-based sensors and control surfaces only function properly underwater. Deploying robots in indoor tanks and pools often faces space constraints that complicate testing of control, navigation, and perception algorithms at scale. Recent developments of high-fidelity underwater simulation tools have the potential to address these problems. We demonstrate the utility of the recently released HoloOcean 2.0 simulator with improved dynamics for torpedo AUV vehicles and a new ROS 2 interface. We have successfully demonstrated a Hardware-in-the-Loop (HIL) and Software-in-the-Loop (SIL) setup for testing and evaluating a CougUV torpedo autonomous underwater vehicle (AUV) that was built and developed in our lab. With this HIL and SIL setup, simulations are run in HoloOcean using a ROS 2 bridge such that simulated sensor data is sent to the CougUV (mimicking sensor drivers) and control surface commands are sent back to the simulation, where vehicle dynamics and sensor data are calculated. We compare our simulated results to real-world field trial results.",
+    "doi": null,
+    "arxiv_id": "2511.07687v1",
+    "pdf_url": "https://arxiv.org/pdf/2511.07687v1",
+    "pdf_urls": [
+      "https://arxiv.org/pdf/2511.07687v1"
+    ],
+    "code_url": null,
+    "citation_count": 0,
+    "sources": [
+      "arxiv"
+    ],
+    "alternate_sources": [
+      {
+        "source": "arxiv",
+        "paper_id": "2511.07687v1"
+      }
+    ],
+    "alternate_pdf_urls": [
+      {
+        "source": "arxiv",
+        "url": "https://arxiv.org/pdf/2511.07687v1"
+      }
+    ],
+    "raw_records": [
+      {
+        "source": "arxiv",
+        "title": "Testing and Evaluation of Underwater Vehicle Using Hardware-In-The-Loop Simulation with HoloOcean",
+        "authors": [
+          "Braden Meyers",
+          "Joshua G. Mangelson"
+        ],
+        "year": 2025,
+        "venue": "",
+        "abstract": "Testing marine robotics systems in controlled environments before field tests is challenging, especially when acoustic-based sensors and control surfaces only function properly underwater. Deploying robots in indoor tanks and pools often faces space constraints that complicate testing of control, navigation, and perception algorithms at scale. Recent developments of high-fidelity underwater simulation tools have the potential to address these problems. We demonstrate the utility of the recently released HoloOcean 2.0 simulator with improved dynamics for torpedo AUV vehicles and a new ROS 2 interface. We have successfully demonstrated a Hardware-in-the-Loop (HIL) and Software-in-the-Loop (SIL) setup for testing and evaluating a CougUV torpedo autonomous underwater vehicle (AUV) that was built and developed in our lab. With this HIL and SIL setup, simulations are run in HoloOcean using a ROS 2 bridge such that simulated sensor data is sent to the CougUV (mimicking sensor drivers) and control surface commands are sent back to the simulation, where vehicle dynamics and sensor data are calculated. We compare our simulated results to real-world field trial results.",
+        "doi": null,
+        "arxiv_id": "2511.07687v1",
+        "pdf_url": "https://arxiv.org/pdf/2511.07687v1",
+        "url": "http://arxiv.org/abs/2511.07687v1",
+        "code_url": null,
+        "citation_count": 0,
+        "raw_record": {
+          "paper_id": "2511.07687v1",
+          "title": "Testing and Evaluation of Underwater Vehicle Using Hardware-In-The-Loop Simulation with HoloOcean",
+          "authors": "Braden Meyers; Joshua G. Mangelson",
+          "abstract": "Testing marine robotics systems in controlled environments before field tests is challenging, especially when acoustic-based sensors and control surfaces only function properly underwater. Deploying robots in indoor tanks and pools often faces space constraints that complicate testing of control, navigation, and perception algorithms at scale. Recent developments of high-fidelity underwater simulation tools have the potential to address these problems. We demonstrate the utility of the recently released HoloOcean 2.0 simulator with improved dynamics for torpedo AUV vehicles and a new ROS 2 interface. We have successfully demonstrated a Hardware-in-the-Loop (HIL) and Software-in-the-Loop (SIL) setup for testing and evaluating a CougUV torpedo autonomous underwater vehicle (AUV) that was built and developed in our lab. With this HIL and SIL setup, simulations are run in HoloOcean using a ROS 2 bridge such that simulated sensor data is sent to the CougUV (mimicking sensor drivers) and control surface commands are sent back to the simulation, where vehicle dynamics and sensor data are calculated. We compare our simulated results to real-world field trial results.",
+          "doi": "",
+          "published_date": "2025-11-10T23:15:37",
+          "pdf_url": "https://arxiv.org/pdf/2511.07687v1",
+          "url": "http://arxiv.org/abs/2511.07687v1",
+          "source": "arxiv",
+          "updated_date": "2025-11-10T23:15:37",
+          "categories": "cs.RO",
+          "keywords": "",
+          "citations": 0,
+          "references": "",
+          "extra": ""
+        }
+      }
+    ],
+    "filter_reasons": [],
+    "filter_status": "kept",
+    "verified_metrics": {
+      "easyscholar": {
+        "status": "no_publication_name",
+        "publication_name": null,
+        "source": "easyscholar",
+        "metrics": {},
+        "warnings": []
+      }
+    },
+    "quality_signals": {
+      "easyscholar": {
+        "score": 0.0,
+        "evidence": [],
+        "cautions": []
+      }
+    },
+    "easyscholar_status": "no_publication_name",
+    "score": 0.3667,
+    "ranking_signals": {
+      "topic_score": 0.1304,
+      "venue_score": 0.45,
+      "citation_score": 0.0,
+      "freshness_score": 1.0,
+      "pdf_score": 1.0,
+      "code_score": 0.0,
+      "benchmark_score": 0.0,
+      "reproducibility_terms_score": 0.3333,
+      "easyscholar_score": 0.0,
+      "negative_keyword_penalty": 0.0,
+      "editorial_score": 0.4002,
+      "peer_review_score": 0.25,
+      "domain_fit_score": 0.1304,
+      "reproducibility_score": 0.1333
+    },
+    "paper_type": "system",
+    "classification_confidence": 0.69,
+    "classification_evidence": [
+      "system:system",
+      "system:simulator"
+    ],
+    "paper_classification": {
+      "schema_version": "paper-source-paper-classification-v1",
+      "primary_type": "system",
+      "secondary_types": [
+        "method",
+        "field-trial",
+        "application"
+      ],
+      "confidence": 0.69,
+      "evidence": [
+        "system:system",
+        "system:simulator"
+      ],
+      "type_scores": {
+        "system": 2,
+        "method": 2,
+        "field-trial": 1,
+        "application": 1
+      }
+    },
+    "quality_tier": "Reject",
+    "quality_gate": {
+      "schema_version": "paper-source-quality-gate-v1",
+      "tier": "Reject",
+      "paper_type": "system",
+      "evidence": [
+        "stable_identifier",
+        "pdf_available",
+        "generic_venue_metadata"
+      ],
+      "cautions": [
+        "weak_benchmark_signal",
+        "weak_reproducibility_signal"
+      ],
+      "blocking_reasons": [
+        "weak_topic_fit"
+      ]
+    },
+    "ranking_rubric": {
+      "schema_version": "paper-source-ranking-rubric-v1",
+      "paper_type": "system",
+      "dimensions": {
+        "relevance": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "method_rigor": {
+          "score": 0.1125,
+          "signals": [
+            "benchmark_signal",
+            "citation_signal",
+            "pdf_available"
+          ]
+        },
+        "evidence_sufficiency": {
+          "score": 0.32,
+          "signals": [
+            "pdf_available",
+            "benchmark_signal",
+            "citation_signal",
+            "reproducibility_signal"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.1333,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        },
+        "source_confidence": {
+          "score": 0.4575,
+          "signals": [
+            "venue_prior",
+            "citation_signal",
+            "pdf_available"
+          ]
+        }
+      },
+      "ranking_confidence": 0.7615,
+      "score_explanation": [
+        "Score combines profile/topic relevance, venue prior, citations, recency, PDF/code availability, and reproducibility evidence.",
+        "Classified as system from title/abstract evidence."
+      ]
+    },
+    "ranking_confidence": 0.7615,
+    "ranking_protocol": {
+      "schema_version": "paper-source-ranking-protocol-v1",
+      "decision": "review-candidate",
+      "matched_positive_keywords": [
+        "field trial",
+        "auv",
+        "robotics"
+      ],
+      "matched_negative_keywords": [],
+      "reasons": [
+        "matched keywords: field trial, auv, robotics"
+      ],
+      "cautions": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ],
+      "lenses": {
+        "editorial": {
+          "score": 0.4002,
+          "signals": [
+            "venue_tier",
+            "freshness",
+            "topic_relevance"
+          ]
+        },
+        "peer_review": {
+          "score": 0.25,
+          "signals": [
+            "citation_signal",
+            "benchmark_signal",
+            "pdf_available"
+          ]
+        },
+        "domain_fit": {
+          "score": 0.1304,
+          "signals": [
+            "positive_keyword_overlap",
+            "negative_keyword_penalty"
+          ]
+        },
+        "reproducibility": {
+          "score": 0.1333,
+          "signals": [
+            "code_available",
+            "reproducibility_terms"
+          ]
+        }
+      },
+      "paper_type": "system",
+      "classification_confidence": 0.69,
+      "quality_tier": "Reject",
+      "quality_gate": {
+        "schema_version": "paper-source-quality-gate-v1",
+        "tier": "Reject",
+        "paper_type": "system",
+        "evidence": [
+          "stable_identifier",
+          "pdf_available",
+          "generic_venue_metadata"
+        ],
+        "cautions": [
+          "weak_benchmark_signal",
+          "weak_reproducibility_signal"
+        ],
+        "blocking_reasons": [
+          "weak_topic_fit"
+        ]
+      },
+      "rubric_scores": {
+        "relevance": 0.1304,
+        "method_rigor": 0.1125,
+        "evidence_sufficiency": 0.32,
+        "reproducibility": 0.1333,
+        "source_confidence": 0.4575
+      },
+      "ranking_confidence": 0.7615
+    },
+    "ranking_rationale": {
+      "schema_version": "paper-source-ranking-rationale-v1",
+      "recommendation": "review-candidate",
+      "one_sentence": "review before ingest: the paper may match the topic, but ranking checks found signals that need human or critic attention first.",
+      "user_interest_match": {
+        "positive_keywords": [
+          "field trial",
+          "auv",
+          "robotics"
+        ],
+        "negative_keywords": []
+      },
+      "role_views": {
+        "nature_sci_editor": {
+          "lens": "editorial significance",
+          "take": "Editorial value is plausible but not yet strong enough to prioritize without review."
+        },
+        "peer_reviewer": {
+          "lens": "method and evidence",
+          "take": "Method evidence looks thin; check baselines, metrics, and experimental setup before ingest."
+        },
+        "senior_domain_researcher": {
+          "lens": "theory and experiment transfer",
+          "take": "Domain fit is partial; keep it in review unless it fills a specific wiki gap."
+        }
+      },
+      "wiki_deposition": {
+        "value": "If advanced, distill into reference, concept, synthesis, and low-burden reading report pages.",
+        "suggested_pages": [
+          "references",
+          "concepts",
+          "synthesis",
+          "reports"
+        ]
+      },
+      "review_before_ingest": [
+        "weak_reproducibility_signal",
+        "weak_benchmark_signal",
+        "weak_venue_signal"
+      ]
+    }
+  }
+]

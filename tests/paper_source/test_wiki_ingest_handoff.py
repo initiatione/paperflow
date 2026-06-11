@@ -32,7 +32,7 @@ EXPECTED_RESEARCH_REVIEW_FIELDS = [
     "cost_level",
 ]
 
-EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "review-needed", "source-reviewed", "under-review", "verified"]
+EXPECTED_PAGE_LIFECYCLE_STATES = ["draft"]
 
 
 def _write_json(path, payload):
@@ -122,7 +122,6 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "paper.pdf",
                     "metadata.json",
                     canonical_mineru_md,
-                    "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
                 ],
@@ -184,7 +183,14 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "formal_routes_suggested": False,
                 "wiki_batch_handoff_required": True,
                 "required_wiki_skills": EXPECTED_RESEARCH_WIKI_SKILLS,
-                "source_first_policy": f"Read {canonical_mineru_md}, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
+                "source_first_policy": (
+                    f"Read {canonical_mineru_md}, mineru/images/*, mineru/mineru-manifest.json, "
+                    "figure-index.json, and formula-index.json before final wiki writing. "
+                    "Use MinerU Markdown as the primary formula and notation source; fall back to "
+                    "paper.pdf, formula-index.json, figure-index.json, or image evidence only when "
+                    "Markdown is missing, wrong, or ambiguous. Reader outputs are navigation aids, "
+                    "not substitutes for the source paper."
+                ),
             },
             "formal_page_families": EXPECTED_FORMAL_PAGE_FAMILIES,
             "research_review_fields": EXPECTED_RESEARCH_REVIEW_FIELDS,
@@ -194,21 +200,27 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "paper.pdf",
                     "metadata.json",
                     canonical_mineru_md,
-                    "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
+                    "figure-index.json",
+                    "formula-index.json",
                 ],
                 "primary_source_reading_order": [
                     "metadata.json",
                     canonical_mineru_md,
-                    "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
+                    "figure-index.json",
+                    "formula-index.json",
                 ],
                 "formula_figure_review": {
-                    "formulas": f"Review central formulas from {canonical_mineru_md} and mineru/paper.tex before distilling claims.",
-                    "figures_tables_images": "Interpret figures, tables, and images from mineru/images/* instead of collapsing them into reader summary prose.",
-                    "parse_uncertainty": "Inspect paper.pdf when MinerU parse limitations or missing figure/formula signals appear.",
+                    "formulas": (
+                        f"Review central formulas from {canonical_mineru_md} first; use paper.pdf, "
+                        "formula-index.json, figure-index.json, or image evidence only when Markdown "
+                        "is missing, wrong, or ambiguous."
+                    ),
+                    "figures_tables_images": "Interpret figures, tables, and images from mineru/images/* with figure-index.json instead of collapsing them into reader summary prose.",
+                    "parse_uncertainty": "Inspect paper.pdf when MinerU Markdown or index evidence is missing, wrong, or ambiguous.",
                 },
             },
             "formal_routes_suggested": False,

@@ -495,13 +495,17 @@ def test_wiki_setup_legacy_root_is_epi_not_current_paper_source_root():
     assert "legacy `_paper_source\\meta\\paper-source-config.yaml`" not in wiki_setup
 
 
-def test_page_provenance_accepts_current_pdf_links_and_legacy_epi_links_only():
+def test_page_provenance_migrates_legacy_internal_pdf_links_to_body_uri():
     page_provenance = (
         SKILLS / "wiki-provenance" / "references" / "page-provenance.md"
     ).read_text(encoding="utf-8")
 
     assert "_paper_source/raw/<slug>/paper.pdf" in page_provenance
-    assert "legacy `\"[[_epi/raw/<slug>/paper.pdf|<slug>]]\"`" in page_provenance
+    assert "Frontmatter `sources` must contain only scan-friendly short source labels" in page_provenance
+    assert "Put the full clickable PDF URI in the body `## 原文与证据入口`" in page_provenance
+    assert "Legacy `_epi` or `_paper_source` wikilinks may be read for compatibility" in page_provenance
+    assert "recorded formal pages must convert them to short `sources` labels plus the body PDF URI" in page_provenance
+    assert "[[_epi/raw/<slug>/paper.pdf|<slug>]]" not in page_provenance
     assert "legacy `\"[[_paper_source/raw/<slug>/paper.pdf|<slug>]]\"`" not in page_provenance
 
 

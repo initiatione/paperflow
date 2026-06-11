@@ -25,7 +25,13 @@ def _write_formal_page(vault, relative_path, title, body, *, aliases=None, tags=
     aliases = aliases or []
     tags = tags or []
     if sources is None:
-        sources = ['"[[_paper_source/raw/example/paper.pdf|原论文 PDF]]"']
+        sources = ['"example-paper"']
+    if relative_path.startswith("references/") and "## 原文与证据入口" not in body:
+        body = (
+            body
+            + "\n\n## 原文与证据入口\n\n"
+            + "[原论文 PDF](obsidian://open?vault=vault&file=_paper_source%2Fraw%2Fexample%2Fpaper.pdf)"
+        )
     path.write_text(
         "\n".join(
             [
@@ -87,8 +93,7 @@ def test_ask_wiki_uses_formal_graph_backlinks_colinks_and_reports_correction_can
         (
             "AUV attitude control under strong current disturbance uses "
             "[[Disturbance Observer]] and [[Robust Control Baseline]]. "
-            "This page also references [[Missing Evidence Node]] and "
-            "[[_paper_source/raw/example/paper.pdf|source PDF]]."
+            "This page also references [[Missing Evidence Node]]."
         ),
         aliases=["AUV ADRC Strong Current"],
         tags=["auv", "attitude-control"],
@@ -166,6 +171,10 @@ def test_ask_wiki_uses_formal_graph_backlinks_colinks_and_reports_correction_can
         and candidate["target"] == "_paper_source/raw/example/paper.pdf"
         for candidate in result["correction_candidates"]
     )
+    assert not any(
+        candidate["kind"] == "source_frontmatter_mismatch"
+        for candidate in result["correction_candidates"]
+    )
     assert (vault / "log.md").read_text(encoding="utf-8") == "do not change this log\n"
 
 
@@ -191,6 +200,32 @@ def test_ask_wiki_source_evidence_treats_empty_tex_as_absent(tmp_path):
     source_evidence = pages["references/empty-tex-source.md"]["source_evidence"][0]
     assert source_evidence["artifacts"]["mineru_markdown"] is True
     assert source_evidence["artifacts"]["mineru_tex"] is False
+
+
+def test_ask_wiki_reports_legacy_frontmatter_pdf_link_as_repair_candidate(tmp_path):
+    vault = tmp_path / "vault"
+    raw_root = vault / "_paper_source" / "raw" / "example"
+    (raw_root / "mineru").mkdir(parents=True, exist_ok=True)
+    (raw_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
+    (raw_root / "mineru" / "example.md").write_text("mineru markdown\n", encoding="utf-8")
+    _write_formal_page(
+        vault,
+        "references/legacy-source-link.md",
+        "Legacy Source Link",
+        "Legacy Source Link discusses source evidence handling.",
+        aliases=["Legacy Source Link"],
+        sources=['"[[_paper_source/raw/example/paper.pdf|原论文 PDF]]"'],
+    )
+
+    result = ask_wiki(vault, question="Legacy Source Link", limit=3)
+
+    pages = {page["path"]: page for page in result["pages"]}
+    assert pages["references/legacy-source-link.md"]["source_evidence"][0]["path"] == "_paper_source/raw/example/paper.pdf"
+    assert any(
+        candidate["kind"] == "source_frontmatter_mismatch"
+        and "move the PDF URI" in candidate["message"]
+        for candidate in result["correction_candidates"]
+    )
 
 
 def test_render_wiki_ask_labels_evidence_synthesis_inference_uncertainty_and_correction_loop(tmp_path):

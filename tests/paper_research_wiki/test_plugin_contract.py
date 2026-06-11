@@ -146,7 +146,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "0.2.2"
+    assert manifest["version"] == "0.2.3"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -157,7 +157,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "link repair" in manifest["interface"]["longDescription"]
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v0.2.2 | Paper Wiki:")
+    assert manifest["interface"]["shortDescription"].startswith("v0.2.3 | Paper Wiki:")
     for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
@@ -168,12 +168,12 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_prw_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "0.2.3"
+    assert manifest["version"] == "0.2.4"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v0.2.3 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v0.2.4 | Paper Source:")
     assert "record" in manifest["interface"]["shortDescription"]
     assert "Paper Source" in manifest["interface"]["longDescription"]
     assert "Paper Wiki" in manifest["interface"]["longDescription"]
@@ -838,9 +838,11 @@ def test_paper_wiki_supports_single_and_batch_redo_deep_extraction():
         "batch",
         "source reread",
         "MinerU Markdown",
-        "TeX",
         "images",
         "PDF",
+        "formula-index.json",
+        "figure-index.json",
+        "fallback",
         "compare existing pages",
         "staged patch",
         "one confirmation",
@@ -851,24 +853,92 @@ def test_paper_wiki_supports_single_and_batch_redo_deep_extraction():
         assert phrase in redo
 
 
-def test_paper_wiki_requires_clickable_source_pdf_links_in_frontmatter():
+def test_paper_wiki_keeps_sources_scan_friendly_and_pdf_links_in_body():
     standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
     frontmatter = _read(PLUGIN / "rules" / "formal-page-frontmatter.md")
     provenance = _read(PUBLIC_SKILL / "references" / "page-provenance.md")
     extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
 
     for text in [standard, frontmatter, provenance, extract]:
-        # canonical clickable obsidian:// form displayed with the paper title
+        # canonical clickable obsidian:// form is still required, but in body evidence sections
         assert "obsidian://open?vault=" in text
-        # correct PDF path with no stale papers/ segment; legacy wikilink form still accepted
+        # correct PDF path with no stale papers/ segment; internal wikilinks are not allowed in formal pages
         assert "_paper_source/raw/<slug>/paper.pdf" in text
         assert "papers/<slug>" not in text
-        assert "[[_paper_source/raw/<slug>/paper.pdf|<slug>]]" in text
+        assert "[[_paper_source/raw/<slug>/paper.pdf|<slug>]]" not in text
+        assert "Do not write `[[...]]` wikilinks to `_paper_source/`" in text
+        assert "frontmatter `sources:` must stay scan-friendly" in text
+        assert "put the full clickable PDF URI in `## 原文与证据入口`" in text
     assert "Markdown link" in standard
     assert "原论文 PDF" in standard
     assert "plain path text" in standard
     for phrase in ["metadata", "MinerU", "DOI", "arXiv"]:
         assert phrase in standard
+
+
+def test_paper_wiki_frontmatter_governance_keeps_properties_scan_friendly():
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    frontmatter = _read(PLUGIN / "rules" / "formal-page-frontmatter.md")
+    anatomy = _read(PUBLIC_SKILL / "references" / "references-page-anatomy.md")
+    check = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+
+    combined = "\n".join([standard, frontmatter, anatomy, check, workflow_doc])
+    for phrase in [
+        "scan-friendly properties",
+        "source_pdf:",
+        "source_id:",
+        "short source label",
+        "do not expose long obsidian:// URIs in the properties pane",
+        "Put the full clickable PDF URI in `## 原文与证据入口`",
+        "frontmatter `provenance` is a compact status summary",
+        "detailed source bundle paths belong in the body `## Provenance` block or sidecar",
+        "Old `lifecycle: review-needed` pages are legacy repair inputs",
+        "Do not add `review_status`",
+        "external wiki-lint compatibility",
+    ]:
+        assert phrase in combined
+
+
+def test_paper_wiki_evidence_taxonomy_matches_current_vault_tags():
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    frontmatter = _read(PLUGIN / "rules" / "formal-page-frontmatter.md")
+    anatomy = _read(PUBLIC_SKILL / "references" / "references-page-anatomy.md")
+    survey = _read(PUBLIC_SKILL / "references" / "survey-page-anatomy.md")
+
+    combined = "\n".join([standard, frontmatter, anatomy, survey])
+    for tag in [
+        "evidence/simulation",
+        "evidence/hardware-in-the-loop",
+        "evidence/pool-trial",
+        "evidence/lake-trial",
+        "evidence/real-robot-lab",
+        "evidence/sea-trial",
+        "evidence/real-data-driven-simulation",
+        "evidence/literature-review",
+    ]:
+        assert tag in combined
+    assert "evidence/field-test" in combined
+    assert "Do not use `evidence/field-test`" in combined
+
+
+def test_internal_snapshot_and_source_trees_are_excluded_from_formal_indexing():
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    check = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+
+    combined = "\n".join([standard, check, update, workflow_doc])
+    for phrase in [
+        "_epi/meta/formal-page-snapshots",
+        "_paper_source/meta/formal-page-snapshots",
+        "premature-formal-pages",
+        "must stay outside the formal graph",
+        "must stay outside QMD",
+        "page_family/category/lifecycle markers under underscore roots are audit copies",
+        "not formal pages",
+    ]:
+        assert phrase in combined
 
 
 def test_paper_wiki_active_docs_use_paper_source_root_as_primary_path():
@@ -900,10 +970,10 @@ def test_paper_wiki_scopes_reference_single_source_separately_from_synthesis_pag
 
     for text in [standard, frontmatter, provenance, extract]:
         assert "references/ pages" in text
-        assert "exactly one clickable original-paper PDF link" in text
+        assert "exactly one short source label" in text
     for text in [standard, frontmatter, extract]:
         assert "concepts/, derivations/, experiments/, synthesis/, reports/, and opportunities/" in text
-        assert "one or more clickable original-paper PDF links" in text
+        assert "one or more short source labels" in text
     assert "same frontmatter contract" not in standard
 
 
@@ -915,8 +985,8 @@ def test_paper_wiki_supports_frontmatter_only_github_metadata_repair():
     for phrase in [
         "Frontmatter-Only Metadata Repair",
         "verified `github:` property",
-        "Keep `sources:` PDF-only",
-        "do not add GitHub, DOI, arXiv, README, metadata, or MinerU paths to frontmatter `sources:`",
+        "Keep `sources:` as scan-friendly short source labels",
+        "do not add GitHub, DOI, arXiv, README, metadata, MinerU paths, PDF paths, or Markdown links to frontmatter `sources:`",
         "Do not automatically run the full graph-aware rewrite path",
         "Escalate to Graph-Aware Rewrite only if the metadata changes a claim",
     ]:
@@ -934,7 +1004,7 @@ def test_paper_wiki_supports_frontmatter_only_github_metadata_repair():
     for phrase in [
         "Frontmatter-only metadata repair",
         "verified `github:` property",
-        "keep `sources:` PDF-only",
+        "keep `sources:` as scan-friendly short source labels",
         "Do not trigger graph-aware rewrite",
         "paper-wiki-record-request.json",
         "record-wiki-ingest",
@@ -989,7 +1059,8 @@ def test_references_page_anatomy_requires_source_map_formula_chain_and_figure_ca
 
     for phrase in [
         "Source-map-first writing",
-        "MinerU Markdown / TeX / images / manifest",
+        "MinerU Markdown is the primary formula and notation source",
+        "Only fall back to the PDF, formula-index.json, figure-index.json, or image evidence",
         "reader/critic artifacts are secondary aids",
         "Do not expose the full source map",
         "Formula reasoning chain",
@@ -1007,6 +1078,29 @@ def test_references_page_anatomy_requires_source_map_formula_chain_and_figure_ca
         "not assessable",
     ]:
         assert phrase in anatomy
+    assert "MinerU Markdown / TeX / images / manifest" not in anatomy
+
+
+def test_paper_wiki_defines_formal_knowledge_maintenance_beyond_page_writing():
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
+    redo = _read(PUBLIC_SKILL / "workflows" / "redo-extraction.md")
+
+    combined = "\n".join([skill, standard, update, redo])
+    for phrase in [
+        "formal knowledge maintenance layer",
+        "formal page content relationships",
+        "content relationship maintenance",
+        "claim staleness",
+        "split or merge pages",
+        "reverse dependencies",
+        "evidence-tier drift",
+        "derived concepts",
+        "derivations",
+        "synthesis",
+    ]:
+        assert phrase in combined
 
 
 def test_skill_ui_metadata_uses_single_public_skill():

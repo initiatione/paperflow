@@ -49,17 +49,19 @@ relationships:
     type: uses
   - target: "[[synthesis/<page>]]"
     type: related_to
-sources: ["[<full paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)"]
+sources: ["<short source label>"]
+source_id: "<slug>"
+source_pdf: "obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf"
 summary: "<year> <venue> <type>，提出 <ACRONYM>：<one-line mechanism>。"
 provenance:
   extracted:
-    - "<what was taken directly from the source bundle: metadata, MinerU md/tex, images>"
+    - "<what was taken directly from the source bundle: metadata, MinerU Markdown, figures/tables>"
   inferred:
     - "<cross-page or reuse inference this page makes>"
   ambiguous:
     - "<OCR noise, author future-work, data/code availability, anything uncertain>"
 base_confidence: 0.8x
-lifecycle: review-needed
+lifecycle: draft
 lifecycle_changed: <YYYY-MM-DD>
 tier: core | supporting
 created: <YYYY-MM-DD>
@@ -75,16 +77,14 @@ Field rules and *why*:
 - **`tags`** — exactly the five facets below, in order. Facets let the graph be sliced by domain,
   method, task, topic, and *evidence strength* — the last one is what stops a simulation paper from
   being cited as field-proven.
-- **`sources`** — **only** a clickable link to the original PDF.
-  - *Canonical form* (use this): a Markdown link displayed with the paper title, pointing at the
-    `obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf` URI. This is what the
-    reviewed exemplar pages use and what renders clickable in the Obsidian properties panel.
-  - The path is `_paper_source/raw/<slug>/paper.pdf` — **no `papers/` segment**.
-  - The wikilink form `"[[_paper_source/raw/<slug>/paper.pdf|<slug>]]"` is still accepted for
-    Paper Source-generated pages. Legacy `_epi` wikilinks remain accepted for existing artifacts,
-    but new Paper Wiki writes should use the canonical form.
-  - Never put DOI, MinerU md/tex, manifest, or figure paths in frontmatter `sources` — those go in
-    the body `## 原文与证据入口`.
+- **`sources`** — frontmatter `sources:` must stay scan-friendly: use exactly one short source
+  label for a `references/` page, normally the paper slug, DOI slug, or canonical title label.
+  Do not expose long `obsidian://` URIs in the properties pane. Do not use Markdown links,
+  `[[...]]` wikilinks, `_paper_source/`, legacy `_epi/`, PDF paths, DOI/arXiv URLs, metadata,
+  MinerU, manifest, or figure paths in frontmatter `sources`.
+  Put the full clickable PDF URI in `## 原文与证据入口` as a Markdown link displayed as `原论文 PDF`,
+  pointing at `obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf`.
+  The path is `_paper_source/raw/<slug>/paper.pdf` — **no `papers/` segment**.
 - **`summary`** — fixed shape: `年份 + 出处 + 类型，提出 缩写：一句机制`. A summary that does not
   name the venue/year and the one-line mechanism is incomplete. Keep under ~120 Chinese characters.
 - **`provenance`** — three *qualitative bullet lists* (not numeric ratios). `extracted` = what the
@@ -92,8 +92,10 @@ Field rules and *why*:
   `ambiguous` = OCR noise, future-work, availability caveats. This is the page's honesty ledger.
 - **`base_confidence`** — set from the rubric at the end of this file, not by feel. Calibrated AUV
   simulation papers land ~0.80–0.86; never 1.0.
-- **`lifecycle`** — new agent-written pages start `review-needed` (or `draft`). Only a human review
-  pass moves a page to `verified`. Never auto-promote.
+- **`lifecycle`** — new agent-written pages start `draft`. Do not add `review_status`. Old
+  `lifecycle: review-needed` pages are legacy repair inputs and should be migrated to `draft`
+  during property repair, not accepted as a steady-state status. Only a human review pass or a
+  target vault contract with explicit authority can move a page beyond draft. Never auto-promote.
 - **`tier`** — `core` if the page owns a method/result the graph leans on; `supporting` if it is a
   baseline or peripheral comparison.
 
@@ -157,8 +159,9 @@ Section-by-section:
   - `公式/算法：` the distinguishing equations/algorithms (named, not derived here).
   - `实验/指标：` the test scenarios, baselines, and metrics.
   - `边界：` evidence tier and the author-declared future work / unproven scope.
-- **`## 原文与证据入口`** — clickable PDF (same link as frontmatter), DOI or arXiv id, MinerU
-  Markdown / TeX / manifest paths, and image directory. This is the audit trail.
+- **`## 原文与证据入口`** — clickable PDF URI, DOI or arXiv id, MinerU Markdown path, image
+  directory, manifest path, and figure/formula indexes. This is the audit trail. If non-empty native
+  `mineru/paper.tex` exists, mention it only as an optional cross-check, not a required source.
 - **`## 问题设定`** — what is specifically hard, and the gap the paper targets. State the *baseline
   failure mode* here or in 核心机制 — the page must make clear what was wrong before.
 - **`## 核心机制`** — the actual method. Requirements that make it deep, not descriptive:
@@ -185,24 +188,27 @@ Section-by-section:
   (objective optimized, evidence tier, assumptions, how the objective is expressed). Optionally add
   a `可复用的设计` note where it reads naturally: what a future method/page can borrow.
 - **`## Provenance`** — the claim ledger (schema below).
+- **`## Related`** — the page-end outgoing-link audit list. It may repeat links already used
+  naturally in the body, but every entry must target a formal page family only.
 
 ## Depth & precision rules
 
 These separate a strong page from a competent summary — they are what "分析深入且精确" means here.
 
 ### Source-map-first writing
-Write from the source bundle, not from reader or critic summaries. Treat MinerU Markdown / TeX /
-images / manifest as the first source map: `mineru/paper.md` or `mineru/<slug>.md`,
-`mineru/images/*`, `mineru/mineru-manifest.json`, figure/formula indexes, and optional native `mineru/paper.tex`.
-Rule: reader/critic artifacts are secondary aids for orientation, critique, or quality checks; they
-cannot replace a direct pass over the MinerU source artifacts for load-bearing claims.
+Write from the source bundle, not from reader or critic summaries. MinerU Markdown is the primary formula and notation source: use `mineru/paper.md` or `mineru/<slug>.md` first for formulas,
+symbols, method context, and prose. Only fall back to the PDF, formula-index.json, figure-index.json, or image evidence when MinerU Markdown is missing, wrong, ambiguous, or insufficient. If non-empty native `mineru/paper.tex` exists, use it only as an optional cross-check,
+not as a required or equal-primary source. Reader/critic artifacts are secondary aids for source-map checks; reader/critic artifacts are secondary aids for
+orientation, critique, or quality checks; they cannot replace a direct pass over the MinerU source
+artifacts for load-bearing claims.
 
 Use source-map depth as the page's depth control:
 - For every core mechanism claim, find the source section/block, formula, table, figure, or caption
   before writing the distilled prose.
-- Prefer stable addresses such as `MinerU Markdown 第 III 节`, `TeX Eq. (7)`, `Fig. 2 caption`, or
-  `Table I row <metric>`. If a local source map provides block IDs such as `S012`, `C003`, `F002`,
-  or `T001`, preserve them in the body or Provenance.
+- Prefer stable addresses such as `MinerU Markdown 第 III 节`, `Formula index Eq. (7)`,
+  `Fig. 2 caption`, or `Table I row <metric>`. If optional native TeX is used as a cross-check,
+  label it explicitly as such. If a local source map provides block IDs such as `S012`, `C003`,
+  `F002`, or `T001`, preserve them in the body or Provenance.
 - Do not expose the full source map in the reference page. Surface only the anchors needed to audit
   the page's durable claims; the full source map remains in `_paper_source/raw/<slug>/mineru/*`.
 - If the source bundle does not support a step, say `原文未明确说明` instead of filling the gap from
@@ -297,9 +303,9 @@ you cannot name the axis of difference, you have not yet understood how the pape
 ```
 
   Pick figures that carry mechanism or evidence, not decorative ones. If MinerU has OCR noise in a
-  formula or caption, normalize against TeX + Markdown + prose and say so honestly rather than
-  copying garbled symbols. A result figure must cite its caption and the relevant table/metric when
-  the claim depends on both.
+  formula or caption, normalize against MinerU Markdown, the PDF/index fallback, and optional native
+  TeX when present; say so honestly rather than copying garbled symbols. A result figure must cite
+  its caption and the relevant table/metric when the claim depends on both.
 
 ## Provenance block schema
 
@@ -310,7 +316,7 @@ End the page with `## Provenance`. One entry per load-bearing claim, formula, an
 
 - Claim: <the statement being supported>
   Support: source-grounded; stance=author-claim-from-simulation
-  Evidence: MinerU Markdown 第 V 节; MinerU TeX Table I; 原论文 PDF (source: [<title>](obsidian://...paper.pdf)).
+  Evidence: MinerU Markdown 第 V 节; formula-index.json/Table I; 原论文 PDF (source: [<title>](obsidian://...paper.pdf)).
 - Inference: <a cross-page conclusion this page draws>
   Support: inferred
   Basis: <the reasoning / which pages it rests on>
@@ -339,7 +345,7 @@ Write as a Chinese research-wiki curator, not a translator (full rules in `paper
 Start at 0.70 and adjust:
 - Evidence tier: sea-trial `+0.10`, pool/HIL `+0.06`, real-data-driven simulation `+0.04`,
   pure simulation `+0.00`.
-- Parse quality: clean MinerU md+tex agreement `+0.06`; noticeable OCR noise on key formulas `-0.04`.
+- Parse quality: clean MinerU Markdown with fallback/index agreement `+0.06`; noticeable OCR noise on key formulas `-0.04`.
 - Reproducibility: full hyperparameters + platform named `+0.04`; code/data unavailable `-0.02`.
 - Internal consistency: results, figures, and tables agree `+0.04`; contradictions `-0.06`.
 
@@ -350,10 +356,11 @@ honest simulation-tier node.
 
 - Five tag facets present, `evidence/` tier set, and tier matches the prose boundary.
 - `summary` follows `年份+出处+类型，提出 缩写：机制`.
-- `sources` is PDF-only, clickable, canonical obsidian:// form, path `_paper_source/raw/<slug>/paper.pdf`
-  (no `papers/`).
+- `sources` uses scan-friendly short source labels only; the body `## 原文与证据入口` has the full
+  clickable PDF URI, path `_paper_source/raw/<slug>/paper.pdf` (no `papers/`).
 - Frontmatter `provenance` has all three lists; body has a `## Provenance` block with stance labels.
-- Source-map-first writing used MinerU Markdown / TeX / images / manifest, not only reader/critic
+- Source-map-first writing used MinerU Markdown as the primary formula and notation source, with
+  PDF/index/image fallback only for Markdown gaps, errors, or ambiguity, not only reader/critic
   summaries.
 - 核心机制 renders the distinguishing formula as a Formula reasoning chain and contrasts a baseline's
   failure mode.

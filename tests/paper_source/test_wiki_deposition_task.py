@@ -170,7 +170,8 @@ def test_stage_paper_can_emit_legacy_wiki_deposition_task_when_requested(tmp_pat
     assert frontmatter["required_fields"] == EXPECTED_FRONTMATTER_FIELDS
     assert frontmatter["provenance_required_fields"] == ["extracted", "inferred", "ambiguous"]
     assert frontmatter["category_must_match_page_family"] is True
-    assert frontmatter["initial_lifecycle_values"] == ["draft", "review-needed"]
+    assert frontmatter["initial_lifecycle_values"] == ["draft"]
+    assert frontmatter["allowed_lifecycle_values"] == ["draft"]
 
     brief = json.loads((staging_root / "wiki-ingest-brief.json").read_text(encoding="utf-8"))
     plan = json.loads((staging_root / "promotion-plan.json").read_text(encoding="utf-8"))

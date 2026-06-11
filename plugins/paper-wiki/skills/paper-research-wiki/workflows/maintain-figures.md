@@ -1,6 +1,6 @@
 # Maintain Figure And Formula Evidence
 
-Use this workflow when the user asks to repair formal wiki pages whose evidence figures still point at MinerU hash image names, or when formula screenshots should be replaced by Markdown/Obsidian math grounded in MinerU Markdown and `paper.tex`.
+Use this workflow when the user asks to repair formal wiki pages whose evidence figures still point at MinerU hash image names, or when formula screenshots should be replaced by Markdown/Obsidian math grounded in MinerU Markdown. Optional non-empty native `paper.tex` may be used only as a cross-check when present.
 
 ## Boundary
 
@@ -64,7 +64,7 @@ Repair only after the audit is reviewed or the user explicitly approves the list
    - provenance entries that cite figure/formula evidence
 3. Do not rewrite unrelated paragraphs, frontmatter, tags, aliases, or page routing.
 4. Preserve Obsidian math delimiters. Do not use fenced `math`, `tex`, or `latex` code blocks.
-5. If a formula screenshot is referenced but `formula-index.json` contains complete LaTeX, replace the screenshot evidence with math and cite the Markdown/TeX locator.
+5. If a formula screenshot is referenced but MinerU Markdown or `formula-index.json` contains complete LaTeX, replace the screenshot evidence with math and cite the MinerU Markdown locator and index entry. Use optional native TeX only as a cross-check when present.
 6. If a formula screenshot lacks complete LaTeX, keep the evidence as `needs_formula_review` and do not claim the equation has been fully recovered.
 7. Refresh sidecars only when reviewed artifact hashes changed:
    - `final-source-review.json`

@@ -143,7 +143,12 @@ def _agent_checklist(
             + ", ".join(str(item) for item in [evidence_map_artifact, claim_support_artifact] if item)
             + "."
             if evidence_map_artifact or claim_support_artifact
-            else "No reader claim map is required for this workflow mode; derive support status directly from paper.pdf, metadata, MinerU Markdown, images, manifest, and optional non-empty native TeX."
+            else (
+                "No reader claim map is required for this workflow mode; derive support status from "
+                "MinerU Markdown first, then use paper.pdf, figure-index.json, formula-index.json, "
+                "image evidence, metadata, and manifest only when Markdown is missing, wrong, ambiguous, "
+                "or insufficient. Optional non-empty native TeX is a cross-check, not a required source."
+            )
         ),
         "Optional reader/critic aids actually present: "
         + (", ".join(str(item) for item in optional_evidence_aids) if optional_evidence_aids else "none; this is source-only fast-ingest.")
@@ -181,7 +186,12 @@ def _agent_checklist(
             8,
             "Use full-text evidence-index locator aid "
             + str(full_text_evidence_index)
-            + " to find page/section/chunk evidence, then verify important claims against MinerU Markdown, TeX, images, manifest, and paper.pdf before final prose.",
+            + (
+                " to find page/section/chunk evidence, then verify important claims against MinerU Markdown "
+                "as the primary text/formula source; fall back to paper.pdf, formula-index.json, "
+                "figure-index.json, or image evidence only when Markdown is missing, wrong, ambiguous, "
+                "or insufficient. Use optional native TeX only as a cross-check when present."
+            ),
         )
     brand_neutrality = execution_agent_policy.get("brand_neutrality")
     if brand_neutrality:

@@ -7,12 +7,12 @@ Use this reference to keep Paper Source-extracted knowledge traceable after it l
 Adapt field names to the target vault contract, but preserve these facts somewhere queryable:
 
 - `paper_slug`, title, DOI/arXiv ID, year, venue, and final page path.
-- Source artifact bundle: `paper.pdf`, `metadata.json`, MinerU Markdown, TeX, images, manifest.
+- Source artifact bundle: `paper.pdf`, `metadata.json`, MinerU Markdown, images, manifest, `figure-index.json`, and `formula-index.json`; optional non-empty native TeX is a cross-check only when present.
 - Evidence artifacts: `reader/evidence-map.json`, `reader/claim-support.json`, critic reports, reading report.
 - Final review artifacts: `final-source-review.json`, `wiki-ingest-record.json`, human approval record.
 - Support status summary: count of source-grounded, metadata-only, inferred, and unsupported claims.
 
-Frontmatter `sources` must contain only Obsidian source PDF links to `_paper_source/raw/<slug>/paper.pdf`. Prefer paper-title `obsidian://open?...paper.pdf` links so `_paper_source` does not enter the formal graph; legacy `"[[_epi/raw/<slug>/paper.pdf|<slug>]]"` wikilinks are accepted for compatibility. Metadata, MinerU Markdown, optional non-empty native TeX, DOI/arXiv URLs, figure paths, and other evidence details belong in body provenance, not frontmatter `sources`.
+Frontmatter `sources` must contain only scan-friendly short source labels. Put the full clickable PDF URI in the body `## 原文与证据入口` as a Markdown link to `_paper_source/raw/<slug>/paper.pdf`. Legacy `_epi` or `_paper_source` wikilinks may be read for compatibility, but recorded formal pages must convert them to short `sources` labels plus the body PDF URI before `record-wiki-ingest`. Metadata, MinerU Markdown, optional non-empty native TeX, DOI/arXiv URLs, figure paths, and other evidence details belong in body provenance, not frontmatter `sources`.
 
 ## Claim Line Contract
 

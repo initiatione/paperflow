@@ -24,7 +24,7 @@ Use Paper Source status when present: `source-grounded`, `metadata-only`, `infer
 
 1. Run `wiki-ingest-handoff --slug <slug>` and stop if not ready; after approval, `wiki-ingest-trigger --slug <slug>` may provide the resume package.
 2. Read the source bundle before final prose. Reader summaries are navigation aids, not source authority.
-3. Use `evidence-index.json` only to locate evidence; verify important claims against MinerU Markdown, TeX, images, manifest, and `paper.pdf`.
+3. Use `evidence-index.json` only to locate evidence; verify important claims against MinerU Markdown as the primary formula, notation, method-context, and prose source. Fall back to `paper.pdf`, `formula-index.json`, `figure-index.json`, images, and manifest only when Markdown is missing, wrong, ambiguous, or insufficient. Use optional non-empty native TeX only as a cross-check when present.
 4. For each durable claim, choose support status and cite the evidence address from source artifacts or evidence sidecars.
 5. Embed evidence addresses in the page or page-local provenance block; do not leave them only in sidecar JSON.
 6. Label agent inferences and add retrieval hooks: method, task, benchmark, metric, dataset, limitation, conflict candidate, related slugs.
@@ -55,11 +55,11 @@ Load `references/page-provenance.md` for the full page and final-source-review c
 - Do not flatten `inferred` or `metadata-only` statements into source-grounded claims.
 - Do not let unsupported claims enter main factual sections.
 - Do not omit evidence addresses from final pages just because `record-wiki-ingest` stores hashes.
-- Do not treat `evidence-index.json` chunks as sufficient verification; use them to locate evidence, then reread source artifacts before marking claims source-grounded or pages verified.
+- Do not treat `evidence-index.json` chunks as sufficient verification; use them to locate evidence, then reread source artifacts before marking claims source-grounded or final-source-review checks complete. Do not convert this provenance check into a formal page `lifecycle: verified` state.
 - Do not write final pages from Paper Source suggested routes directly; the target vault contract decides paths, links, tags, merge policy, and staged writes.
 
 ## Literature Wiki Contract
 
 Apply provenance across `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`. `wiki-ingest-brief.json` is the canonical Paper Source-to-Paper Wiki handoff; `wiki_deposition_task.json is legacy` compatibility only. Paper Wiki `$paper-research-wiki` owns final writing; `paper-source-paper-deposition` is the compatibility adapter. external wiki skills are optional helpers / policy references.
 
-`final-source-review.json` preserves `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`. Only mark pages `verified` after source reread, formula/figure review, and complete evidence paths.
+`final-source-review.json` preserves `theory_reconstruction`, `formula_derivation`, `figure_table_evidence`, `novelty_type`, `implementability`, `reproducibility_risk`, `research_gap`, and `cost_level`. Mark claim checks and final-source-review sections complete only after source reread, formula/figure review, and complete evidence paths; formal page lifecycle remains governed separately by the target vault contract.

@@ -25,7 +25,7 @@ Paper Source 当前分三层工作：
 | 单篇证据层 | 这篇论文是否真的读懂、公式/图/表是否保留 | acquire、MinerU、reader、critic、paper-gate | `_paper_source/raw/<slug>/*`、`evidence-index.json`、`claim-support.json` |
 | Wiki 沉淀层 | 最终页面里的 claim 能否回溯到原文证据 | `wiki-ingest-handoff`、`wiki-provenance`、`record-wiki-ingest` | `_paper_source/staging/papers/<slug>/*`、`final-source-review.json`、`wiki-ingest-record.json` |
 
-三层分别保证广度、深度和可信回溯。reader/critic 是辅助导航和审计层，不替代 `paper.pdf`、MinerU Markdown、TeX、images 和 manifest。
+三层分别保证广度、深度和可信回溯。reader/critic 是辅助导航和审计层，不替代 MinerU Markdown 主证据；PDF、figure/formula indexes、images 和 manifest 只在 Markdown 缺失、错误、歧义或视觉证据需要时回退复核，非空原生 TeX（若存在）只是可选交叉核对。
 
 ## 常用入口
 

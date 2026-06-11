@@ -4,6 +4,13 @@
 
 - S3b brief-first machine-contract 进入实现队列：`wiki-ingest-brief.json` 作为新链路 canonical handoff，`wiki_deposition_task.json` 降为 legacy compatibility，`REQUIRED_WIKI_SKILLS` 将收敛到 Paper Wiki `$paper-research-wiki` 和 Paper Source `paper-source-paper-deposition`。
 
+## Paper Source 0.2.4 / Paper Wiki 0.2.3 (2026-06-11)
+
+- Paper Source/Paper Wiki 合同统一为新正式页 `lifecycle: draft`，不再新增 `review_status`；旧 `lifecycle: review-needed` 只作为 legacy repair input。
+- Frontmatter `sources` 改为 scan-friendly short labels；完整 `obsidian://` PDF 入口放入正文 `## 原文与证据入口`，正式 wikilink 不指向 `_paper_source/` 或 legacy `_epi/`。
+- 公式和符号证据顺序改为 MinerU Markdown 主源；只有 Markdown 缺失、错误、歧义或不足时回退 PDF、figure/formula indexes 和图片证据，非空原生 `mineru/paper.tex` 仅作可选交叉复核。
+- Paper Wiki 合同扩展为 formal page、正式内容关系、stale claim、split/merge、图谱/索引/追踪/provenance/readiness 维护层。
+
 ## 0.2.3 (2026-06-10)
 
 - Paper Source skill trigger descriptions 再精炼：保留中文任务触发词、Paper Source/Paper Wiki 边界和 research-grill-me deep-research prompt 契约，降低默认触发上下文成本。

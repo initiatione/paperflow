@@ -63,6 +63,7 @@ _OBSIDIAN_URI_SOURCE_PDF_PATTERN = re.compile(
     rf"\[[^\]]+\]\(obsidian://open\?[^)]*file=(?:{re.escape(PAPER_SOURCE_ROOT_NAME)}|{re.escape(LEGACY_EPI_ROOT_NAME)})%2Fraw%2F(?P<slug>[^%/)]+)%2Fpaper\.pdf(?:[&#][^)]*)?\)",
     re.IGNORECASE,
 )
+_WIKILINK_PATTERN = re.compile(r"\[\[(?P<body>[^\]\n]+)\]\]")
 PAPER_WIKI_RECORD_REQUEST_SCHEMA_VERSION = "paper-wiki-record-request-v1"
 LEGACY_PRW_RECORD_REQUEST_SCHEMA_VERSION = "prw-record-request-v1"
 PRW_RECORD_REQUEST_SCHEMA_VERSION = LEGACY_PRW_RECORD_REQUEST_SCHEMA_VERSION
@@ -303,35 +304,61 @@ def _frontmatter_source_entries(value: Any) -> list[str]:
     return _split_inline_frontmatter_list(str(value))
 
 
-def _formal_source_pdf_link_issues(value: Any) -> list[str]:
+def _formal_source_entries_issues(value: Any) -> list[str]:
     entries = _frontmatter_source_entries(value)
     if not entries:
-        return [
-            "formal page frontmatter sources must include an Obsidian source PDF link"
-        ]
-
-    valid = [
-        entry
-        for entry in entries
-        if _OBSIDIAN_WIKILINK_SOURCE_PDF_PATTERN.fullmatch(entry)
-        or _OBSIDIAN_URI_SOURCE_PDF_PATTERN.fullmatch(entry)
-    ]
-    invalid_non_pdf = [
-        entry
-        for entry in entries
-        if not _OBSIDIAN_WIKILINK_SOURCE_PDF_PATTERN.fullmatch(entry)
-        and not _OBSIDIAN_URI_SOURCE_PDF_PATTERN.fullmatch(entry)
-    ]
+        return ["formal page frontmatter sources must include scan-friendly short source labels"]
 
     issues: list[str] = []
-    if not valid:
-        issues.append(
-            "formal page frontmatter sources must include an Obsidian source PDF link"
-        )
-    if invalid_non_pdf:
-        issues.append(
-            "formal page frontmatter sources must contain only Obsidian source PDF links"
-        )
+    for entry in entries:
+        normalized = entry.replace("\\", "/").strip()
+        lowered = normalized.lower()
+        if _OBSIDIAN_WIKILINK_SOURCE_PDF_PATTERN.fullmatch(normalized) or "[[" in normalized:
+            issues.append("formal page frontmatter sources must stay scan-friendly, not internal wikilinks")
+            continue
+        if (
+            _OBSIDIAN_URI_SOURCE_PDF_PATTERN.fullmatch(normalized)
+            or "obsidian://open" in lowered
+            or "://" in lowered
+            or "_paper_source/" in lowered
+            or "_epi/" in lowered
+            or "mineru/" in lowered
+            or lowered.endswith(".pdf")
+            or "paper.pdf" in lowered
+            or "metadata.json" in lowered
+            or "doi.org" in lowered
+            or "arxiv.org" in lowered
+        ):
+            issues.append(
+                "formal page frontmatter sources must stay scan-friendly short source labels; "
+                "put PDF, DOI, arXiv, MinerU, and bundle paths in the body provenance or sidecar"
+            )
+    return issues
+
+
+def _body_source_pdf_link_issues(body: str) -> list[str]:
+    if "## 原文与证据入口" not in body:
+        return ["formal page body must include ## 原文与证据入口"]
+    if not _OBSIDIAN_URI_SOURCE_PDF_PATTERN.search(body):
+        return [
+            "formal page body 原文与证据入口 must include a clickable obsidian:// source PDF link"
+        ]
+    return []
+
+
+def _wikilink_target(body: str) -> str:
+    return str(body).split("|", 1)[0].strip().replace("\\", "/")
+
+
+def _formal_wikilink_issues(text: str) -> list[str]:
+    allowed_roots = set(formal_page_family_names())
+    issues: list[str] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        for match in _WIKILINK_PATTERN.finditer(line):
+            target = _wikilink_target(match.group("body"))
+            root = target.split("/", 1)[0]
+            if root not in allowed_roots:
+                issues.append(f"formal page wikilink must target a formal page family at line {line_number}: [[{match.group('body')}]]")
     return issues
 
 
@@ -339,7 +366,7 @@ def _validate_formal_frontmatter(relative_path: str, text: str) -> list[str]:
     parsed = _frontmatter_block(text)
     if parsed is None:
         return ["formal page frontmatter is missing"]
-    frontmatter, _body = parsed
+    frontmatter, body = parsed
     schema = formal_frontmatter_schema()
     required_fields = [str(field) for field in schema.get("required_fields") or []]
     missing = [field for field in required_fields if field not in frontmatter]
@@ -369,7 +396,8 @@ def _validate_formal_frontmatter(relative_path: str, text: str) -> list[str]:
     if empty:
         issues.append("formal page frontmatter has empty required fields: " + ", ".join(empty))
     if "sources" in frontmatter and not _frontmatter_value_is_empty(frontmatter.get("sources")):
-        issues.extend(_formal_source_pdf_link_issues(frontmatter.get("sources")))
+        issues.extend(_formal_source_entries_issues(frontmatter.get("sources")))
+    issues.extend(_body_source_pdf_link_issues(body))
     provenance = frontmatter.get("provenance") if isinstance(frontmatter.get("provenance"), dict) else {}
     missing_provenance = [
         field
@@ -446,6 +474,7 @@ def _validate_formal_page_shape(relative_path: str, text: str) -> None:
         raise ValueError("recorded final wiki page must not be a Paper Source per-paper routes or pseudo synthesis page: " + normalized)
     issues = [
         *_validate_formal_frontmatter(normalized, text),
+        *_formal_wikilink_issues(text),
         *_validate_family_content(normalized, text),
         *formal_page_language_issues(text),
     ]
@@ -706,7 +735,7 @@ def _review_records_by_artifact(payload: dict[str, Any]) -> tuple[dict[str, dict
     return by_artifact, failures
 
 
-def _validate_review_status(record: dict[str, Any], artifact: str, failures: list[str]) -> None:
+def _validate_artifact_reviewed_state(record: dict[str, Any], artifact: str, failures: list[str]) -> None:
     if record.get("status") != "reviewed":
         failures.append(f"final source review artifact must be status=reviewed: {artifact}")
 
@@ -718,7 +747,7 @@ def _validate_file_artifact(
     record: dict[str, Any],
     failures: list[str],
 ) -> None:
-    _validate_review_status(record, artifact, failures)
+    _validate_artifact_reviewed_state(record, artifact, failures)
     artifact_path = paper_root / artifact
     if not artifact_path.is_file():
         failures.append(f"required source artifact is missing on disk: {artifact}")
@@ -735,7 +764,7 @@ def _validate_image_artifact(
     failures: list[str],
 ) -> None:
     artifact = "mineru/images/*"
-    _validate_review_status(record, artifact, failures)
+    _validate_artifact_reviewed_state(record, artifact, failures)
     image_dir = paper_root / "mineru" / "images"
     image_files = sorted(path for path in image_dir.rglob("*") if path.is_file()) if image_dir.exists() else []
     if record.get("file_count") != len(image_files):

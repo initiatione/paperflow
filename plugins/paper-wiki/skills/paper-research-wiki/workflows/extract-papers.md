@@ -16,7 +16,7 @@ Detect survey/review papers and route them differently. A paper is a survey/revi
 4. Locate `_paper_source/staging/papers/*/wiki-ingest-brief.json`; this is the canonical Paper Source-to-Paper Wiki handoff. Legacy `_epi/staging/papers/*/wiki-ingest-brief.json` remains readable.
 5. Treat `_paper_source/staging/papers/*/wiki_deposition_task.json` and legacy `_epi/staging/papers/*/wiki_deposition_task.json` as compatibility artifacts only. Do not treat task-only legacy handoffs as ready; route them back to Paper Source to regenerate or repair `wiki-ingest-brief.json`.
 6. Run a readiness preflight and group papers as ready, needs human approval, blocked, already recorded, or legacy-needs-brief-repair.
-7. For ready papers, read source bundle artifacts before writing: PDF, metadata, MinerU Markdown, TeX, images, manifest, reading report, and `wiki-ingest-brief.json`.
+7. For ready papers, read source bundle artifacts before writing: metadata, MinerU Markdown, images, manifest, figure/formula indexes, reading report, and `wiki-ingest-brief.json`; use the PDF, indexes, and image evidence as fallback checks when MinerU Markdown is missing, wrong, ambiguous, or insufficient. If non-empty native `mineru/paper.tex` exists, use it only as an optional cross-check.
 
 ## Plan Wiki Updates
 
@@ -33,8 +33,8 @@ Detect survey/review papers and route them differently. A paper is a survey/revi
 2. Apply the page template, merge-before-create rule, and body rules from `wiki-writing-standard.md`.
 3. Apply `paper-wiki-language`: write natural Chinese research-wiki prose, avoid machine-translation headings, and keep terminology stable.
 4. Preserve source support status and evidence addresses.
-5. Keep frontmatter `sources` PDF-only: `references/ pages` use exactly one clickable original-paper PDF link, canonical form a Markdown link displayed with the paper title pointing at `obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf` (path `_paper_source/raw/<slug>/paper.pdf`, no `papers/` segment; `"[[_paper_source/raw/<slug>/paper.pdf|<slug>]]"` also accepted for Paper Source pages; legacy `_epi` links remain accepted for existing artifacts); `concepts/, derivations/, experiments/, synthesis/, reports/, and opportunities/` use one or more clickable original-paper PDF links; never use plain path text, an alias such as `原论文 PDF`, or metadata/MinerU/DOI/arXiv entries.
-6. Add Obsidian wikilinks from new pages to existing related pages.
+5. Frontmatter `sources:` must stay scan-friendly; the invariant is: frontmatter `sources:` must stay scan-friendly. `references/ pages` use exactly one short source label. For non-reference families, concepts/, derivations/, experiments/, synthesis/, reports/, and opportunities/ may use one or more short source labels for materially used papers. Put the full clickable PDF URI in `## 原文与证据入口` as a Markdown link displayed as `原论文 PDF`, pointing at `obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf` (path `_paper_source/raw/<slug>/paper.pdf`, no `papers/` segment); put the full clickable PDF URI in `## 原文与证据入口`, not in properties. Do not write Markdown links, `[[...]]` wikilinks, `_paper_source/`, legacy `_epi/`, PDF paths, DOI/arXiv URLs, metadata paths, MinerU paths, or figure paths in frontmatter `sources`. Do not write `[[...]]` wikilinks to `_paper_source/` from frontmatter or formal-page body links.
+6. Add Obsidian wikilinks from new pages only to existing formal pages in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, or `opportunities/`; put internal evidence paths in URI, file URL, or code/plain text form.
 7. Add `relationships:` frontmatter entries only when direction and type are clear.
 8. Keep formula and figure claims tied to formula or figure evidence.
 9. Write or update `final-source-review.json`.

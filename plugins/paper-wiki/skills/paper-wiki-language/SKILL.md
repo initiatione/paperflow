@@ -3,7 +3,7 @@ name: paper-wiki-language
 description: >
   Use when writing, rewriting, reviewing, or polishing formal Paper Wiki pages,
   especially Chinese formal pages, machine-translation prose, unnatural headings,
-  terminology drift, or language gate checks before source-reviewed deposition.
+  terminology drift, or language gate checks before final-source-review-backed deposition.
 ---
 
 # Paper Wiki Language

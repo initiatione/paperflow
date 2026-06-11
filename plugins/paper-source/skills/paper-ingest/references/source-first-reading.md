@@ -8,10 +8,10 @@ Read or inspect source artifacts in this order:
 
 1. `metadata.json` for identity, venue, year, DOI/arXiv, PDF/code/source hints.
 2. `mineru/<slug>.md` for section-level content and local evidence anchors.
-3. `mineru/paper.tex` only when non-empty native TeX exists; otherwise review formulas directly from MinerU Markdown and use PDF fallback when needed.
+3. `mineru/paper.tex` only when non-empty native TeX exists and only as an optional cross-check; otherwise review formulas directly from MinerU Markdown and use PDF/index/image fallback only when Markdown is missing, wrong, ambiguous, or insufficient.
 4. `mineru/images/*` plus `reader/figures.md` for figure/table/image interpretation.
 5. `mineru/mineru-manifest.json` for parse completeness and uncertainty.
-6. `paper.pdf` when Markdown/TeX/images conflict or important content is missing.
+6. `paper.pdf` when MinerU Markdown is missing, wrong, ambiguous, or insufficient, or when image/index evidence conflicts with Markdown.
 
 Reader and critic outputs are navigation aids; they never replace the source paper.
 
@@ -45,14 +45,15 @@ Each card needs a source pointer: metadata field, MinerU heading, equation/TeX c
 
 ## Wiki Handoff Rules
 
-Final wiki ingest must read the source bundle again:
+Final wiki ingest must reread the source bundle with MinerU Markdown as the primary formula, notation, method-context, and prose source:
 
-- `paper.pdf`
 - `metadata.json`
 - `mineru/<slug>.md`
-- `mineru/paper.tex` when non-empty native TeX exists
 - `mineru/images/*`
 - `mineru/mineru-manifest.json`
+- `figure-index.json` and `formula-index.json`
+- `paper.pdf` only as fallback when Markdown is missing, wrong, ambiguous, or insufficient
+- `mineru/paper.tex` only when non-empty native TeX exists, and only as an optional cross-check
 
 Use `reader/evidence-map.json`, `reader/claim-support.json`, `reader/figures.md`, and `critic/*.json` as supporting evidence only. Treat `source-grounded`, `metadata-only`, and `inferred` claims differently during final wiki writing. The final wiki pages must not lose the original paper's formulas, figures, tables, source caveats, or negative findings.
 

@@ -5,6 +5,9 @@ import re
 
 _CJK_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 _FENCED_BLOCK_PATTERN = re.compile(r"```.*?```", re.DOTALL)
+_EVIDENCE_ENTRY_SECTION_PATTERN = re.compile(
+    r"(?ms)^##\s*原文与证据入口\s*$.*?(?=^##\s+|\Z)"
+)
 
 
 def strip_frontmatter(markdown: str) -> str:
@@ -20,6 +23,7 @@ def strip_frontmatter(markdown: str) -> str:
 def body_language_signal(markdown: str) -> dict[str, object]:
     body = strip_frontmatter(markdown)
     body = _FENCED_BLOCK_PATTERN.sub("", body)
+    body = _EVIDENCE_ENTRY_SECTION_PATTERN.sub("", body)
     cjk_count = len(_CJK_PATTERN.findall(body))
     return {
         "body_character_count": len(body.strip()),

@@ -1,0 +1,66 @@
+{
+  "status": "confirmed",
+  "slug": "20260610-isaac-auv-rl-sim-to-real",
+  "title": "Isaac Sim and AUV RL literature around Learning to Swim",
+  "task": "Find and stage five papers related to Learning to Swim that support Isaac Sim / Isaac Lab plus AUV reinforcement-learning research, prioritizing AUV RL, 6-DOF control, zero-shot sim-to-real transfer, domain randomization, and underwater simulation platforms or benchmarks.",
+  "domain_scope": "Autonomous underwater vehicles and underwater robotics, with emphasis on reinforcement-learning control, 6-DOF thruster-driven control, sim-to-real transfer, GPU or high-fidelity simulation, and underwater simulator or benchmark platforms useful for comparing the Isaac Lab / Isaac Sim direction.",
+  "specific_questions": [
+    "Which AUV reinforcement-learning papers most directly extend or contrast with Learning to Swim's 6-DOF, zero-shot, massively parallel simulation route?",
+    "Which underwater simulator or benchmark papers best explain the platform gap that Learning to Swim fills with Isaac Lab / Isaac Sim?",
+    "Which five papers are the highest-value candidates for Paper Wiki deposition to support reproduction planning, platform selection, and an AUV RL research map?"
+  ],
+  "keywords": [
+    "Learning to Swim",
+    "autonomous underwater vehicle reinforcement learning",
+    "AUV 6-DOF control",
+    "thruster-driven AUV",
+    "underwater robot sim-to-real",
+    "zero-shot transfer underwater vehicle",
+    "domain randomization AUV",
+    "Isaac Sim underwater robot",
+    "Isaac Lab AUV",
+    "GPU parallel simulation underwater",
+    "HoloOcean underwater simulator",
+    "UNav-Sim",
+    "DAVE underwater simulator",
+    "UUV Simulator",
+    "BlueROV2 benchmark"
+  ],
+  "exclusions": [
+    "generic reinforcement learning without AUV or underwater robotics",
+    "underwater acoustic communication or sensor-network papers without control relevance",
+    "pure perception datasets unless they define an underwater simulator useful for control research",
+    "papers already present as formal reference pages in the target wiki",
+    "broad surveys except at most one simulator review used as a platform map"
+  ],
+  "review_policy": {
+    "type": "mixed",
+    "notes": "Keep at most one simulator/platform review if it is useful for mapping HoloOcean, DAVE, UNav-Sim, Stonefish, MARUS, or similar platforms; otherwise prefer original method/platform papers."
+  },
+  "source_scope": {
+    "type": "paper_search_mcp_default",
+    "notes": "Use Paper Source configured providers and paper-search-mcp; use targeted DOI/arXiv/title verification only after candidate identity exists."
+  },
+  "output_goal": {
+    "type": "source_staging_candidates",
+    "notes": "Stage five high-value papers for Paper Wiki deposition into D:\\paper-research-wiki, then report Paper Source record readiness."
+  },
+  "unknowns": [
+    "Some candidate PDFs may require manual download or publisher access.",
+    "Final selected five may change after Paper Source ranking, duplicate checks, and acquisition gates.",
+    "The target vault currently contains legacy _epi artifacts; do not run a wholesale _epi to _paper_source migration unless separately confirmed."
+  ],
+  "field_sources": {
+    "slug": "user confirmation plus current date",
+    "title": "user request and confirmed scope",
+    "task": "user request and confirmed scope",
+    "domain_scope": "user request, existing Learning to Swim wiki page, and pre-search candidate evidence",
+    "specific_questions": "research-grill-me confirmation summary",
+    "keywords": "user request, existing wiki page terms, and Paper Source MCP pre-search",
+    "exclusions": "existing wiki duplicate check, Paper Source profile, and user goal",
+    "review_policy": "user confirmation of mixed scope",
+    "source_scope": "Paper Source default",
+    "output_goal": "user request to deposit into wiki",
+    "unknowns": "current vault state and acquisition constraints"
+  }
+}

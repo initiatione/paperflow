@@ -6,7 +6,7 @@
 
 Paper Source 当前聚焦“按用户画像/config 衍生的高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉淀 -> 轻阅读负担报告”。它是通用学术论文插件，不默认任何学科方向；AUV、机器人、AI、医学等词只能来自用户配置、当前请求或显式领域 hint。
 
-当前 `plugin.json` 中的版本：Paper Source `0.2.3`，Paper Wiki `0.2.2`。历史 source manifest 曾从 Paper Source `0.1.12` / Paper Wiki `0.1.5` 到 Paper Source `0.1.13` / Paper Wiki `0.1.6`，再到 Paper Source `0.1.14` / Paper Wiki `0.1.7`、`0.2.1`、`0.2.2`；installed cache 曾见 Paper Source `0.1.11`、`0.1.10`、`0.1.8` 和 source `0.2.0`，因此 runtime claims 必须区分 source checkout、installed cache 和当前 Codex session。
+当前 `plugin.json` 中的版本：Paper Source `0.2.4`，Paper Wiki `0.2.3`。历史 source manifest 曾从 Paper Source `0.1.12` / Paper Wiki `0.1.5` 到 Paper Source `0.1.13` / Paper Wiki `0.1.6`，再到 Paper Source `0.1.14` / Paper Wiki `0.1.7`、`0.2.1`、`0.2.2`、`0.2.3`；installed cache 曾见 Paper Source `0.1.11`、`0.1.10`、`0.1.8` 和 source `0.2.0`，因此 runtime claims 必须区分 source checkout、installed cache 和当前 Codex session。
 
 ## 能力快照
 
@@ -66,7 +66,7 @@ git diff --check
 
 1. 完成 S3b brief-first machine-contract 的剩余 metadata/full verification：`wiki-ingest-brief.json` 已是 canonical Paper Source-to-Paper Wiki handoff，默认 staging 不再要求 `wiki_deposition_task.json`。
 2. 继续 S3b metadata、manifest、stale wording grep、full verification 和 integration decision。
-3. 发布本轮修复 commit，并从 GitHub/marketplace 重新安装 Paper Source，确认 installed cache 版本变为 `0.2.3`；Paper Wiki 若未再改动则保持 `0.2.2`。
+3. 发布本轮修复 commit，并从 GitHub/marketplace 重新安装 Paper Source/Paper Wiki，确认 installed cache 版本变为 Paper Source `0.2.4`、Paper Wiki `0.2.3`。
 4. 从新 Codex thread 运行 `doctor --json`、`config-status --json`、dry-run fixture smoke 和 `research-queue` 验证安装体验。
 5. 对目标 vault 补齐 `AGENTS.md` 和 `_meta/*.md`，再让 Paper Wiki 消费 `wiki-ingest-brief.json` 和 reading report。
 

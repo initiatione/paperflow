@@ -37,7 +37,7 @@ EXPECTED_FORMAL_PAGE_FAMILIES = [
     "opportunities",
 ]
 
-EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "review-needed", "source-reviewed", "under-review", "verified"]
+EXPECTED_PAGE_LIFECYCLE_STATES = ["draft"]
 
 
 def test_orchestrator_reexports_wiki_record_workflow_entrypoints():
@@ -77,10 +77,6 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
     mineru_dir.mkdir(parents=True, exist_ok=True)
     (mineru_dir / f"{slug}.md").write_text(
         "# Abstract\n\nFixture paper abstract.\n\n## Method\n\nFixture paper method.\n",
-        encoding="utf-8",
-    )
-    (mineru_dir / "paper.tex").write_text(
-        "\\section{Method}\n\\begin{equation}y = x + 1\\end{equation}\n",
         encoding="utf-8",
     )
     image_dir = mineru_dir / "images"
@@ -137,7 +133,6 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "paper.pdf",
                     "metadata.json",
                     canonical_mineru_md,
-                    "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
                 ],
@@ -187,7 +182,14 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "formal_routes_suggested": False,
                 "wiki_batch_handoff_required": True,
                 "required_wiki_skills": EXPECTED_RESEARCH_WIKI_SKILLS,
-                "source_first_policy": f"Read {canonical_mineru_md}, mineru/paper.tex, mineru/images/*, and mineru/mineru-manifest.json before final wiki writing; reader outputs are navigation aids, not substitutes for the source paper.",
+                "source_first_policy": (
+                    f"Read {canonical_mineru_md}, mineru/images/*, mineru/mineru-manifest.json, "
+                    "figure-index.json, and formula-index.json before final wiki writing. "
+                    "Use MinerU Markdown as the primary formula and notation source; fall back to "
+                    "paper.pdf, formula-index.json, figure-index.json, or image evidence only when "
+                    "Markdown is missing, wrong, or ambiguous. Reader outputs are navigation aids, "
+                    "not substitutes for the source paper."
+                ),
             },
             "formal_page_families": EXPECTED_FORMAL_PAGE_FAMILIES,
             "research_review_fields": EXPECTED_RESEARCH_REVIEW_FIELDS,
@@ -203,14 +205,19 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "paper.pdf",
                     "metadata.json",
                     canonical_mineru_md,
-                    "mineru/paper.tex",
                     "mineru/images/*",
                     "mineru/mineru-manifest.json",
+                    "figure-index.json",
+                    "formula-index.json",
                 ],
                 "formula_figure_review": {
-                    "formulas": "Review formula notation and derivation cues before distilling claims.",
-                    "figures_tables_images": "Interpret each figure, table, and image from mineru/images/*.",
-                    "parse_uncertainty": "Inspect paper.pdf when parse limitations appear.",
+                    "formulas": (
+                        "Use MinerU Markdown as the primary formula and notation source; fall back "
+                        "to paper.pdf, formula-index.json, figure-index.json, or image evidence only "
+                        "when Markdown is missing, wrong, or ambiguous."
+                    ),
+                    "figures_tables_images": "Interpret each figure, table, and image from mineru/images/* with figure-index.json.",
+                    "parse_uncertainty": "Inspect paper.pdf only when Markdown/index evidence is ambiguous.",
                 },
             },
         },
@@ -250,7 +257,7 @@ def _write_final_page(vault, relative, content):
 def _formal_page_content(family, title, *, body=None):
     body = body or (
         f"# {title}\n\n"
-        "这页把 source-backed claims 连接到 [[fixture-method-family]]，并保留证据路径。\n\n"
+        "这页把 source-backed claims 连接到 [[concepts/fixture-method-family]]，并保留证据路径。\n\n"
         "## 模型与方法\n\n"
         "方法部分记录 source bundle 中的 method、assumption 和 control variable。\n\n"
         "## 关键公式\n\n"
@@ -267,7 +274,9 @@ def _formal_page_content(family, title, *, body=None):
         f"page_family: {family}\n"
         "tags: [paper-source, fixture]\n"
         "aliases: []\n"
-        'sources: ["[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper]]"]\n'
+        'sources: ["fixture-paper"]\n'
+        "source_id: fixture-paper\n"
+        "source_pdf: fixture-paper-paper-pdf\n"
         f'summary: "Source-grounded {family} page for fixture validation."\n'
         "provenance:\n"
         "  extracted: [\"mineru/fixture-paper.md#method\"]\n"
@@ -280,15 +289,18 @@ def _formal_page_content(family, title, *, body=None):
         "created: 2026-06-03\n"
         "updated: 2026-06-03\n"
         "---\n\n"
+        "## 原文与证据入口\n\n"
+        f"- [原论文 PDF]({_obsidian_uri_pdf_url()})\n\n"
         + body
     )
 
 
+def _obsidian_uri_pdf_url(slug="fixture-paper"):
+    return f"obsidian://open?vault=paper-research-wiki&file=_paper_source%2Fraw%2F{slug}%2Fpaper.pdf"
+
+
 def _obsidian_uri_pdf_source(slug="fixture-paper", title="Fixture Paper"):
-    return (
-        f"[{title}]"
-        f"(obsidian://open?vault=paper-research-wiki&file=_paper_source%2Fraw%2F{slug}%2Fpaper.pdf)"
-    )
+    return f"[{title}]({_obsidian_uri_pdf_url(slug)})"
 
 
 def _source_artifact_record(paper_root, artifact):
@@ -312,7 +324,6 @@ def _write_final_source_review(vault, slug, pages):
             _source_artifact_record(paper_root, "paper.pdf"),
             _source_artifact_record(paper_root, "metadata.json"),
             _source_artifact_record(paper_root, canonical_mineru_md),
-            _source_artifact_record(paper_root, "mineru/paper.tex"),
             {
                 "artifact": "mineru/images/*",
                 "status": "reviewed",
@@ -330,7 +341,10 @@ def _write_final_source_review(vault, slug, pages):
         ],
         "formula_review": {
             "status": "reviewed",
-            "summary": "Reviewed TeX formula notation against the parsed Markdown.",
+            "summary": (
+                "Reviewed formulas from MinerU Markdown first; PDF, formula-index.json, "
+                "figure-index.json, or image evidence were fallback checks only when ambiguous."
+            ),
         },
         "figure_table_image_review": {
             "status": "reviewed",
@@ -379,7 +393,7 @@ def _write_final_source_review(vault, slug, pages):
             "summary": "Estimated resource cost level for implementation and validation.",
         },
         "page_lifecycle": {
-            "status": "verified",
+            "status": "draft",
             "allowed_states": EXPECTED_PAGE_LIFECYCLE_STATES,
             "verified_requirements": [
                 "source_reread",
@@ -387,7 +401,7 @@ def _write_final_source_review(vault, slug, pages):
                 "evidence_path_complete",
                 "final_source_review_complete",
             ],
-            "summary": "Final pages satisfy the verified gate.",
+            "summary": "Agent-written final pages remain lifecycle=draft after source review.",
         },
         "formal_content_quality": {
             "status": "reviewed",
@@ -555,7 +569,7 @@ def test_record_wiki_ingest_records_agent_pages_without_modifying_them(tmp_path)
     assert paper_wiki_index < local_index
     for field in EXPECTED_RESEARCH_REVIEW_FIELDS:
         assert record["final_source_review"][field]["status"] == "reviewed"
-    assert record["final_source_review"]["page_lifecycle"]["status"] == "verified"
+    assert record["final_source_review"]["page_lifecycle"]["status"] == "draft"
     assert record["final_source_review"]["page_lifecycle"]["allowed_states"] == EXPECTED_PAGE_LIFECYCLE_STATES
     assert record["relative_page_paths"] == [
         "references/fixture-paper.md",
@@ -960,7 +974,7 @@ def test_create_wiki_ingest_record_rejects_missing_formal_frontmatter(tmp_path):
     page = _write_final_page(
         vault,
         "references/missing-frontmatter.md",
-        "# Missing Frontmatter\n\nThis links to [[fixture-method-family]] but lacks required properties.\n",
+        "# Missing Frontmatter\n\nThis links to [[concepts/fixture-method-family]] but lacks required properties.\n",
     )
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
@@ -981,10 +995,7 @@ def test_create_wiki_ingest_record_accepts_obsidian_uri_pdf_source(tmp_path):
     page = _write_final_page(
         vault,
         "references/fixture-paper.md",
-        _formal_page_content("references", "Fixture Paper").replace(
-            '"[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper]]"',
-            json.dumps(_obsidian_uri_pdf_source(), ensure_ascii=False),
-        ),
+        _formal_page_content("references", "Fixture Paper"),
     )
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
@@ -1014,7 +1025,7 @@ def test_create_wiki_ingest_record_accepts_nested_provenance_yaml_lists(tmp_path
             "  extracted:\n"
             "    - mineru/fixture-paper.md#method\n"
             "  inferred:\n"
-            "    - comparison with [[fixture-method-family]]\n"
+            "    - comparison with [[concepts/fixture-method-family]]\n"
             "  ambiguous:\n"
             "    - table label requires PDF fallback\n",
         ),
@@ -1034,7 +1045,7 @@ def test_create_wiki_ingest_record_accepts_nested_provenance_yaml_lists(tmp_path
     assert record["relative_page_paths"] == ["references/nested-provenance.md"]
 
 
-def test_create_wiki_ingest_record_allows_source_review_lifecycle_state(tmp_path):
+def test_create_wiki_ingest_record_rejects_legacy_review_needed_lifecycle_state(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
@@ -1052,34 +1063,31 @@ def test_create_wiki_ingest_record_allows_source_review_lifecycle_state(tmp_path
     _write_json(source_review, payload)
     _approve_handoff(vault, slug)
 
-    record = create_wiki_ingest_record(
-        vault,
-        slug,
-        [str(page)],
-        approved_by="codex-test",
-        source_review_path=str(source_review),
-    )
-
-    assert record["status"] == "recorded"
-    assert record["final_source_review"]["status"] == "verified"
-    assert record["final_source_review"]["page_lifecycle"]["status"] == "review-needed"
+    with pytest.raises(ValueError, match="lifecycle is not allowed|page_lifecycle"):
+        create_wiki_ingest_record(
+            vault,
+            slug,
+            [str(page)],
+            approved_by="codex-test",
+            source_review_path=str(source_review),
+        )
 
 
-def test_create_wiki_ingest_record_rejects_plain_text_pdf_source(tmp_path):
+def test_create_wiki_ingest_record_rejects_long_pdf_path_in_frontmatter_sources(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
         vault,
         "references/plain-text-source.md",
         _formal_page_content("references", "Plain Text Source").replace(
-            '"[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper]]"',
-            '"_paper_source/raw/fixture-paper/paper.pdf (原论文 PDF)"',
+            'sources: ["fixture-paper"]',
+            'sources: ["_paper_source/raw/fixture-paper/paper.pdf (原论文 PDF)"]',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    with pytest.raises(ValueError, match="Obsidian source PDF link"):
+    with pytest.raises(ValueError, match="scan-friendly short source labels"):
         create_wiki_ingest_record(
             vault,
             slug,
@@ -1089,21 +1097,21 @@ def test_create_wiki_ingest_record_rejects_plain_text_pdf_source(tmp_path):
         )
 
 
-def test_create_wiki_ingest_record_rejects_markdown_pdf_source_link(tmp_path):
+def test_create_wiki_ingest_record_rejects_markdown_pdf_link_in_frontmatter_sources(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
         vault,
         "references/markdown-source-link.md",
         _formal_page_content("references", "Markdown Source Link").replace(
-            '"[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper]]"',
-            '"[fixture-paper](_paper_source/raw/fixture-paper/paper.pdf)"',
+            'sources: ["fixture-paper"]',
+            'sources: ["[fixture-paper](_paper_source/raw/fixture-paper/paper.pdf)"]',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    with pytest.raises(ValueError, match="Obsidian source PDF link"):
+    with pytest.raises(ValueError, match="scan-friendly short source labels"):
         create_wiki_ingest_record(
             vault,
             slug,
@@ -1113,30 +1121,28 @@ def test_create_wiki_ingest_record_rejects_markdown_pdf_source_link(tmp_path):
         )
 
 
-def test_create_wiki_ingest_record_accepts_legacy_pdf_source_alias_that_is_not_slug(tmp_path):
+def test_create_wiki_ingest_record_rejects_internal_pdf_wikilink_source(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
         vault,
-        "references/source-alias-not-slug.md",
+        "references/internal-pdf-wikilink-source.md",
         _formal_page_content("references", "Source Alias Not Slug").replace(
-            '"[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper]]"',
-            '"[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper 原论文 PDF]]"',
+            'sources: ["fixture-paper"]',
+            'sources: ["[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper 原论文 PDF]]"',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    record = create_wiki_ingest_record(
-        vault,
-        slug,
-        [str(page)],
-        approved_by="codex-test",
-        source_review_path=str(source_review),
-    )
-
-    assert record["status"] == "recorded"
-    assert record["relative_page_paths"] == ["references/source-alias-not-slug.md"]
+    with pytest.raises(ValueError, match="not internal wikilinks"):
+        create_wiki_ingest_record(
+            vault,
+            slug,
+            [str(page)],
+            approved_by="codex-test",
+            source_review_path=str(source_review),
+        )
 
 
 @pytest.mark.parametrize(
@@ -1147,15 +1153,15 @@ def test_create_wiki_ingest_record_accepts_legacy_pdf_source_alias_that_is_not_s
         '"https://doi.org/10.1000/fixture"',
     ],
 )
-def test_create_wiki_ingest_record_rejects_non_pdf_entries_in_frontmatter_sources(tmp_path, extra_source):
+def test_create_wiki_ingest_record_rejects_non_label_entries_in_frontmatter_sources(tmp_path, extra_source):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
         vault,
         "references/non-pdf-source-entry.md",
         _formal_page_content("references", "Non PDF Source Entry").replace(
-            'sources: ["[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper]]"]',
-            'sources: ["[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper]]", '
+            'sources: ["fixture-paper"]',
+            'sources: ["fixture-paper", '
             + extra_source
             + "]",
         ),
@@ -1163,7 +1169,7 @@ def test_create_wiki_ingest_record_rejects_non_pdf_entries_in_frontmatter_source
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    with pytest.raises(ValueError, match="sources must contain only Obsidian source PDF links"):
+    with pytest.raises(ValueError, match="scan-friendly|body provenance"):
         create_wiki_ingest_record(
             vault,
             slug,
@@ -1184,7 +1190,7 @@ def test_create_wiki_ingest_record_rejects_fenced_formula_blocks(tmp_path):
             "Fixture Derivation",
             body=(
                 "# Fixture Derivation\n\n"
-                "This derivation links to [[fixture-method-family]].\n\n"
+                "This derivation links to [[concepts/fixture-method-family]].\n\n"
                 "## Variable Definitions\n\n"
                 "- x: input\n- y: output\n\n"
                 "## Derivation Chain\n\n"
@@ -1243,7 +1249,7 @@ def test_create_wiki_ingest_record_rejects_english_only_formal_page_body(tmp_pat
             "English Only Fixture",
             body=(
                 "# English Only Fixture\n\n"
-                "This page links source-backed claims to [[fixture-method-family]] and preserves evidence routes.\n\n"
+                "This page links source-backed claims to [[concepts/fixture-method-family]] and preserves evidence routes.\n\n"
                 "## Model And Method\n\n"
                 "The page records the method, assumptions, and control variables from the source bundle.\n\n"
                 "## Key Formulas\n\n"
@@ -1279,7 +1285,7 @@ def test_create_wiki_ingest_record_requires_final_source_review_language_policy(
             "Chinese Fixture",
             body=(
                 "# 中文正文夹具\n\n"
-                "这页用中文正文记录 [[fixture-method-family]] 的来源证据和方法边界。\n\n"
+                "这页用中文正文记录 [[concepts/fixture-method-family]] 的来源证据和方法边界。\n\n"
                 "## 模型与方法\n\n"
                 "方法部分保留 model 和 method 等英文术语，但解释默认使用中文。\n\n"
                 "## 公式\n\n"
@@ -1329,7 +1335,7 @@ def test_create_wiki_ingest_record_rejects_per_paper_pseudo_routes(tmp_path):
         )
 
 
-def test_create_wiki_ingest_record_rejects_invalid_final_source_review(tmp_path):
+def test_create_wiki_ingest_record_rejects_missing_required_final_source_review_artifact(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
@@ -1341,11 +1347,11 @@ def test_create_wiki_ingest_record_rejects_invalid_final_source_review(tmp_path)
     _approve_handoff(vault, slug)
     payload = json.loads(source_review.read_text(encoding="utf-8"))
     payload["reviewed_artifacts"] = [
-        item for item in payload["reviewed_artifacts"] if item["artifact"] != "mineru/paper.tex"
+        item for item in payload["reviewed_artifacts"] if item["artifact"] != "mineru/fixture-paper.md"
     ]
     _write_json(source_review, payload)
 
-    with pytest.raises(ValueError, match="final source review.*mineru/paper.tex"):
+    with pytest.raises(ValueError, match="final source review.*mineru/fixture-paper.md"):
         create_wiki_ingest_record(
             vault,
             slug,

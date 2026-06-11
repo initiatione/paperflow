@@ -33,7 +33,7 @@ EXPECTED_RESEARCH_REVIEW_FIELDS = [
     "cost_level",
 ]
 
-EXPECTED_PAGE_LIFECYCLE_STATES = ["draft", "review-needed", "source-reviewed", "under-review", "verified"]
+EXPECTED_PAGE_LIFECYCLE_STATES = ["draft"]
 
 
 def _write_phase2_fixture(tmp_path):
@@ -212,7 +212,7 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert final_source_review_contract["required"] is True
     assert final_source_review_contract["suggested_output_path"] == "final-source-review.json"
     assert final_source_review_contract["record_schema_version"] == "paper-source-final-source-review-v1"
-    assert "mineru/paper.tex" in final_source_review_contract["required_artifacts"]
+    assert "mineru/paper.tex" not in final_source_review_contract["required_artifacts"]
     assert final_source_review_contract["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
     assert final_source_review_contract["formal_page_families"] == EXPECTED_FORMAL_PAGE_FAMILIES
     assert final_source_review_contract["research_review_fields"] == EXPECTED_RESEARCH_REVIEW_FIELDS
@@ -220,7 +220,7 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     must_record = "\n".join(final_source_review_contract["must_record"])
     for field in EXPECTED_RESEARCH_REVIEW_FIELDS:
         assert field in must_record
-    assert "verified" in must_record
+    assert "draft" in must_record
     execution_agent_policy = wiki_ingest_brief["wiki_rule_source_model"]["execution_agent_policy"]
     assert execution_agent_policy["allowed_executors"][:2] == ["Claude", "Codex"]
     assert "target vault contract" in execution_agent_policy["brand_neutrality"]
@@ -283,7 +283,6 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
         "paper.pdf",
         "metadata.json",
         canonical_mineru_md,
-        "mineru/paper.tex",
         "mineru/images/*",
         "mineru/mineru-manifest.json",
     ]
@@ -296,20 +295,21 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert "figure-index.json" in optional_aids
     assert "formula-index.json" in optional_aids
     assert "asset-normalization-record.json" in optional_aids
+    assert "mineru/paper.tex" in optional_aids
     assert wiki_ingest_brief["source_bundle"]["primary_source_reading_order"][:5] == [
         "metadata.json",
         canonical_mineru_md,
-        "mineru/paper.tex",
         "mineru/images/*",
         "mineru/mineru-manifest.json",
+        "figure-index.json",
     ]
     assert wiki_ingest_brief["source_bundle"]["primary_source_reading_order"][5:] == [
-        "figure-index.json",
         "formula-index.json",
         "asset-normalization-record.json",
     ]
     formula_figure_review = wiki_ingest_brief["source_bundle"]["formula_figure_review"]
     assert "central formulas" in formula_figure_review["formulas"]
+    assert "MinerU Markdown" in formula_figure_review["formulas"]
     assert "figures/tables/images" in formula_figure_review["figures_tables_images"]
     assert "figure-index.json" in formula_figure_review["figures_tables_images"]
     assert "paper.pdf" in formula_figure_review["parse_uncertainty"]
