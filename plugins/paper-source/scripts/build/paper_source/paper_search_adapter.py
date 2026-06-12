@@ -569,7 +569,7 @@ def _call_mcp_tool(tool_name: str, arguments: dict, timeout_seconds: int) -> dic
                 "params": {
                     "protocolVersion": MCP_PROTOCOL_VERSION,
                     "capabilities": {},
-                    "clientInfo": {"name": "paper-source", "version": "0.2.4"},
+                    "clientInfo": {"name": "paper-source", "version": "0.2.5"},
                 },
             },
         )
@@ -682,7 +682,7 @@ def probe_paper_search_mcp_server(timeout_seconds: int = PROBE_TIMEOUT_SECONDS) 
                 "params": {
                     "protocolVersion": MCP_PROTOCOL_VERSION,
                     "capabilities": {},
-                    "clientInfo": {"name": "paper-source-doctor", "version": "0.2.4"},
+                    "clientInfo": {"name": "paper-source-doctor", "version": "0.2.5"},
                 },
             },
         )

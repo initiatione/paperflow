@@ -137,6 +137,9 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
     resolution_order = (
         rule_source_model.get("resolution_order") if isinstance(rule_source_model, dict) else []
     ) or []
+    governance_layers = (
+        rule_source_model.get("governance_layers") if isinstance(rule_source_model, dict) else []
+    ) or []
     resolution_source_text = "\n".join(
         " ".join(
             [
@@ -149,6 +152,7 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
     )
     write_requirements = rule_source_model.get("write_contract_requirements") or []
     write_requirement_text = "\n".join(str(item) for item in write_requirements or [])
+    governance_layer_text = "\n".join(str(item) for item in governance_layers or [])
     rule_source_policy_text = "\n".join(
         str(item)
         for item in [
@@ -214,6 +218,8 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
     source_first_policy = str(ingest_policy.get("source_first_policy") or "")
     if "source paper" not in source_first_policy or "not substitutes" not in source_first_policy:
         issues.append("source-first ingest policy is missing")
+    if "MinerU Markdown" not in source_first_policy or "Missing native TeX is normal" not in source_first_policy:
+        issues.append("source-first formula fallback contract is incomplete")
     required_raw_artifacts = [
         "paper.pdf",
         "metadata.json",
@@ -279,10 +285,30 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
         ]
         if missing_rule_sources:
             issues.append("wiki rule source model is incomplete")
+        governance_layer_names = {
+            str(item.get("layer"))
+            for item in governance_layers
+            if isinstance(item, dict)
+        }
+        required_governance_layers = {
+            "obsidian_syntax",
+            "paper_wiki_evidence",
+            "local_vault_governance",
+        }
+        if not required_governance_layers.issubset(governance_layer_names):
+            issues.append("wiki rule source governance_layers are incomplete")
+        elif (
+            "kepano/obsidian-skills" not in governance_layer_text
+            or "paper-research-wiki" not in governance_layer_text
+            or "target vault AGENTS.md and _meta/*" not in governance_layer_text
+        ):
+            issues.append("wiki rule source governance_layers are incomplete")
         if "helper" not in helper_boundary_text:
             issues.append("external wiki skills must be described as optional helpers or references")
         if "Markdown vault" not in write_requirement_text or "source of truth" not in write_requirement_text:
             issues.append("wiki rule source model must preserve Markdown vault as source of truth")
+        if "MinerU Markdown" not in write_requirement_text or "missing native TeX is normal" not in write_requirement_text:
+            issues.append("wiki rule source model must preserve MinerU Markdown-first formula fallback")
     if issues:
         return _check_run(
             "wiki-ingest-brief",

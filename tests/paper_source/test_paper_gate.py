@@ -320,6 +320,23 @@ def test_paper_gate_blocks_agent_handoff_without_execution_agent_policy(tmp_path
     assert "wiki execution agent policy is missing" in checks["wiki-ingest-brief"]["output"]["summary"]
 
 
+def test_paper_gate_blocks_agent_handoff_without_governance_layers(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    _seed_paper_gate_fixture(vault, slug)
+    brief_path = vault / "_paper_source" / "staging" / "papers" / slug / "wiki-ingest-brief.json"
+    brief = json.loads(brief_path.read_text(encoding="utf-8"))
+    del brief["wiki_rule_source_model"]["governance_layers"]
+    brief_path.write_text(json.dumps(brief), encoding="utf-8")
+
+    gate = build_paper_gate(vault, slug)
+
+    assert gate["status"] == "blocked"
+    checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
+    assert checks["wiki-ingest-brief"]["conclusion"] == "failure"
+    assert "wiki rule source governance_layers are incomplete" in checks["wiki-ingest-brief"]["output"]["summary"]
+
+
 def test_paper_gate_blocks_agent_handoff_without_source_first_artifacts(tmp_path):
     vault = tmp_path / "vault"
     slug = "fixture-paper"

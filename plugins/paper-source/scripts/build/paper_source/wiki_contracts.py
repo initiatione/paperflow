@@ -178,11 +178,6 @@ QMD_FORBIDDEN_EXAMPLES: tuple[str, ...] = (
     "_paper_source/raw/<slug>/mineru/paper.md",
     "_paper_source/raw/<slug>/mineru/paper.tex",
     "_paper_source/staging/papers/<slug>/wiki-ingest-brief.json",
-    "_epi/meta/formal-page-snapshots/",
-    "_epi/raw/<slug>/mineru/<slug>.md",
-    "_epi/raw/<slug>/mineru/paper.md",
-    "_epi/raw/<slug>/mineru/paper.tex",
-    "_epi/staging/papers/<slug>/wiki-ingest-brief.json",
     "MinerU source Markdown",
 )
 
@@ -259,7 +254,6 @@ def qmd_collection_policy() -> dict[str, object]:
         "verification_commands": [
             "qmd collection show paper-research-wiki",
             "qmd ls paper-research-wiki/_paper_source",
-            "qmd ls paper-research-wiki/_epi",
             "qmd ls paper-research-wiki/_paper_source/meta/formal-page-snapshots",
         ],
         "source_of_truth": "Markdown vault files; QMD is a retrieval aid only.",

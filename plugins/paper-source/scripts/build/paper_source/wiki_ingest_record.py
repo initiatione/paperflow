@@ -59,14 +59,18 @@ _OBSIDIAN_WIKILINK_SOURCE_PDF_PATTERN = re.compile(
     rf"\[\[(?:{re.escape(PAPER_SOURCE_ROOT_NAME)}|{re.escape(LEGACY_EPI_ROOT_NAME)})/raw/(?P<slug>[^/\]\|]+)/paper\.pdf\|(?P<alias>[^\]]+)\]\]",
     re.IGNORECASE,
 )
-_OBSIDIAN_URI_SOURCE_PDF_PATTERN = re.compile(
-    rf"\[[^\]]+\]\(obsidian://open\?[^)]*file=(?:{re.escape(PAPER_SOURCE_ROOT_NAME)}|{re.escape(LEGACY_EPI_ROOT_NAME)})%2Fraw%2F(?P<slug>[^%/)]+)%2Fpaper\.pdf(?:[&#][^)]*)?\)",
+_CANONICAL_OBSIDIAN_URI_SOURCE_PDF_PATTERN = re.compile(
+    rf"\[(?P<label>[^\]]+)\]\(obsidian://open\?[^)]*file={re.escape(PAPER_SOURCE_ROOT_NAME)}%2Fraw%2F(?P<slug>[^%/)]+)%2Fpaper\.pdf(?:[&#][^)]*)?\)",
+    re.IGNORECASE,
+)
+_LEGACY_OBSIDIAN_URI_SOURCE_PDF_PATTERN = re.compile(
+    rf"\[(?P<label>[^\]]+)\]\(obsidian://open\?[^)]*file={re.escape(LEGACY_EPI_ROOT_NAME)}%2Fraw%2F(?P<slug>[^%/)]+)%2Fpaper\.pdf(?:[&#][^)]*)?\)",
     re.IGNORECASE,
 )
 _WIKILINK_PATTERN = re.compile(r"\[\[(?P<body>[^\]\n]+)\]\]")
 PAPER_WIKI_RECORD_REQUEST_SCHEMA_VERSION = "paper-wiki-record-request-v1"
 LEGACY_PRW_RECORD_REQUEST_SCHEMA_VERSION = "prw-record-request-v1"
-PRW_RECORD_REQUEST_SCHEMA_VERSION = LEGACY_PRW_RECORD_REQUEST_SCHEMA_VERSION
+PRW_RECORD_REQUEST_SCHEMA_VERSION = PAPER_WIKI_RECORD_REQUEST_SCHEMA_VERSION
 ACCEPTED_PAPER_WIKI_RECORD_REQUEST_SCHEMA_VERSIONS = {
     PAPER_WIKI_RECORD_REQUEST_SCHEMA_VERSION,
     LEGACY_PRW_RECORD_REQUEST_SCHEMA_VERSION,
@@ -307,18 +311,28 @@ def _frontmatter_source_entries(value: Any) -> list[str]:
 def _formal_source_entries_issues(value: Any) -> list[str]:
     entries = _frontmatter_source_entries(value)
     if not entries:
-        return ["formal page frontmatter sources must include scan-friendly short source labels"]
+        return ["formal page frontmatter sources must include clickable source PDF links"]
 
     issues: list[str] = []
     for entry in entries:
         normalized = entry.replace("\\", "/").strip()
         lowered = normalized.lower()
         if _OBSIDIAN_WIKILINK_SOURCE_PDF_PATTERN.fullmatch(normalized) or "[[" in normalized:
-            issues.append("formal page frontmatter sources must stay scan-friendly, not internal wikilinks")
+            issues.append("formal page frontmatter sources must use Markdown links, not internal wikilinks")
+            continue
+        canonical_match = _CANONICAL_OBSIDIAN_URI_SOURCE_PDF_PATTERN.fullmatch(normalized)
+        if canonical_match:
+            label = canonical_match.group("label").strip()
+            if not label or label == "原论文 PDF":
+                issues.append("formal page frontmatter sources link text must be the paper title")
+            continue
+        if _LEGACY_OBSIDIAN_URI_SOURCE_PDF_PATTERN.fullmatch(normalized):
+            issues.append(
+                "formal page frontmatter sources must use canonical _paper_source/raw/<slug>/paper.pdf links, not legacy _epi links"
+            )
             continue
         if (
-            _OBSIDIAN_URI_SOURCE_PDF_PATTERN.fullmatch(normalized)
-            or "obsidian://open" in lowered
+            "obsidian://open" in lowered
             or "://" in lowered
             or "_paper_source/" in lowered
             or "_epi/" in lowered
@@ -330,20 +344,30 @@ def _formal_source_entries_issues(value: Any) -> list[str]:
             or "arxiv.org" in lowered
         ):
             issues.append(
-                "formal page frontmatter sources must stay scan-friendly short source labels; "
-                "put PDF, DOI, arXiv, MinerU, and bundle paths in the body provenance or sidecar"
+                "formal page frontmatter sources must be Markdown links to canonical source PDFs; "
+                "put DOI, arXiv, MinerU, and bundle paths in the body provenance or sidecar"
             )
+            continue
+        issues.append("formal page frontmatter sources must be Markdown links to canonical source PDFs")
     return issues
 
 
 def _body_source_pdf_link_issues(body: str) -> list[str]:
     if "## 原文与证据入口" not in body:
         return ["formal page body must include ## 原文与证据入口"]
-    if not _OBSIDIAN_URI_SOURCE_PDF_PATTERN.search(body):
+    canonical_match = _CANONICAL_OBSIDIAN_URI_SOURCE_PDF_PATTERN.search(body)
+    if canonical_match:
+        label = canonical_match.group("label").strip()
+        if label == "原论文 PDF":
+            return ["formal page body 原文与证据入口 source PDF link text must be the paper title"]
+        return []
+    if _LEGACY_OBSIDIAN_URI_SOURCE_PDF_PATTERN.search(body):
         return [
-            "formal page body 原文与证据入口 must include a clickable obsidian:// source PDF link"
+            "formal page body 原文与证据入口 must use canonical _paper_source/raw/<slug>/paper.pdf, not legacy _epi/raw/<slug>/paper.pdf"
         ]
-    return []
+    return [
+        "formal page body 原文与证据入口 must include a clickable obsidian:// source PDF link"
+    ]
 
 
 def _wikilink_target(body: str) -> str:

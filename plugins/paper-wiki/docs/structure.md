@@ -12,6 +12,8 @@ Detailed behavior lives in workflows and references so users can invoke the plug
 
 The router skill treats Paper Wiki as a closed-loop maintenance system, not a one-shot deposition tool. Workflow files internalize Ar9av/obsidian-wiki patterns into `Check -> Diagnose -> Plan -> Act -> Verify -> Refresh -> Record -> Next`, plus Quick + Targeted checks by default and Full check only for explicit comprehensive audits or systemic graph problems.
 
+Governance is layered. `kepano/obsidian-skills` is the Obsidian syntax authority for properties/frontmatter, wikilinks, embeds, callouts, tags, Markdown links, math, bases, and canvas files. Paper Wiki is the paper-evidence and formal-graph layer: it owns source-grounded claims, formulas, figure/table evidence, relationships, page-family maintenance, content relationship repair, and record readiness. The target vault contract owns local taxonomy, page ownership, staged writes, and migration policy; sample vaults are references, not hard schemas.
+
 Read-only wiki Q&A lives in `skills/paper-research-wiki/workflows/ask-wiki.md`. It retrieves from the formal Obsidian graph first, expands through backlinks, outlinks, aliases, tags, and co-links, and then uses QMD only as an optional accelerator with fallback to frontmatter, manifest files, `index.md`, `hot.md`, and direct Markdown search. It reports correction candidates but does not write `log.md`, formal pages, QMD, or Paper Source artifacts.
 
 `rules/wiki-writing-standard.md` is the mandatory page-writing standard for formal paper wiki writes. It adapts Ar9av/obsidian-wiki page templates, merge-before-create behavior, provenance, wikilinks, relationships, tracking files, and lint/relink gates into the Paper Wiki paper workflow.

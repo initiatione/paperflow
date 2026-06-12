@@ -38,6 +38,10 @@ RAW_PAPER_URI_PATTERN = re.compile(
     rf"file=(?:{re.escape(PAPER_SOURCE_ROOT_NAME)}|{re.escape(LEGACY_EPI_ROOT_NAME)})%2Fraw%2F(?P<slug>[^%/)]+)%2Fpaper\.pdf",
     re.IGNORECASE,
 )
+SOURCE_PDF_MARKDOWN_LINK_PATTERN = re.compile(
+    rf"\[(?P<label>[^\]\n]+)\]\(obsidian://open\?[^)\n]*file=(?P<root>{re.escape(PAPER_SOURCE_ROOT_NAME)}|{re.escape(LEGACY_EPI_ROOT_NAME)})%2Fraw%2F(?P<slug>[^%/)]+)%2Fpaper\.pdf(?:[&#][^)\n]*)?\)",
+    re.IGNORECASE,
+)
 
 
 def _manifest_path(vault_path: Path) -> Path:
@@ -150,6 +154,20 @@ def _raw_paper_path_from_source(value: str) -> str | None:
     return None
 
 
+def _source_pdf_markdown_link(value: str) -> dict[str, str] | None:
+    match = SOURCE_PDF_MARKDOWN_LINK_PATTERN.search(value)
+    if not match:
+        return None
+    slug = unquote(match.group("slug"))
+    root = match.group("root")
+    return {
+        "label": match.group("label").strip(),
+        "root": root,
+        "slug": slug,
+        "path": f"{PAPER_SOURCE_ROOT_NAME}/raw/{slug}/paper.pdf",
+    }
+
+
 def _raw_paper_paths_from_text(text: str) -> list[tuple[str, str]]:
     paths: list[tuple[str, str]] = []
     seen: set[str] = set()
@@ -170,16 +188,17 @@ def _raw_paper_paths_from_text(text: str) -> list[tuple[str, str]]:
 
 def _source_evidence_values(page: dict) -> list[tuple[str, str]]:
     values: list[tuple[str, str]] = []
-    body = str(page.get("body") or "")
-    values.extend(_raw_paper_paths_from_text(body))
-
-    # Legacy compatibility only: old formal pages sometimes stored source PDFs in
-    # frontmatter `sources` or as internal wikilinks. New pages must use the body
-    # `## 原文与证据入口` Markdown link instead.
     for source in _as_list(page.get("frontmatter", {}).get("sources")):
         raw_path = _raw_paper_path_from_source(source)
         if raw_path:
             values.append((raw_path, source))
+
+    body = str(page.get("body") or "")
+    values.extend(_raw_paper_paths_from_text(body))
+
+    # Legacy compatibility only: old formal pages sometimes stored source PDFs as
+    # internal wikilinks. They remain readable evidence inputs but are correction
+    # candidates under the new frontmatter contract.
     for link in page.get("links", []):
         raw_path = _raw_paper_path_from_source(str(link))
         if raw_path:
@@ -494,8 +513,10 @@ def _source_frontmatter_corrections(vault_path: Path, pages: dict[str, dict], se
         page = pages.get(relative)
         if not page:
             continue
-        body_source_paths = [raw_path for raw_path, _source in _raw_paper_paths_from_text(str(page.get("body") or ""))]
+        body_text = str(page.get("body") or "")
+        body_source_paths = [raw_path for raw_path, _source in _raw_paper_paths_from_text(body_text)]
         sources = _as_list(page.get("frontmatter", {}).get("sources"))
+        source_paths: list[str] = []
         if relative.startswith("references/") and not body_source_paths:
             corrections.append(
                 {
@@ -506,26 +527,52 @@ def _source_frontmatter_corrections(vault_path: Path, pages: dict[str, dict], se
                 }
             )
         for source in sources:
+            link = _source_pdf_markdown_link(source)
             raw_path = _raw_paper_path_from_source(source)
-            if raw_path is None:
-                if source.startswith("[[") or source.startswith("obsidian://") or source.startswith("_paper_source/") or source.startswith("_epi/"):
+            if link is None:
+                if (
+                    source.startswith("[[")
+                    or source.startswith("obsidian://")
+                    or source.startswith("_paper_source/")
+                    or source.startswith("_epi/")
+                    or "_paper_source/raw/" in source
+                    or "_epi/raw/" in source
+                    or "paper.pdf" in source.casefold()
+                ):
+                    message = (
+                        "Frontmatter `sources` must use Markdown links to canonical "
+                        "_paper_source/raw/<slug>/paper.pdf with the source paper title as link text."
+                    )
+                    if source.startswith("[["):
+                        message = "Frontmatter `sources` must use Markdown links, not internal wikilinks."
                     corrections.append(
                         {
                             "kind": "source_frontmatter_mismatch",
                             "source": relative,
                             "target": source,
-                            "message": "Frontmatter `sources` must be scan-friendly short labels; put source PDF links in `## 原文与证据入口`.",
+                            "message": message,
                         }
                     )
                 continue
-            corrections.append(
-                {
-                    "kind": "source_frontmatter_mismatch",
-                    "source": relative,
-                    "target": source,
-                    "message": "Frontmatter `sources` contains a source PDF link; use a short source label and move the PDF URI to `## 原文与证据入口`.",
-                }
-            )
+            source_paths.append(link["path"])
+            if link["root"] != PAPER_SOURCE_ROOT_NAME:
+                corrections.append(
+                    {
+                        "kind": "source_frontmatter_mismatch",
+                        "source": relative,
+                        "target": source,
+                        "message": "Frontmatter `sources` must use canonical _paper_source/raw/<slug>/paper.pdf links, not legacy _epi links.",
+                    }
+                )
+            if not link["label"] or link["label"] == "原论文 PDF":
+                corrections.append(
+                    {
+                        "kind": "source_frontmatter_mismatch",
+                        "source": relative,
+                        "target": source,
+                        "message": "Frontmatter `sources` link text must be the source paper title, not `原论文 PDF`.",
+                    }
+                )
             if not (vault_path / raw_path).is_file():
                 corrections.append(
                     {
@@ -533,6 +580,26 @@ def _source_frontmatter_corrections(vault_path: Path, pages: dict[str, dict], se
                         "source": relative,
                         "target": raw_path,
                         "message": "Source PDF link points to a missing source artifact.",
+                    }
+                )
+        if relative.startswith("references/") and not source_paths:
+            corrections.append(
+                {
+                    "kind": "source_frontmatter_mismatch",
+                    "source": relative,
+                    "target": "sources",
+                    "message": "Reference page frontmatter `sources` must include one title-display Markdown link to the canonical source PDF.",
+                }
+            )
+        for match in SOURCE_PDF_MARKDOWN_LINK_PATTERN.finditer(body_text):
+            label = match.group("label").strip()
+            if label == "原论文 PDF":
+                corrections.append(
+                    {
+                        "kind": "source_pdf_body_link_missing",
+                        "source": relative,
+                        "target": match.group(0),
+                        "message": "Body source PDF link text must be the source paper title, not `原论文 PDF`.",
                     }
                 )
         for raw_path in body_source_paths:

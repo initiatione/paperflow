@@ -34,6 +34,47 @@ EXPECTED_RESEARCH_REVIEW_FIELDS = [
 
 EXPECTED_PAGE_LIFECYCLE_STATES = ["draft"]
 
+EXPECTED_GOVERNANCE_LAYERS = [
+    {
+        "layer": "obsidian_syntax",
+        "source": "kepano/obsidian-skills",
+        "owns": [
+            "YAML properties/frontmatter",
+            "tags and aliases",
+            "wikilinks",
+            "Markdown links",
+            "embeds",
+            "callouts",
+            "Obsidian math delimiters",
+            "bases and canvas syntax",
+        ],
+    },
+    {
+        "layer": "paper_wiki_evidence",
+        "source": "paper-research-wiki",
+        "owns": [
+            "source-grounded paper claims",
+            "formal page families",
+            "formula reasoning chains",
+            "figure/table evidence cards",
+            "formal page relationships",
+            "evidence tiers",
+            "final-source-review.json readiness",
+        ],
+    },
+    {
+        "layer": "local_vault_governance",
+        "source": "target vault AGENTS.md and _meta/*",
+        "owns": [
+            "local taxonomy",
+            "page ownership",
+            "staged writes",
+            "QMD scope",
+            "migration and retirement policy",
+        ],
+    },
+]
+
 
 def _write_json(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -132,6 +173,7 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "page_lifecycle_states": EXPECTED_PAGE_LIFECYCLE_STATES,
             },
             "wiki_rule_source_model": {
+                "governance_layers": EXPECTED_GOVERNANCE_LAYERS,
                 "execution_agent_policy": {
                     "allowed_executors": [
                         "Claude",
@@ -175,6 +217,8 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "Keep Markdown vault files as the source of truth.",
                     "Search existing pages before creating duplicates.",
                     "Final wiki pages must be grounded in the source paper artifacts, not reader summaries alone.",
+                    "Use MinerU Markdown as the primary source for formulas, notation, method context, and prose; missing native TeX is normal and must not block writing or recording.",
+                    "Use paper.pdf, formula-index.json, figure-index.json, and image evidence only when MinerU Markdown is missing, wrong, ambiguous, or insufficient.",
                 ],
             },
             "ingest_policy": {
@@ -188,7 +232,8 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "figure-index.json, and formula-index.json before final wiki writing. "
                     "Use MinerU Markdown as the primary formula and notation source; fall back to "
                     "paper.pdf, formula-index.json, figure-index.json, or image evidence only when "
-                    "Markdown is missing, wrong, or ambiguous. Reader outputs are navigation aids, "
+                    "Markdown is missing, wrong, ambiguous, or insufficient. Missing native TeX is normal "
+                    "and must not block writing or recording. Reader outputs are navigation aids, "
                     "not substitutes for the source paper."
                 ),
             },
@@ -217,7 +262,8 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "formulas": (
                         f"Review central formulas from {canonical_mineru_md} first; use paper.pdf, "
                         "formula-index.json, figure-index.json, or image evidence only when Markdown "
-                        "is missing, wrong, or ambiguous."
+                        "is missing, wrong, ambiguous, or insufficient. Missing native TeX is normal "
+                        "and must not block writing or recording."
                     ),
                     "figures_tables_images": "Interpret figures, tables, and images from mineru/images/* with figure-index.json instead of collapsing them into reader summary prose.",
                     "parse_uncertainty": "Inspect paper.pdf when MinerU Markdown or index evidence is missing, wrong, or ambiguous.",

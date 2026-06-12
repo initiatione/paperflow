@@ -384,8 +384,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         ]
     )
 
-    assert manifest["version"] == "0.2.4"
-    assert "v0.2.4" in manifest["interface"]["shortDescription"]
+    assert manifest["version"] == "0.2.5"
+    assert "v0.2.5" in manifest["interface"]["shortDescription"]
     for phrase in [
         "search_papers",
         "source_coverage",
@@ -437,8 +437,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "source capability matrix",
         "wiki-ask",
         "read-only formal graph",
+        "0.2.5",
         "0.2.4",
-        "0.2.3",
         "0.2.2",
         "0.2.1",
         "0.1.14",
@@ -766,7 +766,7 @@ def test_marketplace_and_readme_describe_profile_driven_generic_paper_source():
     assert "Paper Source" in manifest_text
     assert "Paper Wiki" in manifest_text
     assert manifest["description"].startswith("Paper Source")
-    assert manifest["interface"]["shortDescription"].startswith("v0.2.4 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v0.2.5 | Paper Source:")
     assert "profile-driven discovery" in manifest_text
     assert "Paper Wiki handoff" in manifest_text
     assert "MinerU" in manifest_text
@@ -983,8 +983,8 @@ def test_read_only_ask_ownership_documented_paper_source_side():
 
 def test_plugin_versions_track_current_plugin_changes():
     expected = {
-        "plugins/paper-source/.codex-plugin/plugin.json": "0.2.4",
-        "plugins/paper-wiki/.codex-plugin/plugin.json": "0.2.3",
+        "plugins/paper-source/.codex-plugin/plugin.json": "0.2.5",
+        "plugins/paper-wiki/.codex-plugin/plugin.json": "0.2.4",
     }
     for rel, version in expected.items():
         manifest = json.loads((ROOT / rel).read_text(encoding="utf-8"))

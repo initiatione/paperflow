@@ -8,7 +8,7 @@ Read `../../../rules/wiki-writing-standard.md` before reporting health. Use it a
 
 Check:
 
-- bootstrap contract from Paper Source `wiki-setup`: core `_paper_source` roots (`_paper_source/`, `_paper_source/raw/`, `_paper_source/staging/`, `_paper_source/meta/`, `_paper_source/policies/`), legacy `_epi` roots, `_meta/`, `.obsidian`, `.git`, and the seven formal page roots; Paper Source `runs`, `cache`, `tmp`, `tmp-manual-pdfs`, `quarantine`, and `evolution` are on-demand directories, not bootstrap requirements
+- bootstrap contract from Paper Source `wiki-setup`: core `_paper_source` roots (`_paper_source/`, `_paper_source/raw/`, `_paper_source/staging/`, `_paper_source/meta/`, `_paper_source/policies/`), `_meta/`, `.obsidian`, `.git`, and the seven formal page roots; Paper Source `runs`, `cache`, `tmp`, `tmp-manual-pdfs`, `quarantine`, and `evolution` are on-demand directories, not bootstrap requirements. If legacy `_epi/` exists, treat it as read-only compatibility evidence or migration residue, not as a required bootstrap root.
 - target vault contract files
 - pending Paper Source handoffs, using `_paper_source/staging/papers/*/wiki-ingest-brief.json` as canonical and treating legacy `_epi/staging/papers/*/wiki-ingest-brief.json` as readable fallback; task-only `wiki_deposition_task.json` folders are legacy-needs-brief-repair
 - staged pages

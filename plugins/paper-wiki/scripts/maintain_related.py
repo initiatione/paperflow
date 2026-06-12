@@ -93,7 +93,7 @@ def _snapshot_formal_pages(vault: Path, snapshot_name: str | None, *, execute: b
     if not execute:
         return None
     name = snapshot_name or f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-pre-related"
-    snapshot = vault / "_epi" / "meta" / "formal-page-snapshots" / name
+    snapshot = vault / "_paper_source" / "meta" / "formal-page-snapshots" / name
     if (snapshot / "manifest.json").exists():
         return snapshot.relative_to(vault).as_posix() + "/"
 

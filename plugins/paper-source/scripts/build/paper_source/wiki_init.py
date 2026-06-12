@@ -56,7 +56,8 @@ Required reading before final wiki writing:
 - `mineru/paper.md` or `mineru/<slug>.md`
 - `mineru/images/*`
 - `mineru/mineru-manifest.json`
-- optional non-empty native `mineru/paper.tex` when present
+
+MinerU Markdown is the primary source for formulas, notation, method context, and prose. Native TeX is not required; if a non-empty `mineru/paper.tex` exists, use it only as an optional cross-check. Fall back to `paper.pdf`, `formula-index.json`, `figure-index.json`, or image evidence only when MinerU Markdown is missing, wrong, ambiguous, or insufficient.
 
 ## Obsidian math rendering
 
@@ -74,7 +75,7 @@ Do not use fenced code blocks such as ```` ```math ```` or ```` ```tex ```` for 
 
 ## QMD retrieval boundary
 
-QMD is a retrieval aid, not the vault source of truth. The active `paper-research-wiki` qmd collection may index formal wiki pages in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`, plus `AGENTS.md`, `index.md`, `hot.md`, `log.md`, and `_meta/` contract pages. It must ignore `_paper_source/**`, `.obsidian/**`, and `.claude/**`; this excludes `_paper_source/meta/formal-page-snapshots/`, `_paper_source/raw/<slug>/mineru/<slug>.md`, `_paper_source/raw/<slug>/mineru/paper.md`, `_paper_source/raw/<slug>/mineru/paper.tex`, and other MinerU source Markdown from QMD.
+QMD is a retrieval aid, not the vault source of truth. The active `paper-research-wiki` qmd collection may index formal wiki pages in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`, plus `AGENTS.md`, `index.md`, `hot.md`, `log.md`, and `_meta/` contract pages. It must ignore `_paper_source/**`, legacy `_epi/**`, `.obsidian/**`, and `.claude/**`; this excludes `_paper_source/meta/formal-page-snapshots/`, `_paper_source/raw/<slug>/mineru/<slug>.md`, `_paper_source/raw/<slug>/mineru/paper.md`, `_paper_source/raw/<slug>/mineru/paper.tex`, legacy `_epi` raw/staging/snapshot material when present, and other MinerU source Markdown from QMD.
 
 Verify the boundary with:
 
@@ -90,11 +91,12 @@ AGENT_OPERATING_CONTRACT_MD = """# Agent Operating Contract
 
 - Keep Markdown vault files as the source of truth.
 - Treat `reader/` and critic outputs as navigation and quality signals, not substitutes for the source paper.
-- Review `mineru/paper.md` or `mineru/<slug>.md`, `mineru/images/*`, `mineru/mineru-manifest.json`, and optional non-empty native `mineru/paper.tex` before final wiki writing.
+- Review `mineru/paper.md` or `mineru/<slug>.md` first for formulas, notation, method context, and prose; native `mineru/paper.tex` is optional cross-check only and missing TeX must not block final wiki writing.
+- Fall back to `paper.pdf`, `formula-index.json`, `figure-index.json`, or image evidence only when MinerU Markdown is missing, wrong, ambiguous, or insufficient.
 - Preserve central formulas, figures, tables, and image evidence when distilling claims.
 - Render formulas with Obsidian math delimiters: inline `$...$`, block `$$...$$`. Never place final-page formulas in fenced `math`, `tex`, or `latex` code blocks.
 - Search existing pages before creating new ones.
-- When using QMD, keep the `paper-research-wiki` qmd collection scoped to formal page families plus `AGENTS.md`, `index.md`, `hot.md`, `log.md`, and `_meta/`; `_paper_source/**`, `.obsidian/**`, and `.claude/**` must stay ignored.
+- When using QMD, keep the `paper-research-wiki` qmd collection scoped to formal page families plus `AGENTS.md`, `index.md`, `hot.md`, `log.md`, and `_meta/`; `_paper_source/**`, legacy `_epi/**`, `.obsidian/**`, and `.claude/**` must stay ignored.
 """
 
 
@@ -175,6 +177,7 @@ These are the durable, human-readable knowledge nodes. Source paper Markdown und
 ## Hide from the main graph
 
 - `_paper_source/`
+- legacy `_epi/` when present
 - `_meta/`
 - `.obsidian/`
 - `.git/`

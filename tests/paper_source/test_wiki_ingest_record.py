@@ -8,7 +8,12 @@ from paper_source.artifacts import file_sha256
 from paper_source import orchestrator as orchestrator_module
 from paper_source.orchestrator import main, record_human_approval, record_wiki_ingest
 from paper_source.paper_gate import build_paper_gate
-from paper_source.wiki_ingest_record import create_wiki_ingest_record
+from paper_source.wiki_ingest_record import (
+    LEGACY_PRW_RECORD_REQUEST_SCHEMA_VERSION,
+    PAPER_WIKI_RECORD_REQUEST_SCHEMA_VERSION,
+    PRW_RECORD_REQUEST_SCHEMA_VERSION,
+    create_wiki_ingest_record,
+)
 
 
 EXPECTED_RESEARCH_WIKI_SKILLS = [
@@ -38,6 +43,52 @@ EXPECTED_FORMAL_PAGE_FAMILIES = [
 ]
 
 EXPECTED_PAGE_LIFECYCLE_STATES = ["draft"]
+
+EXPECTED_GOVERNANCE_LAYERS = [
+    {
+        "layer": "obsidian_syntax",
+        "source": "kepano/obsidian-skills",
+        "owns": [
+            "YAML properties/frontmatter",
+            "tags and aliases",
+            "wikilinks",
+            "Markdown links",
+            "embeds",
+            "callouts",
+            "Obsidian math delimiters",
+            "bases and canvas syntax",
+        ],
+    },
+    {
+        "layer": "paper_wiki_evidence",
+        "source": "paper-research-wiki",
+        "owns": [
+            "source-grounded paper claims",
+            "formal page families",
+            "formula reasoning chains",
+            "figure/table evidence cards",
+            "formal page relationships",
+            "evidence tiers",
+            "final-source-review.json readiness",
+        ],
+    },
+    {
+        "layer": "local_vault_governance",
+        "source": "target vault AGENTS.md and _meta/*",
+        "owns": [
+            "local taxonomy",
+            "page ownership",
+            "staged writes",
+            "QMD scope",
+            "migration and retirement policy",
+        ],
+    },
+]
+
+
+def test_prw_schema_alias_points_to_current_paper_wiki_contract():
+    assert PRW_RECORD_REQUEST_SCHEMA_VERSION == PAPER_WIKI_RECORD_REQUEST_SCHEMA_VERSION
+    assert PRW_RECORD_REQUEST_SCHEMA_VERSION != LEGACY_PRW_RECORD_REQUEST_SCHEMA_VERSION
 
 
 def test_orchestrator_reexports_wiki_record_workflow_entrypoints():
@@ -143,6 +194,7 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                 "page_lifecycle_states": EXPECTED_PAGE_LIFECYCLE_STATES,
             },
             "wiki_rule_source_model": {
+                "governance_layers": EXPECTED_GOVERNANCE_LAYERS,
                 "execution_agent_policy": {
                     "allowed_executors": [
                         "Claude",
@@ -174,6 +226,8 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "Keep Markdown vault files as the source of truth.",
                     "Search existing pages before creating duplicates.",
                     "Final wiki pages must be grounded in the source paper artifacts, not reader summaries alone.",
+                    "Use MinerU Markdown as the primary source for formulas, notation, method context, and prose; missing native TeX is normal and must not block writing or recording.",
+                    "Use paper.pdf, formula-index.json, figure-index.json, and image evidence only when MinerU Markdown is missing, wrong, ambiguous, or insufficient.",
                 ],
             },
             "ingest_policy": {
@@ -187,7 +241,8 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "figure-index.json, and formula-index.json before final wiki writing. "
                     "Use MinerU Markdown as the primary formula and notation source; fall back to "
                     "paper.pdf, formula-index.json, figure-index.json, or image evidence only when "
-                    "Markdown is missing, wrong, or ambiguous. Reader outputs are navigation aids, "
+                    "Markdown is missing, wrong, ambiguous, or insufficient. Missing native TeX is normal "
+                    "and must not block writing or recording. Reader outputs are navigation aids, "
                     "not substitutes for the source paper."
                 ),
             },
@@ -214,7 +269,8 @@ def _seed_agent_handoff(vault, slug="fixture-paper"):
                     "formulas": (
                         "Use MinerU Markdown as the primary formula and notation source; fall back "
                         "to paper.pdf, formula-index.json, figure-index.json, or image evidence only "
-                        "when Markdown is missing, wrong, or ambiguous."
+                        "when Markdown is missing, wrong, ambiguous, or insufficient. Missing native TeX "
+                        "is normal and must not block writing or recording."
                     ),
                     "figures_tables_images": "Interpret each figure, table, and image from mineru/images/* with figure-index.json.",
                     "parse_uncertainty": "Inspect paper.pdf only when Markdown/index evidence is ambiguous.",
@@ -274,9 +330,8 @@ def _formal_page_content(family, title, *, body=None):
         f"page_family: {family}\n"
         "tags: [paper-source, fixture]\n"
         "aliases: []\n"
-        'sources: ["fixture-paper"]\n'
+        f'sources: ["{_obsidian_uri_pdf_source(title=title)}"]\n'
         "source_id: fixture-paper\n"
-        "source_pdf: fixture-paper-paper-pdf\n"
         f'summary: "Source-grounded {family} page for fixture validation."\n'
         "provenance:\n"
         "  extracted: [\"mineru/fixture-paper.md#method\"]\n"
@@ -290,13 +345,17 @@ def _formal_page_content(family, title, *, body=None):
         "updated: 2026-06-03\n"
         "---\n\n"
         "## 原文与证据入口\n\n"
-        f"- [原论文 PDF]({_obsidian_uri_pdf_url()})\n\n"
+        f"- [{title}]({_obsidian_uri_pdf_url()})\n\n"
         + body
     )
 
 
 def _obsidian_uri_pdf_url(slug="fixture-paper"):
     return f"obsidian://open?vault=paper-research-wiki&file=_paper_source%2Fraw%2F{slug}%2Fpaper.pdf"
+
+
+def _legacy_obsidian_uri_pdf_url(slug="fixture-paper"):
+    return f"obsidian://open?vault=paper-research-wiki&file=_epi%2Fraw%2F{slug}%2Fpaper.pdf"
 
 
 def _obsidian_uri_pdf_source(slug="fixture-paper", title="Fixture Paper"):
@@ -1073,21 +1132,21 @@ def test_create_wiki_ingest_record_rejects_legacy_review_needed_lifecycle_state(
         )
 
 
-def test_create_wiki_ingest_record_rejects_long_pdf_path_in_frontmatter_sources(tmp_path):
+def test_create_wiki_ingest_record_rejects_plain_pdf_path_in_frontmatter_sources(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
         vault,
         "references/plain-text-source.md",
         _formal_page_content("references", "Plain Text Source").replace(
-            'sources: ["fixture-paper"]',
+            f'sources: ["{_obsidian_uri_pdf_source(title="Plain Text Source")}"]',
             'sources: ["_paper_source/raw/fixture-paper/paper.pdf (原论文 PDF)"]',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    with pytest.raises(ValueError, match="scan-friendly short source labels"):
+    with pytest.raises(ValueError, match="Markdown links to canonical source PDFs"):
         create_wiki_ingest_record(
             vault,
             slug,
@@ -1097,21 +1156,69 @@ def test_create_wiki_ingest_record_rejects_long_pdf_path_in_frontmatter_sources(
         )
 
 
-def test_create_wiki_ingest_record_rejects_markdown_pdf_link_in_frontmatter_sources(tmp_path):
+def test_create_wiki_ingest_record_rejects_legacy_epi_body_pdf_link(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/legacy-epi-body-link.md",
+        _formal_page_content("references", "Legacy EPI Body Link").replace(
+            _obsidian_uri_pdf_url(),
+            _legacy_obsidian_uri_pdf_url(),
+        ),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+
+    with pytest.raises(ValueError, match="canonical _paper_source/raw/<slug>/paper.pdf|legacy _epi/raw"):
+        create_wiki_ingest_record(
+            vault,
+            slug,
+            [str(page)],
+            approved_by="codex-test",
+            source_review_path=str(source_review),
+        )
+
+
+def test_create_wiki_ingest_record_accepts_markdown_pdf_link_in_frontmatter_sources(tmp_path):
     vault = tmp_path / "vault"
     slug = _seed_agent_handoff(vault)
     page = _write_final_page(
         vault,
         "references/markdown-source-link.md",
         _formal_page_content("references", "Markdown Source Link").replace(
-            'sources: ["fixture-paper"]',
-            'sources: ["[fixture-paper](_paper_source/raw/fixture-paper/paper.pdf)"]',
+            f'sources: ["{_obsidian_uri_pdf_source(title="Markdown Source Link")}"]',
+            'sources: ["[Markdown Source Link](obsidian://open?vault=paper-research-wiki&file=_paper_source%2Fraw%2Ffixture-paper%2Fpaper.pdf)"]',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    with pytest.raises(ValueError, match="scan-friendly short source labels"):
+    record = create_wiki_ingest_record(
+        vault,
+        slug,
+        [str(page)],
+        approved_by="codex-test",
+        source_review_path=str(source_review),
+    )
+    assert record["status"] == "recorded"
+
+
+def test_create_wiki_ingest_record_rejects_relative_markdown_pdf_link_in_frontmatter_sources(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    page = _write_final_page(
+        vault,
+        "references/relative-markdown-source-link.md",
+        _formal_page_content("references", "Relative Markdown Source Link").replace(
+            f'sources: ["{_obsidian_uri_pdf_source(title="Relative Markdown Source Link")}"]',
+            'sources: ["[Relative Markdown Source Link](_paper_source/raw/fixture-paper/paper.pdf)"]',
+        ),
+    )
+    source_review = _write_final_source_review(vault, slug, [page])
+    _approve_handoff(vault, slug)
+
+    with pytest.raises(ValueError, match="Markdown links to canonical source PDFs"):
         create_wiki_ingest_record(
             vault,
             slug,
@@ -1128,14 +1235,14 @@ def test_create_wiki_ingest_record_rejects_internal_pdf_wikilink_source(tmp_path
         vault,
         "references/internal-pdf-wikilink-source.md",
         _formal_page_content("references", "Source Alias Not Slug").replace(
-            'sources: ["fixture-paper"]',
+            f'sources: ["{_obsidian_uri_pdf_source(title="Source Alias Not Slug")}"]',
             'sources: ["[[_paper_source/raw/fixture-paper/paper.pdf|fixture-paper 原论文 PDF]]"',
         ),
     )
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    with pytest.raises(ValueError, match="not internal wikilinks"):
+    with pytest.raises(ValueError, match="not internal wikilinks|not internal"):
         create_wiki_ingest_record(
             vault,
             slug,
@@ -1160,8 +1267,8 @@ def test_create_wiki_ingest_record_rejects_non_label_entries_in_frontmatter_sour
         vault,
         "references/non-pdf-source-entry.md",
         _formal_page_content("references", "Non PDF Source Entry").replace(
-            'sources: ["fixture-paper"]',
-            'sources: ["fixture-paper", '
+            f'sources: ["{_obsidian_uri_pdf_source(title="Non PDF Source Entry")}"]',
+            f'sources: ["{_obsidian_uri_pdf_source(title="Non PDF Source Entry")}", '
             + extra_source
             + "]",
         ),
@@ -1169,7 +1276,7 @@ def test_create_wiki_ingest_record_rejects_non_label_entries_in_frontmatter_sour
     source_review = _write_final_source_review(vault, slug, [page])
     _approve_handoff(vault, slug)
 
-    with pytest.raises(ValueError, match="scan-friendly|body provenance"):
+    with pytest.raises(ValueError, match="canonical source PDFs|body provenance|not internal wikilinks"):
         create_wiki_ingest_record(
             vault,
             slug,

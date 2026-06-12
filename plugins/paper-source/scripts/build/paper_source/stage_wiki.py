@@ -683,11 +683,53 @@ def _wiki_rule_source_model() -> dict:
         "principle": (
             "Obsidian/LLM Wiki construction and write rules are resolved from the target vault "
             "contract and framework references; local installed skills are execution helpers. "
+            "Keep Obsidian syntax, Paper Wiki paper-evidence semantics, and vault-local governance "
+            "as separate layers. "
             "The paper-research-wiki skill is the canonical paper wiki layer, while "
             "paper-source-paper-deposition remains a compatibility adapter. "
             "The final wiki executor is agent-neutral and may be Claude, Codex, or any other "
             "wiki-capable agent that follows the same contract."
         ),
+        "governance_layers": [
+            {
+                "layer": "obsidian_syntax",
+                "source": "kepano/obsidian-skills",
+                "owns": [
+                    "YAML properties/frontmatter",
+                    "tags and aliases",
+                    "wikilinks",
+                    "Markdown links",
+                    "embeds",
+                    "callouts",
+                    "Obsidian math delimiters",
+                    "bases and canvas syntax",
+                ],
+            },
+            {
+                "layer": "paper_wiki_evidence",
+                "source": PAPER_WIKI_CANONICAL_SKILL,
+                "owns": [
+                    "source-grounded paper claims",
+                    "formal page families",
+                    "formula reasoning chains",
+                    "figure/table evidence cards",
+                    "formal page relationships",
+                    "evidence tiers",
+                    "final-source-review.json readiness",
+                ],
+            },
+            {
+                "layer": "local_vault_governance",
+                "source": "target vault AGENTS.md and _meta/*",
+                "owns": [
+                    "local taxonomy",
+                    "page ownership",
+                    "staged writes",
+                    "QMD scope",
+                    "migration and retirement policy",
+                ],
+            },
+        ],
         "execution_agent_policy": {
             "allowed_executors": [
                 "Claude",
@@ -742,7 +784,7 @@ def _wiki_rule_source_model() -> dict:
             {
                 "priority": 8,
                 "source": "kepano/obsidian-skills",
-                "role": "Obsidian syntax, properties, wikilinks, embeds, callouts, bases, and canvas conventions.",
+                "role": "Obsidian syntax authority: properties/frontmatter, tags, wikilinks, Markdown links, embeds, callouts, math, bases, and canvas conventions.",
             },
             {
                 "priority": 9,
@@ -768,6 +810,8 @@ def _wiki_rule_source_model() -> dict:
             "Keep Markdown vault files as the source of truth; QMD and search indexes are retrieval aids.",
             "Preserve source provenance and distinguish extracted, inferred, and ambiguous claims.",
             "Final wiki pages must be grounded in the source paper artifacts, not reader summaries alone.",
+            "Use MinerU Markdown as the primary source for formulas, notation, method context, and prose; missing native TeX is normal and must not block writing or recording.",
+            "Use paper.pdf, formula-index.json, figure-index.json, and image evidence only when MinerU Markdown is missing, wrong, ambiguous, or insufficient.",
             "Review central formulas, figures, tables, and image evidence before distilling reusable wiki claims.",
             "Respect vault-local staged writes, link format, language policy, taxonomy, and frontmatter schema.",
         ],
@@ -861,7 +905,8 @@ def _build_wiki_deposition_task(
             "paper_source_core_role": "source-bundle-and-audit-only",
             "formal_writer_role": "obsidian-wiki-skill-layer",
             "paper_source_must_not_write_formal_pages": True,
-            "internal_roots": ["_paper_source/", "_epi/"],
+            "canonical_internal_roots": ["_paper_source/"],
+            "legacy_internal_roots": ["_epi/"],
         },
         "page_families": formal_page_family_names(),
         "page_family_records": formal_page_family_records(),
@@ -1048,7 +1093,8 @@ def _build_wiki_ingest_brief(
                 "formula-index.json, mineru/images/*, mineru/mineru-manifest.json, and "
                 "asset-normalization-record.json as fallback or visual-evidence checks only when Markdown "
                 "is missing, wrong, ambiguous, or insufficient. If non-empty native mineru/paper.tex exists, "
-                "treat it as an optional cross-check, not a required or primary source. Reader and critic "
+                "treat it as an optional cross-check, not a required or primary source. Missing native TeX "
+                "is normal and must not block writing or recording. Reader and critic "
                 "outputs, when present, are navigation and quality signals, not substitutes for the source paper."
             ),
             "reader_critic_policy": (

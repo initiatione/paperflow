@@ -102,7 +102,7 @@ def _snapshot_formal_pages(vault: Path, snapshot_name: str | None, *, execute: b
     if not execute:
         return None
     name = snapshot_name or f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-pre-rewrite"
-    snapshot = vault / "_epi" / "meta" / "formal-page-snapshots" / name
+    snapshot = vault / "_paper_source" / "meta" / "formal-page-snapshots" / name
     if (snapshot / "manifest.json").exists():
         return snapshot.relative_to(vault).as_posix() + "/"
 
@@ -588,7 +588,8 @@ def refresh_sidecars(
         return {"changed": False}
     staging = _staging_root(vault, slug)
     review_path = staging / "final-source-review.json"
-    request_path = staging / "prw-record-request.json"
+    request_path = staging / "paper-wiki-record-request.json"
+    legacy_request_path = staging / "prw-record-request.json"
     if not review_path.exists():
         return {"changed": False, "warning": "missing final-source-review.json"}
 
@@ -608,23 +609,42 @@ def refresh_sidecars(
     review_hash = _sha256(review_path)
 
     request_changed = False
+    legacy_request_changed = False
     if request_path.exists():
         request = _read_json(request_path)
         _refresh_page_hashes(request, page_records)
-        task = request.setdefault("prw_task", {})
+        task = request.setdefault("paper_wiki_task", {})
         task["route"] = "maintain_figures"
         task["snapshot"] = snapshot
         task["refreshed_at"] = _utc_now()
-        task["summary"] = "PRW refreshed normalized raw figure evidence links; Paper Source can consume this request with record-wiki-ingest if recording is desired."
+        task["summary"] = (
+            "Paper Wiki refreshed normalized raw figure evidence links; "
+            "Paper Source can consume this request with record-wiki-ingest if recording is desired."
+        )
         request.setdefault("final_source_review", {})["sha256"] = review_hash
         _write_json(request_path, request)
         request_changed = True
+    if legacy_request_path.exists():
+        legacy_request = _read_json(legacy_request_path)
+        _refresh_page_hashes(legacy_request, page_records)
+        task = legacy_request.setdefault("prw_task", {})
+        task["route"] = "maintain_figures"
+        task["snapshot"] = snapshot
+        task["refreshed_at"] = _utc_now()
+        task["summary"] = (
+            "Legacy PRW request refreshed during figure maintenance; regenerate the canonical "
+            "paper-wiki-record-request.json when the staging bundle is migrated."
+        )
+        legacy_request.setdefault("final_source_review", {})["sha256"] = review_hash
+        _write_json(legacy_request_path, legacy_request)
+        legacy_request_changed = True
 
     return {
         "changed": True,
         "final_source_review": str(review_path),
         "final_source_review_sha256": review_hash,
-        "prw_record_request_changed": request_changed,
+        "paper_wiki_record_request_changed": request_changed,
+        "legacy_prw_record_request_changed": legacy_request_changed,
     }
 
 

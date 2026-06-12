@@ -128,6 +128,9 @@ def test_stage_paper_can_emit_legacy_wiki_deposition_task_when_requested(tmp_pat
     assert task["handoff_boundary"]["paper_source_core_role"] == "source-bundle-and-audit-only"
     assert "epi_core_role" not in task["handoff_boundary"]
     assert task["handoff_boundary"]["formal_writer_role"] == "obsidian-wiki-skill-layer"
+    assert task["handoff_boundary"]["canonical_internal_roots"] == ["_paper_source/"]
+    assert task["handoff_boundary"]["legacy_internal_roots"] == ["_epi/"]
+    assert "internal_roots" not in task["handoff_boundary"]
     assert task["agent_context_policy"] == agent_context_policy()
     assert task["agent_context_policy"]["delegation_model"] == "clean-worker-final-artifacts"
     assert task["agent_context_policy"]["main_agent_reads"] == [

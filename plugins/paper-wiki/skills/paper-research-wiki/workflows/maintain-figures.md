@@ -55,7 +55,7 @@ Do not write formal pages during audit.
 
 Repair only after the audit is reviewed or the user explicitly approves the listed patch set.
 
-1. Create a pre-repair snapshot under `_epi/meta/formal-page-snapshots/<timestamp>-pre-figure-repair/` with a hash manifest for every formal page that will change.
+1. Create a pre-repair snapshot under `_paper_source/meta/formal-page-snapshots/<timestamp>-pre-figure-repair/` with a hash manifest for every formal page that will change. Existing legacy `_epi/meta/formal-page-snapshots/` trees remain readable for audit and rollback only.
 2. Patch only the lines that carry figure/formula/table evidence:
    - image `src` paths
    - Evidence figure card source lines
@@ -68,7 +68,8 @@ Repair only after the audit is reviewed or the user explicitly approves the list
 6. If a formula screenshot lacks complete LaTeX, keep the evidence as `needs_formula_review` and do not claim the equation has been fully recovered.
 7. Refresh sidecars only when reviewed artifact hashes changed:
    - `final-source-review.json`
-   - `prw-record-request.json`
+   - `paper-wiki-record-request.json`
+   - legacy `prw-record-request.json` only when repairing an existing old staging bundle
    - related Paper Source record request artifacts
 
 ## Verification

@@ -142,10 +142,10 @@ def test_snapshot_formal_pages_detaches_wikilinks_in_snapshot_copy(tmp_path):
 
     snapshot = module._snapshot_formal_pages(vault, "snapshot-test", execute=True)
 
-    assert snapshot == "_epi/meta/formal-page-snapshots/snapshot-test/"
+    assert snapshot == "_paper_source/meta/formal-page-snapshots/snapshot-test/"
     snapshot_text = (
         vault
-        / "_epi"
+        / "_paper_source"
         / "meta"
         / "formal-page-snapshots"
         / "snapshot-test"

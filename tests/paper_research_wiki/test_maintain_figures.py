@@ -396,3 +396,119 @@ def test_repair_page_keeps_later_section_images_out_of_plain_figure_block(tmp_pa
     assert "fig-008-task.jpg" in text
     assert "fig-012-success-rate.jpg" in text
     assert "12121212121212121212121212121212.jpg" not in text
+
+
+def test_snapshot_formal_pages_writes_canonical_paper_source_snapshot_root(tmp_path):
+    module = _load_module()
+    vault = tmp_path / "vault"
+    page = vault / "references" / "fixture.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text("# Fixture with [[concepts/example]]\n", encoding="utf-8")
+
+    snapshot = module._snapshot_formal_pages(vault, "snapshot-test", execute=True)
+
+    assert snapshot == "_paper_source/meta/formal-page-snapshots/snapshot-test/"
+    snapshot_text = (
+        vault
+        / "_paper_source"
+        / "meta"
+        / "formal-page-snapshots"
+        / "snapshot-test"
+        / "references"
+        / "fixture.md"
+    ).read_text(encoding="utf-8")
+    assert "[[concepts/example]]" in snapshot_text
+
+
+def test_refresh_sidecars_updates_canonical_paper_wiki_record_request(tmp_path):
+    module = _load_module()
+    slug = "fixture-paper"
+    vault = tmp_path / "vault"
+    raw_root = vault / "_paper_source" / "raw" / slug
+    mineru_dir = raw_root / "mineru"
+    images_dir = mineru_dir / "images"
+    staging = vault / "_paper_source" / "staging" / "papers" / slug
+    page = vault / "references" / "fixture.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    images_dir.mkdir(parents=True, exist_ok=True)
+    staging.mkdir(parents=True, exist_ok=True)
+
+    (mineru_dir / f"{slug}.md").write_text("# Fixture\n", encoding="utf-8")
+    (images_dir / "fig-001-example.jpg").write_bytes(b"figure")
+    (raw_root / "figure-index.json").write_text(json.dumps({"figures": []}), encoding="utf-8")
+    (raw_root / "formula-index.json").write_text(json.dumps({"formulas": []}), encoding="utf-8")
+    (raw_root / "asset-normalization-record.json").write_text(json.dumps({"status": "ok"}), encoding="utf-8")
+    page.write_text(
+        "\n".join(
+            [
+                "---",
+                "updated: 2026-06-01",
+                "---",
+                "",
+                "# Fixture",
+                "",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    review_path = staging / "final-source-review.json"
+    review_path.write_text(
+        json.dumps(
+            {
+                "reviewed_artifacts": [
+                    {"artifact": "mineru/images/*", "status": "reviewed", "files": [], "file_count": 0}
+                ],
+                "final_page_provenance": [
+                    {
+                        "relative_path": "references/fixture.md",
+                        "sha256": "stale",
+                        "source_grounded": True,
+                    }
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    request_path = staging / "paper-wiki-record-request.json"
+    request_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "paper-wiki-record-request-v1",
+                "final_pages": [
+                    {
+                        "relative_path": "references/fixture.md",
+                        "sha256": "stale",
+                    }
+                ],
+                "final_source_review": {
+                    "path": str(review_path),
+                    "sha256": "stale-review",
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    result = module.refresh_sidecars(
+        vault=vault,
+        slug=slug,
+        raw_root=raw_root,
+        changed_pages=[page],
+        snapshot="_paper_source/meta/formal-page-snapshots/test/",
+        execute=True,
+    )
+
+    review = json.loads(review_path.read_text(encoding="utf-8"))
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+
+    assert result["changed"] is True
+    assert result["paper_wiki_record_request_changed"] is True
+    assert result["legacy_prw_record_request_changed"] is False
+    assert request["paper_wiki_task"]["route"] == "maintain_figures"
+    assert request["paper_wiki_task"]["snapshot"] == "_paper_source/meta/formal-page-snapshots/test/"
+    assert request["final_pages"][0]["sha256"] != "stale"
+    assert request["final_source_review"]["sha256"] == result["final_source_review_sha256"]
+    assert review["final_page_provenance"][0]["sha256"] != "stale"

@@ -16,13 +16,13 @@ Every reference page ends with a `## Provenance` block, one entry per load-beari
 ```
 - Claim: <statement>
   Support: source-grounded; stance=author-claim-from-simulation
-  Evidence: MinerU Markdown 第 X 节; formula-index.json/Table I; 原论文 PDF (source: <obsidian:// link>).
+  Evidence: MinerU Markdown 第 X 节; formula-index.json/Table I; 原论文 PDF (source: [<paper title>](obsidian://...paper.pdf)).
 - Inference: <cross-page conclusion>
   Support: inferred
   Basis: <reasoning / which pages it rests on>
 ```
 
-For `references/ pages`, frontmatter `sources` must contain exactly one short source label. Do not put Markdown links, `[[...]]` wikilinks, `_paper_source/`, legacy `_epi/`, PDF paths, DOI/arXiv URLs, metadata paths, MinerU paths, or figure paths in frontmatter `sources`. Do not write `[[...]]` wikilinks to `_paper_source/` from frontmatter or formal-page body links. Frontmatter `sources:` must stay scan-friendly; frontmatter `sources:` must stay scan-friendly. Put the full clickable PDF URI in `## 原文与证据入口` as a Markdown link displayed as `原论文 PDF`, pointing at `obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf` (path `_paper_source/raw/<slug>/paper.pdf`, no `papers/` segment); put the full clickable PDF URI in `## 原文与证据入口`, not in properties. Old artifacts may be read for compatibility, but recorded formal pages must use short `sources` labels plus the body PDF URI before `record-wiki-ingest`.
+For `references/ pages`, frontmatter `sources` must contain exactly one Markdown link to the canonical source PDF, displayed as the source paper title: `[<paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)`. Use `_paper_source/raw/<slug>/paper.pdf`, with no `papers/` segment. Non-reference families may contain one or more title-display source PDF links for materially used papers. Do not use `[[...]]` wikilinks, legacy `_epi` links, plain/relative PDF paths, DOI/arXiv URLs, GitHub URLs, metadata paths, MinerU paths, or figure paths in frontmatter `sources`. Do not write `[[...]]` wikilinks to `_paper_source/` from frontmatter or formal-page body links. In `## 原文与证据入口`, include the same canonical PDF URI as a Markdown link and use the paper title as the clickable text, not `原论文 PDF`. Old artifacts may be read for compatibility, but recorded formal pages must use canonical `_paper_source` title-display PDF links before `record-wiki-ingest`.
 
 Relink, tag, alias, and merge repairs must keep support labels visible in final pages.
 

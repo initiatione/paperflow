@@ -25,12 +25,12 @@ def _write_formal_page(vault, relative_path, title, body, *, aliases=None, tags=
     aliases = aliases or []
     tags = tags or []
     if sources is None:
-        sources = ['"example-paper"']
+        sources = ['"[Example Paper](obsidian://open?vault=vault&file=_paper_source%2Fraw%2Fexample%2Fpaper.pdf)"']
     if relative_path.startswith("references/") and "## 原文与证据入口" not in body:
         body = (
             body
             + "\n\n## 原文与证据入口\n\n"
-            + "[原论文 PDF](obsidian://open?vault=vault&file=_paper_source%2Fraw%2Fexample%2Fpaper.pdf)"
+            + "- 原论文 PDF：[Example Paper](obsidian://open?vault=vault&file=_paper_source%2Fraw%2Fexample%2Fpaper.pdf)"
         )
     path.write_text(
         "\n".join(
@@ -202,7 +202,7 @@ def test_ask_wiki_source_evidence_treats_empty_tex_as_absent(tmp_path):
     assert source_evidence["artifacts"]["mineru_tex"] is False
 
 
-def test_ask_wiki_reports_legacy_frontmatter_pdf_link_as_repair_candidate(tmp_path):
+def test_ask_wiki_reports_internal_frontmatter_pdf_wikilink_as_repair_candidate(tmp_path):
     vault = tmp_path / "vault"
     raw_root = vault / "_paper_source" / "raw" / "example"
     (raw_root / "mineru").mkdir(parents=True, exist_ok=True)
@@ -223,7 +223,59 @@ def test_ask_wiki_reports_legacy_frontmatter_pdf_link_as_repair_candidate(tmp_pa
     assert pages["references/legacy-source-link.md"]["source_evidence"][0]["path"] == "_paper_source/raw/example/paper.pdf"
     assert any(
         candidate["kind"] == "source_frontmatter_mismatch"
-        and "move the PDF URI" in candidate["message"]
+        and "Markdown links, not internal wikilinks" in candidate["message"]
+        for candidate in result["correction_candidates"]
+    )
+
+
+def test_ask_wiki_accepts_title_display_markdown_pdf_link_in_frontmatter_sources(tmp_path):
+    vault = tmp_path / "vault"
+    raw_root = vault / "_paper_source" / "raw" / "example"
+    (raw_root / "mineru").mkdir(parents=True, exist_ok=True)
+    (raw_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
+    (raw_root / "mineru" / "example.md").write_text("mineru markdown\n", encoding="utf-8")
+    _write_formal_page(
+        vault,
+        "references/title-display-source-link.md",
+        "Title Display Source Link",
+        "Title Display Source Link discusses source evidence handling.",
+        aliases=["Title Display Source Link"],
+        sources=['"[Title Display Source Link](obsidian://open?vault=vault&file=_paper_source%2Fraw%2Fexample%2Fpaper.pdf)"'],
+    )
+
+    result = ask_wiki(vault, question="Title Display Source Link", limit=3)
+
+    pages = {page["path"]: page for page in result["pages"]}
+    assert pages["references/title-display-source-link.md"]["source_evidence"][0]["path"] == "_paper_source/raw/example/paper.pdf"
+    assert not any(
+        candidate["kind"] == "source_frontmatter_mismatch"
+        for candidate in result["correction_candidates"]
+    )
+
+
+def test_ask_wiki_reports_generic_body_pdf_label_as_repair_candidate(tmp_path):
+    vault = tmp_path / "vault"
+    raw_root = vault / "_paper_source" / "raw" / "example"
+    (raw_root / "mineru").mkdir(parents=True, exist_ok=True)
+    (raw_root / "paper.pdf").write_bytes(b"%PDF-1.4\nfixture\n")
+    _write_formal_page(
+        vault,
+        "references/generic-body-source-label.md",
+        "Generic Body Source Label",
+        (
+            "Generic Body Source Label discusses source evidence handling.\n\n"
+            "## 原文与证据入口\n\n"
+            "- 原论文 PDF：[原论文 PDF](obsidian://open?vault=vault&file=_paper_source%2Fraw%2Fexample%2Fpaper.pdf)"
+        ),
+        aliases=["Generic Body Source Label"],
+        sources=['"[Generic Body Source Label](obsidian://open?vault=vault&file=_paper_source%2Fraw%2Fexample%2Fpaper.pdf)"'],
+    )
+
+    result = ask_wiki(vault, question="Generic Body Source Label", limit=3)
+
+    assert any(
+        candidate["kind"] == "source_pdf_body_link_missing"
+        and "not `原论文 PDF`" in candidate["message"]
         for candidate in result["correction_candidates"]
     )
 

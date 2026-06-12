@@ -146,7 +146,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "0.2.3"
+    assert manifest["version"] == "0.2.4"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -157,7 +157,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "link repair" in manifest["interface"]["longDescription"]
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v0.2.3 | Paper Wiki:")
+    assert manifest["interface"]["shortDescription"].startswith("v0.2.4 | Paper Wiki:")
     for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
@@ -168,12 +168,12 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_prw_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "0.2.4"
+    assert manifest["version"] == "0.2.5"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v0.2.4 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v0.2.5 | Paper Source:")
     assert "record" in manifest["interface"]["shortDescription"]
     assert "Paper Source" in manifest["interface"]["longDescription"]
     assert "Paper Wiki" in manifest["interface"]["longDescription"]
@@ -618,8 +618,9 @@ def test_paper_wiki_documents_ask_mode_paper_source_record_request_handoff():
     extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
     update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
     redo = _read(PUBLIC_SKILL / "workflows" / "redo-extraction.md")
+    maintain = _read(PUBLIC_SKILL / "workflows" / "maintain-figures.md")
     integration = _read(PLUGIN / "docs" / "paper-source-integration.md")
-    combined = "\n".join([standard, extract, update, redo, integration])
+    combined = "\n".join([standard, extract, update, redo, maintain, integration])
 
     for phrase in [
         "paper-wiki-record-request.json",
@@ -853,30 +854,40 @@ def test_paper_wiki_supports_single_and_batch_redo_deep_extraction():
         assert phrase in redo
 
 
-def test_paper_wiki_keeps_sources_scan_friendly_and_pdf_links_in_body():
+def test_paper_wiki_uses_title_display_pdf_links_in_sources_and_body():
     standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
     frontmatter = _read(PLUGIN / "rules" / "formal-page-frontmatter.md")
     provenance = _read(PUBLIC_SKILL / "references" / "page-provenance.md")
     extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
+    source_linkage = _read(PAPER_SOURCE_PLUGIN / "docs" / "paper-source-linkage.md")
+    source_structure = _read(PAPER_SOURCE_PLUGIN / "docs" / "structure.md")
+    source_changelog = _read(PAPER_SOURCE_PLUGIN / "docs" / "CHANGELOG.md")
 
     for text in [standard, frontmatter, provenance, extract]:
-        # canonical clickable obsidian:// form is still required, but in body evidence sections
         assert "obsidian://open?vault=" in text
-        # correct PDF path with no stale papers/ segment; internal wikilinks are not allowed in formal pages
         assert "_paper_source/raw/<slug>/paper.pdf" in text
         assert "papers/<slug>" not in text
         assert "[[_paper_source/raw/<slug>/paper.pdf|<slug>]]" not in text
+        assert "title-display" in text or "source paper title" in text
         assert "Do not write `[[...]]` wikilinks to `_paper_source/`" in text
-        assert "frontmatter `sources:` must stay scan-friendly" in text
-        assert "put the full clickable PDF URI in `## 原文与证据入口`" in text
+        assert "not `原论文 PDF`" in text
+    for text in [source_linkage, source_structure, source_changelog]:
+        assert "_paper_source/raw/<slug>/paper.pdf" in text
+        assert "title-display" in text or "source paper title" in text or "标题显示" in text
+        assert "_paper_source/raw/papers/<slug>/paper.pdf" not in text
+        assert "_paper_source%2Fraw%2Fpapers%2F<slug>%2Fpaper.pdf" not in text
+        assert "[[_paper_source/raw/<slug>/paper.pdf|<slug>]]" not in text
     assert "Markdown link" in standard
+    assert "[<full paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)" in standard
     assert "原论文 PDF" in standard
-    assert "plain path text" in standard
+    assert "Plain path text" in standard
     for phrase in ["metadata", "MinerU", "DOI", "arXiv"]:
         assert phrase in standard
+    assert "scan-friendly short labels" not in source_changelog
+    assert "旧 frontmatter `sources`" not in source_structure
 
 
-def test_paper_wiki_frontmatter_governance_keeps_properties_scan_friendly():
+def test_paper_wiki_frontmatter_governance_uses_title_display_sources():
     standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
     frontmatter = _read(PLUGIN / "rules" / "formal-page-frontmatter.md")
     anatomy = _read(PUBLIC_SKILL / "references" / "references-page-anatomy.md")
@@ -885,19 +896,20 @@ def test_paper_wiki_frontmatter_governance_keeps_properties_scan_friendly():
 
     combined = "\n".join([standard, frontmatter, anatomy, check, workflow_doc])
     for phrase in [
-        "scan-friendly properties",
-        "source_pdf:",
+        "paper source entry list",
+        "canonical source PDF",
+        "source paper title",
+        "title-display source PDF links",
         "source_id:",
-        "short source label",
-        "do not expose long obsidian:// URIs in the properties pane",
-        "Put the full clickable PDF URI in `## 原文与证据入口`",
+        "use the paper title as the clickable text, not `原论文 PDF`",
         "frontmatter `provenance` is a compact status summary",
         "detailed source bundle paths belong in the body `## Provenance` block or sidecar",
         "Old `lifecycle: review-needed` pages are legacy repair inputs",
         "Do not add `review_status`",
-        "external wiki-lint compatibility",
     ]:
         assert phrase in combined
+    assert "source_pdf:" not in combined
+    assert "frontmatter `sources:` must stay scan-friendly" not in combined
 
 
 def test_paper_wiki_evidence_taxonomy_matches_current_vault_tags():
@@ -969,11 +981,15 @@ def test_paper_wiki_scopes_reference_single_source_separately_from_synthesis_pag
     extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
 
     for text in [standard, frontmatter, provenance, extract]:
-        assert "references/ pages" in text
-        assert "exactly one short source label" in text
-    for text in [standard, frontmatter, extract]:
-        assert "concepts/, derivations/, experiments/, synthesis/, reports/, and opportunities/" in text
-        assert "one or more short source labels" in text
+        assert "references/" in text
+        assert (
+            "exactly one source PDF link" in text
+            or "exactly one Markdown link to the canonical source PDF" in text
+        )
+    for text in [standard, frontmatter, provenance, extract]:
+        for family in ["concepts/", "derivations/", "experiments/", "synthesis/", "reports/", "opportunities/"]:
+            assert family in text
+        assert "one or more title-display source PDF links" in text
     assert "same frontmatter contract" not in standard
 
 
@@ -985,8 +1001,8 @@ def test_paper_wiki_supports_frontmatter_only_github_metadata_repair():
     for phrase in [
         "Frontmatter-Only Metadata Repair",
         "verified `github:` property",
-        "Keep `sources:` as scan-friendly short source labels",
-        "do not add GitHub, DOI, arXiv, README, metadata, MinerU paths, PDF paths, or Markdown links to frontmatter `sources:`",
+        "Preserve `sources:` as title-display Markdown links to the canonical source PDFs",
+        "do not add GitHub, DOI, arXiv, README, metadata, MinerU paths, figure paths, plain/relative PDF paths",
         "Do not automatically run the full graph-aware rewrite path",
         "Escalate to Graph-Aware Rewrite only if the metadata changes a claim",
     ]:
@@ -1004,7 +1020,7 @@ def test_paper_wiki_supports_frontmatter_only_github_metadata_repair():
     for phrase in [
         "Frontmatter-only metadata repair",
         "verified `github:` property",
-        "keep `sources:` as scan-friendly short source labels",
+        "preserve `sources:` as title-display Markdown links to canonical source PDFs",
         "Do not trigger graph-aware rewrite",
         "paper-wiki-record-request.json",
         "record-wiki-ingest",
@@ -1079,6 +1095,40 @@ def test_references_page_anatomy_requires_source_map_formula_chain_and_figure_ca
     ]:
         assert phrase in anatomy
     assert "MinerU Markdown / TeX / images / manifest" not in anatomy
+
+
+def test_paper_wiki_keeps_obsidian_syntax_paper_evidence_and_vault_governance_separate():
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    frontmatter = _read(PLUGIN / "rules" / "formal-page-frontmatter.md")
+    structure = _read(PLUGIN / "docs" / "structure.md")
+    workflow = _read(PLUGIN / "docs" / "workflow.md")
+    artifact_contract = _read(PUBLIC_SKILL / "references" / "paper-source-artifact-contract.md")
+
+    combined = "\n".join([skill, standard, frontmatter, structure, workflow, artifact_contract])
+    for phrase in [
+        "Governance Layers",
+        "Obsidian syntax layer",
+        "Paper Wiki paper-evidence layer",
+        "Local vault governance layer",
+        "kepano/obsidian-skills",
+        "YAML properties/frontmatter",
+        "wikilinks",
+        "embeds",
+        "callouts",
+        "Markdown links",
+        "source-map-grounded paper claims",
+        "formal page relationships",
+        "target vault `AGENTS.md` and `_meta/*`",
+        "Sample vaults and upstream wiki repositories are references, not hard schemas",
+    ]:
+        assert phrase in combined
+
+    assert "Native TeX is not required" in artifact_contract
+    assert "Missing native TeX is normal" in skill
+    for text in [skill, standard, artifact_contract]:
+        assert "MinerU Markdown" in text
+        assert "missing, wrong, ambiguous, or insufficient" in text
 
 
 def test_paper_wiki_defines_formal_knowledge_maintenance_beyond_page_writing():

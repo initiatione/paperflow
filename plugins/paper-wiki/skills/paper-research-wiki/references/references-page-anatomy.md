@@ -49,9 +49,8 @@ relationships:
     type: uses
   - target: "[[synthesis/<page>]]"
     type: related_to
-sources: ["<short source label>"]
+sources: ["[<full paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)"]
 source_id: "<slug>"
-source_pdf: "obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf"
 summary: "<year> <venue> <type>，提出 <ACRONYM>：<one-line mechanism>。"
 provenance:
   extracted:
@@ -77,14 +76,15 @@ Field rules and *why*:
 - **`tags`** — exactly the five facets below, in order. Facets let the graph be sliced by domain,
   method, task, topic, and *evidence strength* — the last one is what stops a simulation paper from
   being cited as field-proven.
-- **`sources`** — frontmatter `sources:` must stay scan-friendly: use exactly one short source
-  label for a `references/` page, normally the paper slug, DOI slug, or canonical title label.
-  Do not expose long `obsidian://` URIs in the properties pane. Do not use Markdown links,
-  `[[...]]` wikilinks, `_paper_source/`, legacy `_epi/`, PDF paths, DOI/arXiv URLs, metadata,
-  MinerU, manifest, or figure paths in frontmatter `sources`.
-  Put the full clickable PDF URI in `## 原文与证据入口` as a Markdown link displayed as `原论文 PDF`,
-  pointing at `obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf`.
-  The path is `_paper_source/raw/<slug>/paper.pdf` — **no `papers/` segment**.
+- **`sources`** — frontmatter `sources:` is the source PDF entry list. A `references/` page uses
+  exactly one Markdown link to the canonical PDF, displayed as the full paper title:
+  `[<full paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)`.
+  The path is `_paper_source/raw/<slug>/paper.pdf` — **no `papers/` segment**. Do not use
+  `[[...]]` wikilinks, legacy `_epi` links, plain/relative PDF paths, DOI/arXiv URLs, GitHub URLs,
+  metadata, MinerU, manifest, or figure paths in frontmatter `sources`. Put DOI/arXiv/GitHub and
+  source-map details in body evidence, provenance, sidecars, or dedicated properties such as
+  `github:`. In `## 原文与证据入口`, repeat the canonical PDF URI as a Markdown link and use the
+  paper title as the clickable text, not `原论文 PDF`.
 - **`summary`** — fixed shape: `年份 + 出处 + 类型，提出 缩写：一句机制`. A summary that does not
   name the venue/year and the one-line mechanism is incomplete. Keep under ~120 Chinese characters.
 - **`provenance`** — three *qualitative bullet lists* (not numeric ratios). `extracted` = what the
@@ -356,8 +356,9 @@ honest simulation-tier node.
 
 - Five tag facets present, `evidence/` tier set, and tier matches the prose boundary.
 - `summary` follows `年份+出处+类型，提出 缩写：机制`.
-- `sources` uses scan-friendly short source labels only; the body `## 原文与证据入口` has the full
-  clickable PDF URI, path `_paper_source/raw/<slug>/paper.pdf` (no `papers/`).
+- `sources` uses a title-display Markdown link to the canonical source PDF, path
+  `_paper_source/raw/<slug>/paper.pdf` (no `papers/`), and the body `## 原文与证据入口` uses the
+  same paper-title link text.
 - Frontmatter `provenance` has all three lists; body has a `## Provenance` block with stance labels.
 - Source-map-first writing used MinerU Markdown as the primary formula and notation source, with
   PDF/index/image fallback only for Markdown gaps, errors, or ambiguity, not only reader/critic

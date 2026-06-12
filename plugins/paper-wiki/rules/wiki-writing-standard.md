@@ -8,7 +8,19 @@ Formal page prose must also follow `../skills/paper-wiki-language/SKILL.md`. Rea
 
 A Paper Wiki task is not complete until formal pages, tracking files, graph links, taxonomy, provenance, language gate, QMD freshness, and Paper Source record readiness have been checked or explicitly reported as skipped with reason.
 
+## Governance Layers
+
+Keep three contracts separate:
+
+1. Obsidian syntax layer: follow `kepano/obsidian-skills` for YAML properties/frontmatter, tags, aliases, wikilinks, embeds, callouts, Markdown links, Obsidian math delimiters, bases, and canvas syntax. Use `[[wikilinks]]` only for internal formal notes and Markdown links for external URLs or `obsidian://` evidence entries.
+2. Paper Wiki paper-evidence layer: follow this Paper Wiki/Paper Source contract for source-map-grounded paper claims, formal page families, provenance, evidence tiers, relationships, formula reasoning chains, figure/table evidence cards, `final-source-review.json`, and record readiness.
+3. Local vault governance layer: follow the target vault `AGENTS.md` and `_meta/*` for owner-specific taxonomy, page ownership, staged writes, QMD scope, and migration policy. Sample vaults and upstream wiki repositories are references, not hard schemas for the target vault.
+
+Do not collapse these layers. Obsidian syntax rules decide whether a link, property, embed, callout, or math block renders correctly; Paper Wiki rules decide whether a paper claim is source-grounded and belongs in a formal page; the target vault decides local ownership and taxonomy.
+
 Paper Wiki is the formal knowledge maintenance layer. It consumes Paper Source evidence handoffs, but its durable responsibility is broader: maintain formal pages, formal page content relationships, content relationship maintenance, claim staleness checks, split or merge pages when the graph needs it, reverse dependencies, evidence-tier drift, derived concepts, derivations, synthesis, tracking files, indexes, and record-readiness state.
+
+Formula, notation, method context, and prose evidence should be read from MinerU Markdown first. Use the PDF, `formula-index.json`, `figure-index.json`, and image evidence as fallback checks only when MinerU Markdown is missing, wrong, ambiguous, or insufficient; native TeX is optional cross-check evidence when present, and missing native TeX is normal.
 
 ## Core Rule
 
@@ -69,9 +81,8 @@ aliases: ["<ACRONYM>", "<full method name>", "<descriptive name>"]
 relationships:
   - target: "[[concepts/related-concept]]"
     type: uses
-sources: ["<short source label>"]
+sources: ["[<full paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)"]
 source_id: "<slug>"
-source_pdf: "obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf"
 summary: "<year> <venue> <type>，提出 <ACRONYM>：<one-line mechanism>。"
 provenance:
   extracted:
@@ -125,7 +136,7 @@ Required frontmatter fields:
 
 Do not use `reviewed`, `verified`, `source-reviewed`, or old `review-needed` as formal page lifecycle states in the new contract. New agent-written pages start as `lifecycle: draft`, and `draft` is the only steady-state lifecycle value Paper Wiki/Paper Source should emit. Old pages with `lifecycle: review-needed` are legacy repair inputs and should be migrated to `draft` during formal-page property repair, not preserved as a steady-state status.
 
-Use scan-friendly properties for Obsidian and external wiki-lint compatibility: frontmatter `sources:` must stay scan-friendly and contain short source labels such as the paper slug, DOI slug, or canonical title label. Do not expose long `obsidian://` URIs in the properties pane; in plain property wording, do not expose long obsidian:// URIs in the properties pane. Do not put Markdown links, `[[...]]` wikilinks, `_paper_source/`, legacy `_epi/`, PDF paths, DOI/arXiv URLs, metadata paths, MinerU paths, or figure paths in `sources:`. Do not write `[[...]]` wikilinks to `_paper_source/` from frontmatter or formal-page body links. For `references/` pages use exactly one short source label. For non-reference families, concepts/, derivations/, experiments/, synthesis/, reports/, and opportunities/ may use one or more short source labels for materially used papers. Put the full clickable PDF URI in `## 原文与证据入口` as a Markdown link displayed as `原论文 PDF`, pointing at `obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf` (path `_paper_source/raw/<slug>/paper.pdf`, no `papers/` segment); put the full clickable PDF URI in `## 原文与证据入口`, not in properties. Plain path text may appear only as an audit address in body provenance, not as a graph link; plain path text is acceptable only for body audit addresses. Optional scan-friendly properties such as `source_id:` and `source_pdf:` may mirror the slug and URI if the target vault contract accepts them, but graph links must remain formal-page-only.
+Frontmatter `sources:` is the paper source entry list. Each entry must be a Markdown link whose target is the canonical source PDF and whose visible text is the source paper title: `[<full paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)`. Use the path `_paper_source/raw/<slug>/paper.pdf`, with no `papers/` segment. For `references/` pages use exactly one source PDF link. For non-reference families, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/` may use one or more title-display source PDF links for materially used papers. Do not use `[[...]]` wikilinks, legacy `_epi` links, plain/relative PDF paths, DOI/arXiv URLs, GitHub URLs, metadata paths, MinerU paths, or figure paths in `sources:`. DOI/arXiv/GitHub/MinerU/metadata/image evidence belongs in body evidence, provenance, sidecars, or dedicated properties such as `github:`, not in `sources:`. Do not write `[[...]]` wikilinks to `_paper_source/` from frontmatter or formal-page body links. In `## 原文与证据入口`, include the same canonical PDF URI as a Markdown link and use the paper title as the clickable text, not `原论文 PDF`. The bullet label may remain `原论文 PDF：`, but the link text must be the paper title. Plain path text may appear only as an audit address in body provenance, not as a graph link.
 
 Frontmatter `provenance` is a compact status summary; in plain property wording, frontmatter `provenance` is a compact status summary. Detailed source bundle paths belong in the body `## Provenance` block or sidecar; detailed source bundle paths belong in the body `## Provenance` block or sidecar, where evidence addresses can stay readable without polluting properties or formal wikilinks.
 

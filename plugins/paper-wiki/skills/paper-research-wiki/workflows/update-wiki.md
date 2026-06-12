@@ -22,7 +22,7 @@ Use this lightweight path when the user asks only to add or repair formal page m
 
 1. Confirm the target page already exists and the source paper identity is unchanged.
 2. Verify the metadata against an existing Paper Source artifact when available, such as `_paper_source/raw/<slug>/code-verification.json`, metadata, or prior source review. If no source artifact exists, perform one targeted repository/DOI/arXiv check and record the verification boundary in the completion report.
-3. Keep `sources:` as scan-friendly short source labels. Put the full clickable PDF URI in the body `## 原文与证据入口`. Put repository links in `github:` or the page body evidence section; do not add GitHub, DOI, arXiv, README, metadata, MinerU paths, PDF paths, or Markdown links to frontmatter `sources:`.
+3. Preserve `sources:` as title-display Markdown links to the canonical source PDFs. Put repository links in `github:` or the page body evidence section; do not add GitHub, DOI, arXiv, README, metadata, MinerU paths, figure paths, plain/relative PDF paths, legacy `_epi` links, internal wikilinks, or non-PDF URLs to frontmatter `sources:`.
 4. Do not automatically run the full graph-aware rewrite path, dependent-page rewrite, `final-source-review.json` refresh, or `paper-wiki-record-request.json` creation for a metadata-only repair. Escalate to Graph-Aware Rewrite only if the metadata changes a claim, evidence boundary, relationship, lifecycle, or downstream synthesis.
 5. Still run a targeted post-task check for frontmatter validity, changed file paths, source PDF link preservation, and the next Paper Source/Paper Wiki action.
 

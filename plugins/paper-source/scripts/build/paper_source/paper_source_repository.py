@@ -53,8 +53,6 @@ DEFAULT_RETENTION_POLICY: dict[str, Any] = {
         "raw",
         "meta/paper-source-config.yaml",
         "meta/paper-source-config-state.json",
-        "meta/epi-config.yaml",
-        "meta/epi-config-state.json",
         "meta/config-history",
         "README.md",
         "manifest.json",

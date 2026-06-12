@@ -74,6 +74,10 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     assert retention["lifecycle"]["meta_manifests"]["raw-cleanup"]["keep_latest"] == 30
     assert retention["lifecycle"]["formal_page_snapshots"]["keep_latest"] == 3
     assert retention["lifecycle"]["temporary_files"]["tmp-manual-pdfs"]["keep_latest"] == 5
+    assert "meta/paper-source-config.yaml" in retention["protected"]
+    assert "meta/paper-source-config-state.json" in retention["protected"]
+    assert "meta/epi-config.yaml" not in retention["protected"]
+    assert "meta/epi-config-state.json" not in retention["protected"]
     assert (vault / "_meta" / "agent-operating-contract.md").is_file()
     assert (vault / "_meta" / "schema.md").is_file()
     assert (vault / "_meta" / "taxonomy.md").is_file()
@@ -85,9 +89,12 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     schema = (vault / "_meta" / "schema.md").read_text(encoding="utf-8")
     assert "Obsidian math rendering" in agents
     assert "```math" in agents
+    assert "legacy `_epi/**`" in agents
+    assert "qmd ls paper-research-wiki/_epi" not in agents
     assert "mineru/paper.tex" in operating_contract
     assert "block `$$...$$`" in operating_contract
     assert "fenced `math`, `tex`, or `latex`" in operating_contract
+    assert "legacy `_epi/**`" in operating_contract
     assert "figures/tables/images" in schema
     assert "Formula Rendering Contract" in schema
     assert "Do not use fenced code blocks labelled `math`, `tex`, or `latex`" in schema
@@ -102,7 +109,9 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     assert "on-demand workflow directories" in directory_structure
     assert "`_paper_source/quarantine/`" in directory_structure
     assert "`_paper_source/evolution/`" in directory_structure
-    assert "_paper_source/" in (vault / "_meta" / "graph-visibility.md").read_text(encoding="utf-8")
+    graph_visibility = (vault / "_meta" / "graph-visibility.md").read_text(encoding="utf-8")
+    assert "_paper_source/" in graph_visibility
+    assert "legacy `_epi/` when present" in graph_visibility
     graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
     assert "_paper_source" not in graph["search"]
     assert "_raw" not in graph["search"]
@@ -339,6 +348,10 @@ def test_load_retention_policy_upgrades_legacy_default_policy_without_preview_wr
     assert applied_policy["max_total_files"] == 3000
     assert stored["max_total_files"] == 3000
     assert stored["protected"][0] == "raw"
+    assert "meta/paper-source-config.yaml" in stored["protected"]
+    assert "meta/paper-source-config-state.json" in stored["protected"]
+    assert "meta/epi-config.yaml" not in stored["protected"]
+    assert "meta/epi-config-state.json" not in stored["protected"]
     assert "lifecycle" in stored
 
 

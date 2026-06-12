@@ -12,7 +12,7 @@ Adapt field names to the target vault contract, but preserve these facts somewhe
 - Final review artifacts: `final-source-review.json`, `wiki-ingest-record.json`, human approval record.
 - Support status summary: count of source-grounded, metadata-only, inferred, and unsupported claims.
 
-Frontmatter `sources` must contain only scan-friendly short source labels. Put the full clickable PDF URI in the body `## 原文与证据入口` as a Markdown link to `_paper_source/raw/<slug>/paper.pdf`. Legacy `_epi` or `_paper_source` wikilinks may be read for compatibility, but recorded formal pages must convert them to short `sources` labels plus the body PDF URI before `record-wiki-ingest`. Metadata, MinerU Markdown, optional non-empty native TeX, DOI/arXiv URLs, figure paths, and other evidence details belong in body provenance, not frontmatter `sources`.
+Frontmatter `sources` must contain title-display Markdown links to canonical source PDFs, such as `[<paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)`. The underlying source path is `_paper_source/raw/<slug>/paper.pdf`, with no `papers/` segment, and the link text must be the source paper title. Legacy `_epi` or `_paper_source` wikilinks may be read for compatibility, but recorded formal pages must convert them to canonical `_paper_source` title-display PDF links before `record-wiki-ingest`. Metadata, MinerU Markdown, optional non-empty native TeX, DOI/arXiv URLs, GitHub URLs, figure paths, and other evidence details belong in body provenance, sidecars, or dedicated properties such as `github:`, not frontmatter `sources`.
 
 ## Claim Line Contract
 

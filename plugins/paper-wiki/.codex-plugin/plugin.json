@@ -1,6 +1,6 @@
 {
   "name": "paper-wiki",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Paper Wiki asks, deposits, checks, updates, relinks, and redoes source-map-grounded academic paper knowledge.",
   "author": {
     "name": "liuchf"
@@ -20,7 +20,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Wiki",
-    "shortDescription": "v0.2.3 | Paper Wiki: ask, deposit, check, update, relink, redo.",
+    "shortDescription": "v0.2.4 | Paper Wiki: ask, deposit, check, update, relink, redo.",
     "longDescription": "Paper Wiki is one assistant for Paper Source handoffs: ask the formal graph, deposit ready papers, redo source-map extraction, update/relink pages, maintain formal page relationships and stale claims, enforce provenance and language gates, keep formula reasoning chains and evidence figure cards source-grounded, run link repair, preserve QMD-compatible indexing, and finish with a post-task check.",
     "developerName": "liuchf",
     "category": "Productivity",

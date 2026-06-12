@@ -221,12 +221,26 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     for field in EXPECTED_RESEARCH_REVIEW_FIELDS:
         assert field in must_record
     assert "draft" in must_record
-    execution_agent_policy = wiki_ingest_brief["wiki_rule_source_model"]["execution_agent_policy"]
+    rule_source_model = wiki_ingest_brief["wiki_rule_source_model"]
+    governance_layers = {item["layer"]: item for item in rule_source_model["governance_layers"]}
+    assert governance_layers["obsidian_syntax"]["source"] == "kepano/obsidian-skills"
+    assert "YAML properties/frontmatter" in governance_layers["obsidian_syntax"]["owns"]
+    assert "wikilinks" in governance_layers["obsidian_syntax"]["owns"]
+    assert governance_layers["paper_wiki_evidence"]["source"] == "paper-research-wiki"
+    assert "formula reasoning chains" in governance_layers["paper_wiki_evidence"]["owns"]
+    assert governance_layers["local_vault_governance"]["source"] == "target vault AGENTS.md and _meta/*"
+    assert "migration and retirement policy" in governance_layers["local_vault_governance"]["owns"]
+    assert "Missing native TeX is normal" in wiki_ingest_brief["ingest_policy"]["source_first_policy"]
+    assert any(
+        "missing native TeX is normal" in requirement
+        for requirement in rule_source_model["write_contract_requirements"]
+    )
+    execution_agent_policy = rule_source_model["execution_agent_policy"]
     assert execution_agent_policy["allowed_executors"][:2] == ["Claude", "Codex"]
     assert "target vault contract" in execution_agent_policy["brand_neutrality"]
     rule_sources = [
         item["source"]
-        for item in wiki_ingest_brief["wiki_rule_source_model"]["resolution_order"]
+        for item in rule_source_model["resolution_order"]
     ]
     assert rule_sources[0] == "current user instruction"
     assert "target vault AGENTS.md" in rule_sources
@@ -239,20 +253,20 @@ def test_one_paper_ingest_preserves_raw_artifacts_and_stages_after_critic_pass(t
     assert paper_wiki_index < local_index
     prw_role = next(
         item["role"]
-        for item in wiki_ingest_brief["wiki_rule_source_model"]["resolution_order"]
+        for item in rule_source_model["resolution_order"]
         if "paper-research-wiki" in item["source"]
     )
     assert "canonical" in prw_role
     assert "compatibility adapter" in prw_role
     local_skill_role = next(
         item["role"]
-        for item in wiki_ingest_brief["wiki_rule_source_model"]["resolution_order"]
+        for item in rule_source_model["resolution_order"]
         if item["source"] == "local llm-wiki / wiki-ingest / obsidian-markdown skills"
     )
     assert "do not replace the target vault contract" in local_skill_role
     assert any(
         "Markdown vault files as the source of truth" in requirement
-        for requirement in wiki_ingest_brief["wiki_rule_source_model"]["write_contract_requirements"]
+        for requirement in rule_source_model["write_contract_requirements"]
     )
     assert "Claude" in wiki_ingest_brief["ingest_policy"]["executor_policy"]
     assert "Codex" in wiki_ingest_brief["ingest_policy"]["executor_policy"]
