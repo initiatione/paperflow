@@ -1,10 +1,8 @@
 # Reset Repair
 
-Use this workflow for destructive wiki reset, vault repair, config recovery, or misdelete recovery.
+Use for destructive wiki reset, vault repair, config recovery, or misdelete recovery. Always load `references/reset-recovery.md` before reset, `--no-backup`, config reset, or misdelete recovery.
 
-Always load `references/reset-recovery.md` before reset, `--no-backup`, config reset, or misdelete recovery.
-
-## Inspect Config State
+## Reset Protocol
 
 Before and after destructive actions, report non-secret config state:
 
@@ -12,53 +10,19 @@ Before and after destructive actions, report non-secret config state:
 python scripts\orchestrator.py config-status --vault <vault> --json --include-values --include-runtime
 ```
 
-Do not print secrets or delete config unless the separate config reset phrase is provided.
+Reset is destructive. Do not reset from one sentence. First inventory the vault, run `config-status`, explain moved/removed/preserved paths, preview `wiki-reset --vault <vault> --preview --json`, and propose backup outside the active vault, for example `<vault-parent>\paper-research-wiki-reset-backups\<timestamp>`. Do not print secrets or delete config unless the separate config reset phrase is provided.
 
-## Reset Preview
-
-Reset is destructive. Do not reset from one sentence. Preview first:
+Require exact second confirmation `确认重置 Paper Source wiki`, then run:
 
 ```powershell
 python scripts\orchestrator.py wiki-reset --vault <vault> --preview --json
-```
-
-Before reset, inventory the vault, run `config-status`, explain moved/removed/preserved paths, and propose backup outside the active vault, such as:
-
-```text
-<vault-parent>\paper-research-wiki-reset-backups\<timestamp>
-```
-
-## Confirm Wiki Reset
-
-Require this exact second confirmation:
-
-```text
-确认重置 Paper Source wiki
-```
-
-Then run:
-
-```powershell
 python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 Paper Source wiki" --json
-```
-
-If backup is explicitly declined, this is allowed only for wiki content and still preserves config:
-
-```powershell
 python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 Paper Source wiki" --no-backup --json
 ```
 
-Treat `不需要备份` as "do not back up wiki content"; it does not authorize config deletion.
+If backup is explicitly declined, `--no-backup` is allowed only for wiki content and still preserves config. Treat `不需要备份` as "do not back up wiki content"; it does not authorize config deletion.
 
-## Confirm Config Reset
-
-To reset config too, require this separate phrase:
-
-```text
-确认同时重置 Paper Source config
-```
-
-Do not infer config reset from `reset wiki`, `clean everything`, `no backup`, or `重新初始化`.
+Wiki structure reset and Paper Source config reset are separate operations. To reset config too, require `确认同时重置 Paper Source config`; do not infer config reset from `reset wiki`, `clean everything`, `no backup`, or `重新初始化`.
 
 ```powershell
 python scripts\orchestrator.py wiki-reset --vault <vault> --confirmed-by "确认重置 Paper Source wiki" --reset-config-confirmed-by "确认同时重置 Paper Source config" --json

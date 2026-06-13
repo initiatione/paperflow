@@ -1,10 +1,10 @@
 # Run Discovery
 
-Use this workflow for one-off Paper Source paper search, ranking, and read-priority reporting.
+Use for one-off Paper Source paper search, ranking, and read-priority reporting.
 
 ## Preflight
 
-Run a dependency and vault check when install state, config, MCP, or MinerU availability is unclear:
+When install state, config, MCP, or MinerU availability is unclear, run:
 
 ```powershell
 python scripts\orchestrator.py doctor --plugin-root <plugin-root> --vault <vault> --json
@@ -14,64 +14,34 @@ If config is missing, stop and use `config-setup` before searching.
 
 ## Query Planning
 
-For offline query planning or to inspect the profile-derived query variants:
+For offline query planning and profile-derived variants:
 
 ```powershell
 python skills\paper-discovery\scripts\query-planner.py --topic "<topic>" --domain auto --max-queries 8
 python skills\paper-discovery\scripts\query-planner.py --topic "<review topic>" --domain auto --include-reviews --max-queries 8
 ```
 
-Default `dry-run` writes `_paper_source/runs/<run-id>/query-plan.json`, records `research_mode`, runs query variants, and excludes review/survey/meta candidates unless reviews are explicitly requested.
-It also writes or resumes `_paper_source/reviews/<review-id>/` by default. A repeated matching dry-run uses default resume from the review session and skips provider calls; use `--refresh` to force a new provider search, or `--no-resume` only for debugging.
+Default `dry-run` writes `_paper_source/runs/<run-id>/query-plan.json`, records `research_mode`, runs query variants, excludes review/survey/meta candidates unless reviews are requested, and writes/resumes `_paper_source/reviews/<review-id>/`. A repeated matching dry-run resumes by default and skips provider calls; use `--refresh` for a new provider search, `--no-resume` only for debugging.
 
-Do not start with Firecrawl, generic web search, publisher search, or GitHub search for paper recommendations. Use those tools only after `dry-run`, a resumed review session, or a user-provided DOI/arXiv/title has produced a candidate identity that needs targeted verification.
+Do not start with Firecrawl, generic web search, publisher search, or GitHub search for recommendations. Use them only after `dry-run`, resumed review, or user-provided DOI/arXiv/title gives a candidate identity needing targeted verification.
 
-## Dry Run
+## Dry Run And Report
 
 ```powershell
 python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault>
 python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault> --refresh
-```
-
-Use `--json` when another agent or script needs the run id and artifact paths.
-
-When `--sources` is omitted, the default source list includes `unpaywall` so open-access PDF links are collected alongside DOI and metadata records. If the provider warns that `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL` / `UNPAYWALL_EMAIL` is missing, configure the provider env file before judging PDF recall.
-
-Use `--no-query-plan` only when debugging or when the profile-derived plan drifts from the narrow topic:
-
-```powershell
 python scripts\orchestrator.py dry-run --query "<exact narrow topic>" --no-query-plan --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault>
-```
-
-## Report Existing Run
-
-The public CLI command is `report`; `report_run.py` is an implementation module.
-
-```powershell
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault> --json
 ```
 
-Do not document or invent a separate `run-report` command unless the CLI adds one.
+Use `--json` when another agent/script needs the run id and artifact paths. The default source list includes `unpaywall`; if `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL` / `UNPAYWALL_EMAIL` is missing, configure the provider env file before judging PDF recall. Use `--no-query-plan` only for debugging or exact narrow topics.
+
+The public CLI command is `report`; `report_run.py` is an implementation module. Do not document or invent a separate `run-report` command unless the CLI adds one.
 
 ## Evidence Check
 
-Before reporting success, inspect the relevant artifacts:
-
-- `search-record.json`
-- `rank.json`
-- `_paper_source/runs/<run-id>/report.md`
-- `_paper_source/runs/<run-id>/report.json`
-- `_paper_source/runs/<run-id>/run-state.json`
-- `_paper_source/reviews/<review-id>/state.json`
-- `_paper_source/reviews/<review-id>/candidates.json`
-- `_paper_source/reviews/<review-id>/shortlist.json`
-- `_paper_source/reviews/<review-id>/fetch_plan.json`
-- `_paper_source/reviews/<review-id>/coverage.json`
-
-Track `paper_type`, `classification_confidence`, `ranking_confidence`, and per-paper `acquire_failed`, `parse_failed`, or `prepare_failed` when a later source-staging step ran.
-
-## Safety Boundary
+Before reporting success, inspect `search-record.json`, `rank.json`, `_paper_source/runs/<run-id>/report.md`, `report.json`, `run-state.json`, review `state.json`, `candidates.json`, `shortlist.json`, `fetch_plan.json`, and `coverage.json`. Track `paper_type`, `classification_confidence`, `ranking_confidence`, plus per-paper `acquire_failed`, `parse_failed`, or `prepare_failed` if source-staging later ran.
 
 `dry-run` writes `_paper_source/runs/<run-id>/` and resumable `_paper_source/reviews/<review-id>/`. It does not acquire PDFs, run MinerU, create source-staging handoffs, run reader/critic, or write final wiki pages.

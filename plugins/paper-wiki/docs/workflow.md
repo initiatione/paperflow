@@ -45,3 +45,13 @@ Paper Wiki health checks do not use a separate Paper Wiki CLI. Treat Paper Wiki 
 Paper Source prepares source bundles and handoff artifacts. Paper Wiki/PW reads them and performs the formal wiki-side work without taking over Paper Source discovery, MinerU parsing, paper-gate, human approval, or record-only completion.
 
 Completion reports must include pages created or updated, links/tags/aliases repaired, tracking files updated, QMD refreshed / skipped / failed with fallback, remaining risks, and the next Paper Source/Paper Wiki action.
+
+## Evaluation
+
+Before release, run Plugin Eval against `plugins/paper-wiki` and compare the score with the previous baseline. Treat budget warnings as optimization targets, but do not delete source-grounding, provenance, or language-gate contracts only to raise the static score.
+
+`scripts\release_check_paper_wiki.ps1` generates a transient `plugins\paper-wiki\.plugin-eval\coverage.xml` before Plugin Eval when `$env:PLUGIN_EVAL_SCRIPT` is set, then removes `.plugin-eval` through package hygiene after the evaluator finishes. Do not commit evaluator coverage artifacts.
+
+Top-level files under `plugins\paper-wiki\scripts\` are compatibility wrappers. The maintain/migrate implementations live under `scripts\build\paper_wiki\` so Plugin Eval and users see a thin command surface while tests still cover the implementation package.
+
+Paper Wiki routing keeps `rules\wiki-writing-standard-brief.md` in always-read context and defers the full `rules\wiki-writing-standard.md` until formal drafting, rewriting, material repair, relink, or validation work needs it.

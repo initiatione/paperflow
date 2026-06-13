@@ -1,212 +1,39 @@
 schema_version: paper-source-skill-routing-v1
 source_of_truth: skills/routing.yaml
-session_discipline:
-  re_match_every_task: true
-  re_read_when:
-    - route_changed
-    - context_compacted
-    - unsure
-always_read:
-  - ../AGENTS.md
-  - routing.yaml
+external_references:
+  skill_architecture: {url: https://github.com/WoJiSama/skill-based-architecture, role: structure reference, local_adaptation: central routing}
+  obsidian_skills: {url: https://github.com/kepano/obsidian-skills, role: Obsidian syntax authority, local_adaptation: property links and graph boundaries}
+  freshness_policy: {rule: check current upstream or installed reference before changing structure or syntax rules}
+session_discipline: {re_match_every_task: true, re_read_when: [route_changed, context_compacted, unsure]}
+always_read: [../AGENTS.md, routing.yaml]
 routes:
-  config_setup:
-    category: primary
-    triggers:
-      - 配置 Paper Source
-      - 配置 PS
-      - 配置 Paper Source
-      - Paper Source config
-      - 查看当前配置
-      - 初始化配置
-      - 修改研究画像
-      - missing config
-      - initialize Paper Source
-      - update runtime config
-    skill: config-setup/SKILL.md
-    docs:
-      - ../docs/config.md
-  paper_discovery:
-    category: primary
-    triggers:
-      - 用 PS 找论文
-      - 找最新论文
-      - 找高质量论文
-      - 推荐优先阅读论文
-      - Paper Source search
-      - PS search papers
-      - latest papers
-      - high-quality papers
-      - dry-run
-    skill: paper-discovery/SKILL.md
-    workflows:
-      - paper-discovery/workflows/run-discovery.md
-      - paper-discovery/workflows/multi-source-discovery.md
-    notes:
-      - use profile-driven query planning, not fixed domain defaults
+  config_setup: {category: primary, triggers: [配置 Paper Source, 初始化配置, 查看当前配置, 修改研究画像, missing config, update runtime config], skill: config-setup/SKILL.md, docs: [../docs/config.md]}
+  paper_discovery: {category: primary, triggers: [用 PS 找论文, 找最新论文, 推荐优先阅读论文, Paper Source search, dry-run], skill: paper-discovery/SKILL.md, workflows: [paper-discovery/workflows/run-discovery.md, paper-discovery/workflows/multi-source-discovery.md], notes: [profile-driven, not fixed-domain]}
   research_grill_me:
     category: primary
-    triggers:
-      - clarify a research direction
-      - refine a research question
-      - grill my research idea
-      - build a Research Brief
-      - deep-research prompt
-      - 研究简报
-      - 帮我梳理科研方向
-      - 强追问科研问题
-      - 准备正式 Paper Source 检索
+    triggers: [clarify a research direction, 研究简报, 帮我梳理科研方向, 强追问科研问题, deep-research prompt]
     skill: research-grill-me/SKILL.md
-    notes:
-      - one decision point per turn with a recommended answer
-      - output a chat-visible general deep-research prompt alongside the confirmation summary
-      - Research Briefs override Research Profile for the current task
-      - Research Briefs cannot bypass source-staging or Paper Wiki handoff gates
-  topic_tracking:
-    category: primary
-    triggers:
-      - 持续跟踪方向
-      - 最近有什么新论文
-      - 有没有漏掉关键分支
-      - backlog
-      - coverage gap
-      - what changed since last run
-    skill: topic-tracking/SKILL.md
-    notes:
-      - use paper-discovery as the retrieval layer, not as the topic ledger
-  paper_ingest:
-    category: primary
-    triggers:
-      - 用 PS 推进论文
-      - 推进论文
-      - 生成阅读报告
-      - 准备 wiki handoff
-      - Paper Source ingest
-      - PS prepare papers
-      - 沉淀前准备
-      - prepare-ranked
-      - advance-paper
-      - wiki ingest handoff
-    skill: paper-ingest/SKILL.md
-    workflows:
-      - paper-ingest/workflows/prepare-ranked.md
-      - paper-ingest/workflows/approval-and-trigger.md
-    notes:
-      - source_bundle_audit blocks final handoff when the source bundle is incomplete
-      - final wiki page body prose defaults to Chinese
-  mineru_paper_parser:
-    category: support
-    triggers:
-      - parse-paper
-      - MinerU 解析
-      - PDF 转 Markdown
-      - paper.tex
-      - mineru-manifest.json
-      - figure-index.json
-      - formula-index.json
-      - normalize-mineru-assets
-      - raw image normalization
-    skill: mineru-paper-parser/SKILL.md
-    notes:
-      - support paper-ingest source bundle preparation
-      - owns raw MinerU asset normalization only; formal wiki page figure repairs route to Paper Wiki
+    notes: [one decision point per turn, chat-visible deep-research prompt, Research Briefs override Research Profile for the current task, Research Briefs cannot bypass source-staging or Paper Wiki handoff gates]
+  topic_tracking: {category: primary, triggers: [持续跟踪方向, 最近有什么新论文, backlog, coverage gap], skill: topic-tracking/SKILL.md, notes: [paper-discovery retrieves; topic-tracking owns the ledger]}
+  paper_ingest: {category: primary, triggers: [用 PS 推进论文, 推进论文, 生成阅读报告, 准备 wiki handoff, prepare-ranked, advance-paper], skill: paper-ingest/SKILL.md, workflows: [paper-ingest/workflows/prepare-ranked.md, paper-ingest/workflows/approval-and-trigger.md], notes: [source_bundle_audit blocks incomplete handoff, final prose defaults to Chinese]}
+  mineru_paper_parser: {category: support, triggers: [MinerU 解析, PDF 转 Markdown, parse-paper, mineru-manifest.json, figure-index.json, formula-index.json, normalize-mineru-assets], skill: mineru-paper-parser/SKILL.md, notes: [raw asset normalization; formal figure repairs route to Paper Wiki]}
   paper_source_paper_deposition:
     category: compatibility
-    triggers:
-      - wiki_deposition_task.json
-      - 兼容旧沉淀任务
-      - Paper Source handoff adapter
-      - legacy Paper Source wiki deposition
-      - final paper deposition compatibility
+    triggers: [wiki_deposition_task.json, 兼容旧沉淀任务, legacy Paper Source wiki deposition, epi-wiki-deposition]
     skill: paper-source-paper-deposition/SKILL.md
-    workflows:
-      - paper-source-paper-deposition/workflows/formal-wiki-write.md
-    notes:
-      - user-facing formal paper wiki work routes to $paper-research-wiki when available
-      - compatibility bridge for wiki_deposition_task.json and legacy epi-wiki-deposition
-      - formal_page_language_policy is enforced by Paper Wiki paper-wiki-language during formal writes
-      - Codex may use subagents only when the user explicitly authorizes delegation
-  wiki_provenance:
-    category: support
-    triggers:
-      - claim 能否回溯
-      - 证据地址
-      - provenance
-      - final-source-review
-      - record-wiki-ingest
-      - claim support
-      - evidence addresses
-    skill: wiki-provenance/SKILL.md
-  run_lifecycle:
-    category: maintenance
-    triggers:
-      - 清理 runs
-      - _paper_source/runs cleanup
-      - run index audit
-      - dashboard pruning
-    skill: run-lifecycle/SKILL.md
-    notes:
-      - index.json and research-queue.json use atomic writes
-  wiki_setup:
-    category: primary
-    triggers:
-      - Paper Source wiki setup
-      - PS 初始化 vault
-      - 初始化 vault
-      - 修复 vault
-      - 重置 vault
-      - initialize vault
-      - repair vault
-      - reset vault
-      - graph visibility
-    skill: wiki-setup/SKILL.md
-    workflows:
-      - wiki-setup/workflows/reset-repair.md
-    notes:
-      - Paper Source owns vault bootstrap; Paper Wiki reports missing structure back here
-  zotero_sync:
-    category: support
-    triggers:
-      - 同步 Zotero
-      - 记录 Zotero 文献
-      - 同步文献库记录
-      - Zotero
-      - zotero-sync
-      - record-only sidecar
-    skill: zotero-sync/SKILL.md
-    notes:
-      - optional record-only integration unless explicitly configured
-  skill_aware_evolve:
-    category: maintenance
-    triggers:
-      - 优化 Paper Source 插件
-      - 根据实测反馈优化
-      - plugin eval
-      - quality gates
-      - propose-evolution
-    skill: skill-aware-evolve/SKILL.md
-    notes:
-      - configuration changes stay record-only and route to config proposals
+    workflows: [paper-source-paper-deposition/workflows/formal-wiki-write.md]
+    notes: [formal wiki work routes to $paper-research-wiki, bridge for wiki_deposition_task.json and legacy epi-wiki-deposition, formal_page_language_policy by paper-wiki-language]
+  wiki_provenance: {category: support, triggers: [claim 能否回溯, 证据地址, provenance, final-source-review, record-wiki-ingest], skill: wiki-provenance/SKILL.md}
+  run_lifecycle: {category: maintenance, triggers: [清理 runs, run index audit, dashboard pruning], skill: run-lifecycle/SKILL.md, notes: [index.json and research-queue.json use atomic writes]}
+  wiki_setup: {category: primary, triggers: [PS 初始化 vault, 初始化 vault, 修复 vault, 重置 vault, graph visibility], skill: wiki-setup/SKILL.md, workflows: [wiki-setup/workflows/reset-repair.md], notes: [Paper Source owns bootstrap; Paper Wiki reports gaps here]}
+  zotero_sync: {category: support, triggers: [同步 Zotero, 记录 Zotero 文献, Zotero, zotero-sync], skill: zotero-sync/SKILL.md, notes: [optional record-only integration unless configured]}
+  skill_aware_evolve: {category: maintenance, triggers: [优化 Paper Source 插件, plugin eval, quality gates, propose-evolution], skill: skill-aware-evolve/SKILL.md, notes: [configuration changes stay record-only and route to config proposals]}
 task_closure:
-  applies_to:
-    - code changes
-    - docs changes
-    - skill behavior changes
-  skip_for:
-    - pure read-only Q&A
-  checklist:
-    - restate original constraints
-    - record verification commands and outcomes
-    - route durable lessons into docs, skills, or tests, not this manifest
+  applies_to: [code changes, docs changes, skill behavior changes]
+  skip_for: [pure read-only Q&A]
+  checklist: [original constraints, verification evidence, 30-second AAR]
 codex_subagent_permission:
-  rule: "Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work."
-  preferred_use:
-    - independent tests or audits
-    - disjoint workflow-module edits
-    - large grep or fixture scans
-  main_agent_reads:
-    - final worker output
-    - changed file list
-    - verification result
-  main_agent_avoids:
-    - large intermediate transcripts
+  rule: Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work.
+  preferred_use: [independent tests or audits, disjoint workflow-module edits, large grep or fixture scans]
+  main_agent_reads: [final worker output, changed file list, verification result]
+  main_agent_avoids: [large intermediate transcripts]

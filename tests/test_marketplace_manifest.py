@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import re
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -129,3 +130,20 @@ def test_current_file_and_directory_names_do_not_use_legacy_plugin_names():
                 offenders.append(str(relative).replace("\\", "/"))
 
     assert offenders == []
+
+
+def test_plugin_packages_do_not_track_python_cache_files():
+    result = subprocess.run(
+        ["git", "ls-files", "plugins/paper-source", "plugins/paper-wiki"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    bad = [
+        path
+        for path in result.stdout.splitlines()
+        if "__pycache__" in Path(path).parts or path.endswith(".pyc")
+    ]
+
+    assert bad == []

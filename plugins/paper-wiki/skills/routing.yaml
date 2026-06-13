@@ -1,162 +1,62 @@
 schema_version: paper-wiki-skill-routing-v1
 source_of_truth: skills/routing.yaml
-session_discipline:
-  re_match_every_task: true
-  re_read_when:
-    - route_changed
-    - context_compacted
-    - unsure
-always_read:
-  - paper-research-wiki/references/paper-source-artifact-contract.md
-  - paper-research-wiki/references/page-family-contract.md
-  - ../rules/wiki-writing-standard.md
+external_references:
+  skill_architecture: {url: https://github.com/WoJiSama/skill-based-architecture, role: structure reference, local_adaptation: central routing}
+  obsidian_skills: {url: https://github.com/kepano/obsidian-skills, role: Obsidian syntax authority, local_adaptation: property links and graph boundaries}
+  freshness_policy:
+    rule: check current upstream or installed reference before changing structure or syntax rules
+session_discipline: {re_match_every_task: true, re_read_when: [route_changed, context_compacted, unsure]}
+route_health:
+  allowed_overlaps:
+    - routes: [redo_extraction, maintain_figures]
+      tokens: [evidence, figure, formula]
+      reason: maintain_figures repairs figure/formula evidence artifacts, while redo_extraction performs broader source-map-grounded extraction.
+always_read: [paper-research-wiki/references/paper-source-artifact-contract.md, paper-research-wiki/references/page-family-contract.md, ../rules/wiki-writing-standard-brief.md]
 routes:
   extract_papers:
     category: primary
-    triggers:
-      - 用 PW 沉淀到 wiki
-      - Paper Wiki deposition
-      - PW deposit papers
-      - 直接沉淀 Paper Source 抓下来的论文
-      - 提取这些论文
-      - 沉淀论文进 wiki
-      - extract Paper Source papers
-      - Paper Source paper deposition
+    triggers: [用 PW 沉淀到 wiki, Paper Wiki deposition, PW deposit papers, 直接沉淀 Paper Source 抓下来的论文, 提取这些论文, 沉淀论文进 wiki, extract Paper Source papers, Paper Source paper deposition]
     skill: paper-research-wiki/SKILL.md
-    workflows:
-      - paper-research-wiki/workflows/extract-papers.md
-    references:
-      - paper-research-wiki/references/page-provenance.md
-    notes:
-      - formal writes use paper-wiki-language
-      - missing vault structure routes back to Paper Source wiki-setup
+    workflows: [paper-research-wiki/workflows/extract-papers.md]
+    references: [paper-research-wiki/references/page-provenance.md]
+    notes: [formal writes use paper-wiki-language, missing structure routes to Paper Source wiki-setup]
   check_wiki:
     category: primary
-    triggers:
-      - 用 PW 检测 wiki
-      - Paper Wiki check
-      - PW check wiki
-      - 检测 wiki 库
-      - 检查论文 wiki
-      - wiki 状态
-      - check wiki
-      - post-task check
+    triggers: [用 PW 检测 wiki, Paper Wiki check, PW check wiki, 检测 wiki 库, 检查论文 wiki, wiki 状态, check wiki, post-task check]
     skill: paper-research-wiki/SKILL.md
-    workflows:
-      - paper-research-wiki/workflows/check-wiki.md
+    workflows: [paper-research-wiki/workflows/check-wiki.md]
   ask_wiki:
     category: primary
-    triggers:
-      - 用 PW 问 wiki
-      - Paper Wiki ask
-      - PW ask wiki
-      - 提问
-      - 问 wiki
-      - 问论文 wiki
-      - 根据 wiki 回答
-      - 查询论文 wiki
-      - ask wiki
-      - ask paper wiki
-      - what does the wiki say
-      - research question
+    triggers: [用 PW 问 wiki, Paper Wiki ask, PW ask wiki, 提问, 问 wiki, 问论文 wiki, 根据 wiki 回答, 查询论文 wiki, ask wiki, ask paper wiki, what does the wiki say, research question]
     skill: paper-research-wiki/SKILL.md
-    workflows:
-      - paper-research-wiki/workflows/ask-wiki.md
-    notes:
-      - read-only; report correction candidates and ask before repair
+    workflows: [paper-research-wiki/workflows/ask-wiki.md]
+    notes: [read-only; report correction candidates and ask before repair]
   redo_extraction:
     category: primary
-    triggers:
-      - 重做
-      - 重新提取
-      - 更详细提取
-      - 批量重提取
-      - 公式推理
-      - 公式推理链
-      - 图片证据
-      - 图文结合
-      - 图文证据卡
-      - source map
-      - source-map-first
-      - source-map-grounded extraction
-      - formula reasoning chains
-      - evidence figure cards
-      - redo
-      - deep extraction
+    triggers: [重做, 重新提取, 更详细提取, 批量重提取, 公式推理, 公式推理链, 图片证据, 图文结合, 图文证据卡, source map, source-map-first, source-map-grounded extraction, formula reasoning chains, evidence figure cards, redo, deep extraction]
     skill: paper-research-wiki/SKILL.md
-    workflows:
-      - paper-research-wiki/workflows/redo-extraction.md
-    references:
-      - paper-research-wiki/references/page-provenance.md
+    workflows: [paper-research-wiki/workflows/redo-extraction.md]
+    references: [paper-research-wiki/references/page-provenance.md]
   update_wiki:
     category: primary
-    triggers:
-      - 用 PW 更新 wiki
-      - Paper Wiki update
-      - PW update wiki
-      - 更新 wiki 库
-      - 继续上次的论文沉淀
-      - 重link
-      - 重写某页
-      - 重写页面
-      - relink
-      - update wiki
-      - rewrite formal page
-      - rewrite page
-      - repair paper wiki links
+    triggers: [用 PW 更新 wiki, Paper Wiki update, PW update wiki, 更新 wiki 库, 继续上次的论文沉淀, 重link, 重写某页, 重写页面, relink, update wiki, rewrite formal page, rewrite page, repair paper wiki links]
     skill: paper-research-wiki/SKILL.md
-    workflows:
-      - paper-research-wiki/workflows/update-wiki.md
-    references:
-      - paper-research-wiki/references/upstream-obsidian-wiki-map.md
-    notes:
-      - repair links, aliases, tags, duplicate concept owners, and relationship drift in small batches
-      - treat material formal page rewrites as graph-aware rewrite transactions with dependent-page impact analysis
-      - rerun check-wiki after writing
+    workflows: [paper-research-wiki/workflows/update-wiki.md]
+    references: [paper-research-wiki/references/upstream-obsidian-wiki-map.md]
+    notes: [small-batch link/tag/alias repair, material rewrites are graph-aware, rerun check-wiki]
   maintain_figures:
     category: primary
-    triggers:
-      - 证据图维护
-      - 图谱命名
-      - 修复图片路径
-      - 修复证据图
-      - 公式截图
-      - figure maintenance
-      - repair figure evidence
-      - repair image paths
-      - normalize evidence figures
-      - formula screenshot cleanup
+    triggers: [证据图维护, 图谱命名, 修复图片路径, 修复证据图, 公式截图, figure maintenance, repair figure evidence, repair image paths, normalize evidence figures, formula screenshot cleanup]
     skill: paper-research-wiki/SKILL.md
-    workflows:
-      - paper-research-wiki/workflows/maintain-figures.md
-    references:
-      - paper-research-wiki/references/page-provenance.md
-    notes:
-      - consume Paper Source figure-index.json and formula-index.json
-      - do not rename raw MinerU image assets from Paper Wiki
-      - snapshot formal pages before material figure or formula evidence repairs
+    workflows: [paper-research-wiki/workflows/maintain-figures.md]
+    references: [paper-research-wiki/references/page-provenance.md]
+    notes: [use figure/formula indexes, do not rename raw MinerU image assets, snapshot formal pages before material repairs]
   language_gate:
     category: support
-    triggers:
-      - 中文正式页
-      - 语言质量
-      - 机器翻译腔
-      - polish formal paper wiki pages
-      - language gate
+    triggers: [中文正式页, 语言质量, 机器翻译腔, polish formal paper wiki pages, language gate]
     skill: paper-wiki-language/SKILL.md
-    references:
-      - paper-wiki-language/references/style-guide.md
+    references: [paper-wiki-language/references/style-guide.md]
 task_closure:
-  applies_to:
-    - formal page writes
-    - link or tag repairs
-    - provenance edits
-    - tracking file updates
-    - skill behavior changes
-  skip_for:
-    - ask_wiki read-only answers
-  checklist:
-    - run the matched workflow post-task check
-    - report QMD refreshed, skipped, or failed with fallback
-    - report Paper Source record readiness or next Paper Source action
-    - route recurring failures into Paper Wiki rules, workflows, references, or tests
+  applies_to: [formal page writes, link or tag repairs, provenance edits, tracking file updates, skill behavior changes]
+  skip_for: [ask_wiki read-only answers]
+  checklist: [matched post-task check, QMD status, Paper Source record readiness or next action, route recurring failures into rules/workflows/references/tests]

@@ -297,7 +297,8 @@ def test_paper_wiki_skill_routing_manifest_matches_public_workflows():
     assert routing["source_of_truth"] == "skills/routing.yaml"
     assert len(routing["always_read"]) <= 3
     assert "paper-research-wiki/references/upstream-obsidian-wiki-map.md" not in routing["always_read"]
-    assert "../rules/wiki-writing-standard.md" in routing["always_read"]
+    assert "../rules/wiki-writing-standard-brief.md" in routing["always_read"]
+    assert "../rules/wiki-writing-standard.md" not in routing["always_read"]
 
     routes = routing["routes"]
     assert set(routes) == {

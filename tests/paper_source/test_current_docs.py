@@ -115,7 +115,7 @@ def test_root_plugin_development_rules_require_version_and_doc_sync():
         assert phrase in rules
 
     for command in [
-        "python -m pytest tests\\paper_research_wiki\\test_plugin_contract.py plugins\\paper-source\\tests\\test_skill_bundle_contract.py tests\\test_marketplace_manifest.py -q",
+        "python -m pytest tests\\paper_research_wiki\\test_plugin_contract.py tests\\paper_source\\test_skill_bundle_contract.py tests\\test_marketplace_manifest.py -q",
         "python -m json.tool plugins\\paper-source\\.codex-plugin\\plugin.json",
         "python -m json.tool plugins\\paper-wiki\\.codex-plugin\\plugin.json",
         "PLUGIN_VALIDATE_SCRIPT",

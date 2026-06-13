@@ -1,12 +1,11 @@
 param(
-    [string]$PluginRoot = "plugins/paper-source",
-    [string]$PytestTarget = "tests/paper_source",
+    [string]$PluginRoot = "plugins/paper-wiki",
+    [string]$PytestTarget = "tests/paper_research_wiki",
     [string]$SkillValidateScript = $env:SKILL_VALIDATE_SCRIPT,
     [string]$PluginValidateScript = $env:PLUGIN_VALIDATE_SCRIPT,
     [string]$PluginEvalScript = $env:PLUGIN_EVAL_SCRIPT,
-    [string]$MetricPackManifest = $env:PAPER_SOURCE_METRIC_PACK_MANIFEST,
-    [string]$CoverageSource = "plugins/paper-source/scripts/build",
-    [string]$CoverageDataFile = ".coverage.paper_source_release_check",
+    [string]$CoverageSource = "plugins/paper-wiki/scripts",
+    [string]$CoverageDataFile = ".coverage.paper_wiki_release_check",
     [string]$RunStamp = $env:PAPERFLOW_RELEASE_RUN_ID
 )
 
@@ -52,10 +51,10 @@ function New-PluginEvalCoverageArtifact {
         Remove-Item -LiteralPath $CoverageDataFile -Force
     }
     New-Item -ItemType Directory -Force -Path $evalDir | Out-Null
-    $coverageBaseTemp = ".pytest_tmp_paper_source_release_coverage_$RunStamp"
+    $coverageBaseTemp = ".pytest_tmp_paper_wiki_release_coverage_$RunStamp"
     python -m coverage run --data-file=$CoverageDataFile --source=$CoverageSource -m pytest $PytestTarget -q --basetemp=$coverageBaseTemp
     if ($LASTEXITCODE -ne 0) {
-        throw "coverage pytest Paper Source suite failed with exit code $LASTEXITCODE"
+        throw "coverage pytest Paper Wiki suite failed with exit code $LASTEXITCODE"
     }
     python -m coverage xml --data-file=$CoverageDataFile -o $coveragePath
     if ($LASTEXITCODE -ne 0) {
@@ -89,11 +88,11 @@ Invoke-Step "clear generated plugin pycache" {
     Clear-PluginPycache
 }
 
-Invoke-Step "pytest Paper Source suite" {
-    $baseTemp = ".pytest_tmp_paper_source_release_check_$RunStamp"
+Invoke-Step "pytest Paper Wiki suite" {
+    $baseTemp = ".pytest_tmp_paper_wiki_release_check_$RunStamp"
     python -m pytest $PytestTarget -q --basetemp=$baseTemp
     if ($LASTEXITCODE -ne 0) {
-        throw "pytest Paper Source suite failed with exit code $LASTEXITCODE"
+        throw "pytest Paper Wiki suite failed with exit code $LASTEXITCODE"
     }
 }
 
@@ -108,9 +107,9 @@ Invoke-Step "forbid generated plugin package artifacts after cleanup" {
     }
 }
 
-Invoke-Step "validate wiki-setup skill when validator is configured" {
+Invoke-Step "validate paper-research-wiki skill when validator is configured" {
     if ($SkillValidateScript) {
-        python $SkillValidateScript (Join-Path $PluginRoot "skills/wiki-setup")
+        python $SkillValidateScript (Join-Path $PluginRoot "skills/paper-research-wiki")
         if ($LASTEXITCODE -ne 0) {
             throw "skill validator failed with exit code $LASTEXITCODE"
         }
@@ -119,7 +118,7 @@ Invoke-Step "validate wiki-setup skill when validator is configured" {
     }
 }
 
-Invoke-Step "validate Paper Source plugin when validator is configured" {
+Invoke-Step "validate Paper Wiki plugin when validator is configured" {
     if ($PluginValidateScript) {
         python $PluginValidateScript $PluginRoot
         if ($LASTEXITCODE -ne 0) {
@@ -130,14 +129,11 @@ Invoke-Step "validate Paper Source plugin when validator is configured" {
     }
 }
 
-Invoke-Step "Plugin Eval with paper-source-quality-gates when configured" {
+Invoke-Step "Plugin Eval baseline when configured" {
     if ($PluginEvalScript) {
-        if (-not $MetricPackManifest) {
-            $MetricPackManifest = Join-Path $PluginRoot "metric-packs/paper-source-quality-gates/manifest.json"
-        }
         try {
             New-PluginEvalCoverageArtifact
-            node $PluginEvalScript analyze $PluginRoot --metric-pack $MetricPackManifest --format markdown
+            node $PluginEvalScript analyze $PluginRoot --format markdown
             if ($LASTEXITCODE -ne 0) {
                 throw "Plugin Eval failed with exit code $LASTEXITCODE"
             }
@@ -149,4 +145,4 @@ Invoke-Step "Plugin Eval with paper-source-quality-gates when configured" {
     }
 }
 
-Write-Host "Paper Source release check passed"
+Write-Host "Paper Wiki release check passed"

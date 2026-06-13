@@ -16,7 +16,7 @@ Governance is layered. `kepano/obsidian-skills` is the Obsidian syntax authority
 
 Read-only wiki Q&A lives in `skills/paper-research-wiki/workflows/ask-wiki.md`. It retrieves from the formal Obsidian graph first, expands through backlinks, outlinks, aliases, tags, and co-links, and then uses QMD only as an optional accelerator with fallback to frontmatter, manifest files, `index.md`, `hot.md`, and direct Markdown search. It reports correction candidates but does not write `log.md`, formal pages, QMD, or Paper Source artifacts.
 
-`rules/wiki-writing-standard.md` is the mandatory page-writing standard for formal paper wiki writes. It adapts Ar9av/obsidian-wiki page templates, merge-before-create behavior, provenance, wikilinks, relationships, tracking files, and lint/relink gates into the Paper Wiki paper workflow.
+`rules/wiki-writing-standard-brief.md` is the always-read summary used for route matching and lightweight checks. `rules/wiki-writing-standard.md` is the mandatory full page-writing standard for formal paper wiki writes; load it before drafting, rewriting, materially repairing, relinking, or validating formal pages. It adapts Ar9av/obsidian-wiki page templates, merge-before-create behavior, provenance, wikilinks, relationships, tracking files, and lint/relink gates into the Paper Wiki paper workflow.
 
 Paper Wiki assumes Paper Source `wiki-setup` has initialized the target vault. It checks bootstrap structure and reports missing vault structure as a capability gap, but bootstrap, repair, and reset remain Paper Source responsibilities.
 

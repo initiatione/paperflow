@@ -10,35 +10,24 @@ Manage transient Paper Source workflow artifacts without touching downloaded pap
 
 ## Default To Dry Run
 
-Lifecycle cleanup is destructive, so manual cleanup starts with a dry run:
+Lifecycle cleanup is destructive, so manual cleanup starts with a dry run and adds `--apply` only after explicit approval:
 
 ```powershell
 python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 15 --keep-per-workflow 2 --json
-```
-
-Add `--apply` only after explicit approval:
-
-```powershell
 python scripts\orchestrator.py run-lifecycle --vault <vault> --keep-latest 15 --keep-per-workflow 2 --apply --json
 ```
 
-The Paper Source workflow may auto-apply lifecycle cleanup after runs when `_paper_source/runs` exceeds 15 single-run directories. Manual operation remains approval-first.
+The workflow may auto-apply lifecycle cleanup after `_paper_source/runs` exceeds 15 single-run directories. Manual operation remains approval-first.
 
 ## Cleanup Boundary
 
-Clean only terminal single-run directories under `_paper_source/runs`.
-
-Never delete:
-
-- `_paper_source/runs/index.json`, dashboards, research queue, feedback logs
-- `_paper_source/raw`, `_paper_source/staging`, final wiki pages, Zotero records, config history
-- active runs, human-gate-pending runs, or protected non-terminal failures
+Clean only terminal single-run directories under `_paper_source/runs`. Never delete `_paper_source/runs/index.json`, dashboards, research queue, feedback logs, `_paper_source/raw`, `_paper_source/staging`, final wiki pages, Zotero records, config history, active runs, human-gate-pending runs, or protected non-terminal failures.
 
 The command writes a manifest under `_paper_source\meta\run-lifecycle\`.
 
 ## Optional Delegation
 
-Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work for the task or session. When that permission exists, delegate lifecycle inventory to a small worker. The worker should run dry-run first, report candidate paths and manifest path, and wait for explicit approval before `--apply`.
+Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work. If authorized, delegate lifecycle inventory only: run dry-run first, report candidate paths and manifest path, and wait for explicit approval before `--apply`.
 
 ## Discovery Coordination
 

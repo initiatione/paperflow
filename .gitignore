@@ -11,5 +11,8 @@ coverage/
 /paper-research-wiki/
 plugins/paper-source/.runtime/
 plugins/paper-source/.plugin-eval/
+plugins/*/.plugin-eval/
+plugins/*/coverage/
+.tmp/
 .codex_tmp_refs/
 .worktrees/

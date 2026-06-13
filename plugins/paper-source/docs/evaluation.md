@@ -35,6 +35,14 @@ Plugin Eval -> paper-source-quality-gates -> benchmark -> compare before/after -
 5. Write an improvement brief.
 6. Turn the brief into a skill-aware-evolve proposal.
 
+During development, run Plugin Eval through `$env:PLUGIN_EVAL_SCRIPT` instead of committing a machine-local cache path. Preserve the Paper Source metric pack in release checks:
+
+```powershell
+node $env:PLUGIN_EVAL_SCRIPT analyze plugins\paper-source --metric-pack plugins\paper-source\metric-packs\paper-source-quality-gates\manifest.json --format markdown
+```
+
+`scripts\release_check_paper_source.ps1` generates a transient `plugins\paper-source\.plugin-eval\coverage.xml` before Plugin Eval when `$env:PLUGIN_EVAL_SCRIPT` is set, then removes `.plugin-eval` through package hygiene after the evaluator finishes. Do not commit that coverage file.
+
 Use the local `evaluation-brief` command to generate the brief:
 
 ```powershell
@@ -45,8 +53,8 @@ The command writes both JSON and Markdown under `.plugin-eval\improvement-briefs
 
 The benchmark payload should use a stable schema, currently `paper-source-benchmark-v1`, so a loose JSON blob does not masquerade as a comparable benchmark. Invalid or incomplete benchmark sources remain evidence gaps, not valid promotion signals.
 
-Current Windows Plugin Eval builds absolute paths with backslashes, while its Python test-file heuristic matches only `/tests/` or `/test_*.py`, so `py-tests-missing` can appear even when `python -m pytest plugins\paper-source -q` passes. Treat that warning as an evaluator path-normalization limitation unless Plugin Eval starts reporting `py_test_file_count > 0`.
+Paper Source repository-level contract tests live under `tests\paper_source\`, not inside the plugin package, so development tests do not inflate plugin static cost. Current Windows Plugin Eval builds absolute paths with backslashes, while its Python test-file heuristic matches only `/tests/` or `/test_*.py`, so `py-tests-missing` can appear even when the repo-level Paper Source suite passes. Treat that warning as an evaluator path-normalization and packaging-boundary limitation unless Plugin Eval starts reporting `py_test_file_count > 0`.
 
 `deferred_cost_tokens-budget-high` is expected while `docs\paper-source-linkage.md` remains inside the plugin package as the required Chinese chain contract. Do not remove that document only to raise the static score. Valid budget cleanup is limited to deleting generated/redundant package files, trimming duplicated prose, and keeping `docs\workflow.md`, `docs\evaluation.md`, and `docs\config.md` as compact entrypoints.
 
-Keep `.plugin-eval`, `.pytest_tmp*`, `.coverage`, and generated coverage artifacts out of commits. If the release coverage XML is intentionally refreshed, it must be force-added because `coverage/` is ignored.
+Keep `.plugin-eval`, `.pytest_tmp*`, `.coverage`, and generated coverage artifacts out of commits. Release coverage XML is evaluator input, not package content.

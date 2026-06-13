@@ -1,62 +1,45 @@
 # Extract Papers
 
-Use this when the user asks to extract, process, or deposit Paper Source-collected papers. `epi` is only a legacy alias for Paper Source.
+Use when the user asks to extract, process, or deposit Paper Source-collected papers. `epi` is only a legacy alias for Paper Source.
 
-This workflow adapts Ar9av/obsidian-wiki `wiki-ingest`: do not summarize papers in isolation. Instead, distill and integrate source-grounded paper knowledge into the existing wiki graph.
+This workflow adapts Ar9av/obsidian-wiki `wiki-ingest`: Do not summarize papers in isolation; distill and integrate source-grounded paper knowledge into the existing wiki graph.
 
-Before planning or writing pages, read `../../../rules/wiki-writing-standard.md` and `../../paper-wiki-language/SKILL.md`; treat them as mandatory page-writing and language contracts. When writing or repairing `references/` pages, also read `../references/references-page-anatomy.md` — the binding section-by-section references contract.
-
-Detect survey/review papers and route them differently. A paper is a survey/review when any hold: the `method/review` tag is present; the title/venue says review or survey; the body has a PRISMA flow or a taxonomy figure organizing many cited works; or its results are aggregated from cited studies ("no datasets were generated or analysed"). For such papers, write the `references/` page with the **survey map/hub spine** in `../references/survey-page-anatomy.md` (not the method spine), and route durable knowledge to existing families: taxonomy → `concepts/`, cross-method landscape → `synthesis/`, gaps → `opportunities/`. Do not spawn a `derivations/` page from a survey's borrowed illustrative formulas, and do not spawn an `experiments/` page — a survey runs no experiments of its own. A paper that proposes a method and also surveys the field stays a primary paper (method spine).
+Before planning or writing, read `../../../rules/wiki-writing-standard.md`, `../../paper-wiki-language/SKILL.md`, and for `references/` pages `../references/references-page-anatomy.md`. Survey/review papers use `../references/survey-page-anatomy.md`: taxonomy -> `concepts/`, landscape -> `synthesis/`, gaps -> `opportunities/`; do not spawn `derivations/` from borrowed formulas or `experiments/` from second-hand results.
 
 ## Preflight
 
-1. Resolve the target vault.
-2. Check the Paper Source `wiki-setup` bootstrap: core `_paper_source` roots (`_paper_source/`, `_paper_source/raw/`, `_paper_source/staging/`, `_paper_source/meta/`, `_paper_source/policies/`), `_meta/`, `.obsidian`, `.git`, and the seven formal page roots. If missing core vault structure blocks safe work, stop and point back to Paper Source `wiki-setup`; do not initialize or reset from Paper Wiki. Do not require legacy `_epi/`, `_paper_source/runs/`, `_paper_source/cache/`, `_paper_source/tmp/`, `_paper_source/tmp-manual-pdfs/`, `_paper_source/quarantine/`, or `_paper_source/evolution/`; Paper Source creates on-demand directories when needed. If `_epi/` exists, read it only as compatibility evidence or migration residue.
-3. Read target vault `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
-4. Locate `_paper_source/staging/papers/*/wiki-ingest-brief.json`; this is the canonical Paper Source-to-Paper Wiki handoff. Legacy `_epi/staging/papers/*/wiki-ingest-brief.json` remains readable.
-5. Treat `_paper_source/staging/papers/*/wiki_deposition_task.json` and legacy `_epi/staging/papers/*/wiki_deposition_task.json` as compatibility artifacts only. Do not treat task-only legacy handoffs as ready; route them back to Paper Source to regenerate or repair `wiki-ingest-brief.json`.
-6. Run a readiness preflight and group papers as ready, needs human approval, blocked, already recorded, or legacy-needs-brief-repair.
-7. For ready papers, read source bundle artifacts before writing: metadata, MinerU Markdown, images, manifest, figure/formula indexes, reading report, and `wiki-ingest-brief.json`; use the PDF, indexes, and image evidence as fallback checks when MinerU Markdown is missing, wrong, ambiguous, or insufficient. If non-empty native `mineru/paper.tex` exists, use it only as an optional cross-check.
+1. Resolve the target vault and check Paper Source `wiki-setup` bootstrap: core `_paper_source` roots, `_meta/`, `.obsidian`, `.git`, and seven formal roots. If missing core vault structure blocks safe work, stop and point to Paper Source `wiki-setup`; Paper Wiki does not initialize or reset. Legacy `_epi/` and on-demand `_paper_source/runs|cache|tmp|tmp-manual-pdfs|quarantine|evolution` are not bootstrap requirements.
+2. Read target `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
+3. Locate `_paper_source/staging/papers/*/wiki-ingest-brief.json` as the canonical handoff; legacy `_epi/staging/papers/*/wiki-ingest-brief.json` is readable fallback.
+4. Do not treat task-only legacy handoffs as ready. Treat `_paper_source/staging/papers/*/wiki_deposition_task.json` and legacy `_epi/.../wiki_deposition_task.json` as compatibility artifacts that need Paper Source brief repair.
+5. Group papers as ready, needs human approval, blocked, already recorded, or legacy-needs-brief-repair.
+6. For ready papers, read metadata, MinerU Markdown, images, manifest, figure/formula indexes, reading report, and `wiki-ingest-brief.json`; use PDF, indexes, and image evidence only as fallback when MinerU Markdown is missing, wrong, ambiguous, or insufficient. Non-empty native `mineru/paper.tex` is optional cross-check only.
 
-## Plan Wiki Updates
+## Plan
 
-1. Read the target vault `manifest` or `.manifest.json` to avoid duplicate source ingestion.
-2. Read `index.md` to understand current pages and summaries.
-3. Read `log.md` and `hot.md` for recent activity and active threads.
-4. Search for existing related pages before creating new pages.
-5. Choose page families from `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`.
-6. Prefer merge/update when an existing page already covers the concept.
+Read manifest or `.manifest.json`, `index.md`, `log.md`, and `hot.md`; search existing related pages before creating new pages; choose among `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`; prefer merge/update when an existing page already covers the concept.
 
 ## Write Pages
 
-1. Write staged or formal pages according to the target vault contract.
-2. Apply the page template, merge-before-create rule, and body rules from `wiki-writing-standard.md`.
-3. Apply `paper-wiki-language`: write natural Chinese research-wiki prose, avoid machine-translation headings, and keep terminology stable.
-4. Preserve source support status and evidence addresses.
-5. Frontmatter `sources:` must be title-display Markdown links to canonical source PDFs. `references/ pages` use exactly one source PDF link: `[<paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)`. For non-reference families, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/` may use one or more title-display source PDF links for materially used papers. Use `_paper_source/raw/<slug>/paper.pdf`, with no `papers/` segment. In `## 原文与证据入口`, include the same canonical PDF URI as a Markdown link and use the paper title as the clickable text, not `原论文 PDF`. Do not write `[[...]]` wikilinks, legacy `_epi` links, plain/relative PDF paths, DOI/arXiv URLs, GitHub URLs, metadata paths, MinerU paths, or figure paths in frontmatter `sources`. Do not write `[[...]]` wikilinks to `_paper_source/` from frontmatter or formal-page body links.
-6. Add Obsidian wikilinks from new pages only to existing formal pages in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, or `opportunities/`; put internal evidence paths in URI, file URL, or code/plain text form.
-7. Add `relationships:` frontmatter entries only when direction and type are clear.
-8. Keep formula and figure claims tied to formula or figure evidence.
-9. Write or update `final-source-review.json`.
-10. Run `workflows/check-wiki.md` after writing as the post-task check.
+1. Write staged or formal pages according to the target vault contract, applying `wiki-writing-standard.md`, merge-before-create, and `paper-wiki-language`.
+2. Preserve support status, evidence addresses, formula/figure grounding, and `relationships:` only when direction/type are clear.
+3. Frontmatter `sources:` must be title-display Markdown links to canonical source PDFs. `references/ pages` use exactly one source PDF link: `[<paper title>](obsidian://open?vault=<vault>&file=_paper_source%2Fraw%2F<slug>%2Fpaper.pdf)`. Non-reference families use one or more title-display source PDF links for materially used papers.
+4. Use `_paper_source/raw/<slug>/paper.pdf`, no `papers/` segment. In `## 原文与证据入口`, use the same canonical PDF URI with the paper title as clickable text, not `原论文 PDF`.
+5. Do not write `[[...]]` wikilinks, legacy `_epi` links, plain/relative PDF paths, DOI/arXiv URLs, GitHub URLs, metadata paths, MinerU paths, or figure paths in frontmatter `sources`. Do not write `[[...]]` wikilinks to `_paper_source/` from frontmatter or formal-page body links.
+6. Link only to existing formal pages; keep internal evidence paths as URI, file URL, code, or plain text.
+7. Write or update `final-source-review.json`.
+8. Run `workflows/check-wiki.md` after writing as the post-task check.
 
 ## Tracking
 
-Update the wiki tracking surface when the target vault contract expects it:
+When the vault contract expects it, update manifest / `.manifest.json`, `index.md`, `log.md`, and `hot.md` with source paths, hashes, pages written, and conceptual change.
 
-- update manifest / `.manifest.json` with source paths, hashes, and pages written
-- update `index.md` for created or materially updated pages
-- append a concise `log.md` entry
-- refresh `hot.md` with the conceptual change, not a file list
-
-Write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` when formal pages and `final-source-review.json` are ready for Paper Source record. The request must include `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, final page relative paths and sha256 hashes, `final-source-review.json` path/hash, `human_approval.approved_by`, and the command `record-wiki-ingest --from-paper-wiki-request _paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json`. Paper Wiki writes the request artifact; Paper Source consumes it. Tell the user whether the current agent can continue with that Paper Source command or whether a safety gate still blocks it.
-
-Stop when source artifacts are missing and point back to Paper Source `paper-gate`.
+Write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` when formal pages and `final-source-review.json` are ready for Paper Source record. Include `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, final page paths/hashes, `final-source-review.json` path/hash, `human_approval.approved_by`, and `record-wiki-ingest --from-paper-wiki-request _paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json`; Paper Wiki writes the request artifact; Paper Source consumes it. Stop when source artifacts are missing and point back to Paper Source `paper-gate`.
 
 ## QMD Compatibility
 
-QMD is an optional accelerator after the source-first plan is built from the Markdown vault. Use QMD only to improve lookup and discoverability. After writing or staging pages, run or recommend `qmd update` and `qmd embed` when QMD is installed and the target vault allows it. If QMD is unavailable, stale, slow, or noisy, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, and direct file search; do not block on qmd query.
+QMD is optional. Use it only after the source-first Markdown plan; after writes or staged pages, run or recommend `qmd update` and `qmd embed` when installed and allowed. If unavailable, stale, slow, or noisy, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, and direct file search; do not block on qmd query.
 
 ## Post-Task Check
 
-Run `workflows/check-wiki.md` after writing. The post-task check must cover broken wikilinks, orphan pages, missing frontmatter, provenance drift, QMD refresh status, stale tracking files, staged review state, `final-source-review.json`, and whether Paper Source `record-wiki-ingest` remains.
+Run `workflows/check-wiki.md` after writing. Cover broken wikilinks, orphan pages, missing frontmatter, provenance drift, QMD refresh status, stale tracking files, staged review state, `final-source-review.json`, and whether Paper Source `record-wiki-ingest` remains.

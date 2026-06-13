@@ -1,127 +1,46 @@
 # Redo Extraction
 
-Use this when the user asks Paper Wiki to 重做, 重新提取, 更详细提取, 批量重提取, redo, redo extraction, or deep extraction for one paper or many papers.
+Use when the user asks Paper Wiki to 重做, 重新提取, 更详细提取, 批量重提取, redo, redo extraction, deep extraction, source-map-first, or source-map-grounded extraction. This is deliberate re-deposition: source reread -> compare existing pages -> graph-aware rewrite or staged patch -> post-task check -> Paper Source record readiness.
 
-This workflow is for deliberate re-deposition. It is stronger than ordinary update: Paper Wiki must re-read the source bundle, compare existing wiki pages, and produce a controlled rewrite or staged patch.
+Targets may be a single paper (slug, title, DOI, arXiv id, selected page, or selected handoff) or a batch (slugs, ready handoffs, a run, or topic/status filter). If ambiguous, ask one short question; `默认` means use the ready paper or batch implied by the current Paper Source handoff.
 
-If the paper is a survey/review (detection signals in `../references/survey-page-anatomy.md`), write or repair the `references/` page with the survey map/hub spine from that contract — not the method spine. Keep survey routing additive: taxonomy → `concepts/`, cross-method landscape → `synthesis/`, gaps → `opportunities/`; do not create `derivations/` pages from a survey's borrowed illustrative formulas or `experiments/` pages for a survey. Reframe any existing such pages honestly rather than forcing the survey through them.
-
-## Modes
-
-- single paper: target one slug, title, DOI, arXiv id, selected page, or selected Paper Source handoff.
-- batch: target a list of slugs, all ready handoffs, all papers in a run, or all papers matching a topic/status filter.
-
-If the target is ambiguous, ask one short question. A reply of `默认` means redo the ready paper or batch Paper Wiki can identify from the current Paper Source handoff context.
+If the paper is a survey/review, route `references/` writing through `../references/survey-page-anatomy.md`, not the method-paper spine. Surveys may spawn taxonomy `concepts/`, landscape `synthesis/`, and gap `opportunities/`; do not create `derivations/` from borrowed formulas or `experiments/` from second-hand results.
 
 ## Preflight
 
-1. Read `../../../rules/wiki-writing-standard.md`.
-2. Read `../../paper-wiki-language/SKILL.md`; redo writing must fix language quality without changing evidence.
-3. Resolve the target vault and read `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
-4. Locate the relevant `_paper_source/staging/papers/*/wiki-ingest-brief.json`; it is the canonical Paper Source-to-Paper Wiki handoff. Legacy `_epi/staging/papers/*/wiki-ingest-brief.json` remains readable. Treat `_paper_source/staging/papers/*/wiki_deposition_task.json` and legacy `_epi/staging/papers/*/wiki_deposition_task.json` as compatibility context only, and stop for Paper Source brief repair if only the task exists.
-5. Check `paper-gate` status or handoff status. Stop if source artifacts are missing or if human approval is the only unresolved gate.
-6. Read current formal pages named by previous `wiki-ingest-record.json`, `final-source-review.json`, page frontmatter `sources:`, or search hits in the seven page families.
+1. Read `../../../rules/wiki-writing-standard.md` and `../../paper-wiki-language/SKILL.md`.
+2. Resolve the target vault; read `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
+3. Locate `_paper_source/staging/papers/*/wiki-ingest-brief.json` as canonical; legacy `_epi/.../wiki-ingest-brief.json` is readable fallback. Task-only `wiki_deposition_task.json` means stop for Paper Source brief repair.
+4. Check `paper-gate` or handoff status; stop if source artifacts are missing or human approval is the only unresolved gate.
+5. Read existing formal pages named by prior `wiki-ingest-record.json`, `final-source-review.json`, page `sources:`, or search hits in `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`.
 
-## Source Reread
+## Source Reread And Plan
 
-source reread is mandatory. Do not redo from existing wiki text alone.
+Source reread is mandatory; never redo from wiki text alone. For each selected paper reread metadata, MinerU Markdown, images, MinerU manifest, `figure-index.json`, `formula-index.json`, reading report, `wiki-ingest-brief.json`, and prior `final-source-review.json` when present.
 
-For every selected paper, re-read:
+MinerU Markdown is primary for formulas, notation, method context, and prose. Only fall back to the PDF, `formula-index.json`, `figure-index.json`, or image evidence when Markdown is missing, wrong, ambiguous, or insufficient. Non-empty `mineru/paper.tex` is only an optional cross-check; reader/critic outputs guide attention but do not replace source reread.
 
-- metadata
-- MinerU Markdown
-- images
-- MinerU manifest
-- `figure-index.json`
-- `formula-index.json`
-- reading report
-- `wiki-ingest-brief.json`
-- prior `final-source-review.json` when present
-
-MinerU Markdown is the primary source for formulas, notation, method context, and prose. Only fall back to the PDF, `formula-index.json`, `figure-index.json`, or image evidence when Markdown is missing, wrong, ambiguous, or insufficient. If non-empty native `mineru/paper.tex` exists, use it only as an optional cross-check. Reader or critic outputs may guide attention, but they do not replace the source reread.
-
-## Compare Existing Pages
-
-Before writing, compare existing pages against the source reread:
-
-1. Identify which `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/` pages the paper already touched.
-2. Mark each page as keep, deepen, split, merge, supersede, or delete-proposal.
-3. Preserve useful existing wikilinks, aliases, tags, and relationships.
-4. Surface contradictions and unsupported claims instead of silently deleting them.
-5. Decide whether the redo should be a direct rewrite or a staged patch.
-
-Use `staged patch` by default when the redo changes page identity, removes existing claims, changes lifecycle, or affects more than one formal page family.
+Before writing, classify each touched page as keep, deepen, split, merge, supersede, or delete-proposal. Preserve useful wikilinks, aliases, tags, relationships, support labels, and evidence addresses; surface contradictions and unsupported claims instead of silently deleting them. Prefer a staged patch when identity, lifecycle, claim deletion, or multiple page families are involved. Return selected papers, pages to change, source artifacts reread, risk level, direct-write vs staged patch, and one confirmation. `默认` applies the recommended safe staged plan.
 
 ## Graph-Aware Rewrite
 
-Redo work that materially changes formal page claims is a material rewrite and a graph-aware rewrite. It must analyze the target pages and dependent formal pages together instead of rewriting one markdown file in isolation.
+Redo work that materially changes formal claims is a material rewrite and graph-aware rewrite. Treat dependent formal pages as one transaction, not isolated markdown edits.
 
-1. Treat references/ pages are evidence source nodes. If a reference page changes, inspect dependent `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/` pages for stale claims, missing formula chains, wrong evidence tiers, or relationship drift.
-2. Find reverse dependencies through backlinks, outgoing wikilinks, `relationships:`, `sources:`, manifest or `.manifest.json`, prior `final-source-review.json`, prior `wiki-ingest-record.json`, `index.md`, `log.md`, `hot.md`, and direct search.
-3. Update dependent formal pages when the redo changes claim/evidence boundaries, formulas, figure/table evidence, evidence tiers, reusable mechanisms, synthesis conclusions, or opportunity wording.
-4. Create a new `derivations/` or `concepts/` page when the source reread exposes reusable knowledge that downstream pages need to cite.
-5. Refresh manifest or `.manifest.json`, `final-source-review.json`, `index.md`, `log.md`, and `hot.md` in the same run as the markdown rewrite. Read prior `wiki-ingest-record.json` only as provenance and reverse-dependency evidence.
-6. Report Paper Source record readiness. Paper Wiki records readiness; Paper Source writes or replaces `wiki-ingest-record.json` through `record-wiki-ingest`. When the redo produces record-ready formal pages, write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` with `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, current final page hashes, current `final-source-review.json` hash, and `record-wiki-ingest --from-paper-wiki-request ...`; Paper Wiki writes the request artifact; Paper Source consumes it. Legacy `_epi/.../prw-record-request.json` remains accepted only for existing artifacts.
-7. Run or report `qmd update` and `qmd embed` after confirmed writes or staged patches.
+- references/ pages are evidence source nodes; if one changes, inspect dependent `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`.
+- Find reverse dependencies through backlinks, outlinks, `relationships:`, `sources:`, manifest or `.manifest.json`, prior `final-source-review.json`, previous `wiki-ingest-record.json`, `index.md`, `log.md`, `hot.md`, and direct search.
+- Update dependent formal pages when claim/evidence boundaries, formulas, figures/tables, evidence tiers, reusable mechanisms, synthesis conclusions, or opportunity wording change.
+- Create new `derivations/` or `concepts/` pages when derived concepts would otherwise remain trapped in one reference page.
+- Refresh manifest or `.manifest.json`, `final-source-review.json`, `index.md`, `log.md`, and `hot.md`; read previous `wiki-ingest-record.json` only as provenance and reverse-dependency evidence.
+- This is the formal knowledge maintenance layer: maintain formal page content relationships, content relationship maintenance, claim staleness, split or merge pages, reverse dependencies, evidence-tier drift, derived concepts, derivations, and synthesis.
 
-## Deep Extraction Lenses
+Report Paper Source record readiness. Paper Wiki records readiness; Paper Source writes or replaces `wiki-ingest-record.json` through `record-wiki-ingest`. If record-ready, write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` with `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, final page hashes, `final-source-review.json` hash, and `record-wiki-ingest --from-paper-wiki-request ...`; Paper Wiki writes the request artifact; Paper Source consumes it. Legacy `_epi/.../prw-record-request.json` is compatibility-only. do not write human approval; Paper Source owns human approval records and `record-wiki-ingest`.
 
-For deep extraction, inspect the paper through these lenses:
+## Depth And Close
 
-- theory reconstruction
-- formula derivation
-- figure and table evidence
-- experimental setup, metrics, datasets, baselines, and ablations
-- implementation details and reproducibility caveats
-- limitations, failure modes, and assumptions
-- reusable methods or concepts
-- cross-paper contradictions, confirmations, and research gaps
-- opportunities for follow-up experiments or literature review sections
-- for a survey/review: review type and coverage (PRISMA/inclusion criteria), the taxonomy, a per-branch method landscape with representative studies and reported results, the evidence-tier distribution, and the reading map to primary sources (follow `../references/survey-page-anatomy.md`)
+Use requested depth where relevant: theory reconstruction, formula derivation, figure/table evidence, experimental setup, metrics, datasets, baselines, ablations, implementation caveats, limitations, assumptions, reusable concepts, cross-paper contradictions, and research gaps. For surveys, capture review type, coverage/PRISMA signals, taxonomy, per-branch landscape, evidence-tier distribution, and reading map to primary sources via `../references/survey-page-anatomy.md`.
 
-## Write Plan
+After confirmation, apply `wiki-writing-standard.md` and `paper-wiki-language`; direct-write only when risk is low and the vault allows it, otherwise write staged patch files. Recompute `provenance:` and `base_confidence:` when source mix or claim mix changes, update `relationships:` only when direction/type are clear, and update or recreate `final-source-review.json`.
 
-Return a concise plan before writing:
+Run or report `qmd update` and `qmd embed` after confirmed writes or staged patches. QMD is optional: use it as lookup aid only after source reread/page comparison; if unavailable, stale, slow, or noisy, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, previous `wiki-ingest-record.json`, and direct file search; do not block on qmd query.
 
-1. selected papers: single paper or batch
-2. pages to rewrite, deepen, split, merge, or stage
-3. source artifacts reread
-4. risk level: low, medium, or high
-5. confirmation question
-
-Ask one confirmation before write-heavy redo. A reply of `默认` means apply the recommended safe staged plan.
-
-## Write Pages
-
-After confirmation:
-
-1. Apply `wiki-writing-standard.md`.
-2. Apply `paper-wiki-language` before and during the rewrite; do not leave machine-translation headings or outline-like Chinese prose in formal pages.
-3. Write direct changes only when risk is low and the target vault allows direct writes.
-4. Otherwise write staged patch files or staged replacement pages using the vault staging contract.
-5. Keep source support labels and evidence addresses visible.
-6. Recompute `provenance:` and `base_confidence:` when sources or claim mix materially change.
-7. Update `relationships:` only when direction and type are clear.
-8. Update or recreate `final-source-review.json` for every selected paper.
-9. Run `workflows/check-wiki.md` after writing as the post-task check.
-
-## Tracking And Paper Source Boundary
-
-Update the target vault tracking surface after the redo:
-
-- manifest or `.manifest.json`
-- `index.md`
-- `log.md`
-- `hot.md`
-
-Paper Wiki can prepare pages and source review, but do not write human approval. Paper Source owns human approval records and `record-wiki-ingest`.
-
-After redo, tell the user which `record-wiki-ingest --from-paper-wiki-request _paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` command remains, or say that staged review must happen first.
-
-## QMD Compatibility
-
-Redo may change retrieval-critical pages. After the source reread and page comparison, use QMD only as an optional lookup aid. After confirmed writes or staged patches, run or recommend `qmd update` and `qmd embed` when QMD is installed and the target vault permits it. If QMD is unavailable, stale, slow, or noisy, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, previous `wiki-ingest-record.json`, and direct file search; do not block on qmd query.
-
-## Post-Task Check
-
-Run `workflows/check-wiki.md` after writing. The post-task check must confirm changed pages, tracking files, source-review hashes, broken wikilinks, orphan pages, staged patch state, provenance drift, QMD refresh status, and whether `record-wiki-ingest` remains.
+Run `workflows/check-wiki.md` after writing as the post-task check. Confirm changed pages, tracking files, source-review hashes, broken wikilinks, orphan pages, staged patch state, provenance drift, QMD refresh status, and whether `record-wiki-ingest --from-paper-wiki-request _paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` remains.
