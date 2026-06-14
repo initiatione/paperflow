@@ -9,9 +9,12 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
+from requests import RequestException
 
 
 API_ROOT = "https://mineru.net/api/v4"
+ZIP_DOWNLOAD_ATTEMPTS = 3
+ZIP_DOWNLOAD_BACKOFF_SECONDS = 5
 
 
 def default_project_root() -> Path:
@@ -128,8 +131,39 @@ def poll_batch(token: str, batch_id: str, timeout: int, interval: int) -> list[d
     raise TimeoutError(f"timed out waiting for batch {batch_id}")
 
 
+def _download_zip_response(zip_url: str) -> requests.Response:
+    last_error: Exception | None = None
+    for attempt in range(1, ZIP_DOWNLOAD_ATTEMPTS + 1):
+        try:
+            response = requests.get(zip_url, timeout=600)
+        except RequestException as exc:
+            last_error = exc
+            if attempt < ZIP_DOWNLOAD_ATTEMPTS:
+                print(
+                    f"download zip attempt {attempt}/{ZIP_DOWNLOAD_ATTEMPTS} failed: {exc}",
+                    file=sys.stderr,
+                )
+                time.sleep(ZIP_DOWNLOAD_BACKOFF_SECONDS * attempt)
+                continue
+            raise RuntimeError(
+                f"download zip failed after {ZIP_DOWNLOAD_ATTEMPTS} attempts: {exc}"
+            ) from exc
+        if response.status_code == 200:
+            return response
+        if attempt < ZIP_DOWNLOAD_ATTEMPTS and response.status_code in {429, 500, 502, 503, 504}:
+            text = response.text[:500]
+            print(
+                f"download zip attempt {attempt}/{ZIP_DOWNLOAD_ATTEMPTS} returned HTTP {response.status_code}: {text}",
+                file=sys.stderr,
+            )
+            time.sleep(ZIP_DOWNLOAD_BACKOFF_SECONDS * attempt)
+            continue
+        return response
+    raise RuntimeError(f"download zip failed after {ZIP_DOWNLOAD_ATTEMPTS} attempts: {last_error}")
+
+
 def download_markdown_and_assets(zip_url: str, asset_root: Path, extract_images: bool) -> tuple[bytes, int]:
-    response = requests.get(zip_url, timeout=600)
+    response = _download_zip_response(zip_url)
     if response.status_code != 200:
         text = response.text[:500]
         raise RuntimeError(f"download zip failed: HTTP {response.status_code}, {text}")
@@ -239,19 +273,27 @@ def main() -> int:
                 asset_root = output_dir
             md_dir.mkdir(parents=True, exist_ok=True)
 
-            md_bytes, image_count = download_markdown_and_assets(
-                item["full_zip_url"],
-                asset_root,
-                extract_images=not args.no_extract_images,
-            )
-            out_path = md_dir / f"{stem}.md"
-            out_path.write_bytes(md_bytes)
-            entry["document_dir"] = relative_text(project_root, document_dir)
-            entry["markdown_path"] = relative_text(project_root, out_path)
-            entry["image_count"] = image_count
-            entry["image_dir"] = relative_text(project_root, asset_root / "images") if image_count else ""
-            image_note = f" and {image_count} images" if image_count else ""
-            print(f"saved {relative_text(project_root, out_path)}{image_note}")
+            try:
+                md_bytes, image_count = download_markdown_and_assets(
+                    item["full_zip_url"],
+                    asset_root,
+                    extract_images=not args.no_extract_images,
+                )
+            except Exception as exc:
+                entry["state"] = "download_failed"
+                entry["full_zip_url"] = item.get("full_zip_url")
+                entry["err_msg"] = str(exc)
+                failures.append(entry)
+                print(f"failed {file_name}: {entry['err_msg']}")
+            else:
+                out_path = md_dir / f"{stem}.md"
+                out_path.write_bytes(md_bytes)
+                entry["document_dir"] = relative_text(project_root, document_dir)
+                entry["markdown_path"] = relative_text(project_root, out_path)
+                entry["image_count"] = image_count
+                entry["image_dir"] = relative_text(project_root, asset_root / "images") if image_count else ""
+                image_note = f" and {image_count} images" if image_count else ""
+                print(f"saved {relative_text(project_root, out_path)}{image_note}")
         else:
             failures.append(entry)
             print(f"failed {file_name}: {item.get('err_msg', '')}")

@@ -107,6 +107,27 @@ def _batch_id_from(stdout: str, manifest: dict | None) -> str | None:
     return match.group(1) if match else None
 
 
+def _manifest_failure_summary(manifest: dict | None) -> str | None:
+    if not manifest:
+        return None
+    failures: list[str] = []
+    for output in manifest.get("outputs", []):
+        if not isinstance(output, dict):
+            continue
+        state = str(output.get("state") or "").strip()
+        if state in {"done", ""}:
+            continue
+        file_name = output.get("file_name") or output.get("data_id") or "unknown"
+        message = str(output.get("err_msg") or "").strip()
+        if message:
+            failures.append(f"{file_name}:{state}: {message}")
+        else:
+            failures.append(f"{file_name}:{state}")
+    if not failures:
+        return None
+    return "; ".join(failures[:3])
+
+
 def _copy_tree_contents(source_dir: Path, target_dir: Path) -> int:
     if target_dir.exists():
         shutil.rmtree(target_dir)
@@ -367,7 +388,10 @@ def run_mineru_command(
         markdown_path = _find_markdown(work_dir, output_dir, manifest)
         batch_id = _batch_id_from(completed.stdout, manifest)
         error = f"MinerU command failed with exit code {completed.returncode}"
-        if batch_id and not markdown_path and re.search(rf"batch\s+{re.escape(batch_id)}:.*:done", completed.stdout):
+        manifest_failure = _manifest_failure_summary(manifest)
+        if manifest_failure and not markdown_path:
+            error = f"MinerU output download failed: {manifest_failure}"
+        elif batch_id and not markdown_path and re.search(rf"batch\s+{re.escape(batch_id)}:.*:done", completed.stdout):
             error = "MinerU reported done but produced no Markdown output"
         return _write_failure_record(
             paper_root,

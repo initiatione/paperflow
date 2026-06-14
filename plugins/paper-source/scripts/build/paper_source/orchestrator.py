@@ -220,6 +220,190 @@ def _build_dry_run_query_plan(query: str, *, domain: str, max_queries: int, conf
     )
 
 
+def _unique_nonempty_strings(values: list[str] | None, *, split_commas: bool = False) -> list[str]:
+    if not values:
+        return []
+    seen: set[str] = set()
+    kept: list[str] = []
+    for value in values:
+        candidates = str(value).split(",") if split_commas else [str(value)]
+        for candidate in candidates:
+            item = " ".join(candidate.strip().split())
+            normalized = item.lower()
+            if not item or normalized in seen:
+                continue
+            seen.add(normalized)
+            kept.append(item)
+    return kept
+
+
+CODE_POLICIES = {"ignore", "prefer", "require"}
+
+
+def _normalize_year_min(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise ValueError("year_min must be an integer year")
+    try:
+        year = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"year_min must be an integer year: {value}") from exc
+    if year < 1000 or year > 9999:
+        raise ValueError(f"year_min must be a four-digit year: {value}")
+    return year
+
+
+def _normalize_code_policy(value: object) -> str | None:
+    if value is None or value == "":
+        return None
+    policy = str(value).strip().lower()
+    if policy not in CODE_POLICIES:
+        raise ValueError(f"unknown code_policy: {value}")
+    return policy
+
+
+def _request_constraints_payload(year_min: int | None, code_policy: str | None) -> dict:
+    payload: dict[str, object] = {}
+    if year_min is not None:
+        payload["year_min"] = year_min
+    if code_policy is not None:
+        payload["code_policy"] = code_policy
+    return payload
+
+
+def _load_agent_query_plan_json(path: Path | None) -> dict | None:
+    if path is None:
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"agent query plan JSON is invalid: {path}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("agent query plan JSON must be an object")
+    for key in ("query_variants", "domain_focus_terms", "must_have_domain_anchors"):
+        value = payload.get(key)
+        if value is not None and not isinstance(value, list):
+            raise ValueError(f"agent query plan field must be a list: {key}")
+    return payload
+
+
+def _agent_plan_strings(payload: dict | None, *keys: str, split_commas: bool = False) -> list[str]:
+    if not payload:
+        return []
+    values: list[str] = []
+    for key in keys:
+        raw_value = payload.get(key)
+        if isinstance(raw_value, str):
+            values.append(raw_value)
+        elif isinstance(raw_value, list):
+            values.extend(str(item) for item in raw_value)
+    return _unique_nonempty_strings(values, split_commas=split_commas)
+
+
+def _agent_plan_constraint(payload: dict | None, key: str) -> object:
+    if not payload:
+        return None
+    if key in payload:
+        return payload.get(key)
+    for container_key in ("constraints", "request_constraints"):
+        container = payload.get(container_key)
+        if isinstance(container, dict) and key in container:
+            return container.get(key)
+    return None
+
+
+def _minimal_agent_supplied_query_plan(query: str, *, config) -> dict:
+    focus_terms = topic_focus_terms(query)
+    profile_terms = _unique_nonempty_strings(
+        [config.profile.replace("_", " ").replace("-", " ")] + list(config.domains) + list(config.positive_keywords)
+    )
+    domain_terms = _unique_nonempty_strings(list(config.domains))
+    method_terms = _unique_nonempty_strings(list(config.positive_keywords) + focus_terms)
+    exclusions = default_discovery_exclusion_terms(query)
+    return {
+        "workflow": "paper-source-query-plan",
+        "topic": query,
+        "research_mode": infer_research_mode(query),
+        "domain": "agent-supplied",
+        "profile": {
+            "name": config.profile,
+            "domains": list(config.domains),
+            "positive_keywords": list(config.positive_keywords),
+            "negative_keywords": list(config.negative_keywords),
+            "venue_prior": list(config.venue_prior),
+            "derivation": "agent-supplied query plan; script records and executes explicit terms",
+        },
+        "concept_blocks": {
+            "profile_terms": profile_terms,
+            "domain_terms": domain_terms,
+            "domain_focus_terms": [],
+            "method_or_topic_terms": method_terms,
+            "problem_terms": focus_terms,
+            "context_terms": [],
+            "quality_signals": [],
+            "exclusions": exclusions,
+        },
+        "query_variants": [query],
+        "source_route": {
+            "t1": ["paper_search_mcp", "arxiv", "semantic", "openalex", "crossref", "unpaywall"],
+            "t2": ["official venue pages", "publisher DOI pages", "field-specific indexes"],
+            "t3": ["citation graph", "lab/project pages", "profile-specific curated venue lists"],
+        },
+        "recall_gap_checks": {
+            "venue_families": list(config.venue_prior) or ["profile-configured venue_prior", "field-specific top venues"],
+            "profile_terms": profile_terms,
+            "citation_graph": ["journal version", "recent cited-by", "references", "related papers"],
+            "library_dedup": ["DOI", "arXiv ID", "normalized title", "title+first-author+year"],
+        },
+        "quality_signals": [],
+    }
+
+
+def _apply_agent_supplied_query_inputs(
+    query_plan: dict | None,
+    *,
+    query: str,
+    config,
+    query_variants: list[str],
+    domain_focus_terms: list[str],
+    agent_query_plan: dict | None = None,
+    agent_query_plan_path: Path | None = None,
+    year_min: int | None = None,
+    code_policy: str | None = None,
+) -> dict:
+    plan = query_plan or _minimal_agent_supplied_query_plan(query, config=config)
+    blocks = plan.setdefault("concept_blocks", {})
+    plan_blocks = agent_query_plan.get("concept_blocks") if isinstance(agent_query_plan, dict) else None
+    if isinstance(plan_blocks, dict):
+        for key, value in plan_blocks.items():
+            if isinstance(value, list):
+                blocks[key] = _unique_nonempty_strings([str(item) for item in value] + list(blocks.get(key) or []))
+    if domain_focus_terms:
+        blocks["domain_focus_terms"] = _unique_nonempty_strings(domain_focus_terms)
+        blocks["domain_terms"] = _unique_nonempty_strings(domain_focus_terms + list(blocks.get("domain_terms") or []))
+    if query_variants:
+        plan["query_variants"] = query_variants
+        plan["query_variants_source"] = "agent_supplied"
+    if domain_focus_terms:
+        plan["domain_focus_terms_source"] = "agent_supplied"
+    request_constraints = _request_constraints_payload(year_min, code_policy)
+    if request_constraints:
+        plan["request_constraints"] = {
+            **request_constraints,
+            "source": "agent_supplied" if agent_query_plan or query_variants or domain_focus_terms else "cli",
+        }
+    plan["agent_supplied"] = {
+        "query_variants": query_variants,
+        "domain_focus_terms": domain_focus_terms,
+        "agent_query_plan_path": str(agent_query_plan_path) if agent_query_plan_path else None,
+        "agent_query_plan": agent_query_plan or {},
+        "request_constraints": request_constraints,
+        "contract": "agent_compiles_natural_language; script_records_and_executes",
+    }
+    return plan
+
+
 def _exact_lookup_query(source_routing: dict | None, fallback_query: str) -> str:
     exact_lookup = source_routing.get("exact_lookup") if isinstance(source_routing, dict) else None
     if isinstance(exact_lookup, dict) and exact_lookup.get("value"):
@@ -906,6 +1090,11 @@ def run_dry_run(
     paper_search_command: str | None = None,
     sources: list[str] | None = None,
     use_query_plan: bool = True,
+    query_variants: list[str] | None = None,
+    domain_focus_terms: list[str] | None = None,
+    agent_query_plan_json: Path | None = None,
+    year_min: int | None = None,
+    code_policy: str | None = None,
     query_plan_domain: str = "auto",
     query_plan_max_queries: int = 6,
     enable_easyscholar: bool = True,
@@ -944,6 +1133,28 @@ def run_dry_run(
     effective_sources = source_routing.get("selected_sources") or requested_sources
     run_id, run_dir = _new_run_dir(config.vault_path)
     started_at = utc_now()
+    agent_query_plan_payload = _load_agent_query_plan_json(agent_query_plan_json)
+    supplied_query_variants = _unique_nonempty_strings(
+        _agent_plan_strings(agent_query_plan_payload, "query_variants") + _unique_nonempty_strings(query_variants)
+    )
+    supplied_domain_focus_terms = _unique_nonempty_strings(
+        _agent_plan_strings(
+            agent_query_plan_payload,
+            "domain_focus_terms",
+            "must_have_domain_anchors",
+            split_commas=True,
+        )
+        + _unique_nonempty_strings(domain_focus_terms, split_commas=True)
+    )
+    request_year_min = _normalize_year_min(
+        year_min if year_min is not None else _agent_plan_constraint(agent_query_plan_payload, "year_min")
+    )
+    request_code_policy = _normalize_code_policy(
+        code_policy
+        if code_policy is not None
+        else _agent_plan_constraint(agent_query_plan_payload, "code_policy")
+    )
+    request_constraints = _request_constraints_payload(request_year_min, request_code_policy)
     query_plan = None
     if use_query_plan:
         query_plan = (
@@ -964,6 +1175,18 @@ def run_dry_run(
                 config=config,
             )
         )
+    if supplied_query_variants or supplied_domain_focus_terms or agent_query_plan_payload:
+        query_plan = _apply_agent_supplied_query_inputs(
+            query_plan,
+            query=query,
+            config=config,
+            query_variants=supplied_query_variants,
+            domain_focus_terms=supplied_domain_focus_terms,
+            agent_query_plan=agent_query_plan_payload,
+            agent_query_plan_path=agent_query_plan_json,
+            year_min=request_year_min,
+            code_policy=request_code_policy,
+        )
     if query_plan:
         _apply_exact_lookup_query_plan(query_plan, source_routing)
     research_mode = (query_plan or {}).get("research_mode") or infer_research_mode(query)
@@ -982,6 +1205,10 @@ def run_dry_run(
             "negative_keywords": config.negative_keywords,
             "venue_prior": config.venue_prior,
             "use_query_plan": use_query_plan,
+            "agent_query_variants": supplied_query_variants,
+            "agent_domain_focus_terms": supplied_domain_focus_terms,
+            "agent_query_plan_json": str(agent_query_plan_json) if agent_query_plan_json else None,
+            "request_constraints": request_constraints,
             "query_plan_domain": query_plan_domain,
             "query_plan_max_queries": query_plan_max_queries,
             "enable_easyscholar": bool(enable_easyscholar and config.easyscholar_enabled),
@@ -1024,6 +1251,8 @@ def run_dry_run(
             "report_run",
         ),
     }
+    if request_constraints:
+        state["request_constraints"] = request_constraints
     if brief_metadata:
         state["research_brief"] = brief_metadata
     if query_plan:
@@ -1066,7 +1295,11 @@ def run_dry_run(
         require_pdf=True,
         exclude_terms=query_exclude_terms,
         existing_library_index=existing_library_index,
+        year_min=request_year_min,
+        code_policy=request_code_policy,
     )
+    if request_constraints:
+        filter_report["request_constraints"] = request_constraints
     filter_report["existing_library"] = {
         "papers_root": existing_library_index.get("papers_root"),
         "count": existing_library_index.get("count", 0),
@@ -1100,6 +1333,8 @@ def run_dry_run(
         positive_keywords=_ranking_keywords_from_profile(config, query, query_plan),
         negative_keywords=config.negative_keywords,
         venue_tiers=_venue_tiers_from_profile(config, query_plan),
+        year_min=request_year_min,
+        code_policy=request_code_policy,
     )
     ranked = ranked_pool[: config.max_results]
     write_json_atomic(run_dir / "rank.json", ranked)
@@ -1118,6 +1353,8 @@ def run_dry_run(
     }
     if query_plan:
         budget_usage["query_variant_count"] = len(query_plan.get("query_variants") or [])
+    if request_constraints:
+        budget_usage.update(request_constraints)
     source_coverage = _source_coverage_from_search_record(search_record, deduped_total=len(normalized))
     review_session_payload = None
     if resumed_session:
@@ -1170,6 +1407,7 @@ def run_dry_run(
         },
         "query_records": search_record.get("query_records", []),
         "source_coverage": source_coverage,
+        "request_constraints": request_constraints,
         "warnings": search_record.get("warnings", []),
         "easyscholar": {
             "enabled": easyscholar_record.get("enabled"),
@@ -1215,10 +1453,14 @@ def run_dry_run(
                 "profile": config.profile,
                 "query_plan": query_plan,
                 "source_routing": source_routing,
+                "agent_query_plan_json": str(agent_query_plan_json) if agent_query_plan_json else None,
+                "request_constraints": request_constraints,
                 "research_brief": brief_metadata,
             }
         )
     }
+    if agent_query_plan_json is not None and agent_query_plan_json.exists():
+        input_hashes["agent-query-plan.json"] = file_sha256(agent_query_plan_json)
     if brief_metadata:
         input_hashes["research-brief.json"] = brief_metadata["hash"]
     if fixture_path is not None and fixture_path.exists():

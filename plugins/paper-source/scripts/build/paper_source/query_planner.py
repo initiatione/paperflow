@@ -154,80 +154,6 @@ NON_REVIEW_MODE_BLOCKERS = (
 )
 
 
-DOMAIN_HINT_PACKS: dict[str, dict[str, Any]] = {
-    "auv-control": {
-        "detect": ["auv", "underwater", "marine", "ocean"],
-        "domain_terms": [
-            "AUV",
-            "autonomous underwater vehicle",
-            "unmanned underwater vehicle",
-            "underwater robot",
-        ],
-        "method_terms": [
-            "reinforcement learning",
-            "offline reinforcement learning",
-            "model-based reinforcement learning",
-            "adaptive control",
-            "safety-critical control",
-        ],
-        "problem_terms": [
-            "trajectory tracking",
-            "path following",
-            "stabilization",
-            "station keeping",
-        ],
-        "context_terms": [
-            "ocean current",
-            "current disturbance",
-            "underwater disturbance",
-            "turbulence",
-        ],
-        "quality_signals": ["sea trial", "field trial", "real AUV", "sim-to-real", "benchmark"],
-        "exclude": ["acoustic communication", "underwater sensor network"],
-        "venues": [
-            "Ocean Engineering",
-            "IEEE Journal of Oceanic Engineering",
-            "Applied Ocean Research",
-            "Control Engineering Practice",
-            "OCEANS",
-        ],
-    },
-    "embodied-ai": {
-        "detect": ["embodied", "vla", "world model", "foundation model", "diffusion policy"],
-        "domain_terms": ["embodied agent", "robot system", "manipulator", "mobile robot"],
-        "method_terms": [
-            "world model",
-            "foundation model",
-            "vision language action",
-            "diffusion policy",
-            "imitation learning",
-            "reinforcement learning",
-        ],
-        "problem_terms": ["manipulation", "navigation", "planning", "long-horizon task"],
-        "context_terms": ["sim-to-real", "real robot", "benchmark"],
-        "quality_signals": ["real robot", "open-source code", "dataset", "ablation", "benchmark"],
-        "exclude": ["position paper", "pure LLM benchmark"],
-        "venues": ["CoRL", "RSS", "ICRA", "IROS", "NeurIPS", "ICML", "ICLR", "RA-L"],
-    },
-    "general-robotics": {
-        "detect": ["robot", "robotic", "navigation", "motion control"],
-        "domain_terms": ["robot", "robotic system", "autonomous system"],
-        "method_terms": [
-            "model predictive control",
-            "adaptive control",
-            "robust control",
-            "learning-based control",
-            "control barrier function",
-        ],
-        "problem_terms": ["trajectory tracking", "path planning", "motion planning", "navigation"],
-        "context_terms": ["disturbance", "uncertainty", "real-world"],
-        "quality_signals": ["hardware experiment", "benchmark", "safety guarantee"],
-        "exclude": ["tutorial", "editorial"],
-        "venues": ["TRO", "IJRR", "RA-L", "ICRA", "IROS", "RSS", "CoRL"],
-    },
-}
-
-
 def _as_terms(values: list[str] | tuple[str, ...] | None) -> list[str]:
     if not values:
         return []
@@ -304,6 +230,31 @@ def _remove_method_family_phrases(topic: str) -> str:
     return lowered
 
 
+def _is_method_family_phrase(term: str) -> bool:
+    normalized = " ".join(term.lower().replace("-", " ").split())
+    method_phrases = {" ".join(phrase.lower().replace("-", " ").split()) for phrase in METHOD_FAMILY_PHRASES}
+    return normalized in method_phrases
+
+
+def _configured_domain_terms_in_topic(configured_domains: list[str], topic: str) -> list[str]:
+    topic_words = set(
+        word
+        for word in re.split(r"[^a-z0-9+\-]+", topic.lower())
+        if word
+    )
+    matched: list[str] = []
+    for term in configured_domains:
+        if _is_method_family_phrase(term):
+            continue
+        normalized = term.lower()
+        tokens = [token for token in re.split(r"[^a-z0-9+\-]+", normalized) if token]
+        if not tokens:
+            continue
+        if normalized in topic.lower() or all(token in topic_words for token in tokens):
+            matched.append(term)
+    return matched
+
+
 def _topic_domain_anchor_terms(topic: str, *, limit: int = 4) -> list[str]:
     residual = _remove_method_family_phrases(topic)
     words = [
@@ -322,6 +273,29 @@ def _topic_domain_anchor_terms(topic: str, *, limit: int = 4) -> list[str]:
     return unique(terms)[:limit]
 
 
+def _query_term_candidates(items: list[str], *, limit: int = 4) -> list[str]:
+    skipped = {
+        "latest",
+        "high quality",
+        "recent",
+        "last 5 years",
+        "past 5 years",
+        "open source code",
+        "source code",
+        "reproducible code",
+    }
+    kept: list[str] = []
+    for item in items:
+        term = " ".join(str(item).strip().split())
+        normalized = term.lower()
+        if not term or normalized in skipped:
+            continue
+        if normalized.startswith("latest ") or normalized.startswith("high quality "):
+            continue
+        kept.append(term)
+    return unique(kept)[:limit]
+
+
 def _profile_terms(profile: str, domains: list[str] | None, positive_keywords: list[str] | None) -> list[str]:
     profile_text = profile.replace("_", " ").replace("-", " ").strip()
     profile_items = [profile_text] if profile_text and profile_text != "general academic research" else []
@@ -334,28 +308,11 @@ def choose_domain(
     *,
     profile_terms: list[str] | None = None,
 ) -> str:
-    if requested not in {"auto", "profile", *DOMAIN_HINT_PACKS.keys()}:
+    if requested not in {"auto", "profile"}:
         raise ValueError(f"unknown domain: {requested}")
-    if requested == "profile":
+    if requested == "profile" or profile_terms:
         return "profile-derived"
-    if requested != "auto":
-        return requested
-    if profile_terms:
-        return "profile-derived"
-
-    lowered = topic.lower()
-    for name, pack in DOMAIN_HINT_PACKS.items():
-        if any(marker in lowered for marker in pack["detect"]):
-            return name
     return "topic-derived"
-
-
-def topic_hint_pack_name(topic: str) -> str | None:
-    lowered = topic.lower()
-    for name, pack in DOMAIN_HINT_PACKS.items():
-        if any(marker in lowered for marker in pack["detect"]):
-            return name
-    return None
 
 
 def quote(term: str) -> str:
@@ -377,27 +334,30 @@ def _fallback_first(items: list[str], fallback: str) -> str:
 
 
 def build_queries(blocks: dict[str, list[str]], topic: str, non_review: bool, max_queries: int) -> list[str]:
-    domain_terms = blocks["domain_terms"]
-    method_terms = blocks["method_or_topic_terms"]
-    problem_terms = blocks["problem_terms"]
-    context_terms = blocks["context_terms"]
-    quality_signals = blocks["quality_signals"]
+    domain_terms = _query_term_candidates(blocks["domain_terms"], limit=4)
+    method_terms = _query_term_candidates(blocks["method_or_topic_terms"], limit=5)
+    problem_terms = _query_term_candidates(blocks["problem_terms"], limit=5)
+    context_terms = _query_term_candidates(blocks["context_terms"], limit=3)
+    quality_signals = _query_term_candidates(blocks["quality_signals"], limit=5)
 
     primary_domain = _fallback_first(domain_terms, topic)
     primary_method = _fallback_first(method_terms, topic)
     primary_problem = _fallback_first(problem_terms, topic)
-    primary_context = _fallback_first(context_terms, "evaluation")
+    primary_context = _fallback_first(context_terms, "experiment")
     primary_quality = _fallback_first(quality_signals, "benchmark")
+    secondary_domain = domain_terms[1] if len(domain_terms) > 1 else primary_domain
+    secondary_method = method_terms[1] if len(method_terms) > 1 else primary_method
+    secondary_problem = problem_terms[1] if len(problem_terms) > 1 else primary_problem
 
     raw = [
-        topic,
-        _combine_terms(primary_domain, primary_method, primary_problem),
+        _combine_terms(primary_domain, primary_problem, primary_method),
+        _combine_terms(secondary_domain, primary_problem, primary_method),
+        _combine_terms(primary_domain, secondary_problem, primary_method),
+        _combine_terms(primary_domain, primary_problem, secondary_method),
         _combine_terms(primary_domain, primary_method, primary_quality),
-        _combine_terms(topic, primary_quality),
-        _combine_terms(primary_method, primary_problem, primary_context),
-        _combine_terms(primary_domain, primary_problem, "dataset"),
-        _combine_terms(topic, "DOI"),
-        _combine_terms(topic, "code", "benchmark"),
+        _combine_terms(primary_domain, primary_problem, primary_context),
+        _combine_terms(primary_domain, primary_problem, "benchmark"),
+        _combine_terms(primary_domain, primary_problem, "experiment"),
     ]
     return unique([with_exclusion(query, non_review) for query in raw if query.strip()])[:max_queries]
 
@@ -413,44 +373,24 @@ def _term_blocks(
 ) -> dict[str, list[str]]:
     topic_terms = _topic_terms(topic)
     profile_seed_terms = _profile_terms(profile, domains, positive_keywords)
-    hint_pack = DOMAIN_HINT_PACKS.get(chosen_domain, {})
-    topic_hint_pack = DOMAIN_HINT_PACKS.get(topic_hint_pack_name(topic) or "", {})
 
     configured_domains = _as_terms(domains)
-    if topic_hint_pack:
-        topic_domain_terms = [
-            term
-            for term in configured_domains
-            if any(marker in term.lower() for marker in topic_hint_pack.get("detect", []))
-        ]
-    else:
-        lowered_topic = topic.lower()
-        topic_domain_terms = [
-            term
-            for term in configured_domains
-            if term.lower() in lowered_topic
-        ]
-    topic_anchor_terms = [] if topic_hint_pack else _topic_domain_anchor_terms(topic)
-    domain_focus_terms = unique(
-        topic_domain_terms
-        + topic_anchor_terms
-        + topic_hint_pack.get("domain_terms", [])
-    )
+    topic_domain_terms = _configured_domain_terms_in_topic(configured_domains, topic)
+    topic_anchor_terms = _topic_domain_anchor_terms(topic)
+    domain_focus_terms = unique(topic_domain_terms + topic_anchor_terms)
 
-    domain_terms = unique(domain_focus_terms + configured_domains + hint_pack.get("domain_terms", []))
+    domain_terms = unique(domain_focus_terms + configured_domains)
     if not domain_terms:
         domain_terms = topic_terms[:3]
 
     method_or_topic_terms = unique(
-        topic_hint_pack.get("method_terms", [])
-        + _as_terms(positive_keywords)
-        + hint_pack.get("method_terms", [])
+        _as_terms(positive_keywords)
         + topic_terms
     )
-    problem_terms = unique(topic_hint_pack.get("problem_terms", []) + hint_pack.get("problem_terms", []) + topic_terms)
-    context_terms = unique(topic_hint_pack.get("context_terms", []) + hint_pack.get("context_terms", []) + GENERIC_CONTEXT_TERMS)
-    quality_signals = unique(topic_hint_pack.get("quality_signals", []) + hint_pack.get("quality_signals", []) + GENERIC_QUALITY_SIGNALS)
-    exclusions = unique(_as_terms(negative_keywords) + topic_hint_pack.get("exclude", []) + hint_pack.get("exclude", []))
+    problem_terms = unique(topic_terms)
+    context_terms = unique(GENERIC_CONTEXT_TERMS)
+    quality_signals = unique(GENERIC_QUALITY_SIGNALS)
+    exclusions = unique(_as_terms(negative_keywords))
     return {
         "profile_terms": profile_seed_terms,
         "domain_terms": domain_terms,
@@ -488,10 +428,8 @@ def build_query_plan(
     if exclude_reviews:
         blocks["exclusions"] = unique(blocks["exclusions"] + ["review", "survey"])
 
-    hint_pack = DOMAIN_HINT_PACKS.get(chosen, {})
-    topic_hint_pack = DOMAIN_HINT_PACKS.get(topic_hint_pack_name(topic) or "", {})
     configured_venues = _as_terms(venue_prior)
-    venue_families = unique(configured_venues + topic_hint_pack.get("venues", []) + hint_pack.get("venues", []))
+    venue_families = unique(configured_venues)
     if not venue_families:
         venue_families = ["profile-configured venue_prior", "field-specific top venues"]
 
@@ -582,7 +520,7 @@ def build_query_plan_from_research_brief(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate a deterministic Paper Source paper discovery query plan.")
     parser.add_argument("--topic", required=True)
-    parser.add_argument("--domain", default="auto", choices=["auto", "profile", *DOMAIN_HINT_PACKS.keys()])
+    parser.add_argument("--domain", default="auto", choices=["auto", "profile"])
     parser.add_argument("--profile", default="general_academic_research")
     parser.add_argument("--domains", default="", help="Comma-separated user profile domains.")
     parser.add_argument("--positive-keywords", default="", help="Comma-separated profile fit terms.")

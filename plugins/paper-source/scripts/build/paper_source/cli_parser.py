@@ -126,9 +126,34 @@ def build_parser() -> argparse.ArgumentParser:
     dry_run.add_argument("--sources", default=None, help="Comma-separated paper-search sources for live discovery.")
     dry_run.add_argument("--no-query-plan", action="store_true")
     dry_run.add_argument(
+        "--agent-query-plan-json",
+        type=Path,
+        default=None,
+        help="Agent-compiled structured query plan JSON; scripts validate, record, and execute fields.",
+    )
+    dry_run.add_argument(
+        "--query-variant",
+        action="append",
+        default=None,
+        help="Agent-compiled academic search query. Repeat to run an explicit multi-query plan.",
+    )
+    dry_run.add_argument(
+        "--domain-focus-term",
+        action="append",
+        default=None,
+        help="Agent-compiled hard domain anchor for filtering. Repeat for synonyms/acronyms.",
+    )
+    dry_run.add_argument("--year-min", type=int, default=None, help="Reject candidates older than this year.")
+    dry_run.add_argument(
+        "--code-policy",
+        choices=["ignore", "prefer", "require"],
+        default=None,
+        help="Request-level public-code policy: prefer ranks code higher; require rejects missing code_url.",
+    )
+    dry_run.add_argument(
         "--query-plan-domain",
         default="auto",
-        choices=["auto", "profile", "auv-control", "embodied-ai", "general-robotics"],
+        choices=["auto", "profile"],
     )
     dry_run.add_argument("--query-plan-max-queries", type=int, default=6)
     dry_run.add_argument("--no-easyscholar", action="store_true")

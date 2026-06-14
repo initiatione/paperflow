@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Paper Source 1.0.4: harden MinerU output ZIP retrieval. MinerU batch downloads now retry transient CDN/network failures, write `download_failed` manifest entries, and surface concrete output-download errors in `parse-record.json` instead of only reporting missing Markdown.
+- Paper Source 1.0.3: add structured agent query plans and request constraints for discovery. `dry-run` accepts `--agent-query-plan-json`, `--year-min`, and `--code-policy ignore|prefer|require`; run artifacts record `request_constraints`, filter enforces recency/code requirements, and ranking/report output surfaces code and constraint evidence.
+- Paper Source 1.0.2: remove built-in discipline query packs from paper discovery. The query planner and `dry-run --query-plan-domain` now accept only `auto` / `profile`; field vocabulary must come from config, Research Briefs, current user requests, or explicit agent-supplied query variants/domain focus terms.
+- Paper Source 1.0.1: add agent-supplied discovery inputs. `dry-run` accepts repeated `--query-variant` and `--domain-focus-term`, records them in `query-plan.json`, and executes compiled academic queries instead of using raw natural-language topics as MCP search strings. Also tightens excluded-term matching so `surveying` is not rejected as `survey`.
 - Paper Source 1.0.0 / Paper Wiki 1.0.0: current-only handoff and naming cleanup. `wiki-ingest-brief.json` is the only new Paper Source-to-Paper Wiki handoff; old aliases are not user entrypoints, route triggers, env fallbacks, or new artifact contracts.
 - Paper Source 0.2.5 / Paper Wiki 0.2.4: enforce title-display canonical PDF Markdown links in formal-page `sources` and body source PDF entries, reject `原论文 PDF` as clickable link text, refresh active `_paper_source` sidecars, and document the installed-cache refresh boundary.
 - S3b brief-first machine-contract 收敛用户黄金路径：`wiki-ingest-brief.json` 作为新链路 canonical handoff，`wiki_deposition_task.json` 只作为历史 handoff 清理对象，旧别名不再作为用户入口或路由触发条件。

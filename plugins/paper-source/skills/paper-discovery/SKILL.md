@@ -12,7 +12,9 @@ Use for Paper Source / PS discovery and reading-priority ranking: search, normal
 
 - Discovery is profile-driven; do not treat `paper_search_mcp` result order as quality.
 - Paper Source is field-agnostic. Do not hardcode robotics, AUV, AI, medicine, or any discipline unless present in config/request.
-- Derive query plan, `domain_focus_terms`, exclusions, `venue_prior`, and recommendations from `_paper_source\meta\paper-source-config.yaml` plus the current request.
+- For natural-language or multilingual topics, analyze the request first, compile short academic search queries, then pass them as explicit query variants. Do not send the raw user phrasing to MCP as the primary search.
+- Derive query plan, `domain_focus_terms`, exclusions, `venue_prior`, request constraints, and recommendations from `_paper_source\meta\paper-source-config.yaml` plus the current request; agent-supplied variants, domain anchors, `year_min`, and `code_policy` must be recorded in `query-plan.json`.
+- For complex requests, prefer `--agent-query-plan-json` or repeated `--query-variant` / `--domain-focus-term`; use `--year-min` for explicit recency windows and `--code-policy prefer|require` for public-code requests.
 - Use `research_mode`, `paper_classification`, `ranking_rubric`, and EasyScholar `未核实` states as explanation contracts.
 - For chat results, load `references/output-format.md` and report reading-priority order with short Chinese abstract, citation count, impact factor/quartile, CiteScore, or `未核实` metrics.
 

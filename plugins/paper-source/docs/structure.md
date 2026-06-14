@@ -102,8 +102,8 @@ scripts/build/paper_source/
   evaluation_loop.py
 ```
 
-- `cli.py` 保留公开 CLI 入口；`cli_parser.py` 和 `cli_routes.py` 拆出参数定义、JSON/Markdown 输出和命令分发，避免入口继续膨胀。
-- `orchestrator.py` 是主入口和流程编排层，负责 dry-run、one-paper ingest、batch advance、redo/recritic 等阶段串联；record/promote 相关 helper 已拆到 `wiki_record_workflows.py`。
+- `cli.py` 保留公开 CLI 入口；`cli_parser.py` 和 `cli_routes.py` 拆出参数定义、JSON/Markdown 输出和命令分发，避免入口继续膨胀。`dry-run` 支持 repeated `--query-variant`、`--domain-focus-term`、`--agent-query-plan-json`、`--year-min` 和 `--code-policy`，用于记录 agent 编译后的检索式、硬过滤锚点和请求级约束。
+- `orchestrator.py` 是主入口和流程编排层，负责 dry-run、one-paper ingest、batch advance、redo/recritic 等阶段串联；record/promote 相关 helper 已拆到 `wiki_record_workflows.py`。dry-run 把原始自然语言 `--query` 当作意图标签，把 agent-supplied query variants 当作实际 MCP 搜索输入，并在 `query-plan.json` 中审计来源、domain focus、`year_min` 和 `code_policy`。
 - `artifacts.py` 负责 Paper Source 路径约定、sha256、时间戳和原子写入；`write_json_atomic` / `write_text_atomic` 用临时文件加 `os.replace` 写 JSON/Markdown，避免 `_paper_source/runs/index.json`、record 和 report 在异常中写坏。
 - `config.py` 负责 `_paper_source/meta/paper-source-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。旧配置文件只作为迁移读取来源，不作为新配置入口。
 - `config_protection.py` 负责共享确认口令和 config 保护白名单，供 reset、repair、restore 复用。
@@ -162,7 +162,7 @@ skills/
 
 - `config-setup`：首次使用或修改配置时的唯一交互入口。入口保持短句和边界，完整聊天式引导与更新流见 `docs/config.md`；最终确认前不运行 `init-config` 或 `apply-config-update`。
 - `paper-discovery`：搜索、排序和 dry-run；默认指向 `prepare-ranked` 快路，写 raw 源材料、MinerU 解析产物和 source-staging 审批报告，不写最终 wiki。
-  - `paper-discovery/scripts/query-planner.py` 与 `paper-discovery/references/` 保存可维护检索策略：mode routing、query planner、paper type taxonomy、ranking rubric、domain ontology、source tiers、dedup engine、venue prior、two-stage retrieval、citation graph、evaluation set、multi-source workflow、quality gate、anti-patterns 和对话输出格式。venue prior 从用户画像/config 衍生，社区榜单只进入对应领域的弱 prior，真实指标仍需单独核验。
+  - `paper-discovery/scripts/query-planner.py` 与 `paper-discovery/references/` 保存可维护检索策略：mode routing、query planner、paper type taxonomy、ranking rubric、domain ontology、source tiers、dedup engine、venue prior、two-stage retrieval、citation graph、evaluation set、multi-source workflow、quality gate、anti-patterns 和对话输出格式。自然语言主题由 agent 实时拆解为 `--query-variant`，脚本不硬编码每个学科的语义词典；venue prior 从用户画像/config 衍生，社区榜单只进入对应领域的弱 prior，真实指标仍需单独核验。
 - `topic-tracking`：主题中心、纵向增量、backlog、coverage 和 broad-to-deep 阅读视图；它承接“这次之后有什么新东西”“我有没有漏掉关键分支”这类问题，`paper-discovery` 只保留检索/排序底层。
 - `paper-ingest`：推进已选论文进入 raw、source-staging 和 handoff；默认 `fast-ingest` 不跑 reader/critic，`reviewed-ingest` / `audited-ingest` 才按需加入。
   - `paper-ingest/references/source-first-reading.md` 是 source-staging/wiki handoff 的 source-first 阅读协议，要求最终沉淀前重读 MinerU Markdown、images、manifest、非空原生 TeX（若存在）和必要时的 PDF，最终记录 `final-source-review.json`；`reader/claim-support.json` 只有在 reviewed/audited ingest 生成时才作为辅助区分源文摘取、metadata-only 与 inference。
@@ -197,7 +197,10 @@ Paper Source 默认 vault 形态。除根 `_meta/` wiki contract 文件外，Pap
     tmp-manual-pdfs/
     runs/
       <run-id>/
+        query-plan.json
+        search-record.json
         normalized.json
+        filter-report.json
         rank.json
         report.md
         report.json

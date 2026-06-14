@@ -392,6 +392,12 @@ def write_report(
                 report.append(f"- query_strategy: {discovery_context.get('query_strategy')}")
                 report.append(f"- query_plan.domain: {query_plan.get('domain')}")
                 report.append(f"- query_plan.variants: {len(query_plan.get('query_variants') or [])}")
+            request_constraints = discovery_context.get("request_constraints") or {}
+            if request_constraints:
+                report.append(
+                    "- request_constraints: "
+                    + ", ".join(f"{key}={value}" for key, value in request_constraints.items())
+                )
             candidate_pool = discovery_context.get("candidate_pool") or {}
             if candidate_pool:
                 report.append(
@@ -448,6 +454,7 @@ def write_report(
             report.append(f"   - venue: {paper.get('venue')}")
             report.append(f"   - year: {paper.get('year')}")
             report.append(f"   - pdf: {paper.get('pdf_url')}")
+            report.append(f"   - code: {paper.get('code_url')}")
         if rejected:
             report.append("")
             report.append("## Rejected Candidates")

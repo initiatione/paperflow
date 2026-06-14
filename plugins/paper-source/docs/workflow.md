@@ -35,6 +35,8 @@ Task closure 只适用于代码、文档或 skill 行为变更。非平凡变更
 ```powershell
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault>
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\" -review -survey" --query-variant "\"<domain object>\" \"<task>\" code -review -survey" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --max-results 20 --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --refresh
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault> --json
@@ -58,9 +60,11 @@ Full command semantics, artifact paths, and safety gates live in `docs/paper-sou
 
 ## Discovery And Source Intake
 
-Paper Source 是通用论文插件，不默认任何学科方向。`dry-run` derives `query-plan.json` from profile, domains, positive/negative keywords, venue prior, and the current request; AUV、机器人、医学等只能来自用户配置、当前请求或显式领域 hint。
+Paper Source 是通用论文插件，不默认任何学科方向。`dry-run` derives `query-plan.json` from profile, domains, positive/negative keywords, venue prior, and the current request; AUV、机器人、医学等只能来自用户配置、当前请求、Research Brief 或 agent 显式传入的 query variants / domain focus terms。
 
-`dry-run` writes `_paper_source/runs` and resumable `_paper_source/reviews`; default resume skips provider calls for the same signature. Use `--refresh` to force provider search. It writes source coverage into `report.json.discovery_context.source_coverage` and `report.md` with `sources_used`, `source_results`, `errors`, `raw_total`, `deduped_total`, `query_count`, `capabilities`, `provider_readiness`, `source_routing`, and `provider_gaps`.
+自然语言主题不能直接当作 MCP 主检索式。Agent 应先把用户意图拆成对象/任务/方法/约束/质量信号，生成 5-8 条短学术 query variants，再用 `--query-variant` 或 `--agent-query-plan-json` 传给 `dry-run`；需要硬过滤时用 `--domain-focus-term` 传对象/领域锚点。`--year-min` 表达明确的近期窗口，`--code-policy prefer` 表达“尽可能有公开代码”，`--code-policy require` 表达硬性代码要求。脚本负责记录和执行这些显式输入，而不是在 Python 里写死每个学科的语义词典。
+
+`dry-run` writes `_paper_source/runs` and resumable `_paper_source/reviews`; default resume skips provider calls for the same signature. Use `--refresh` to force provider search. It writes source coverage into `report.json.discovery_context.source_coverage` and request constraints into `report.json.discovery_context.request_constraints` / `query-plan.json`, with `sources_used`, `source_results`, `errors`, `raw_total`, `deduped_total`, `query_count`, `capabilities`, `provider_readiness`, `source_routing`, and `provider_gaps`.
 
 本机 runtime 由 `%USERPROFILE%\.codex\plugins\paperflow\paper-source\runtime.json` 补齐；token/secret/provider key 只来自进程环境或 approved env file。`doctor --json` reports `paper_search_provider_readiness` and provider gaps such as `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL`, `PAPER_SEARCH_MCP_CORE_API_KEY`, `PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY`, `PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL`, `PAPER_SEARCH_MCP_DOAJ_API_KEY`, and `PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN`.
 

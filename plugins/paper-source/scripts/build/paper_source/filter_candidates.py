@@ -63,6 +63,46 @@ def _term_matches_haystack(term: str, haystack: str) -> bool:
     return re.search(pattern, haystack) is not None
 
 
+def _excluded_term_matches_haystack(term: str, haystack: str) -> bool:
+    term = " ".join(term.lower().split())
+    if not term:
+        return False
+    tokens = [token for token in re.split(r"\s+", term) if token]
+    if not tokens:
+        return False
+    if len(tokens) == 1:
+        pattern = r"(?<![a-z0-9])" + re.escape(tokens[0]) + r"(?![a-z0-9])"
+        return re.search(pattern, haystack) is not None
+    pattern = r"(?<![a-z0-9])" + r"[^a-z0-9]+".join(re.escape(token) for token in tokens) + r"(?![a-z0-9])"
+    return re.search(pattern, haystack) is not None
+
+
+def _candidate_year(candidate: dict) -> int | None:
+    value = candidate.get("year")
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if len(text) >= 4 and text[:4].isdigit():
+            return int(text[:4])
+    return None
+
+
+def _has_code_identity(candidate: dict) -> bool:
+    return bool(candidate.get("code_url") or candidate.get("repository_url"))
+
+
+def _normalize_code_policy(code_policy: str | None) -> str:
+    policy = str(code_policy or "ignore").strip().lower()
+    if policy not in {"ignore", "prefer", "require"}:
+        raise ValueError(f"unknown code_policy: {code_policy}")
+    return policy
+
+
 def default_discovery_exclusion_terms(query: str) -> list[str]:
     requested_terms = exclusion_terms_from_query(query)
     if requested_terms:
@@ -87,11 +127,14 @@ def filter_candidates_with_report(
     require_pdf: bool,
     exclude_terms: list[str] | None = None,
     existing_library_index: dict | None = None,
+    year_min: int | None = None,
+    code_policy: str | None = None,
 ) -> dict[str, list[dict]]:
     kept: list[dict] = []
     rejected: list[dict] = []
     domain_terms = [term.lower() for term in domains]
     excluded = [term.lower() for term in (exclude_terms or [])]
+    normalized_code_policy = _normalize_code_policy(code_policy)
     for candidate in candidates:
         haystack = " ".join(
             [
@@ -103,7 +146,7 @@ def filter_candidates_with_report(
         reasons: list[str] = []
         if require_pdf and not candidate.get("pdf_url"):
             reasons.append("missing_pdf")
-        matched_excluded_terms = [term for term in excluded if term in haystack]
+        matched_excluded_terms = [term for term in excluded if _excluded_term_matches_haystack(term, haystack)]
         if matched_excluded_terms:
             reasons.append("excluded_terms:" + ",".join(matched_excluded_terms))
         library_match = existing_library_match(candidate, existing_library_index)
@@ -111,6 +154,14 @@ def filter_candidates_with_report(
             reasons.append(f"already_in_library:{library_match.get('slug')}")
         if domain_terms and not any(_term_matches_haystack(term, haystack) for term in domain_terms):
             reasons.append("outside_domain")
+        if year_min is not None:
+            candidate_year = _candidate_year(candidate)
+            if candidate_year is None:
+                reasons.append("year_missing")
+            elif candidate_year < int(year_min):
+                reasons.append(f"year_before:{int(year_min)}")
+        if normalized_code_policy == "require" and not _has_code_identity(candidate):
+            reasons.append("missing_code")
         filtered = dict(candidate)
         if library_match:
             filtered["existing_library_match"] = library_match
@@ -129,6 +180,8 @@ def filter_candidates(
     require_pdf: bool,
     exclude_terms: list[str] | None = None,
     existing_library_index: dict | None = None,
+    year_min: int | None = None,
+    code_policy: str | None = None,
 ) -> list[dict]:
     return filter_candidates_with_report(
         candidates,
@@ -136,4 +189,6 @@ def filter_candidates(
         require_pdf=require_pdf,
         exclude_terms=exclude_terms,
         existing_library_index=existing_library_index,
+        year_min=year_min,
+        code_policy=code_policy,
     )["kept"]

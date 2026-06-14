@@ -468,10 +468,15 @@ def rank_candidates(
     positive_keywords: list[str],
     venue_tiers: dict[str, float],
     negative_keywords: list[str] | None = None,
+    year_min: int | None = None,
+    code_policy: str | None = None,
 ) -> list[dict]:
     ranked: list[dict] = []
     keywords = [keyword.lower() for keyword in positive_keywords]
     negative_terms = [keyword.lower() for keyword in (negative_keywords or [])]
+    normalized_code_policy = str(code_policy or "ignore").strip().lower()
+    if normalized_code_policy not in {"ignore", "prefer", "require"}:
+        raise ValueError(f"unknown code_policy: {code_policy}")
     for candidate in candidates:
         text = _text(candidate)
         easyscholar_signal = (candidate.get("quality_signals") or {}).get("easyscholar") or {}
@@ -487,9 +492,18 @@ def rank_candidates(
             0.45 + easyscholar_score * 0.40,
         )
         citation_score = min(1.0, log10(int(candidate.get("citation_count") or 0) + 1) / 3)
-        freshness_score = 1.0 if int(candidate.get("year") or 0) >= 2024 else 0.7
+        candidate_year = int(candidate.get("year") or 0)
+        if year_min is not None:
+            freshness_score = 1.0 if candidate_year >= int(year_min) else 0.0
+        else:
+            freshness_score = 1.0 if candidate_year >= 2024 else 0.7
         pdf_score = 1.0 if candidate.get("pdf_url") else 0.0
         code_score = 1.0 if candidate.get("code_url") else 0.0
+        code_weight = 0.08
+        if normalized_code_policy == "prefer":
+            code_weight = 0.12
+        elif normalized_code_policy == "require":
+            code_weight = 0.14
         reproducibility_terms_score = _term_score(text, REPRODUCIBILITY_TERMS)
         benchmark_score = _term_score(text, BENCHMARK_TERMS)
         editorial_score = round(topic_score * 0.5 + venue_score * 0.3 + freshness_score * 0.2, 4)
@@ -502,7 +516,7 @@ def rank_candidates(
             + citation_score * 0.15
             + freshness_score * 0.10
             + pdf_score * 0.08
-            + code_score * 0.08
+            + code_score * code_weight
             + 0.06
         )
         score = round(max(0.0, base_score - negative_keyword_penalty * 0.25), 4)
@@ -518,6 +532,8 @@ def rank_candidates(
             "benchmark_score": round(benchmark_score, 4),
             "reproducibility_terms_score": round(reproducibility_terms_score, 4),
             "easyscholar_score": round(easyscholar_score, 4),
+            "year_min": year_min,
+            "code_policy": normalized_code_policy,
             "negative_keyword_penalty": round(negative_keyword_penalty, 4),
             "editorial_score": editorial_score,
             "peer_review_score": peer_review_score,

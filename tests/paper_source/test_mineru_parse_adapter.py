@@ -138,6 +138,44 @@ raise SystemExit(1)
     return script
 
 
+def _write_download_failed_manifest_command(tmp_path):
+    script = tmp_path / "fake_mineru_download_failed_manifest.py"
+    script.write_text(
+        """
+import argparse
+import json
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--project-root", required=True)
+parser.add_argument("--input-dir", required=True)
+parser.add_argument("--output-dir", required=True)
+parser.add_argument("--layout", default="document-dir")
+args = parser.parse_args()
+
+output_root = Path(args.project_root) / args.output_dir
+output_root.mkdir(parents=True, exist_ok=True)
+manifest = {
+    "batch_id": "zip-download-failed",
+    "outputs": [
+        {
+            "file_name": "paper.pdf",
+            "state": "download_failed",
+            "err_msg": "download zip failed after 3 attempts: SSL EOF",
+            "full_zip_url": "https://cdn-mineru.example/paper.zip",
+        }
+    ],
+}
+(output_root / "mineru_batch_zip-download-failed.json").write_text(json.dumps(manifest), encoding="utf-8")
+print("batch_id: zip-download-failed")
+print("batch zip-download-failed: paper.pdf:done")
+raise SystemExit(1)
+""".strip(),
+        encoding="utf-8",
+    )
+    return script
+
+
 def test_mineru_command_imports_markdown_images_manifest_and_records_job(tmp_path):
     paper_root = _seed_paper_root(tmp_path, slug="fixture-paper")
     command = [sys.executable, str(_write_success_command(tmp_path))]
@@ -251,6 +289,19 @@ def test_mineru_command_reports_done_without_markdown_as_missing_output(tmp_path
     assert "batch done-no-markdown: paper.pdf:done" in (
         paper_root / "mineru-command" / "stdout.txt"
     ).read_text(encoding="utf-8")
+    assert not (paper_root / "mineru" / "paper.md").exists()
+
+
+def test_mineru_command_surfaces_manifest_download_failure(tmp_path):
+    paper_root = _seed_paper_root(tmp_path)
+    command = [sys.executable, str(_write_download_failed_manifest_command(tmp_path))]
+
+    record = run_mineru_command(paper_root, command=command)
+
+    assert record["status"] == "failed"
+    assert record["batch_id"] == "zip-download-failed"
+    assert record["error"].startswith("MinerU output download failed:")
+    assert "paper.pdf:download_failed: download zip failed after 3 attempts: SSL EOF" in record["error"]
     assert not (paper_root / "mineru" / "paper.md").exists()
 
 

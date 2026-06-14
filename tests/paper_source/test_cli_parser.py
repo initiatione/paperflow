@@ -49,7 +49,7 @@ def test_dry_run_parser_defaults_to_query_plan_and_accepts_overrides():
             "--query",
             "AUV reinforcement learning control",
             "--query-plan-domain",
-            "auv-control",
+            "profile",
             "--query-plan-max-queries",
             "8",
         ]
@@ -57,8 +57,55 @@ def test_dry_run_parser_defaults_to_query_plan_and_accepts_overrides():
 
     assert args.command == "dry-run"
     assert args.no_query_plan is False
-    assert args.query_plan_domain == "auv-control"
+    assert args.query_plan_domain == "profile"
     assert args.query_plan_max_queries == 8
+
+
+def test_dry_run_parser_rejects_fixed_discipline_query_plan_domains():
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            [
+                "dry-run",
+                "--query",
+                "AUV reinforcement learning control",
+                "--query-plan-domain",
+                "auv-control",
+            ]
+        )
+
+
+def test_dry_run_parser_accepts_agent_supplied_query_variants_and_focus_terms():
+    args = build_parser().parse_args(
+        [
+            "dry-run",
+            "--query",
+            "水下机器人 AUV 姿态控制 的 现代控制方向 或是 结合RL做的尽可能有公开代码的论文，近5年",
+            "--query-variant",
+            '"autonomous underwater vehicle" "attitude control" "model predictive control" -review -survey',
+            "--query-variant",
+            'AUV "attitude control" "reinforcement learning" code -review -survey',
+            "--domain-focus-term",
+            "AUV",
+            "--domain-focus-term",
+            "autonomous underwater vehicle,underwater robot",
+            "--agent-query-plan-json",
+            "agent-plan.json",
+            "--year-min",
+            "2021",
+            "--code-policy",
+            "prefer",
+        ]
+    )
+
+    assert args.command == "dry-run"
+    assert args.query_variant == [
+        '"autonomous underwater vehicle" "attitude control" "model predictive control" -review -survey',
+        'AUV "attitude control" "reinforcement learning" code -review -survey',
+    ]
+    assert args.domain_focus_term == ["AUV", "autonomous underwater vehicle,underwater robot"]
+    assert str(args.agent_query_plan_json) == "agent-plan.json"
+    assert args.year_min == 2021
+    assert args.code_policy == "prefer"
 
 
 def test_dry_run_parser_accepts_json_output():
@@ -129,7 +176,53 @@ def test_dry_run_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatch, caps
     assert payload["artifacts"]["rank"] == str(run_dir / "rank.json")
     assert captured["query"] == "AUV reinforcement learning control"
     assert captured["use_query_plan"] is True
+    assert captured["query_variants"] is None
+    assert captured["domain_focus_terms"] is None
     assert captured["enable_easyscholar"] is True
+
+
+def test_dry_run_cli_passes_agent_supplied_query_inputs_to_workflow(tmp_path, monkeypatch):
+    run_dir = tmp_path / "_paper_source" / "runs" / "run-json-001"
+    run_dir.mkdir(parents=True)
+    captured = {}
+
+    def fake_run_dry_run(**kwargs):
+        captured.update(kwargs)
+        return run_dir
+
+    monkeypatch.setattr(cli.workflows, "run_dry_run", fake_run_dry_run)
+
+    exit_code = cli.main(
+        [
+            "dry-run",
+            "--query",
+            "natural language topic",
+            "--vault",
+            str(tmp_path),
+            "--query-variant",
+            '"domain object" "task" method -review -survey',
+            "--query-variant",
+            '"domain object" "task" code -review -survey',
+            "--domain-focus-term",
+            "domain object",
+            "--agent-query-plan-json",
+            str(tmp_path / "agent-query-plan.json"),
+            "--year-min",
+            "2021",
+            "--code-policy",
+            "require",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["query_variants"] == [
+        '"domain object" "task" method -review -survey',
+        '"domain object" "task" code -review -survey',
+    ]
+    assert captured["domain_focus_terms"] == ["domain object"]
+    assert captured["agent_query_plan_json"] == tmp_path / "agent-query-plan.json"
+    assert captured["year_min"] == 2021
+    assert captured["code_policy"] == "require"
 
 
 def test_dry_run_cli_passes_no_easyscholar_to_workflow(tmp_path, monkeypatch):

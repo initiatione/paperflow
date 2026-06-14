@@ -152,6 +152,103 @@ def test_filter_candidates_can_hard_exclude_reviews_when_requested():
     assert report["rejected"][0]["filter_reasons"] == ["excluded_terms:review,systematic review"]
 
 
+def test_filter_candidates_applies_request_year_and_code_requirements():
+    candidates = [
+        {
+            "title": "Recent AUV Attitude Control with Code",
+            "abstract": "Autonomous underwater vehicle attitude control with experiments.",
+            "year": 2025,
+            "pdf_url": "https://example.org/recent.pdf",
+            "code_url": "https://github.com/example/auv-control",
+        },
+        {
+            "title": "Old AUV Attitude Control with Code",
+            "abstract": "Autonomous underwater vehicle attitude control with experiments.",
+            "year": 2019,
+            "pdf_url": "https://example.org/old.pdf",
+            "code_url": "https://github.com/example/old-auv-control",
+        },
+        {
+            "title": "Recent AUV Attitude Control without Code",
+            "abstract": "Autonomous underwater vehicle attitude control with experiments.",
+            "year": 2025,
+            "pdf_url": "https://example.org/no-code.pdf",
+        },
+    ]
+
+    report = filter_candidates_with_report(
+        candidates,
+        domains=["AUV", "autonomous underwater vehicle"],
+        require_pdf=True,
+        year_min=2021,
+        code_policy="require",
+    )
+
+    assert [candidate["title"] for candidate in report["kept"]] == ["Recent AUV Attitude Control with Code"]
+    rejected = {candidate["title"]: candidate["filter_reasons"] for candidate in report["rejected"]}
+    assert rejected["Old AUV Attitude Control with Code"] == ["year_before:2021"]
+    assert rejected["Recent AUV Attitude Control without Code"] == ["missing_code"]
+
+
+def test_rank_candidates_records_request_constraints_and_prefers_code_when_requested():
+    candidates = [
+        {
+            "title": "AUV Attitude Control with Public Code",
+            "abstract": "Autonomous underwater vehicle attitude control with reproducible experiments.",
+            "year": 2024,
+            "venue": "Ocean Engineering",
+            "pdf_url": "https://example.org/code.pdf",
+            "code_url": "https://github.com/example/auv-code",
+            "citation_count": 5,
+        },
+        {
+            "title": "AUV Attitude Control without Public Code",
+            "abstract": "Autonomous underwater vehicle attitude control with reproducible experiments.",
+            "year": 2024,
+            "venue": "Ocean Engineering",
+            "pdf_url": "https://example.org/no-code.pdf",
+            "citation_count": 5,
+        },
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=["AUV", "attitude control"],
+        venue_tiers={"ocean engineering": 0.8},
+        year_min=2021,
+        code_policy="prefer",
+    )
+
+    assert ranked[0]["title"] == "AUV Attitude Control with Public Code"
+    assert ranked[0]["ranking_signals"]["year_min"] == 2021
+    assert ranked[0]["ranking_signals"]["code_policy"] == "prefer"
+
+
+def test_filter_candidates_does_not_treat_surveying_as_survey_paper():
+    candidates = [
+        {
+            "title": "Toward 6-DOF Autonomous Underwater Vehicle Energy-Aware Position Control",
+            "abstract": (
+                "Autonomous underwater vehicles are used for surveying and mapping. "
+                "This paper proposes deep reinforcement learning for AUV position control."
+            ),
+            "pdf_url": "https://example.org/auv.pdf",
+        }
+    ]
+
+    report = filter_candidates_with_report(
+        candidates,
+        domains=["AUV"],
+        require_pdf=True,
+        exclude_terms=["review", "survey", "systematic review"],
+    )
+
+    assert [item["title"] for item in report["kept"]] == [
+        "Toward 6-DOF Autonomous Underwater Vehicle Energy-Aware Position Control"
+    ]
+    assert report["rejected"] == []
+
+
 def test_filter_candidates_matches_domain_anchors_across_method_words():
     candidates = [
         {

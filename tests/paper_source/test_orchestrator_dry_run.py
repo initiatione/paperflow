@@ -416,7 +416,7 @@ def test_dry_run_query_plan_searches_variants_and_merges_candidate_pool(tmp_path
         max_results=3,
         paper_search_command=str(fake_command),
         sources=["arxiv"],
-        query_plan_domain="auv-control",
+        query_plan_domain="profile",
         query_plan_max_queries=4,
     )
 
@@ -433,7 +433,7 @@ def test_dry_run_query_plan_searches_variants_and_merges_candidate_pool(tmp_path
 
     search_invocations = [args for args in invoked if args and args[0] == "search"]
     assert search_record["query_strategy"] == "query_plan_multi_query"
-    assert search_record["query_plan"]["domain"] == "auv-control"
+    assert search_record["query_plan"]["domain"] == "profile-derived"
     assert len(search_record["query_records"]) == 4
     assert len(search_invocations) == 4
     assert all("-review -survey" in args[1] for args in search_invocations)
@@ -453,6 +453,199 @@ def test_dry_run_query_plan_searches_variants_and_merges_candidate_pool(tmp_path
     assert report["discovery_context"]["source_coverage"]["query_count"] == 4
     assert (run_dir / "paper-search-raw-01.json").is_file()
     assert (run_dir / "paper-search-raw.json").is_file()
+
+
+def test_dry_run_uses_agent_supplied_query_variants_instead_of_raw_topic(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    fake_command = tmp_path / "agent-planned-paper-search.ps1"
+    args_path = tmp_path / "agent-planned-args.jsonl"
+    fake_command.write_text(
+        "$args_json = $args | ConvertTo-Json -Compress\n"
+        "Add-Content -Encoding UTF8 -LiteralPath "
+        f"{json.dumps(str(args_path))} "
+        "-Value $args_json\n"
+        "if ($args -contains '--version') { Write-Output 'paper-search 0.1.4'; exit 0 }\n"
+        "$query = $args[1]\n"
+        "$safe = ($query -replace '\"','')\n"
+        "$payload = [ordered]@{\n"
+        "  query = $query\n"
+        "  sources_used = @('arxiv')\n"
+        "  source_results = @{ arxiv = 1 }\n"
+        "  errors = @{}\n"
+        "  total = 1\n"
+        "  papers = @(@{\n"
+        "    paper_id = [Math]::Abs($safe.GetHashCode()).ToString()\n"
+        "    title = \"AUV Attitude Control $([Math]::Abs($safe.GetHashCode()).ToString())\"\n"
+        "    authors = 'A. Researcher'\n"
+        "    abstract = 'Autonomous underwater vehicle attitude control with experiment and code evidence.'\n"
+        "    doi = ''\n"
+        "    published_date = '2025-01-02T00:00:00'\n"
+        "    pdf_url = 'https://example.org/auv.pdf'\n"
+        "    url = 'https://example.org/auv'\n"
+        "    source = 'arxiv'\n"
+        "    citations = 3\n"
+        "    extra = @{}\n"
+        "  })\n"
+        "}\n"
+        "$payload | ConvertTo-Json -Depth 8 | Write-Output\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    raw_topic = "水下机器人 AUV 姿态控制 的 现代控制方向 或是 结合RL做的尽可能有公开代码的论文，近5年"
+    variants = [
+        '"autonomous underwater vehicle" "attitude control" "model predictive control" -review -survey',
+        'AUV "attitude control" "reinforcement learning" code -review -survey',
+        '"underwater robot" "orientation control" "sliding mode control" -review -survey',
+    ]
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query=raw_topic,
+        max_results=5,
+        paper_search_command=str(fake_command),
+        sources=["arxiv"],
+        query_variants=variants,
+        domain_focus_terms=["AUV", "autonomous underwater vehicle", "underwater robot"],
+        query_plan_domain="profile",
+    )
+
+    invoked = [
+        json.loads(line)
+        for line in args_path.read_text(encoding="utf-8-sig").splitlines()
+        if line.strip()
+    ]
+    search_queries = [args[1] for args in invoked if args and args[0] == "search"]
+    query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
+    search_record = json.loads((run_dir / "search-record.json").read_text(encoding="utf-8"))
+    ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
+
+    assert search_queries == variants
+    assert raw_topic not in search_queries
+    assert query_plan["query_variants"] == variants
+    assert query_plan["query_variants_source"] == "agent_supplied"
+    assert query_plan["agent_supplied"]["contract"] == "agent_compiles_natural_language; script_records_and_executes"
+    assert query_plan["concept_blocks"]["domain_focus_terms"][:3] == [
+        "AUV",
+        "autonomous underwater vehicle",
+        "underwater robot",
+    ]
+    assert search_record["query_strategy"] == "query_plan_multi_query"
+    assert len(search_record["query_records"]) == len(variants)
+    assert len(search_record["records"]) == len(variants)
+    assert len(ranked) == len(variants)
+
+
+def test_dry_run_records_structured_agent_query_plan_and_request_constraints(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    agent_plan = tmp_path / "agent-query-plan.json"
+    agent_plan.write_text(
+        json.dumps(
+            {
+                "schema_version": "paper-source-agent-query-plan-v1",
+                "query_variants": [
+                    '"autonomous underwater vehicle" "attitude control" "model predictive control" -review -survey',
+                    '"AUV" "attitude control" "reinforcement learning" code -review -survey',
+                ],
+                "domain_focus_terms": ["AUV", "autonomous underwater vehicle"],
+                "concept_blocks": {
+                    "task_terms": ["attitude control"],
+                    "method_branches": ["model predictive control", "reinforcement learning"],
+                    "quality_signals": ["code", "experiment"],
+                },
+                "year_min": 2021,
+                "code_policy": "prefer",
+            }
+        ),
+        encoding="utf-8",
+    )
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "semantic",
+                    "title": "Recent AUV Attitude Control with Public Code",
+                    "authors": ["A. Researcher"],
+                    "year": 2025,
+                    "venue": "Ocean Engineering",
+                    "abstract": "Autonomous underwater vehicle attitude control with experiments and code.",
+                    "doi": "10.1000/recent-code",
+                    "pdf_url": "https://example.org/recent-code.pdf",
+                    "code_url": "https://github.com/example/recent-auv-control",
+                    "citation_count": 8,
+                },
+                {
+                    "source": "semantic",
+                    "title": "Recent AUV Attitude Control without Public Code",
+                    "authors": ["B. Researcher"],
+                    "year": 2024,
+                    "venue": "Ocean Engineering",
+                    "abstract": "Autonomous underwater vehicle attitude control with experiments.",
+                    "doi": "10.1000/recent-no-code",
+                    "pdf_url": "https://example.org/recent-no-code.pdf",
+                    "citation_count": 7,
+                },
+                {
+                    "source": "semantic",
+                    "title": "Old AUV Attitude Control with Public Code",
+                    "authors": ["C. Researcher"],
+                    "year": 2019,
+                    "venue": "Ocean Engineering",
+                    "abstract": "Autonomous underwater vehicle attitude control with experiments and code.",
+                    "doi": "10.1000/old-code",
+                    "pdf_url": "https://example.org/old-code.pdf",
+                    "code_url": "https://github.com/example/old-auv-control",
+                    "citation_count": 10,
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="AUV 现代控制或RL智能控制 姿态控制 有公开代码 近期论文",
+        max_results=5,
+        fixture_path=fixture,
+        agent_query_plan_json=agent_plan,
+        sources=["semantic"],
+    )
+
+    query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
+    filter_report = json.loads((run_dir / "filter-report.json").read_text(encoding="utf-8"))
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
+    state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
+    report_md = (run_dir / "report.md").read_text(encoding="utf-8")
+
+    assert query_plan["query_variants_source"] == "agent_supplied"
+    assert query_plan["query_variants"] == [
+        '"autonomous underwater vehicle" "attitude control" "model predictive control" -review -survey',
+        '"AUV" "attitude control" "reinforcement learning" code -review -survey',
+    ]
+    assert query_plan["concept_blocks"]["domain_focus_terms"] == ["AUV", "autonomous underwater vehicle"]
+    assert query_plan["request_constraints"] == {
+        "year_min": 2021,
+        "code_policy": "prefer",
+        "source": "agent_supplied",
+    }
+    assert filter_report["request_constraints"] == {"year_min": 2021, "code_policy": "prefer"}
+    assert [candidate["title"] for candidate in ranked] == [
+        "Recent AUV Attitude Control with Public Code",
+        "Recent AUV Attitude Control without Public Code",
+    ]
+    rejected = {candidate["title"]: candidate["filter_reasons"] for candidate in report["rejected"]}
+    assert rejected["Old AUV Attitude Control with Public Code"] == ["year_before:2021"]
+    assert report["budget_usage"]["year_min"] == 2021
+    assert report["budget_usage"]["code_policy"] == "prefer"
+    assert report["discovery_context"]["request_constraints"] == {"year_min": 2021, "code_policy": "prefer"}
+    assert ranked[0]["ranking_signals"]["code_policy"] == "prefer"
+    assert "request_constraints: year_min=2021, code_policy=prefer" in report_md
+    assert state["input_artifact_hashes"]["agent-query-plan.json"] == file_sha256(agent_plan)
 
 
 def test_dry_run_source_coverage_reports_normalized_dedupe_total_for_query_plan(tmp_path):
@@ -494,7 +687,7 @@ def test_dry_run_source_coverage_reports_normalized_dedupe_total_for_query_plan(
         max_results=3,
         paper_search_command=str(fake_command),
         sources=["arxiv", "semantic"],
-        query_plan_domain="auv-control",
+        query_plan_domain="profile",
         query_plan_max_queries=4,
     )
 
@@ -677,7 +870,7 @@ def test_dry_run_ranking_does_not_dilute_topic_fit_with_recall_expansion_terms(t
     query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
     ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
 
-    assert "world model" in query_plan["concept_blocks"]["method_or_topic_terms"]
+    assert "world model" not in query_plan["concept_blocks"]["method_or_topic_terms"]
     assert "world model" not in ranked[0]["ranking_protocol"]["matched_positive_keywords"]
     assert ranked[0]["ranking_signals"]["topic_score"] >= 0.6
     assert ranked[0]["ranking_protocol"]["decision"] == "advance-candidate"
@@ -742,6 +935,7 @@ def test_dry_run_filters_method_only_results_when_topic_has_domain_anchors(tmp_p
         query="latest high quality AUV reinforcement learning control papers not review",
         max_results=5,
         fixture_path=fixture,
+        domain_focus_terms=["AUV", "autonomous underwater vehicle"],
     )
 
     report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
@@ -818,6 +1012,7 @@ def test_dry_run_filters_broad_vehicle_tracking_when_underwater_anchor_is_requir
         ),
         max_results=5,
         fixture_path=fixture,
+        domain_focus_terms=["AUV", "autonomous underwater vehicle"],
     )
 
     report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))

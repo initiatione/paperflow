@@ -12,9 +12,10 @@ Use this workflow when the user asks for high-quality papers, latest papers, non
    - validation mode, such as experiment, field study, dataset, benchmark, proof, replication, or code
    - exclusions, especially review/survey when requested
 2. Build a query plan by `query-planner.md`; use config first and `domain-ontology.md` only as optional examples for synonyms, exclusions, and evidence terms.
-3. Build 5-8 query variants. Include exact phrases and acronym expansions.
+3. Build 5-8 query variants from agent analysis of the user request. Include exact phrases, acronym expansions, task/method branches, code or benchmark evidence terms when requested, and `-review -survey` unless reviews are explicitly requested.
+   - If the user specifies recent papers, public code, or similar executable constraints, pass them as `year_min` and `code_policy` via `--agent-query-plan-json` or CLI flags; do not leave them only in query text.
 4. Route sources by `source-tiers.md`.
-5. Search T1 sources first through `paper_search_mcp` or configured source adapters.
+5. Search T1 sources first through `paper_search_mcp` or configured source adapters by passing the compiled variants with repeated `--query-variant` or `--agent-query-plan-json`; keep the raw user request only as the run intent label.
 6. Use `two-stage-retrieval.md`: collect a high-recall candidate pool before precision filtering.
 7. Deduplicate by `dedup-engine.md`.
 8. Apply venue prior using `venue-prior.md`, then verify venue/citation/DOI/PDF/code and record unverified metrics explicitly.
@@ -37,7 +38,7 @@ Do not promote a paper only because a venue is highly ranked. A strong venue wit
 
 The final answer should distinguish:
 
-- `query_plan`: concept blocks and query variants used.
+- `query_plan`: concept blocks, query variants, domain anchors, and request constraints used.
 - `candidate_pool`: rough size before and after dedup/filter.
 - `venue_prior`: community or curated venue tier, if used.
 - `verified_metrics`: DOI, citation count, IF/JCR/CiteScore, official venue page, PDF/code.

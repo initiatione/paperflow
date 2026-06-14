@@ -130,7 +130,7 @@ def test_query_planner_does_not_route_not_review_queries_to_lit_review_mode():
     assert plan["research_mode"]["mode"] == "targeted-discovery"
 
 
-def test_query_planner_auto_detects_embodied_ai_domain():
+def test_query_planner_does_not_auto_detect_fixed_discipline_domains():
     result = subprocess.run(
         [
             sys.executable,
@@ -150,22 +150,25 @@ def test_query_planner_auto_detects_embodied_ai_domain():
 
     plan = json.loads(result.stdout)
 
-    assert plan["domain"] == "embodied-ai"
+    assert plan["domain"] == "topic-derived"
     assert "world model" in plan["concept_blocks"]["method_or_topic_terms"]
-    assert "CoRL" in plan["recall_gap_checks"]["venue_families"]
+    joined_venues = " ".join(plan["recall_gap_checks"]["venue_families"]).lower()
+    assert "corl" not in joined_venues
+    assert "icra" not in joined_venues
 
 
-def test_query_planner_keeps_explicit_domain_hint_as_optional_pack():
-    plan = build_query_plan(
-        "latest high quality AUV reinforcement learning control papers",
-        domain="auv-control",
-        non_review=True,
-        max_queries=4,
-    )
-
-    assert plan["domain"] == "auv-control"
-    assert "autonomous underwater vehicle" in plan["concept_blocks"]["domain_terms"]
-    assert "Ocean Engineering" in plan["recall_gap_checks"]["venue_families"]
+def test_query_planner_rejects_fixed_discipline_domain_packs():
+    try:
+        build_query_plan(
+            "latest high quality AUV reinforcement learning control papers",
+            domain="auv-control",
+            non_review=True,
+            max_queries=4,
+        )
+    except ValueError as exc:
+        assert "unknown domain: auv-control" in str(exc)
+    else:
+        raise AssertionError("fixed discipline domain packs should not be accepted")
 
 
 def test_query_planner_promotes_explicit_topic_domain_over_broad_profile_terms():
@@ -193,21 +196,38 @@ def test_query_planner_promotes_explicit_topic_domain_over_broad_profile_terms()
     )
 
     assert plan["domain"] == "profile-derived"
-    assert plan["concept_blocks"]["domain_focus_terms"] == [
-        "AUV control",
-        "AUV",
-        "autonomous underwater vehicle",
-        "unmanned underwater vehicle",
-        "underwater robot",
-    ]
-    assert plan["concept_blocks"]["domain_terms"][0] in {"AUV control", "autonomous underwater vehicle"}
-    assert "autonomous underwater vehicle" in plan["concept_blocks"]["domain_terms"]
-    assert "Ocean Engineering" in plan["recall_gap_checks"]["venue_families"]
+    assert "AUV control" in plan["concept_blocks"]["domain_focus_terms"]
+    assert "reinforcement learning" not in plan["concept_blocks"]["domain_focus_terms"]
+    assert "autonomous underwater vehicle" not in plan["concept_blocks"]["domain_terms"]
+    assert "Ocean Engineering" not in plan["recall_gap_checks"]["venue_families"]
     assert any("AUV" in query or "underwater" in query for query in plan["query_variants"][:3])
     assert not any(
         query.startswith('robotics "robot control"')
         for query in plan["query_variants"][:3]
     )
+
+
+def test_query_planner_keeps_generated_queries_academic_without_domain_specific_nlp_rules():
+    topic = "recent high quality energy storage control papers with open code from the last five years"
+
+    plan = build_query_plan(
+        topic,
+        domain="auto",
+        non_review=True,
+        max_queries=6,
+        profile="energy_systems_control",
+        domains=["energy systems", "battery energy storage"],
+        positive_keywords=["model predictive control", "reproducible code"],
+    )
+
+    queries = plan["query_variants"]
+
+    assert plan["domain"] == "profile-derived"
+    assert topic not in queries
+    assert all("recent high quality" not in query.lower() for query in queries)
+    assert all("last five years" not in query.lower() for query in queries)
+    assert all("-review -survey" in query for query in queries)
+    assert any("energy storage" in query.lower() for query in queries)
 
 
 def test_query_planner_derives_generic_topic_anchors_from_narrow_request():
