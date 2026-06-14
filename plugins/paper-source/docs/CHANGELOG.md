@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Paper Source 1.0.6: switch the `paper-search-mcp` outer MCP registration to `cmd /c .\scripts\paper_search_mcp_launcher.cmd` with plugin-root `cwd: "."`, so Codex Desktop does not depend on its own `python` PATH before the launcher can load runtime.json and select the configured Python interpreter.
+- Paper Source 1.0.5: fix Codex MCP self-registration for `paper-search-mcp` by using plugin-root `cwd: "."` plus `./scripts/paper_search_mcp_launcher.py` instead of an unresolved `${CLAUDE_PLUGIN_ROOT}` path, and teach `doctor --json` to flag unresolved plugin-root placeholders before they become opaque handshake failures.
 - Paper Source 1.0.4: harden MinerU output ZIP retrieval. MinerU batch downloads now retry transient CDN/network failures, write `download_failed` manifest entries, and surface concrete output-download errors in `parse-record.json` instead of only reporting missing Markdown.
 - Paper Source 1.0.3: add structured agent query plans and request constraints for discovery. `dry-run` accepts `--agent-query-plan-json`, `--year-min`, and `--code-policy ignore|prefer|require`; run artifacts record `request_constraints`, filter enforces recency/code requirements, and ranking/report output surfaces code and constraint evidence.
 - Paper Source 1.0.2: remove built-in discipline query packs from paper discovery. The query planner and `dry-run --query-plan-domain` now accept only `auto` / `profile`; field vocabulary must come from config, Research Briefs, current user requests, or explicit agent-supplied query variants/domain focus terms.

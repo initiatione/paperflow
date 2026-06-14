@@ -78,6 +78,7 @@ SETUP_GUIDES = {
 MCP_SECTION_PATTERN = re.compile(
     r"""^\s*\[\s*mcp_servers\s*\.\s*(?:"paper-search-mcp"|'paper-search-mcp'|paper-search-mcp)\s*\]\s*$"""
 )
+MCP_LAUNCHER_NAMES = ("paper_search_mcp_launcher.py", "paper_search_mcp_launcher.cmd")
 
 
 def _check_path(plugin_root: Path, relative_path: str) -> dict:
@@ -303,7 +304,10 @@ def _check_codex_mcp_registration() -> dict:
 
 def _expand_plugin_path(plugin_root: Path, value: str) -> Path:
     expanded = value.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root))
-    return Path(expanded).expanduser()
+    path = Path(expanded).expanduser()
+    if not path.is_absolute():
+        path = plugin_root / path
+    return path
 
 
 def _looks_like_path(value: str) -> bool:
@@ -321,9 +325,25 @@ def _outer_command_available(plugin_root: Path, command: str) -> bool:
 def _launcher_script_from_args(plugin_root: Path, args: list[object]) -> Path | None:
     for arg in args:
         text = str(arg)
-        if "paper_search_mcp_launcher.py" in text:
+        if any(name in text for name in MCP_LAUNCHER_NAMES):
             return _expand_plugin_path(plugin_root, text)
     return None
+
+
+def _launcher_arg_from_args(args: list[object]) -> str | None:
+    for arg in args:
+        text = str(arg)
+        if any(name in text for name in MCP_LAUNCHER_NAMES):
+            return text
+    return None
+
+
+def _contains_plugin_root_placeholder(values: list[str]) -> bool:
+    return any("${CLAUDE_PLUGIN_ROOT}" in value or "${PLUGIN_ROOT}" in value for value in values)
+
+
+def _is_relative_path_value(value: str) -> bool:
+    return _looks_like_path(value) and not Path(value).expanduser().is_absolute()
 
 
 def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
@@ -360,14 +380,25 @@ def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
             "message": "plugin .mcp.json does not register paper-search-mcp",
         }
     command = str(server.get("command") or "")
+    cwd = str(server.get("cwd") or "")
     raw_args = server.get("args")
     args = raw_args if isinstance(raw_args, list) else []
+    arg_texts = [str(arg) for arg in args]
+    cwd_path = _expand_plugin_path(plugin_root, cwd) if cwd else None
+    cwd_available = True if not cwd else cwd_path.exists()
+    launcher_arg = _launcher_arg_from_args(args)
     launcher_script = _launcher_script_from_args(plugin_root, args)
     launcher_script_exists = bool(launcher_script and launcher_script.exists())
     command_available = _outer_command_available(plugin_root, command)
     error = None
-    if not command_available:
+    if _contains_plugin_root_placeholder([command, cwd, *arg_texts]):
+        error = "unresolved_plugin_root_placeholder"
+    elif not command_available:
         error = "outer_command_not_found"
+    elif not cwd_available:
+        error = "outer_cwd_not_found"
+    elif launcher_arg and _is_relative_path_value(launcher_arg) and not cwd:
+        error = "relative_launcher_without_cwd"
     elif not launcher_script_exists:
         error = "launcher_script_not_found"
     status = "warning" if error else "ok"
@@ -376,8 +407,11 @@ def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
         "status": status,
         "path": str(mcp_path),
         "server": "paper-search-mcp",
+        "cwd": cwd or None,
+        "cwd_path": str(cwd_path) if cwd_path else None,
+        "cwd_available": cwd_available,
         "command": command,
-        "args": [str(arg) for arg in args],
+        "args": arg_texts,
         "outer_command_available": command_available,
         "launcher_script": str(launcher_script) if launcher_script else None,
         "launcher_script_exists": launcher_script_exists,
@@ -385,7 +419,7 @@ def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
         "message": (
             "plugin .mcp.json outer launcher is available"
             if not error
-            else "plugin .mcp.json outer command or launcher script is missing; Codex may fail before runtime.json is loaded"
+            else "plugin .mcp.json outer launcher config cannot be resolved by Codex before runtime.json is loaded"
         ),
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "paper-source",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "description": "Paper Source finds, ranks, parses, stages, and hands off paper evidence for Paper Wiki-compatible vaults.",
   "author": {
     "name": "liuchf"
@@ -19,7 +19,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Source",
-    "shortDescription": "v1.0.4 | Paper Source: find, parse, stage, hand off, and record.",
+    "shortDescription": "v1.0.6 | Paper Source: find, parse, stage, hand off, and record.",
     "longDescription": "Paper Source is the source/evidence layer for PaperFlow: configure profile-driven discovery, acquire PDFs or manual-download records, parse with MinerU, preserve source bundles, produce Chinese approval reports, hand off via wiki-ingest-brief.json, and record final wiki ingest. Paper Wiki or another wiki-capable agent owns formal page writing.",
     "developerName": "liuchf",
     "category": "Productivity",

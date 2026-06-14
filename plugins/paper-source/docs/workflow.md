@@ -26,7 +26,7 @@ Paper Source 依照 `skill-based-architecture` 维护轻量多 skill 插件：`p
 
 每个 skill 必须提供 `agents/openai.yaml`，且 `interface.default_prompt` 必须包含对应 `$skill-name`。步骤性流程放在各自 `workflows/*.md`，并必须从 `skills/routing.yaml` 的 `workflows` 字段可达。
 
-安装缓存验证必须跑 `doctor --json` 并检查 `skill_bundle_contract`：`status=ok`，`agent_metadata_count` 等于 `skill_count`，`workflow_count` 覆盖 routing 中声明的 workflow，且 missing/empty/orphan workflow 列表为空。还要检查 `mcp_outer_launcher` 与 `codex_mcp_registration`：前者确认插件 `.mcp.json` 外层 bootstrap command 和 launcher script 可见，后者确认用户级 `config.toml` 没有残留会遮蔽插件自注册的 `[mcp_servers.paper-search-mcp]`。
+安装缓存验证必须跑 `doctor --json` 并检查 `skill_bundle_contract`：`status=ok`，`agent_metadata_count` 等于 `skill_count`，`workflow_count` 覆盖 routing 中声明的 workflow，且 missing/empty/orphan workflow 列表为空。还要检查 `mcp_outer_launcher` 与 `codex_mcp_registration`：前者确认插件 `.mcp.json` 外层 bootstrap command、`cwd: "."` 和 `cmd /c .\scripts\paper_search_mcp_launcher.cmd` 相对 launcher script 可被 Codex 解析，且没有残留 `${CLAUDE_PLUGIN_ROOT}` / `${PLUGIN_ROOT}`；后者确认用户级 `config.toml` 没有残留会遮蔽插件自注册的 `[mcp_servers.paper-search-mcp]`。
 
 Task closure 只适用于代码、文档或 skill 行为变更。非平凡变更结束前要 restate original constraints、记录 verification commands and outcomes，并做 30-second AAR。Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work.
 

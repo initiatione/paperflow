@@ -43,11 +43,12 @@ def test_plugin_mcp_registration_uses_runtime_config_launcher():
 
     server = mcp_config["mcpServers"]["paper-search-mcp"]
 
-    assert server["command"] == "python"
-    assert server["args"] == ["${CLAUDE_PLUGIN_ROOT}/scripts/paper_search_mcp_launcher.py"]
+    assert server["cwd"] == "."
+    assert server["command"] == "cmd"
+    assert server["args"] == ["/c", ".\\scripts\\paper_search_mcp_launcher.cmd"]
+    assert "${CLAUDE_PLUGIN_ROOT}" not in json.dumps(server)
     assert "paper_search_mcp.server" not in json.dumps(server)
     assert "miniconda" not in json.dumps(server).lower()
-    assert "cmd" not in json.dumps(server).lower()
     assert "env" not in server
     assert "EPI_PAPER_SEARCH_MCP_LAUNCHER_DEBUG_LOG" not in json.dumps(server)
     assert (plugin_root / "scripts" / "paper_search_mcp_launcher.py").exists()

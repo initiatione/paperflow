@@ -413,8 +413,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         ]
     )
 
-    assert manifest["version"] == "1.0.4"
-    assert "v1.0.4" in manifest["interface"]["shortDescription"]
+    assert manifest["version"] == "1.0.6"
+    assert "v1.0.6" in manifest["interface"]["shortDescription"]
     for phrase in [
         "search_papers",
         "source_coverage",
@@ -450,7 +450,10 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "source_routing",
         "provider_gaps",
         "unpaywall_email_missing",
+        "paper_search_mcp_launcher.cmd",
+        "cmd /c",
         "mcp_outer_launcher",
+        "unresolved_plugin_root_placeholder",
         "codex_mcp_registration",
         "adaptive Python detection",
         "import paper_search_mcp",
@@ -467,6 +470,8 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "wiki-ask",
         "read-only formal graph",
         "0.2.6",
+        "1.0.6",
+        "1.0.5",
         "1.0.4",
         "1.0.3",
         "1.0.2",
@@ -802,7 +807,7 @@ def test_marketplace_and_readme_describe_profile_driven_generic_paper_source():
     assert "Paper Source" in manifest_text
     assert "Paper Wiki" in manifest_text
     assert manifest["description"].startswith("Paper Source")
-    assert manifest["interface"]["shortDescription"].startswith("v1.0.4 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v1.0.6 | Paper Source:")
     assert "profile-driven discovery" in manifest_text
     assert "Paper Wiki handoff" in manifest_text
     assert "MinerU" in manifest_text
@@ -1020,7 +1025,7 @@ def test_read_only_ask_ownership_documented_paper_source_side():
 
 def test_plugin_versions_track_current_plugin_changes():
     expected = {
-        "plugins/paper-source/.codex-plugin/plugin.json": "1.0.4",
+        "plugins/paper-source/.codex-plugin/plugin.json": "1.0.6",
         "plugins/paper-wiki/.codex-plugin/plugin.json": "1.0.0",
     }
     for rel, version in expected.items():

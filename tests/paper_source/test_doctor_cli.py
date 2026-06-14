@@ -100,16 +100,19 @@ def _seed_plugin_root(tmp_path):
     return plugin_root
 
 
-def _write_plugin_mcp(plugin_root, command="python", args=None):
+def _write_plugin_mcp(plugin_root, command="python", args=None, cwd="."):
     (plugin_root / "scripts" / "paper_search_mcp_launcher.py").write_text("# launcher\n", encoding="utf-8")
+    server = {
+        "command": command,
+        "args": args or ["./scripts/paper_search_mcp_launcher.py"],
+    }
+    if cwd is not None:
+        server["cwd"] = cwd
     _write_json(
         plugin_root / ".mcp.json",
         {
             "mcpServers": {
-                "paper-search-mcp": {
-                    "command": command,
-                    "args": args or ["${CLAUDE_PLUGIN_ROOT}/scripts/paper_search_mcp_launcher.py"],
-                }
+                "paper-search-mcp": server
             }
         },
     )
@@ -280,6 +283,36 @@ def test_doctor_warns_when_plugin_mcp_outer_launcher_command_is_missing(tmp_path
     assert outer_launcher["command"] == "missing-python-for-mcp-launcher"
     assert outer_launcher["error"] == "outer_command_not_found"
     assert outer_launcher["launcher_script_exists"] is True
+
+
+def test_doctor_warns_when_plugin_mcp_outer_launcher_uses_unexpanded_plugin_root_placeholder(
+    tmp_path, monkeypatch, capsys
+):
+    plugin_root = _seed_plugin_root(tmp_path)
+    _write_plugin_mcp(
+        plugin_root,
+        args=["${CLAUDE_PLUGIN_ROOT}/scripts/paper_search_mcp_launcher.py"],
+        cwd=None,
+    )
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "doctor",
+        "--plugin-root",
+        str(plugin_root),
+        "--vault",
+        str(tmp_path / "vault"),
+        "--json",
+    )
+
+    payload = json.loads(output)
+    outer_launcher = {check["name"]: check for check in payload["checks"]}["mcp_outer_launcher"]
+
+    assert exit_code == 0
+    assert outer_launcher["status"] == "warning"
+    assert outer_launcher["error"] == "unresolved_plugin_root_placeholder"
+    assert "${CLAUDE_PLUGIN_ROOT}" in outer_launcher["args"][0]
 
 
 def test_doctor_reports_skill_agent_and_workflow_discovery_contract(tmp_path, monkeypatch, capsys):

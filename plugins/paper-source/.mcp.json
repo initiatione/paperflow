@@ -1,9 +1,11 @@
 {
   "mcpServers": {
     "paper-search-mcp": {
-      "command": "python",
+      "cwd": ".",
+      "command": "cmd",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/scripts/paper_search_mcp_launcher.py"
+        "/c",
+        ".\\scripts\\paper_search_mcp_launcher.cmd"
       ]
     }
   },
