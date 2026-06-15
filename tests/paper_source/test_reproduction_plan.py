@@ -2,7 +2,7 @@ import json
 
 from paper_source.artifacts import file_sha256
 from paper_source.reproduction_plan import build_reproduction_plan
-from paper_source.run_critic import run_critics
+from paper_source.review.run_critic import run_critics
 
 
 def _seed_repro_warning_paper(tmp_path):

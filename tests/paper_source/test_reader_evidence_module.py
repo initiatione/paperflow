@@ -1,7 +1,7 @@
 import json
 
 from paper_source.claim_support import build_claim_support_map
-from paper_source.reader_evidence import validate_claim_support_map, validate_evidence_map, validate_reader_evidence
+from paper_source.review.reader_evidence import validate_claim_support_map, validate_evidence_map, validate_reader_evidence
 
 
 def _write_reader_evidence_fixture(tmp_path):

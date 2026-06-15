@@ -14,6 +14,7 @@ from paper_source.artifacts import (
     policies_root,
     quarantine_root,
     raw_papers_root,
+    read_json_dict,
     runs_root,
     staging_papers_root,
     utc_now,
@@ -325,12 +326,7 @@ def load_retention_policy(vault_path: Path, *, ensure: bool = True) -> dict[str,
     if ensure:
         ensure_paper_source_repository(vault_path)
     policy_path = policies_root(vault_path) / "retention.json"
-    try:
-        import json
-
-        payload = json.loads(policy_path.read_text(encoding="utf-8"))
-    except Exception:
-        payload = {}
+    payload = read_json_dict(policy_path, default={}) or {}
     if not isinstance(payload, dict):
         payload = {}
     payload = _upgrade_legacy_default_retention_policy(payload)
@@ -343,12 +339,7 @@ def load_retention_policy(vault_path: Path, *, ensure: bool = True) -> dict[str,
         else:
             policy[key] = value
     if ensure and policy_path.exists() and payload:
-        try:
-            import json
-
-            current = json.loads(policy_path.read_text(encoding="utf-8"))
-        except Exception:
-            current = {}
+        current = read_json_dict(policy_path, default={}) or {}
         if current != payload:
             write_json_atomic(policy_path, payload)
     return policy
@@ -390,11 +381,8 @@ def _remove_tree(path: Path) -> tuple[int, int]:
 def _is_terminal_run_dir(path: Path) -> bool:
     if not path.is_dir():
         return False
-    try:
-        import json
-
-        state = json.loads((path / "run-state.json").read_text(encoding="utf-8"))
-    except Exception:
+    state = read_json_dict(path / "run-state.json", default=None)
+    if not isinstance(state, dict):
         return True
     status = str(state.get("status") or state.get("state") or "").lower()
     return status not in {"running", "waiting_for_human_gate"}

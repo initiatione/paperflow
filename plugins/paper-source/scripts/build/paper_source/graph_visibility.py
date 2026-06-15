@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from paper_source.artifacts import read_json_dict
+
 
 def graph_search_filter(knowledge_dirs: list[str] | tuple[str, ...]) -> str:
     return "path:/^index\\.md$/ OR " + " OR ".join(
@@ -12,11 +14,7 @@ def graph_search_filter(knowledge_dirs: list[str] | tuple[str, ...]) -> str:
 
 def sync_graph_json(path: Path, knowledge_dirs: list[str] | tuple[str, ...], created: list[str]) -> None:
     if path.exists():
-        try:
-            existing = json.loads(path.read_text(encoding="utf-8"))
-            payload = existing if isinstance(existing, dict) else {}
-        except json.JSONDecodeError:
-            payload = {}
+        payload = read_json_dict(path, default={}) or {}
     else:
         payload = {}
     expected_search = graph_search_filter(knowledge_dirs)

@@ -8,9 +8,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any
 
-from paper_source.artifacts import evolution_root
-
-from paper_source.artifacts import utc_now, write_json_atomic, write_text_atomic
+from paper_source.artifacts import evolution_root, read_json, read_json_dict, utc_now, write_json_atomic, write_text_atomic
 
 
 WHITELISTED_TEMPLATE_ASSETS = {
@@ -412,7 +410,7 @@ def activate_evolution(
         raise PermissionError("human approval is required before activating evolution proposals")
     vault_path = vault_path.resolve()
     proposal_path = evolution_root(vault_path) / "proposals" / f"{proposal_id}.json"
-    proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+    proposal = read_json(proposal_path)
     target_asset = _validate_target_asset(proposal["target_asset"])
     normalized_target_asset = _normalize_asset_key(target_asset)
     activated = {
@@ -514,8 +512,10 @@ def _load_evolution_records(vault_path: Path) -> list[dict[str, Any]]:
             continue
         for path in sorted(bucket_root.glob("*.json")):
             try:
-                record = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
+                record = read_json_dict(path, default=None)
+            except OSError:
+                continue
+            if record is None:
                 continue
             proposal_id = record.get("id")
             if not proposal_id:

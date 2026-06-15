@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from paper_source.artifacts import read_json, read_json_dict
 from paper_source.claim_support import classify_claim_support
 from paper_source.source_artifacts import has_nonempty_mineru_tex, resolve_mineru_markdown_path
 
@@ -131,7 +132,7 @@ def _validate_mineru_manifest_reference(paper_root: Path, label: str, parsed: di
     if not manifest_path.exists():
         return [f"{label}: missing MinerU manifest for Evidence: {_evidence_address(parsed)}"]
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = read_json(manifest_path)
     except json.JSONDecodeError as exc:
         return [f"{label}: invalid MinerU manifest JSON for Evidence: {_evidence_address(parsed)}: {exc}"]
     if not isinstance(manifest, dict):
@@ -163,7 +164,7 @@ def validate_reader_evidence(paper_root: Path, evidence_docs: dict[str, str]) ->
     if not addresses:
         return False, ["reader outputs missing structured Evidence lines"]
 
-    metadata = json.loads((paper_root / "metadata.json").read_text(encoding="utf-8"))
+    metadata = read_json(paper_root / "metadata.json")
     mineru_text = resolve_mineru_markdown_path(paper_root).read_text(encoding="utf-8")
     headings = _mineru_headings(mineru_text)
     failures: list[str] = []
@@ -193,13 +194,13 @@ def validate_evidence_map(paper_root: Path) -> tuple[bool, list[str]]:
     if not evidence_map_path.exists():
         return False, ["reader/evidence-map.json missing"]
 
-    metadata = json.loads((paper_root / "metadata.json").read_text(encoding="utf-8"))
+    metadata = read_json(paper_root / "metadata.json")
     mineru_text = resolve_mineru_markdown_path(paper_root).read_text(encoding="utf-8")
     headings = _mineru_headings(mineru_text)
     failures: list[str] = []
 
     try:
-        evidence_map = json.loads(evidence_map_path.read_text(encoding="utf-8"))
+        evidence_map = read_json(evidence_map_path)
     except json.JSONDecodeError as exc:
         return False, [f"reader/evidence-map.json invalid JSON: {exc}"]
 
@@ -285,7 +286,7 @@ def validate_claim_support_map(paper_root: Path, *, required: bool = False) -> t
         return True, ["reader/claim-support.json not present; using reader/evidence-map.json only"]
 
     try:
-        support_map = json.loads(support_path.read_text(encoding="utf-8"))
+        support_map = read_json(support_path)
     except json.JSONDecodeError as exc:
         return False, [f"reader/claim-support.json invalid JSON: {exc}"]
 
@@ -302,7 +303,7 @@ def validate_claim_support_map(paper_root: Path, *, required: bool = False) -> t
     evidence_map_path = paper_root / "reader" / "evidence-map.json"
     if evidence_map_path.exists():
         try:
-            evidence_map = json.loads(evidence_map_path.read_text(encoding="utf-8"))
+            evidence_map = read_json_dict(evidence_map_path, default={}) or {}
         except json.JSONDecodeError:
             evidence_map = {}
         evidence_map_claims = {

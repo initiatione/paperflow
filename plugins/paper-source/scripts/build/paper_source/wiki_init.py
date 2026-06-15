@@ -5,6 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from paper_source.artifacts import read_json_dict
 from paper_source.paper_source_repository import ensure_paper_source_repository
 from paper_source.graph_visibility import graph_search_filter, sync_graph_json
 from paper_source.wiki_contracts import formal_page_family_names, formal_page_family_paths, qmd_collection_policy
@@ -273,12 +274,7 @@ def _write_text_if_missing_or_legacy(path: Path, content: str, created: list[str
 def _sync_manifest(path: Path, created: list[str]) -> None:
     existing: dict | None = None
     if path.exists():
-        try:
-            existing_payload = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(existing_payload, dict):
-                existing = existing_payload
-        except json.JSONDecodeError:
-            existing = None
+        existing = read_json_dict(path, default=None)
     payload = _manifest_payload(existing)
     if not path.exists() or payload != existing:
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

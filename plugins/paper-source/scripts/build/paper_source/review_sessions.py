@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from paper_source.artifacts import json_sha256, review_root, reviews_root, utc_now, write_json_atomic
+from paper_source.artifacts import json_sha256, read_json, review_root, reviews_root, utc_now, write_json_atomic
 from paper_source.fetch_plan import build_fetch_plan
 from paper_source.schemas import slugify_title
 
@@ -41,17 +41,17 @@ def _review_id(topic: str, signature: str) -> str:
     return f"{slug[:64]}-{signature[:12]}"
 
 
-def _read_json(path: Path) -> Any:
+def _read_review_artifact(path: Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return read_json(path)
     except json.JSONDecodeError as exc:
         raise ValueError(f"corrupt review session artifact: {path}") from exc
 
 
-def _read_json_if_exists(path: Path) -> Any | None:
+def _read_review_artifact_if_exists(path: Path) -> Any | None:
     if not path.exists():
         return None
-    return _read_json(path)
+    return _read_review_artifact(path)
 
 
 def _provider_cache_records(search_record: dict[str, Any]) -> list[dict[str, Any]]:
@@ -151,7 +151,7 @@ def create_or_update_review_session(
     root = review_root(vault_path, review_id)
     root.mkdir(parents=True, exist_ok=True)
     now = utc_now()
-    existing_state = _read_json_if_exists(root / "state.json") or {}
+    existing_state = _read_review_artifact_if_exists(root / "state.json") or {}
     run_ids = list(existing_state.get("run_ids") or [])
     if run_id not in run_ids:
         run_ids.append(run_id)
@@ -223,7 +223,7 @@ def find_matching_review_session(vault_path: Path, signature: str) -> dict[str, 
     if not root.exists():
         return None
     for candidate in sorted(path for path in root.iterdir() if path.is_dir()):
-        state = _read_json_if_exists(candidate / "state.json")
+        state = _read_review_artifact_if_exists(candidate / "state.json")
         if isinstance(state, dict) and state.get("status") == "active" and state.get("signature") == signature:
             return {"review_id": state["review_id"], "review_dir": str(candidate), "state": state}
     return None
@@ -234,11 +234,11 @@ def load_review_session_for_resume(vault_path: Path, signature: str) -> dict[str
     if not match:
         raise FileNotFoundError("no matching review session")
     root = Path(match["review_dir"])
-    candidates = _read_json_if_exists(root / "candidates.json")
-    shortlist = _read_json_if_exists(root / "shortlist.json")
-    coverage = _read_json_if_exists(root / "coverage.json")
+    candidates = _read_review_artifact_if_exists(root / "candidates.json")
+    shortlist = _read_review_artifact_if_exists(root / "shortlist.json")
+    coverage = _read_review_artifact_if_exists(root / "coverage.json")
     provider_cache_paths = sorted((root / "provider-cache").glob("query-*.json"))
-    provider_cache = [_read_json(path) for path in provider_cache_paths]
+    provider_cache = [_read_review_artifact(path) for path in provider_cache_paths]
     if shortlist is not None and candidates is not None:
         phase = "shortlist"
     elif candidates is not None:

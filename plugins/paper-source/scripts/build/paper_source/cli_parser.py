@@ -267,15 +267,6 @@ def build_parser() -> argparse.ArgumentParser:
     normalize_assets.add_argument("--execute", action="store_true")
     normalize_assets.add_argument("--json", action="store_true")
 
-    promote = subparsers.add_parser("promote-to-wiki")
-    _add_common_vault(promote)
-    promote.add_argument("--slug", required=True)
-    promote.add_argument("--approved-by", default=None)
-
-    rollback = subparsers.add_parser("rollback-promotion")
-    _add_common_vault(rollback)
-    rollback.add_argument("--slug", required=True)
-
     redo_acquire = subparsers.add_parser("redo-acquire")
     _add_common_vault(redo_acquire)
     redo_acquire.add_argument("--slug", required=True)

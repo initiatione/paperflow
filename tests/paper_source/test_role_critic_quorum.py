@@ -1,7 +1,7 @@
 import json
 
-from paper_source.generate_reader import generate_reader_outputs
-from paper_source.run_critic import run_critics
+from paper_source.review.generate_reader import generate_reader_outputs
+from paper_source.review.run_critic import run_critics
 
 
 def _write_role_critic_fixture(tmp_path):

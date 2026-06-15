@@ -6,7 +6,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from urllib.parse import unquote
 
-from paper_source.artifacts import LEGACY_EPI_ROOT_NAME, PAPER_SOURCE_ROOT_NAME
+from paper_source.artifacts import LEGACY_EPI_ROOT_NAME, PAPER_SOURCE_ROOT_NAME, read_json_dict
+from paper_source.frontmatter import parse_frontmatter, split_inline_frontmatter_list
 from paper_source.source_artifacts import has_nonempty_mineru_tex
 
 
@@ -60,11 +61,8 @@ def _load_manifest(vault_path: Path) -> dict:
     path = _manifest_path(vault_path)
     if not path.exists():
         return {"vault_type": "academic-paper-research", "papers": []}
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {"vault_type": "academic-paper-research", "papers": []}
-    if not isinstance(payload, dict):
+    payload = read_json_dict(path, default=None)
+    if payload is None:
         return {"vault_type": "academic-paper-research", "papers": []}
     payload.setdefault("papers", [])
     return payload
@@ -78,65 +76,13 @@ def _normalize_key(value: str) -> str:
     return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "", value.casefold())
 
 
-def _strip_scalar(value: str) -> str:
-    return value.strip().strip("'\"")
-
-
-def _parse_inline_list(value: str) -> list[str]:
-    text = value.strip()
-    if not (text.startswith("[") and text.endswith("]")):
-        return [_strip_scalar(text)] if text else []
-    inner = text[1:-1].strip()
-    if not inner:
-        return []
-    return [_strip_scalar(item) for item in inner.split(",") if _strip_scalar(item)]
-
-
-def _parse_frontmatter(text: str) -> tuple[dict[str, object], str]:
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return {}, text
-    end_index = None
-    for index, line in enumerate(lines[1:], start=1):
-        if line.strip() == "---":
-            end_index = index
-            break
-    if end_index is None:
-        return {}, text
-    frontmatter_lines = lines[1:end_index]
-    body = "\n".join(lines[end_index + 1 :])
-    payload: dict[str, object] = {}
-    current_key: str | None = None
-    for line in frontmatter_lines:
-        if not line.strip():
-            continue
-        list_match = re.match(r"^\s+-\s+(.*)$", line)
-        if list_match and current_key:
-            payload.setdefault(current_key, [])
-            if isinstance(payload[current_key], list):
-                payload[current_key].append(_strip_scalar(list_match.group(1)))
-            continue
-        key, separator, value = line.partition(":")
-        if not separator:
-            continue
-        current_key = key.strip()
-        value = value.strip()
-        if not value:
-            payload[current_key] = []
-        elif value.startswith("[") and value.endswith("]"):
-            payload[current_key] = _parse_inline_list(value)
-        else:
-            payload[current_key] = _strip_scalar(value)
-    return payload, body
-
-
 def _as_list(value: object) -> list[str]:
     if isinstance(value, list):
         return [str(item).strip() for item in value if str(item).strip()]
     if value is None:
         return []
     text = str(value).strip()
-    return _parse_inline_list(text) if text else []
+    return split_inline_frontmatter_list(text) if text else []
 
 
 def _wikilink_target(raw: str) -> str:
@@ -278,7 +224,7 @@ def _load_formal_pages(vault_path: Path) -> dict[str, dict]:
     pages: dict[str, dict] = {}
     for path in _formal_markdown_paths(vault_path):
         text = path.read_text(encoding="utf-8")
-        frontmatter, body = _parse_frontmatter(text)
+        frontmatter, body = parse_frontmatter(text)
         relative = _relative_path(path, vault_path)
         title = str(frontmatter.get("title") or path.stem.replace("-", " ")).strip().strip('"')
         aliases = _as_list(frontmatter.get("aliases"))

@@ -37,15 +37,23 @@ def file_sha256(path: Path) -> str:
 
 
 def paper_source_root(vault_path: Path) -> Path:
-    return vault_path.resolve() / PAPER_SOURCE_ROOT_NAME
+    return _vault_path(vault_path, PAPER_SOURCE_ROOT_NAME)
+
+
+def _vault_path(vault_path: Path, *parts: str) -> Path:
+    return vault_path.resolve().joinpath(*parts)
+
+
+def _paper_source_path(vault_path: Path, *parts: str) -> Path:
+    return _vault_path(vault_path, PAPER_SOURCE_ROOT_NAME, *parts)
 
 
 def paper_source_meta_root(vault_path: Path) -> Path:
-    return paper_source_root(vault_path) / "meta"
+    return _paper_source_path(vault_path, "meta")
 
 
 def legacy_epi_root(vault_path: Path) -> Path:
-    return vault_path.resolve() / LEGACY_EPI_ROOT_NAME
+    return _vault_path(vault_path, LEGACY_EPI_ROOT_NAME)
 
 
 def existing_paper_source_root(vault_path: Path) -> Path:
@@ -53,7 +61,7 @@ def existing_paper_source_root(vault_path: Path) -> Path:
 
 
 def raw_root(vault_path: Path) -> Path:
-    return paper_source_root(vault_path) / "raw"
+    return _paper_source_path(vault_path, "raw")
 
 
 def raw_papers_root(vault_path: Path) -> Path:
@@ -65,15 +73,15 @@ def raw_paper_root(vault_path: Path, slug: str) -> Path:
 
 
 def legacy_raw_paper_root(vault_path: Path, slug: str) -> Path:
-    return vault_path.resolve() / LEGACY_RAW_ROOT_NAME / "papers" / slug
+    return _vault_path(vault_path, LEGACY_RAW_ROOT_NAME, "papers", slug)
 
 
 def legacy_nested_epi_raw_paper_root(vault_path: Path, slug: str) -> Path:
-    return legacy_epi_root(vault_path) / "raw" / "papers" / slug
+    return _vault_path(vault_path, LEGACY_EPI_ROOT_NAME, "raw", "papers", slug)
 
 
 def legacy_epi_raw_paper_root(vault_path: Path, slug: str) -> Path:
-    return legacy_epi_root(vault_path) / "raw" / slug
+    return _vault_path(vault_path, LEGACY_EPI_ROOT_NAME, "raw", slug)
 
 
 def existing_raw_paper_root(vault_path: Path, slug: str) -> Path:
@@ -81,7 +89,7 @@ def existing_raw_paper_root(vault_path: Path, slug: str) -> Path:
 
 
 def staging_root(vault_path: Path) -> Path:
-    return paper_source_root(vault_path) / "staging"
+    return _paper_source_path(vault_path, "staging")
 
 
 def staging_papers_root(vault_path: Path) -> Path:
@@ -93,11 +101,11 @@ def staging_paper_root(vault_path: Path, slug: str) -> Path:
 
 
 def legacy_staging_paper_root(vault_path: Path, slug: str) -> Path:
-    return vault_path.resolve() / LEGACY_STAGING_ROOT_NAME / "papers" / slug
+    return _vault_path(vault_path, LEGACY_STAGING_ROOT_NAME, "papers", slug)
 
 
 def legacy_epi_staging_paper_root(vault_path: Path, slug: str) -> Path:
-    return legacy_epi_root(vault_path) / "staging" / "papers" / slug
+    return _vault_path(vault_path, LEGACY_EPI_ROOT_NAME, "staging", "papers", slug)
 
 
 def existing_staging_paper_root(vault_path: Path, slug: str) -> Path:
@@ -113,11 +121,11 @@ def wiki_batch_pending_root(vault_path: Path) -> Path:
 
 
 def runs_root(vault_path: Path) -> Path:
-    return paper_source_root(vault_path) / "runs"
+    return _paper_source_path(vault_path, "runs")
 
 
 def reviews_root(vault_path: Path) -> Path:
-    return paper_source_root(vault_path) / "reviews"
+    return _paper_source_path(vault_path, "reviews")
 
 
 def review_root(vault_path: Path, review_id: str) -> Path:
@@ -125,11 +133,11 @@ def review_root(vault_path: Path, review_id: str) -> Path:
 
 
 def legacy_runs_root(vault_path: Path) -> Path:
-    return vault_path.resolve() / LEGACY_RUNS_ROOT_NAME
+    return _vault_path(vault_path, LEGACY_RUNS_ROOT_NAME)
 
 
 def legacy_epi_runs_root(vault_path: Path) -> Path:
-    return legacy_epi_root(vault_path) / "runs"
+    return _vault_path(vault_path, LEGACY_EPI_ROOT_NAME, "runs")
 
 
 def existing_runs_root(vault_path: Path) -> Path:
@@ -141,19 +149,19 @@ def existing_run_dir(vault_path: Path, run_id: str) -> Path:
 
 
 def quarantine_root(vault_path: Path) -> Path:
-    return paper_source_root(vault_path) / "quarantine"
+    return _paper_source_path(vault_path, "quarantine")
 
 
 def evolution_root(vault_path: Path) -> Path:
-    return paper_source_root(vault_path) / "evolution"
+    return _paper_source_path(vault_path, "evolution")
 
 
 def legacy_meta_root(vault_path: Path) -> Path:
-    return vault_path.resolve() / LEGACY_META_ROOT_NAME
+    return _vault_path(vault_path, LEGACY_META_ROOT_NAME)
 
 
 def policies_root(vault_path: Path) -> Path:
-    return paper_source_root(vault_path) / "policies"
+    return _paper_source_path(vault_path, "policies")
 
 
 def vault_relative(vault_path: Path, path: Path) -> str:
@@ -172,3 +180,34 @@ def write_text_atomic(path: Path, content: str) -> None:
     temp_path = path.with_suffix(path.suffix + ".tmp")
     temp_path.write_text(content, encoding="utf-8")
     os.replace(temp_path, path)
+
+
+_MISSING = object()
+
+
+def read_json(path: Path, *, default: Any = _MISSING) -> Any:
+    """Read and parse JSON from ``path``.
+
+    On a missing file, unreadable file, or invalid JSON, return ``default`` when
+    it is provided; otherwise re-raise the original error. This centralizes the
+    read-with-fallback pattern that individual modules previously reimplemented.
+    """
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        if default is _MISSING:
+            raise
+        return default
+
+
+def read_json_dict(path: Path, *, default: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """Read a JSON object from ``path``.
+
+    Return the parsed object when it is a dict. On a missing file, unreadable
+    file, invalid JSON, or a non-dict payload, return a fresh copy of ``default``
+    (or ``None`` when ``default`` is ``None``).
+    """
+    payload = read_json(path, default=None)
+    if isinstance(payload, dict):
+        return payload
+    return dict(default) if default is not None else None

@@ -4,7 +4,7 @@ from pathlib import Path
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from paper_source.artifacts import paper_source_meta_root, runs_root, write_json_atomic
+from paper_source.artifacts import paper_source_meta_root, read_json, runs_root, write_json_atomic
 from paper_source.paper_gate import build_paper_gate
 
 
@@ -35,19 +35,12 @@ def _lifecycle_root(vault_path):
     return paper_source_meta_root(Path(vault_path)) / "run-lifecycle"
 
 
-def _load_json(path):
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return None
-
-
 def _normalize_run_entry(run_dir):
-    run_state = _load_json(run_dir / "run-state.json")
+    run_state = read_json(run_dir / "run-state.json", default=None)
     if not isinstance(run_state, dict):
         return None
 
-    report = _load_json(run_dir / "report.json")
+    report = read_json(run_dir / "report.json", default=None)
     if not isinstance(report, dict):
         report = {}
 
@@ -1140,7 +1133,7 @@ def render_run_lifecycle(result):
 def load_run_index(vault_path):
     runs_root = _runs_root(vault_path)
     index_path = runs_root / "index.json"
-    payload = _load_json(index_path)
+    payload = read_json(index_path, default=None)
     if isinstance(payload, dict):
         return payload
     return refresh_run_index(vault_path)

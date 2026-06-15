@@ -10,6 +10,8 @@ from paper_source.artifacts import (
     PAPER_SOURCE_ROOT_NAME,
     file_sha256,
     raw_paper_root,
+    read_json,
+    read_json_dict,
     staging_paper_root,
     utc_now,
     write_json_atomic,
@@ -18,6 +20,11 @@ from paper_source.paper_gate import build_paper_gate
 from paper_source.source_artifacts import is_mineru_markdown_artifact, source_first_artifacts
 from paper_source.wiki_language import formal_page_language_issues, language_policy_is_reviewed
 from paper_source.wiki_ingest_approval import human_approval_record_path, validate_human_approval_record
+from paper_source.frontmatter import (
+    frontmatter_block as _frontmatter_block,
+    frontmatter_source_entries as _frontmatter_source_entries,
+    frontmatter_value_is_empty as _frontmatter_value_is_empty,
+)
 from paper_source.wiki_contracts import (
     formal_frontmatter_schema,
     formal_page_family_names,
@@ -75,14 +82,6 @@ PAPER_WIKI_RECORD_READY_STATUS = "ready_for_paper_source_record"
 ACCEPTED_PAPER_WIKI_RECORD_READY_STATUSES = {
     PAPER_WIKI_RECORD_READY_STATUS,
 }
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
 
 
 def _gate_check_names(gate: dict[str, Any], conclusion: str) -> list[str]:
@@ -168,138 +167,6 @@ def _slug_pseudo_route_patterns(slug: str) -> set[str]:
         f"synthesis/{slug}-synthesis.md",
         f"reports/{slug}-reading-report.md",
     }
-
-
-def _frontmatter_block(text: str) -> tuple[dict[str, Any], str] | None:
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return None
-    try:
-        end_index = next(index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---")
-    except StopIteration:
-        return None
-    frontmatter: dict[str, Any] = {}
-    current_map_key: str | None = None
-    current_nested_key: str | None = None
-    for raw_line in lines[1:end_index]:
-        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
-            continue
-        if raw_line.startswith("  ") and current_map_key:
-            nested = raw_line.strip()
-            if raw_line.startswith("    ") and current_nested_key:
-                if nested.startswith("- "):
-                    nested_map = frontmatter.get(current_map_key)
-                    if not isinstance(nested_map, dict):
-                        nested_map = {}
-                        frontmatter[current_map_key] = nested_map
-                    current_value = nested_map.get(current_nested_key)
-                    if not isinstance(current_value, list):
-                        current_value = []
-                        nested_map[current_nested_key] = current_value
-                    current_value.append(_strip_frontmatter_scalar(nested[2:].strip()))
-                    continue
-            if nested.startswith("- "):
-                value = _strip_frontmatter_scalar(nested[2:].strip())
-                current_value = frontmatter.get(current_map_key)
-                if not isinstance(current_value, list):
-                    current_value = []
-                    frontmatter[current_map_key] = current_value
-                current_value.append(value)
-                continue
-            if ":" in nested:
-                key, value = nested.split(":", 1)
-                nested_map = frontmatter.get(current_map_key)
-                if not isinstance(nested_map, dict):
-                    nested_map = {}
-                    frontmatter[current_map_key] = nested_map
-                if isinstance(nested_map, dict):
-                    nested_key = key.strip()
-                    nested_value = value.strip()
-                    nested_map[nested_key] = nested_value
-                    current_nested_key = nested_key if not nested_value else None
-            continue
-        if ":" not in raw_line or raw_line[0].isspace():
-            continue
-        key, value = raw_line.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        frontmatter[key] = value
-        current_map_key = key if not value else None
-        current_nested_key = None
-    body = "\n".join(lines[end_index + 1 :])
-    return frontmatter, body
-
-
-def _frontmatter_value_is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, dict):
-        return False
-    text = str(value).strip()
-    return text in {"", "[]", "{}", "null", "None"}
-
-
-def _frontmatter_value_text(value: Any) -> str:
-    if isinstance(value, list):
-        return "\n".join(str(item) for item in value)
-    return str(value)
-
-
-def _strip_frontmatter_scalar(value: str) -> str:
-    text = str(value).strip()
-    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
-        return text[1:-1].strip()
-    return text
-
-
-def _split_inline_frontmatter_list(value: str) -> list[str]:
-    text = str(value).strip()
-    if not (text.startswith("[") and text.endswith("]")):
-        return [_strip_frontmatter_scalar(text)]
-    if text.startswith("[[") and text.endswith("]]"):
-        return [_strip_frontmatter_scalar(text)]
-
-    inner = text[1:-1].strip()
-    if not inner:
-        return []
-    entries: list[str] = []
-    token: list[str] = []
-    quote: str | None = None
-    escaped = False
-    for char in inner:
-        if quote:
-            if escaped:
-                token.append(char)
-                escaped = False
-                continue
-            if char == "\\":
-                escaped = True
-                continue
-            if char == quote:
-                quote = None
-                continue
-            token.append(char)
-            continue
-        if char in {'"', "'"}:
-            quote = char
-            continue
-        if char == ",":
-            entry = _strip_frontmatter_scalar("".join(token))
-            if entry:
-                entries.append(entry)
-            token = []
-            continue
-        token.append(char)
-    entry = _strip_frontmatter_scalar("".join(token))
-    if entry:
-        entries.append(entry)
-    return entries
-
-
-def _frontmatter_source_entries(value: Any) -> list[str]:
-    if isinstance(value, list):
-        return [_strip_frontmatter_scalar(str(item)) for item in value if _strip_frontmatter_scalar(str(item))]
-    return _split_inline_frontmatter_list(str(value))
 
 
 def _formal_source_entries_issues(value: Any) -> list[str]:
@@ -582,7 +449,7 @@ def _resolve_vault_file(vault_path: Path, value: str | Path, *, description: str
 def _load_paper_wiki_record_request(vault_path: Path, request_path: str | Path) -> tuple[dict[str, Any], Path, str]:
     resolved, relative_path = _resolve_vault_file(vault_path, request_path, description="Paper Wiki record request")
     try:
-        payload = json.loads(resolved.read_text(encoding="utf-8"))
+        payload = read_json(resolved)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"missing Paper Wiki record request: {resolved}") from exc
     except json.JSONDecodeError as exc:
@@ -718,7 +585,7 @@ def create_wiki_ingest_record_from_paper_wiki_request(
 
 def _read_required_json(path: Path) -> dict[str, Any]:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = read_json(path)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"missing final source review: {path}") from exc
     except json.JSONDecodeError as exc:
@@ -966,14 +833,14 @@ def create_wiki_ingest_record(
     paper_root = raw_paper_root(vault_path, slug)
     staging_root = staging_paper_root(vault_path, slug)
     plan_path = staging_root / "promotion-plan.json"
-    plan = _read_json(plan_path)
+    plan = read_json_dict(plan_path, default={}) or {}
     if not plan:
         raise FileNotFoundError(f"missing promotion plan: {plan_path}")
     if not _is_agent_mediated_plan(plan):
         raise ValueError("record-wiki-ingest only supports agent-mediated wiki ingest plans")
 
     brief_path = Path(plan.get("wiki_ingest_brief_path") or staging_root / "wiki-ingest-brief.json")
-    brief = _read_json(brief_path)
+    brief = read_json_dict(brief_path, default={}) or {}
     if not brief:
         raise FileNotFoundError(f"missing wiki ingest brief: {brief_path}")
 

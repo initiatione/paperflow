@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from paper_source.artifacts import read_json_dict
 from paper_source.source_artifacts import resolve_mineru_markdown_path
 
 
@@ -322,7 +323,7 @@ def review_paper_quality(
     mineru_path = resolve_mineru_markdown_path(paper_root)
     paper_pdf_exists = (paper_root / "paper.pdf").exists()
     metadata_exists = metadata_path.exists()
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_exists else {}
+    metadata = read_json_dict(metadata_path, default={}) if metadata_exists else {}
     mineru_text = mineru_path.read_text(encoding="utf-8") if mineru_path.exists() else ""
     combined_reader_text = _combine_reader_text(reader_text, additional_reader_texts)
 

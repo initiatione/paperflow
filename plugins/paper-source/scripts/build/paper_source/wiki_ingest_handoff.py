@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
-from paper_source.artifacts import staging_paper_root
+from paper_source.artifacts import read_json_dict, staging_paper_root
 from paper_source.paper_gate import build_paper_gate
 from paper_source.wiki_ingest_approval import human_approval_record_path
 from paper_source.wiki_contracts import (
@@ -28,14 +27,6 @@ CONTRACT_FILES = [
     "log.md",
     ".manifest.json",
 ]
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
 
 
 def _contract_file_status(vault_path: Path) -> dict[str, dict[str, Any]]:
@@ -224,9 +215,9 @@ def build_wiki_ingest_handoff(vault_path: Path, slug: str) -> dict[str, Any]:
     vault_path = vault_path.resolve()
     staging_root = staging_paper_root(vault_path, slug)
     plan_path = staging_root / "promotion-plan.json"
-    plan = _read_json(plan_path)
+    plan = read_json_dict(plan_path, default={}) or {}
     brief_path = _brief_path_from_plan(plan, staging_root)
-    brief = _read_json(brief_path)
+    brief = read_json_dict(brief_path, default={}) or {}
     gate = build_paper_gate(vault_path, slug)
     ingest_policy = brief.get("ingest_policy") if isinstance(brief.get("ingest_policy"), dict) else {}
     framework_references = (

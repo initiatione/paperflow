@@ -1,20 +1,19 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from paper_source.artifacts import file_sha256, utc_now, write_json_atomic, write_text_atomic
-from paper_source.critic_contracts import critic_protocol
+from paper_source.artifacts import file_sha256, read_json_dict, utc_now, write_json_atomic, write_text_atomic
+from paper_source.review.critic_contracts import critic_protocol
 from paper_source.paper_quality import review_paper_quality
-from paper_source.reader_evidence import validate_claim_support_map, validate_evidence_map, validate_reader_evidence
-from paper_source.reader_revision_plan import write_reader_revision_plan
+from paper_source.review.reader_evidence import validate_claim_support_map, validate_evidence_map, validate_reader_evidence
+from paper_source.review.reader_revision_plan import write_reader_revision_plan
 from paper_source.reproduction_plan import write_reproduction_plan
 from paper_source.research_decision import write_research_decision
-from paper_source.role_critics import role_check_key, role_reviewer_paths, review_role_artifacts
+from paper_source.review.role_critics import role_check_key, role_reviewer_paths, review_role_artifacts
+from paper_source.review.constants import HARD_RULE
 from paper_source.source_artifacts import resolve_mineru_markdown_path, resolved_mineru_markdown_relative_path
 
 
-HARD_RULE = "No critic pass, no compiled wiki write."
 TOOL_VERSIONS = {
     "critic_pipeline": "paper-source-local-static-v1",
 }
@@ -49,14 +48,6 @@ def _artifact_hashes(artifacts: dict[str, Path]) -> dict[str, str]:
     }
 
 
-def _load_json(path: Path) -> dict:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
-
-
 def _image_count(images_dir: Path) -> int:
     if not images_dir.exists():
         return 0
@@ -70,7 +61,7 @@ def _review_parse_materialization(paper_root: Path) -> dict:
     manifest_path = mineru_dir / "mineru-manifest.json"
     images_dir = mineru_dir / "images"
     parse_record_path = paper_root / "parse-record.json"
-    parse_record = _load_json(parse_record_path)
+    parse_record = read_json_dict(parse_record_path, default={}) or {}
     strict_success = parse_record.get("status") == "success"
     parse_record_present = bool(parse_record)
 
@@ -176,10 +167,7 @@ def run_critics(paper_root: Path) -> dict:
     evidence_map_path = paper_root / "reader" / "evidence-map.json"
     claim_support_path = paper_root / "reader" / "claim-support.json"
     metadata_path = paper_root / "metadata.json"
-    try:
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        metadata = {}
+    metadata = read_json_dict(metadata_path, default={}) or {}
     reader_text = reader_path.read_text(encoding="utf-8") if reader_path.exists() else ""
     editorial_summary_text = (
         editorial_summary_path.read_text(encoding="utf-8") if editorial_summary_path.exists() else ""

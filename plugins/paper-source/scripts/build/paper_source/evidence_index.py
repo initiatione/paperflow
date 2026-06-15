@@ -10,6 +10,7 @@ from paper_source.artifacts import (
     file_sha256,
     paper_source_meta_root,
     raw_paper_root,
+    read_json_dict,
     utc_now,
     vault_relative,
     write_json_atomic,
@@ -28,11 +29,7 @@ HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
 
 def _load_metadata(paper_root: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads((paper_root / "metadata.json").read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    return read_json_dict(paper_root / "metadata.json", default={}) or {}
 
 
 def _chunk_hash(payload: dict[str, Any]) -> str:
@@ -210,10 +207,10 @@ def build_paper_evidence_index(
 def refresh_vault_evidence_index(vault_path: Path, paper_index: dict[str, Any]) -> dict[str, Any]:
     vault_path = vault_path.resolve()
     aggregate_path = paper_source_meta_root(vault_path) / "evidence-index.json"
-    try:
-        aggregate = json.loads(aggregate_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        aggregate = {"schema_version": "paper-source-vault-evidence-index-v1", "papers": []}
+    aggregate = read_json_dict(
+        aggregate_path,
+        default={"schema_version": "paper-source-vault-evidence-index-v1", "papers": []},
+    ) or {"schema_version": "paper-source-vault-evidence-index-v1", "papers": []}
 
     papers = [
         item

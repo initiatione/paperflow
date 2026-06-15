@@ -12,6 +12,7 @@ import threading
 import time
 from pathlib import Path
 
+from paper_source.artifacts import read_json
 from paper_source.runtime_config import apply_runtime_config
 
 
@@ -990,7 +991,7 @@ def discover(
 ) -> dict:
     apply_runtime_config()
     if fixture_path:
-        records = json.loads(fixture_path.read_text(encoding="utf-8"))
+        records = read_json(fixture_path)
         return {
             "query": query,
             "max_results": max_results,

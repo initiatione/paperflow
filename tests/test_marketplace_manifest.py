@@ -90,16 +90,13 @@ def test_paper_source_runtime_package_uses_current_directory_name_without_legacy
 
     assert (source_root / "scripts" / "build" / "paper_source" / "__init__.py").is_file()
     assert (source_root / "scripts" / "build" / "paper_source" / "paper_source_repository.py").is_file()
-    assert (source_root / "scripts" / "build" / "paper_source" / "epi_repository.py").is_file()
     assert not (source_root / "scripts" / "build" / "epi").exists()
     assert not (ROOT / "tests" / "epi").exists()
     assert (ROOT / "tests" / "paper_source").is_dir()
 
 
 def test_current_file_and_directory_names_do_not_use_legacy_plugin_names():
-    allowed_legacy_paths = {
-        Path("plugins/paper-source/scripts/build/paper_source/epi_repository.py"),
-    }
+    allowed_legacy_paths: set[Path] = set()
     scanned_roots = [
         ROOT / "docs" / "assets",
         ROOT / "docs" / "audits",

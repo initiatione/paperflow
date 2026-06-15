@@ -14,6 +14,6 @@ If config is missing, stop sync and use `config-setup`. See `docs\config.md`.
 python scripts\orchestrator.py zotero-sync --paper-root <vault>\_paper_source\\raw\\<paper-slug> --collection Paper Source --enabled --item-key <zotero-item-key>
 ```
 
-Runtime note: after `record-wiki-ingest` or legacy `promote-to-wiki`, Paper Source writes `_paper_source\\raw\\<paper-slug>\zotero-record.json` as a record-only sidecar using vault config. The record may include metadata, `wiki-ingest-record.json`, and final wiki page hashes. It does not call external Zotero APIs.
+Runtime note: after `record-wiki-ingest`, Paper Source writes `_paper_source\\raw\\<paper-slug>\zotero-record.json` as a record-only sidecar using vault config. The record may include metadata, `wiki-ingest-record.json`, and final wiki page hashes. It does not call external Zotero APIs.
 
 Never delete existing Zotero records during config reset or update.

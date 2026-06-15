@@ -11,6 +11,8 @@ from paper_source.artifacts import (
     file_sha256,
     json_sha256,
     raw_paper_root,
+    read_json,
+    read_json_dict,
     runs_root,
     staging_paper_root,
     utc_now,
@@ -27,22 +29,40 @@ from paper_source.paper_source_repository import (
 from paper_source.feedback import record_feedback
 from paper_source.evaluation_loop import build_improvement_brief, render_improvement_brief, write_improvement_brief
 from paper_source.filter_candidates import default_discovery_exclusion_terms, filter_candidates, filter_candidates_with_report
-from paper_source.generate_reader import generate_reader_outputs
+from paper_source.orchestrator_discovery import (
+    filter_domains_from_profile as _filter_domains_from_profile,
+    ranking_keywords_from_profile as _ranking_keywords_from_profile,
+    reason_counts as _reason_counts,
+    run_query_plan_discovery as _run_query_plan_discovery,
+    source_coverage_from_search_record as _source_coverage_from_search_record,
+    venue_tiers_from_profile as _venue_tiers_from_profile,
+)
 from paper_source.normalize_candidates import normalize_candidates
 from paper_source.paper_gate import build_paper_gate, render_paper_gate
 from paper_source.paper_library import load_existing_paper_index
-from paper_source.paper_search_adapter import (
-    discover,
-    paper_search_provider_readiness,
-    paper_search_source_capabilities,
-    plan_source_routing,
+from paper_source.paper_search_adapter import plan_source_routing
+from paper_source.query_plan_build import (
+    agent_plan_constraint as _agent_plan_constraint,
+    agent_plan_hard_domain_anchors as _agent_plan_hard_domain_anchors,
+    agent_plan_soft_recall_terms as _agent_plan_soft_recall_terms,
+    agent_plan_strings as _agent_plan_strings,
+    apply_agent_supplied_query_inputs as _apply_agent_supplied_query_inputs,
+    apply_exact_lookup_query_plan as _apply_exact_lookup_query_plan,
+    build_dry_run_query_plan as _build_dry_run_query_plan,
+    load_agent_query_plan_json as _load_agent_query_plan_json,
+    normalize_code_policy as _normalize_code_policy,
+    normalize_year_min as _normalize_year_min,
+    query_strategy_for_dry_run as _query_strategy_for_dry_run,
+    request_constraints_payload as _request_constraints_payload,
+    unique_nonempty_strings as _unique_nonempty_strings,
 )
-from paper_source.query_planner import build_query_plan, build_query_plan_from_research_brief, infer_research_mode, topic_focus_terms
+from paper_source.query_planner import build_query_plan_from_research_brief, infer_research_mode
 from paper_source.raw_cleanup import cleanup_failed_raw_paper
 from paper_source.rank_papers import SELECTION_POLICIES, rank_candidates
 from paper_source.redo import redo_acquire, redo_parse, redo_read, redo_read_recritic, recritic
 from paper_source.research_brief import ResearchBriefValidationError, load_research_brief
 from paper_source.report_run import write_report
+from paper_source.orchestrator_repair import write_repair_routed_report
 from paper_source.review_sessions import (
     build_review_signature,
     create_or_update_review_session,
@@ -61,12 +81,9 @@ from paper_source.run_index import (
     render_run_lifecycle,
     render_runs_query,
 )
-from paper_source.run_critic import run_critics
 from paper_source.run_mineru_parse import materialize_mineru_fixture, run_mineru_command
 from paper_source.skill_aware_evolve import activate_evolution, propose_evolution, query_evolution, render_evolution_query
 from paper_source.source_artifacts import (
-    canonical_mineru_markdown_relative_path,
-    has_nonempty_mineru_tex,
     resolve_mineru_markdown_path,
 )
 from paper_source.stage_wiki import (
@@ -81,15 +98,10 @@ from paper_source.wiki_ingest_trigger import build_wiki_ingest_trigger, render_w
 from paper_source.wiki_record_workflows import (
     _append_report_sections,
     _write_human_approval_report,
-    _write_promotion_or_rollback_run_state,
-    _write_promotion_routed_report,
-    _write_rollback_routed_report,
     _write_wiki_ingest_record_report,
     _zotero_record_only,
-    promote_paper,
     record_human_approval,
     record_wiki_ingest,
-    rollback_promotion,
 )
 from paper_source.wiki_query import ask_wiki, query_wiki, render_wiki_ask, render_wiki_query
 from paper_source.wiki_init import initialize_paper_wiki
@@ -207,934 +219,12 @@ def _new_run_dir(vault_path: Path, prefix: str | None = None) -> tuple[str, Path
     return run_id, run_dir
 
 
-def _build_dry_run_query_plan(query: str, *, domain: str, max_queries: int, config) -> dict:
-    return build_query_plan(
-        topic=query,
-        domain=domain,
-        max_queries=max(1, max_queries),
-        profile=config.profile,
-        domains=config.domains,
-        positive_keywords=config.positive_keywords,
-        negative_keywords=config.negative_keywords,
-        venue_prior=config.venue_prior,
-    )
-
-
-def _unique_nonempty_strings(values: list[str] | None, *, split_commas: bool = False) -> list[str]:
-    if not values:
-        return []
-    seen: set[str] = set()
-    kept: list[str] = []
-    for value in values:
-        candidates = str(value).split(",") if split_commas else [str(value)]
-        for candidate in candidates:
-            item = " ".join(candidate.strip().split())
-            normalized = item.lower()
-            if not item or normalized in seen:
-                continue
-            seen.add(normalized)
-            kept.append(item)
-    return kept
-
-
-CODE_POLICIES = {"ignore", "prefer", "require"}
-
-
 def _normalize_selection_policy(value: object) -> str:
     policy = str(value or "balanced_high_quality").strip().lower()
     if policy not in SELECTION_POLICIES:
         raise ValueError(f"unknown selection_policy: {value}")
     return policy
 
-
-def _normalize_year_min(value: object) -> int | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, bool):
-        raise ValueError("year_min must be an integer year")
-    try:
-        year = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"year_min must be an integer year: {value}") from exc
-    if year < 1000 or year > 9999:
-        raise ValueError(f"year_min must be a four-digit year: {value}")
-    return year
-
-
-def _normalize_code_policy(value: object) -> str | None:
-    if value is None or value == "":
-        return None
-    policy = str(value).strip().lower()
-    if policy not in CODE_POLICIES:
-        raise ValueError(f"unknown code_policy: {value}")
-    return policy
-
-
-def _request_constraints_payload(year_min: int | None, code_policy: str | None) -> dict:
-    payload: dict[str, object] = {}
-    if year_min is not None:
-        payload["year_min"] = year_min
-    if code_policy is not None:
-        payload["code_policy"] = code_policy
-    return payload
-
-
-def _load_agent_query_plan_json(path: Path | None) -> dict | None:
-    if path is None:
-        return None
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"agent query plan JSON is invalid: {path}") from exc
-    if not isinstance(payload, dict):
-        raise ValueError("agent query plan JSON must be an object")
-    list_fields = (
-        "query_variants",
-        "domain_focus_terms",
-        "must_have_domain_anchors",
-        "hard_domain_anchors",
-        "soft_recall_terms",
-        "exclusions",
-        "ambiguities",
-    )
-    for key in list_fields:
-        value = payload.get(key)
-        if value is not None and not isinstance(value, list):
-            raise ValueError(f"agent query plan field must be a list: {key}")
-    hard_constraints = payload.get("hard_constraints")
-    if hard_constraints is not None and not isinstance(hard_constraints, (dict, list)):
-        raise ValueError("agent query plan field must be an object or list: hard_constraints")
-    for key in ("term_provenance", "confidence"):
-        value = payload.get(key)
-        if value is not None and not isinstance(value, dict):
-            raise ValueError(f"agent query plan field must be an object: {key}")
-    return payload
-
-
-def _agent_plan_strings(payload: dict | None, *keys: str, split_commas: bool = False) -> list[str]:
-    if not payload:
-        return []
-    values: list[str] = []
-    for key in keys:
-        raw_value = payload.get(key)
-        if isinstance(raw_value, str):
-            values.append(raw_value)
-        elif isinstance(raw_value, list):
-            values.extend(str(item) for item in raw_value)
-    return _unique_nonempty_strings(values, split_commas=split_commas)
-
-
-def _agent_plan_constraint(payload: dict | None, key: str) -> object:
-    if not payload:
-        return None
-    if key in payload:
-        return payload.get(key)
-    for container_key in ("constraints", "request_constraints"):
-        container = payload.get(container_key)
-        if isinstance(container, dict) and key in container:
-            return container.get(key)
-    return None
-
-
-def _constraint_terms(payload: object, *keys: str, split_commas: bool = True) -> list[str]:
-    terms: list[str] = []
-    if isinstance(payload, dict):
-        for key in keys:
-            value = payload.get(key)
-            if isinstance(value, str):
-                terms.append(value)
-            elif isinstance(value, list):
-                terms.extend(str(item) for item in value)
-        constraints = payload.get("constraints")
-        if isinstance(constraints, dict):
-            terms.extend(_constraint_terms(constraints, *keys, split_commas=split_commas))
-    elif isinstance(payload, list):
-        for item in payload:
-            if isinstance(item, str):
-                terms.append(item)
-            elif isinstance(item, dict):
-                terms.extend(_constraint_terms(item, *keys, split_commas=split_commas))
-    return _unique_nonempty_strings(terms, split_commas=split_commas)
-
-
-def _agent_plan_hard_domain_anchors(payload: dict | None) -> list[str]:
-    if not payload:
-        return []
-    return _unique_nonempty_strings(
-        _agent_plan_strings(payload, "hard_domain_anchors", "must_have_domain_anchors", split_commas=True)
-        + _constraint_terms(
-            payload.get("hard_constraints"),
-            "domain_focus_terms",
-            "domain_anchors",
-            "hard_domain_anchors",
-            "must_have_domain_anchors",
-            split_commas=True,
-        ),
-        split_commas=True,
-    )
-
-
-def _agent_plan_soft_recall_terms(payload: dict | None) -> list[str]:
-    if not payload:
-        return []
-    return _unique_nonempty_strings(
-        _agent_plan_strings(payload, "soft_recall_terms", "recall_terms", "expanded_terms", split_commas=True)
-        + _agent_plan_strings(payload, "domain_focus_terms", split_commas=True),
-        split_commas=True,
-    )
-
-
-def _merge_term_provenance(plan: dict, terms: list[str], source: str) -> None:
-    if not terms:
-        return
-    provenance = plan.get("term_provenance") if isinstance(plan.get("term_provenance"), dict) else {}
-    for term in terms:
-        provenance.setdefault(term, source)
-    plan["term_provenance"] = provenance
-
-
-def _minimal_agent_supplied_query_plan(query: str, *, config) -> dict:
-    focus_terms = topic_focus_terms(query)
-    profile_terms = _unique_nonempty_strings(
-        [config.profile.replace("_", " ").replace("-", " ")] + list(config.domains) + list(config.positive_keywords)
-    )
-    domain_terms = _unique_nonempty_strings(list(config.domains))
-    method_terms = _unique_nonempty_strings(list(config.positive_keywords) + focus_terms)
-    exclusions = default_discovery_exclusion_terms(query)
-    return {
-        "workflow": "paper-source-query-plan",
-        "topic": query,
-        "research_mode": infer_research_mode(query),
-        "domain": "agent-supplied",
-        "profile": {
-            "name": config.profile,
-            "domains": list(config.domains),
-            "positive_keywords": list(config.positive_keywords),
-            "negative_keywords": list(config.negative_keywords),
-            "venue_prior": list(config.venue_prior),
-            "derivation": "agent-supplied query plan; script records and executes explicit terms",
-        },
-        "concept_blocks": {
-            "profile_terms": profile_terms,
-            "domain_terms": domain_terms,
-            "domain_focus_terms": [],
-            "hard_domain_anchors": [],
-            "soft_recall_terms": [],
-            "method_or_topic_terms": method_terms,
-            "problem_terms": focus_terms,
-            "context_terms": [],
-            "quality_signals": [],
-            "exclusions": exclusions,
-        },
-        "query_variants": [query],
-        "source_route": {
-            "t1": ["paper_search_mcp", "arxiv", "semantic", "openalex", "crossref", "unpaywall"],
-            "t2": ["official venue pages", "publisher DOI pages", "field-specific indexes"],
-            "t3": ["citation graph", "lab/project pages", "profile-specific curated venue lists"],
-        },
-        "recall_gap_checks": {
-            "venue_families": list(config.venue_prior) or ["profile-configured venue_prior", "field-specific top venues"],
-            "profile_terms": profile_terms,
-            "citation_graph": ["journal version", "recent cited-by", "references", "related papers"],
-            "library_dedup": ["DOI", "arXiv ID", "normalized title", "title+first-author+year"],
-        },
-        "quality_signals": [],
-    }
-
-
-def _apply_agent_supplied_query_inputs(
-    query_plan: dict | None,
-    *,
-    query: str,
-    config,
-    query_variants: list[str],
-    domain_focus_terms: list[str],
-    agent_query_plan: dict | None = None,
-    agent_query_plan_path: Path | None = None,
-    year_min: int | None = None,
-    code_policy: str | None = None,
-) -> dict:
-    plan = query_plan or _minimal_agent_supplied_query_plan(query, config=config)
-    blocks = plan.setdefault("concept_blocks", {})
-    plan_blocks = agent_query_plan.get("concept_blocks") if isinstance(agent_query_plan, dict) else None
-    if isinstance(plan_blocks, dict):
-        for key, value in plan_blocks.items():
-            if isinstance(value, list):
-                target_key = "soft_recall_terms" if key == "domain_focus_terms" else key
-                blocks[target_key] = _unique_nonempty_strings(
-                    [str(item) for item in value] + list(blocks.get(target_key) or [])
-                )
-    hard_domain_anchors = _unique_nonempty_strings(
-        domain_focus_terms + _agent_plan_hard_domain_anchors(agent_query_plan),
-        split_commas=True,
-    )
-    soft_recall_terms = _agent_plan_soft_recall_terms(agent_query_plan)
-    if hard_domain_anchors:
-        blocks["hard_domain_anchors"] = hard_domain_anchors
-        blocks["domain_focus_terms"] = _unique_nonempty_strings(
-            hard_domain_anchors + list(blocks.get("domain_focus_terms") or []),
-            split_commas=True,
-        )
-        blocks["domain_terms"] = _unique_nonempty_strings(hard_domain_anchors + list(blocks.get("domain_terms") or []))
-    if soft_recall_terms:
-        blocks["soft_recall_terms"] = _unique_nonempty_strings(
-            soft_recall_terms + list(blocks.get("soft_recall_terms") or []),
-            split_commas=True,
-        )
-    _merge_term_provenance(plan, domain_focus_terms, "cli_explicit_hard_anchor")
-    _merge_term_provenance(plan, _agent_plan_hard_domain_anchors(agent_query_plan), "agent_explicit_hard_anchor")
-    _merge_term_provenance(plan, list(blocks.get("soft_recall_terms") or []), "agent_or_topic_soft_recall")
-    if query_variants:
-        plan["query_variants"] = query_variants
-        plan["query_variants_source"] = "agent_supplied"
-    if hard_domain_anchors:
-        plan["domain_focus_terms_source"] = "explicit_hard_anchor"
-    request_constraints = _request_constraints_payload(year_min, code_policy)
-    if request_constraints:
-        plan["request_constraints"] = {
-            **request_constraints,
-            "source": "agent_supplied" if agent_query_plan or query_variants or domain_focus_terms else "cli",
-        }
-    plan["hard_constraints"] = {
-        "domain_anchors": hard_domain_anchors,
-        "policy": "Only user/config/Research Brief/confirmed anchors should be passed here; inferred terms stay soft.",
-    }
-    plan["soft_recall_terms"] = list(blocks.get("soft_recall_terms") or [])
-    if isinstance(agent_query_plan, dict):
-        if isinstance(agent_query_plan.get("ambiguities"), list):
-            plan["ambiguities"] = [str(item) for item in agent_query_plan.get("ambiguities") or []]
-        if isinstance(agent_query_plan.get("confidence"), dict):
-            plan["confidence"] = agent_query_plan["confidence"]
-        if isinstance(agent_query_plan.get("term_provenance"), dict):
-            provenance = plan.get("term_provenance") if isinstance(plan.get("term_provenance"), dict) else {}
-            provenance = {**agent_query_plan["term_provenance"], **provenance}
-            plan["term_provenance"] = provenance
-    plan["agent_supplied"] = {
-        "query_variants": query_variants,
-        "domain_focus_terms": domain_focus_terms,
-        "hard_domain_anchors": hard_domain_anchors,
-        "agent_hard_domain_anchors": _agent_plan_hard_domain_anchors(agent_query_plan),
-        "soft_recall_terms": list(blocks.get("soft_recall_terms") or []),
-        "agent_query_plan_path": str(agent_query_plan_path) if agent_query_plan_path else None,
-        "agent_query_plan": agent_query_plan or {},
-        "request_constraints": request_constraints,
-        "contract": "agent_plans_natural_language; script_validates_records_executes; inferred_terms_do_not_become_hard_filters",
-    }
-    return plan
-
-
-def _exact_lookup_query(source_routing: dict | None, fallback_query: str) -> str:
-    exact_lookup = source_routing.get("exact_lookup") if isinstance(source_routing, dict) else None
-    if isinstance(exact_lookup, dict) and exact_lookup.get("value"):
-        return str(exact_lookup["value"])
-    return fallback_query
-
-
-def _apply_exact_lookup_query_plan(query_plan: dict, source_routing: dict | None) -> None:
-    exact_lookup = source_routing.get("exact_lookup") if isinstance(source_routing, dict) else None
-    if not isinstance(exact_lookup, dict):
-        return
-    query_plan["research_mode"] = {
-        "schema_version": "paper-source-research-mode-v1",
-        "mode": "exact-lookup",
-        "spectrum": "fidelity",
-        "oversight": "low",
-        "signals": [exact_lookup.get("kind")],
-        "reason": "The user supplied a DOI, arXiv ID, or explicit title lookup; preserve the identifier instead of expanding the query.",
-    }
-    query_plan["query_variants"] = [_exact_lookup_query(source_routing, str(query_plan.get("topic") or ""))]
-
-
-def _query_strategy_for_dry_run(query_plan: dict | None, fixture_path: Path | None, source_routing: dict | None) -> str:
-    if fixture_path is not None or not query_plan:
-        return "single_query"
-    if isinstance(source_routing, dict) and isinstance(source_routing.get("exact_lookup"), dict):
-        return "exact_lookup_single_query"
-    return "query_plan_multi_query"
-
-
-def _ranking_keywords_from_profile(config, query: str, query_plan: dict | None) -> list[str]:
-    keywords: list[str] = []
-    keywords.extend(config.positive_keywords)
-    keywords.extend(config.domains)
-    keywords.extend(topic_focus_terms(query))
-    if not keywords:
-        keywords.extend(
-            word
-            for word in query.replace("-", " ").replace("/", " ").split()
-            if len(word) > 2 and word.lower() not in {"latest", "recent", "paper", "papers", "quality"}
-        )
-
-    seen: set[str] = set()
-    unique_keywords: list[str] = []
-    for keyword in keywords:
-        normalized = " ".join(str(keyword).lower().split())
-        if not normalized or normalized in seen:
-            continue
-        seen.add(normalized)
-        unique_keywords.append(str(keyword))
-    return unique_keywords
-
-
-def _venue_tiers_from_profile(config, query_plan: dict | None) -> dict[str, float]:
-    venues: list[str] = []
-    venues.extend(config.venue_prior)
-    if query_plan:
-        recall = query_plan.get("recall_gap_checks") or {}
-        venue_families = recall.get("venue_families") or []
-        if isinstance(venue_families, list):
-            venues.extend(
-                str(venue)
-                for venue in venue_families
-                if "configured" not in str(venue).lower() and "field-specific" not in str(venue).lower()
-            )
-
-    tiers: dict[str, float] = {}
-    for index, venue in enumerate(venues):
-        normalized = str(venue).lower()
-        if not normalized or normalized in tiers:
-            continue
-        tiers[normalized] = max(0.75, 1.0 - index * 0.02)
-    return tiers
-
-
-def _filter_domains_from_profile(config, query_plan: dict | None) -> list[str]:
-    if query_plan:
-        blocks = query_plan.get("concept_blocks") or {}
-        hard_domain_anchors = blocks.get("hard_domain_anchors") or []
-        if isinstance(hard_domain_anchors, list) and hard_domain_anchors:
-            return [str(term) for term in hard_domain_anchors]
-        if query_plan.get("domain") == "research-brief":
-            domain_focus_terms = blocks.get("domain_focus_terms") or []
-            if isinstance(domain_focus_terms, list) and domain_focus_terms:
-                return [str(term) for term in domain_focus_terms]
-        return []
-    if config.domains:
-        return config.domains
-    return []
-
-
-def _annotate_query_records(records: list[dict], *, query_variant: str, query_variant_index: int) -> list[dict]:
-    annotated: list[dict] = []
-    for record in records:
-        enriched = dict(record)
-        enriched["query_variant"] = query_variant
-        enriched["query_variant_index"] = query_variant_index
-        annotated.append(enriched)
-    return annotated
-
-
-def _merged_source_mode(query_records: list[dict]) -> str:
-    modes = sorted({str(record.get("source_mode") or "unknown") for record in query_records})
-    if not modes:
-        return "query_plan_multi_query"
-    if len(modes) == 1:
-        return modes[0]
-    return "query_plan_mixed"
-
-
-def _int_or_none(value: object) -> int | None:
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        return int(value)
-    if isinstance(value, str) and value.strip().isdigit():
-        return int(value.strip())
-    return None
-
-
-def _ordered_sources_from_upstream(upstream: dict) -> list[str]:
-    ordered: list[str] = []
-    seen: set[str] = set()
-    source_candidates: list[object] = []
-    sources_used = upstream.get("sources_used")
-    if isinstance(sources_used, list):
-        source_candidates.extend(sources_used)
-    source_results = upstream.get("source_results")
-    if isinstance(source_results, dict):
-        source_candidates.extend(source_results)
-    errors = upstream.get("errors")
-    if isinstance(errors, dict):
-        source_candidates.extend(errors)
-    for source in source_candidates:
-        source_name = str(source)
-        if not source_name or source_name in seen:
-            continue
-        seen.add(source_name)
-        ordered.append(source_name)
-    return ordered
-
-
-def _source_coverage_from_single_record(search_record: dict, deduped_total: int | None = None) -> dict:
-    upstream = search_record.get("upstream")
-    if not isinstance(upstream, dict) or not upstream:
-        return {}
-
-    source_results: dict[str, int] = {}
-    upstream_results = upstream.get("source_results")
-    if isinstance(upstream_results, dict):
-        for source, count in upstream_results.items():
-            source_results[str(source)] = _int_or_none(count) or 0
-
-    errors: dict[str, str] = {}
-    upstream_errors = upstream.get("errors")
-    if isinstance(upstream_errors, dict):
-        errors = {str(source): str(error) for source, error in upstream_errors.items() if str(error)}
-
-    raw_total = (
-        _int_or_none(upstream.get("raw_total"))
-        if upstream.get("raw_total") is not None
-        else _int_or_none(upstream.get("total"))
-    )
-    if raw_total is None:
-        raw_total = len(search_record.get("records") or [])
-    if deduped_total is None:
-        deduped_total = _int_or_none(upstream.get("total"))
-    if deduped_total is None:
-        deduped_total = len(search_record.get("records") or [])
-
-    sources_used = _ordered_sources_from_upstream(upstream)
-
-    coverage = {
-        "sources_used": sources_used,
-        "source_results": source_results,
-        "errors": errors,
-        "raw_total": raw_total,
-        "deduped_total": deduped_total,
-        "query_count": 1,
-        "capabilities": paper_search_source_capabilities(sources_used),
-        "provider_readiness": paper_search_provider_readiness(sources_used),
-    }
-    if isinstance(upstream.get("source_health"), dict):
-        coverage["source_health"] = upstream["source_health"]
-    if upstream.get("timeout_budget_seconds") is not None:
-        coverage["timeout_budget_seconds"] = upstream.get("timeout_budget_seconds")
-    if upstream.get("search_duration_ms") is not None:
-        coverage["search_duration_ms"] = upstream.get("search_duration_ms")
-    if isinstance(search_record.get("source_routing"), dict):
-        coverage["source_routing"] = search_record["source_routing"]
-        coverage["provider_readiness"] = search_record["source_routing"].get(
-            "provider_readiness", coverage["provider_readiness"]
-        )
-    return coverage
-
-
-def _merge_source_error(errors: dict[str, str], source: str, error: object) -> None:
-    error_text = str(error)
-    if not error_text:
-        return
-    existing = errors.get(source)
-    if not existing:
-        errors[source] = error_text
-    elif error_text not in existing.split("; "):
-        errors[source] = f"{existing}; {error_text}"
-
-
-def _source_coverage_from_search_record(search_record: dict, deduped_total: int | None = None) -> dict:
-    query_records = search_record.get("query_records")
-    if not isinstance(query_records, list) or not query_records:
-        return _source_coverage_from_single_record(search_record, deduped_total=deduped_total)
-
-    sources_used: list[str] = []
-    seen_sources: set[str] = set()
-    source_results: dict[str, int] = {}
-    source_health: dict[str, dict] = {}
-    errors: dict[str, str] = {}
-    raw_total = 0
-    timeout_budget_seconds: int | None = None
-    search_duration_ms = 0
-
-    for query_record in query_records:
-        if not isinstance(query_record, dict):
-            continue
-        upstream = query_record.get("upstream")
-        upstream = upstream if isinstance(upstream, dict) else {}
-        for source in _ordered_sources_from_upstream(upstream):
-            if source not in seen_sources:
-                seen_sources.add(source)
-                sources_used.append(source)
-
-        upstream_results = upstream.get("source_results")
-        if isinstance(upstream_results, dict):
-            for source, count in upstream_results.items():
-                source_name = str(source)
-                source_results[source_name] = source_results.get(source_name, 0) + (_int_or_none(count) or 0)
-                if source_name not in seen_sources:
-                    seen_sources.add(source_name)
-                    sources_used.append(source_name)
-
-        upstream_health = upstream.get("source_health")
-        if isinstance(upstream_health, dict):
-            for source, state in upstream_health.items():
-                source_name = str(source)
-                if isinstance(state, dict):
-                    source_health[source_name] = dict(state)
-                if source_name not in seen_sources:
-                    seen_sources.add(source_name)
-                    sources_used.append(source_name)
-
-        upstream_errors = upstream.get("errors")
-        if isinstance(upstream_errors, dict):
-            for source, error in upstream_errors.items():
-                source_name = str(source)
-                _merge_source_error(errors, source_name, error)
-                if source_name not in seen_sources:
-                    seen_sources.add(source_name)
-                    sources_used.append(source_name)
-
-        record_raw_total = (
-            _int_or_none(upstream.get("raw_total"))
-            if upstream.get("raw_total") is not None
-            else _int_or_none(upstream.get("total"))
-        )
-        if record_raw_total is None:
-            record_raw_total = _int_or_none(query_record.get("record_count")) or 0
-        raw_total += record_raw_total
-        if upstream.get("timeout_budget_seconds") is not None:
-            timeout_budget_seconds = _int_or_none(upstream.get("timeout_budget_seconds"))
-        search_duration_ms += _int_or_none(upstream.get("search_duration_ms")) or 0
-
-    if not sources_used and not source_results and not errors and raw_total == 0:
-        return {}
-
-    coverage = {
-        "sources_used": sources_used,
-        "source_results": source_results,
-        "errors": errors,
-        "raw_total": raw_total,
-        "deduped_total": deduped_total if deduped_total is not None else len(search_record.get("records") or []),
-        "query_count": len(query_records),
-        "capabilities": paper_search_source_capabilities(sources_used),
-        "provider_readiness": paper_search_provider_readiness(sources_used),
-    }
-    if source_health:
-        coverage["source_health"] = source_health
-    if timeout_budget_seconds is not None:
-        coverage["timeout_budget_seconds"] = timeout_budget_seconds
-    if search_duration_ms:
-        coverage["search_duration_ms"] = search_duration_ms
-    if isinstance(search_record.get("source_routing"), dict):
-        coverage["source_routing"] = search_record["source_routing"]
-        coverage["provider_readiness"] = search_record["source_routing"].get(
-            "provider_readiness", coverage["provider_readiness"]
-        )
-    return coverage
-
-
-def _reason_counts(candidates: list[dict], field: str) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for candidate in candidates:
-        for reason in candidate.get(field) or []:
-            reason_text = str(reason)
-            counts[reason_text] = counts.get(reason_text, 0) + 1
-    return counts
-
-
-def _run_query_plan_discovery(
-    *,
-    query: str,
-    query_plan: dict | None,
-    max_results: int,
-    fixture_path: Path | None,
-    command: str | None,
-    sources: list[str],
-    run_dir: Path,
-    source_routing: dict | None = None,
-) -> dict:
-    effective_sources = (
-        source_routing.get("selected_sources")
-        if isinstance(source_routing, dict) and source_routing.get("selected_sources")
-        else sources
-    )
-    exact_lookup = source_routing.get("exact_lookup") if isinstance(source_routing, dict) else None
-    if fixture_path is not None or not query_plan or isinstance(exact_lookup, dict):
-        discovery_query = _exact_lookup_query(source_routing, query) if isinstance(exact_lookup, dict) else query
-        search_record = discover(
-            query=discovery_query,
-            max_results=max_results,
-            fixture_path=fixture_path,
-            command=command,
-            sources=effective_sources,
-            raw_response_path=run_dir / "paper-search-raw.json",
-        )
-        if query_plan:
-            search_record["query_plan"] = query_plan
-            search_record["query_strategy"] = (
-                "fixture_single_query"
-                if fixture_path is not None
-                else "exact_lookup_single_query"
-                if isinstance(exact_lookup, dict)
-                else "single_query"
-            )
-            if isinstance(exact_lookup, dict):
-                search_record["query_records"] = []
-        if source_routing:
-            search_record["source_routing"] = source_routing
-        return search_record
-
-    query_variants = query_plan.get("query_variants") or [query]
-    query_records: list[dict] = []
-    combined_records: list[dict] = []
-    query_errors: list[str] = []
-    for index, query_variant in enumerate(query_variants, start=1):
-        raw_path = run_dir / f"paper-search-raw-{index:02d}.json"
-        search_record = discover(
-            query=query_variant,
-            max_results=max_results,
-            fixture_path=None,
-            command=command,
-            sources=effective_sources,
-            raw_response_path=raw_path,
-        )
-        if search_record.get("error"):
-            query_errors.append(f"{query_variant}: {search_record['error']}")
-        query_records.append(
-            {
-                "index": index,
-                "query": query_variant,
-                "source_mode": search_record.get("source_mode"),
-                "record_count": len(search_record.get("records") or []),
-                "raw_response_path": search_record.get("raw_response_path"),
-                "error": search_record.get("error"),
-                "upstream": search_record.get("upstream", {}),
-            }
-        )
-        combined_records.extend(
-            _annotate_query_records(
-                search_record.get("records") or [],
-                query_variant=query_variant,
-                query_variant_index=index,
-            )
-        )
-
-    aggregate_raw_path = run_dir / "paper-search-raw.json"
-    write_json_atomic(
-        aggregate_raw_path,
-        {
-            "query": query,
-            "query_strategy": "query_plan_multi_query",
-            "query_plan": query_plan,
-            "query_records": query_records,
-            "raw_candidate_count": len(combined_records),
-        },
-    )
-    combined = {
-        "query": query,
-        "max_results": max_results,
-        "source_mode": _merged_source_mode(query_records),
-        "query_strategy": "query_plan_multi_query",
-        "query_plan": query_plan,
-        "query_records": query_records,
-        "raw_response_path": str(aggregate_raw_path),
-        "records": combined_records,
-    }
-    if source_routing:
-        combined["source_routing"] = source_routing
-    if query_errors and not combined_records:
-        combined["error"] = "; ".join(query_errors)
-    elif query_errors:
-        combined["warnings"] = query_errors
-    return combined
-
-
-def _append_revision_delta_section(report_md_path: Path, revision_delta: dict | None) -> None:
-    if not revision_delta:
-        return
-    existing = report_md_path.read_text(encoding="utf-8").rstrip()
-    before = revision_delta.get("before") or {}
-    after = revision_delta.get("after") or {}
-    lines = [
-        "## Revision Delta",
-        f"- before blocking repairs: {before.get('blocking_count', 0)}",
-        f"- before warning follow-ups: {before.get('warning_count', 0)}",
-        f"- after blocking repairs: {after.get('blocking_count', 0)}",
-        f"- after warning follow-ups: {after.get('warning_count', 0)}",
-        "- resolved blocking checks: "
-        + (", ".join(revision_delta.get("resolved_blocking_checks") or []) or "None"),
-        "- remaining blocking checks: "
-        + (", ".join(revision_delta.get("remaining_blocking_checks") or []) or "None"),
-        "- remaining warning checks: "
-        + (", ".join(revision_delta.get("remaining_warning_checks") or []) or "None"),
-    ]
-    write_text_atomic(report_md_path, existing + "\n\n" + "\n".join(lines) + "\n")
-
-
-def _paper_title(vault_path: Path, slug: str) -> str:
-    metadata_path = raw_paper_root(vault_path, slug) / "metadata.json"
-    if not metadata_path.exists():
-        return slug
-    try:
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return slug
-    return metadata.get("title") or slug
-
-
-def _repair_report_contract(vault_path: Path, slug: str, record: dict) -> tuple[dict, list[str], list[str]]:
-    stage = record["stage"]
-    if stage == "redo-acquire":
-        return (
-            {
-                "slug": slug,
-                "title": _paper_title(vault_path, slug),
-                "state": "reacquired",
-                "last_action": "redo-acquire",
-                "next_action": "redo-parse",
-                "human_gate_required": False,
-            },
-            ["paper.pdf"],
-            ["redo-parse the reacquired PDF"],
-        )
-    if stage == "redo-parse":
-        changed_artifacts = [canonical_mineru_markdown_relative_path(slug)]
-        if has_nonempty_mineru_tex(raw_paper_root(vault_path, slug)):
-            changed_artifacts.append("mineru/paper.tex")
-        return (
-            {
-                "slug": slug,
-                "title": _paper_title(vault_path, slug),
-                "state": "reparsed",
-                "last_action": "redo-parse",
-                "next_action": "redo-read",
-                "human_gate_required": False,
-            },
-            changed_artifacts,
-            ["redo-read the reparsed paper"],
-        )
-    if stage == "redo-read":
-        changed_artifacts = [
-            "reader/reader.md",
-            "reader/editorial-summary.md",
-            "reader/technical-reading.md",
-            "reader/research-notes.md",
-            "reader/figures.md",
-            "reader/reproducibility.md",
-            "reader/implementation-ideas.md",
-        ]
-        guidance_path = raw_paper_root(vault_path, slug) / "reader" / "revision-guidance.md"
-        if guidance_path.exists():
-            changed_artifacts.append("reader/revision-guidance.md")
-        changed_artifacts.append("reader/evidence-map.json")
-        changed_artifacts.append("reader/claim-support.json")
-        return (
-            {
-                "slug": slug,
-                "title": _paper_title(vault_path, slug),
-                "state": "reader_regenerated",
-                "last_action": "redo-read",
-                "next_action": "recritic",
-                "human_gate_required": False,
-            },
-            changed_artifacts,
-            ["recritic the regenerated reader outputs"],
-        )
-    if stage == "recritic":
-        critic_report_path = raw_paper_root(vault_path, slug) / "critic" / "critic-report.json"
-        critic_report = json.loads(critic_report_path.read_text(encoding="utf-8"))
-        next_action = critic_report.get("next_action", "stage")
-        state = "critic_passed" if next_action == "stage" else "critic_failed"
-        next_actions = (
-            ["stage the paper for promotion review"]
-            if next_action == "stage"
-            else ["revise the reader outputs before another critic pass"]
-        )
-        return (
-            {
-                "slug": slug,
-                "title": _paper_title(vault_path, slug),
-                "state": state,
-                "last_action": "recritic",
-                "next_action": next_action,
-                "human_gate_required": False,
-            },
-            ["critic/critic-report.json"],
-            next_actions,
-        )
-    if stage == "redo-read-recritic":
-        critic_report_path = raw_paper_root(vault_path, slug) / "critic" / "critic-report.json"
-        critic_report = json.loads(critic_report_path.read_text(encoding="utf-8"))
-        next_action = critic_report.get("next_action", "stage")
-        state = "critic_passed" if next_action == "stage" else "critic_failed"
-        next_actions = (
-            ["stage the paper for promotion review"]
-            if next_action == "stage"
-            else ["revise the reader outputs before another critic pass"]
-        )
-        changed_artifacts = [
-            "reader/reader.md",
-            "reader/editorial-summary.md",
-            "reader/technical-reading.md",
-            "reader/research-notes.md",
-            "reader/figures.md",
-            "reader/reproducibility.md",
-            "reader/implementation-ideas.md",
-            "reader/revision-guidance.md",
-            "reader/evidence-map.json",
-            "reader/claim-support.json",
-            "critic/critic-report.json",
-            "critic/critic-quorum.json",
-            "critic/research-decision.json",
-            "critic/research-decision.md",
-            "critic/reader-revision-plan.json",
-            "critic/reader-revision-plan.md",
-        ]
-        return (
-            {
-                "slug": slug,
-                "title": _paper_title(vault_path, slug),
-                "state": state,
-                "last_action": "redo-read-recritic",
-                "next_action": next_action,
-                "human_gate_required": False,
-            },
-            changed_artifacts,
-            next_actions,
-        )
-    raise ValueError(f"unsupported repair stage: {stage}")
-
-
-def _write_repair_run_state(
-    run_dir: Path,
-    *,
-    run_id: str,
-    workflow_type: str,
-    vault_path: Path,
-    slug: str,
-    state: str,
-    status: str,
-    started_at: str,
-    input_artifact_hashes: dict[str, str],
-    changed_artifacts: list[str],
-) -> None:
-    paper_root = raw_paper_root(vault_path, slug)
-    output_paths = {
-        artifact: paper_root / artifact
-        for artifact in changed_artifacts
-    }
-    output_paths["redo-records.jsonl"] = paper_root / "redo-records.jsonl"
-    output_paths["report.md"] = run_dir / "report.md"
-    output_paths["report.json"] = run_dir / "report.json"
-    write_json_atomic(
-        run_dir / "run-state.json",
-        {
-            "stage": workflow_type,
-            "run_id": run_id,
-            "workflow_type": workflow_type,
-            "state": state,
-            "status": status,
-            "paper_slug": slug,
-            "vault_path": str(vault_path.resolve()),
-            "compiled_wiki_write": False,
-            "started_at": started_at,
-            "finished_at": utc_now(),
-            "exit_status": 0 if status == "success" else 1,
-            "tool_versions": _tool_versions("orchestrator", "report_run", "redo"),
-            "input_artifact_hashes": input_artifact_hashes,
-            "output_artifact_hashes": _hash_existing_outputs(output_paths),
-        },
-    )
 
 
 def _write_repair_routed_report(
@@ -1145,70 +235,17 @@ def _write_repair_routed_report(
     started_at: str,
     input_artifact_hashes: dict[str, str],
 ) -> None:
-    workflow_type = record["stage"]
-    run_id, run_dir = _new_run_dir(vault_path.resolve(), workflow_type)
-    paper_state, changed_artifacts, next_actions = _repair_report_contract(vault_path, slug, record)
-    write_report(
-        run_dir,
-        [],
-        [],
-        workflow_type=workflow_type,
-        run_id=run_id,
-        paper_states=[paper_state],
-        failed_papers=[],
-        budget_usage={"paper_count": 1},
-        wiki_pages_written=[],
-        zotero_results={"status": "not_run", "records": []},
-        next_actions=next_actions,
-        changed_artifacts=changed_artifacts,
-    )
-    report_json_path = run_dir / "report.json"
-    report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
-    report_payload["paper_states"] = [
-        {
-            "paper_slug": slug,
-            "state": paper_state["state"],
-            "next_action": paper_state["next_action"],
-        }
-    ]
-    report_payload["failed_papers"] = []
-    report_payload["changed_artifacts"] = changed_artifacts
-    report_payload["next_actions"] = next_actions
-    report_payload["wiki_pages_written"] = []
-    if record.get("revision_delta"):
-        report_payload["revision_delta"] = record["revision_delta"]
-    write_json_atomic(report_json_path, report_payload)
-    _append_revision_delta_section(run_dir / "report.md", record.get("revision_delta"))
-    _write_repair_run_state(
-        run_dir,
-        run_id=run_id,
-        workflow_type=workflow_type,
-        vault_path=vault_path,
-        slug=slug,
-        state=paper_state["state"],
-        status=record.get("status", "success"),
+    write_repair_routed_report(
+        vault_path,
+        slug,
+        record,
         started_at=started_at,
         input_artifact_hashes=input_artifact_hashes,
-        changed_artifacts=changed_artifacts,
+        new_run_dir=_new_run_dir,
+        paper_run_state=_paper_run_state,
+        write_paper_run_state=_write_paper_run_state,
+        refresh_run_index=_refresh_run_index,
     )
-    paper_root = raw_paper_root(vault_path.resolve(), slug)
-    if workflow_type in {"recritic", "redo-read-recritic"}:
-        stage_record = json.loads((paper_root / "critic" / "critic-report.json").read_text(encoding="utf-8"))
-    else:
-        stage_record = record
-    _write_paper_run_state(
-        paper_root,
-        _paper_run_state(
-            paper_root=paper_root,
-            slug=slug,
-            state=paper_state["state"],
-            last_action=paper_state["last_action"],
-            next_action=paper_state["next_action"],
-            stage_record=stage_record,
-            human_gate_required=paper_state.get("human_gate_required", False),
-        ),
-    )
-    _refresh_run_index(vault_path)
 
 
 def run_dry_run(
@@ -1705,8 +742,12 @@ def run_one_paper_ingest(
     reader_record = None
     critic_report = None
     if workflow_mode in {REVIEWED_INGEST_MODE, AUDITED_INGEST_MODE}:
+        from paper_source.review.generate_reader import generate_reader_outputs
+
         reader_record = generate_reader_outputs(paper_root)
     if workflow_mode == AUDITED_INGEST_MODE:
+        from paper_source.review.run_critic import run_critics
+
         critic_report = run_critics(paper_root)
     staging_root = stage_paper(vault_path, slug, paper_root, workflow_mode=workflow_mode)
 
@@ -1842,6 +883,8 @@ def advance_paper_once(
         )
 
     if workflow_mode in {REVIEWED_INGEST_MODE, AUDITED_INGEST_MODE} and not reader_md.exists():
+        from paper_source.review.generate_reader import generate_reader_outputs
+
         record = generate_reader_outputs(paper_root)
         return _write_paper_run_state(
             paper_root,
@@ -1857,6 +900,8 @@ def advance_paper_once(
         )
 
     if workflow_mode == AUDITED_INGEST_MODE and not critic_report_path.exists():
+        from paper_source.review.run_critic import run_critics
+
         record = run_critics(paper_root)
         state = "critic_passed" if record["outcome"] == "pass" else "critic_failed"
         next_action = "staging" if record["outcome"] == "pass" else record.get("next_action")
@@ -1873,7 +918,7 @@ def advance_paper_once(
             ),
         )
 
-    critic_report = json.loads(critic_report_path.read_text(encoding="utf-8")) if critic_report_path.exists() else {}
+    critic_report = read_json(critic_report_path) if critic_report_path.exists() else {}
     if critic_report and critic_report.get("outcome") != "pass":
         return _write_paper_run_state(
             paper_root,
@@ -2199,7 +1244,7 @@ def advance_paper_batch(
         reproduction_plans=reproduction_plans,
     )
     report_json_path = run_dir / "report.json"
-    report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
+    report_payload = read_json(report_json_path)
     report_payload["processed_count"] = batch["processed_count"]
     report_payload["skipped_count"] = batch["skipped_count"]
     report_payload["selection_policy"] = selection_policy
@@ -2292,7 +1337,7 @@ def advance_paper_batch_from_run(
     rank_path = existing_run_dir(vault_path, run_id) / "rank.json"
     if not rank_path.exists():
         raise FileNotFoundError(f"missing ranked candidates: {rank_path}")
-    candidates = json.loads(rank_path.read_text(encoding="utf-8"))
+    candidates = read_json(rank_path)
     selected_candidates, skipped_ranked_candidates, rank_decision_filter = _select_ranked_candidates(
         candidates,
         include_review_candidates=include_review_candidates,
@@ -2368,9 +1413,13 @@ def _prepare_candidate_until_parsed(
             )
 
     if workflow_mode in {REVIEWED_INGEST_MODE, AUDITED_INGEST_MODE} and not reader_md.exists():
+        from paper_source.review.generate_reader import generate_reader_outputs
+
         generate_reader_outputs(paper_root)
 
     if workflow_mode == AUDITED_INGEST_MODE and not critic_report_path.exists():
+        from paper_source.review.run_critic import run_critics
+
         critic_record = run_critics(paper_root)
         if critic_record["outcome"] != "pass":
             return _write_paper_run_state(
@@ -2386,7 +1435,7 @@ def _prepare_candidate_until_parsed(
                 ),
             )
 
-    critic_report = json.loads(critic_report_path.read_text(encoding="utf-8")) if critic_report_path.exists() else {}
+    critic_report = read_json(critic_report_path) if critic_report_path.exists() else {}
     if critic_report and critic_report.get("outcome") != "pass":
         return _write_paper_run_state(
             paper_root,
@@ -2440,9 +1489,8 @@ def _prepare_candidate_until_parsed(
 
 def _parse_record_status(paper_root: Path) -> str | None:
     record_path = paper_root / "parse-record.json"
-    try:
-        record = json.loads(record_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    record = read_json_dict(record_path, default=None)
+    if record is None:
         return None
     if isinstance(record, dict) and record.get("status") is not None:
         return str(record.get("status"))
@@ -2475,9 +1523,8 @@ def _has_prepared_source_staging(vault_path: Path, slug: str, workflow_mode: str
     if not _has_complete_mineru_parse(paper_root):
         return False
     plan_path = staging_paper_root(vault_path, slug) / "promotion-plan.json"
-    try:
-        plan = json.loads(plan_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    plan = read_json_dict(plan_path, default=None)
+    if plan is None:
         return False
     return isinstance(plan, dict) and plan.get("workflow_mode") == workflow_mode
 
@@ -2534,7 +1581,7 @@ def prepare_ranked_papers_from_run(
     rank_path = existing_run_dir(vault_path, run_id) / "rank.json"
     if not rank_path.exists():
         raise FileNotFoundError(f"missing ranked candidates: {rank_path}")
-    candidates = json.loads(rank_path.read_text(encoding="utf-8"))
+    candidates = read_json(rank_path)
     selected_candidates, skipped_ranked_candidates, rank_decision_filter = _select_ranked_candidates(
         candidates,
         include_review_candidates=include_review_candidates,
@@ -2681,7 +1728,7 @@ def prepare_ranked_papers_from_run(
         manual_downloads=manual_downloads,
     )
     report_json_path = batch_run_dir / "report.json"
-    report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
+    report_payload = read_json(report_json_path)
     report_payload["processed_count"] = batch["processed_count"]
     report_payload["skipped_count"] = batch["skipped_count"]
     report_payload["skipped_ranked_candidates"] = skipped_ranked_candidates

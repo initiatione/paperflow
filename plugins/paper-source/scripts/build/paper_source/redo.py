@@ -4,15 +4,8 @@ import json
 from pathlib import Path
 
 from paper_source.acquire_papers import acquire_paper
-from paper_source.artifacts import raw_paper_root, utc_now
-from paper_source.generate_reader import generate_reader_outputs
-from paper_source.reader_revision_guidance import write_revision_guidance_from_plan
-from paper_source.run_critic import run_critics
+from paper_source.artifacts import raw_paper_root, read_json, read_json_dict, utc_now
 from paper_source.run_mineru_parse import materialize_mineru_fixture
-
-
-def _read_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _append_redo_event(paper_root: Path, event: dict) -> dict:
@@ -39,12 +32,7 @@ def _revision_plan_path(paper_root: Path) -> Path:
 
 
 def _read_revision_plan(paper_root: Path) -> dict | None:
-    plan_path = _revision_plan_path(paper_root)
-    try:
-        plan = json.loads(plan_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return None
-    return plan if isinstance(plan, dict) else None
+    return read_json_dict(_revision_plan_path(paper_root), default=None)
 
 
 def _require_revision_plan(paper_root: Path) -> dict:
@@ -81,7 +69,7 @@ def _revision_delta(before_plan: dict | None, after_plan: dict | None) -> dict:
 
 def redo_acquire(vault_path: Path, slug: str, pdf_path: Path, reason: str | None = None) -> dict:
     paper_root = _paper_root(vault_path, slug)
-    metadata = _read_json(paper_root / "metadata.json")
+    metadata = read_json(paper_root / "metadata.json")
     metadata.setdefault("slug", slug)
     acquire_record = acquire_paper(metadata, pdf_path, paper_root, redo=True)
     return _append_redo_event(
@@ -125,6 +113,9 @@ def redo_parse(
 
 
 def redo_read(vault_path: Path, slug: str, reason: str | None = None, require_revision_plan: bool = False) -> dict:
+    from paper_source.review.generate_reader import generate_reader_outputs
+    from paper_source.review.reader_revision_guidance import write_revision_guidance_from_plan
+
     paper_root = _paper_root(vault_path, slug)
     if require_revision_plan:
         _require_revision_plan(paper_root)
@@ -144,6 +135,8 @@ def redo_read(vault_path: Path, slug: str, reason: str | None = None, require_re
 
 
 def redo_read_recritic(vault_path: Path, slug: str, reason: str | None = None, require_revision_plan: bool = False) -> dict:
+    from paper_source.review.run_critic import run_critics
+
     paper_root = _paper_root(vault_path, slug)
     before_plan = _require_revision_plan(paper_root) if require_revision_plan else _read_revision_plan(paper_root)
     read_record = redo_read(vault_path, slug, reason=reason, require_revision_plan=require_revision_plan)
@@ -164,6 +157,8 @@ def redo_read_recritic(vault_path: Path, slug: str, reason: str | None = None, r
 
 
 def recritic(vault_path: Path, slug: str, reason: str | None = None) -> dict:
+    from paper_source.review.run_critic import run_critics
+
     paper_root = _paper_root(vault_path, slug)
     critic_report = run_critics(paper_root)
     return _append_redo_event(

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from paper_source import research_brief
 from paper_source import cli_routes, orchestrator as workflows
-from paper_source.artifacts import existing_raw_paper_root, file_sha256, raw_paper_root, runs_root, utc_now, write_json_atomic
+from paper_source.artifacts import existing_raw_paper_root, file_sha256, raw_paper_root, read_json, runs_root, utc_now, write_json_atomic
 from paper_source.asset_normalization import normalize_mineru_assets
 from paper_source.cli_parser import build_parser
 from paper_source.config import (
@@ -28,10 +28,6 @@ from paper_source.source_artifacts import is_nonempty_file, resolve_mineru_markd
 from paper_source.wiki_reset import reset_wiki_vault
 
 
-def _load_json(path: Path) -> object:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
 def _print_json(payload: object) -> None:
     text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
     if hasattr(sys.stdout, "buffer"):
@@ -42,18 +38,16 @@ def _print_json(payload: object) -> None:
 
 
 def _run_review_payload(run_dir: Path) -> dict | None:
-    try:
-        state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    state = read_json(run_dir / "run-state.json", default=None)
+    if not isinstance(state, dict):
         return None
     review = state.get("review_session")
     return review if isinstance(review, dict) else None
 
 
 def _run_research_brief_payload(run_dir: Path) -> dict | None:
-    try:
-        state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    state = read_json(run_dir / "run-state.json", default=None)
+    if not isinstance(state, dict):
         return None
     brief = state.get("research_brief")
     return brief if isinstance(brief, dict) else None
@@ -98,7 +92,7 @@ def _handle_config_status(args: argparse.Namespace) -> int:
 
 
 def _handle_init_config(args: argparse.Namespace) -> int:
-    answers = _load_json(args.answers_json)
+    answers = read_json(args.answers_json)
     if not isinstance(answers, dict):
         raise ValueError("answers-json must contain a JSON object")
     result = init_config(args.vault, answers)
@@ -109,7 +103,7 @@ def _handle_init_config(args: argparse.Namespace) -> int:
 
 
 def _handle_propose_config_update(args: argparse.Namespace) -> int:
-    proposal_json = _load_json(args.proposal_json)
+    proposal_json = read_json(args.proposal_json)
     if not isinstance(proposal_json, dict):
         raise ValueError("proposal-json must contain a JSON object")
     proposal = propose_config_update(args.vault, proposal_json)
@@ -125,7 +119,7 @@ def _handle_propose_config_update(args: argparse.Namespace) -> int:
 
 
 def _handle_apply_config_update(args: argparse.Namespace) -> int:
-    proposal_json = _load_json(args.proposal_json)
+    proposal_json = read_json(args.proposal_json)
     if not isinstance(proposal_json, dict):
         raise ValueError("proposal-json must contain a JSON object")
     result = apply_config_update(args.vault, proposal_json, confirmed_by=args.confirmed_by)
@@ -157,7 +151,7 @@ def _research_brief_validation_result(path: Path) -> tuple[dict, int]:
     json_path = Path(path)
     payload: dict = {}
     try:
-        raw = _load_json(json_path)
+        raw = read_json(json_path)
         if isinstance(raw, dict):
             payload = raw
         result = research_brief.load_research_brief(json_path, allow_draft=True)
@@ -230,7 +224,7 @@ def _list_research_briefs(vault_path: Path) -> dict:
 
 def _handle_research_brief(args: argparse.Namespace) -> int:
     if args.research_brief_action == "create":
-        answers = _load_json(args.answers_json)
+        answers = read_json(args.answers_json)
         if not isinstance(answers, dict):
             raise ValueError("answers-json must contain a JSON object")
         result = research_brief.create_research_brief(args.vault, answers)
@@ -404,82 +398,6 @@ def _handle_discover_to_handoff(args: argparse.Namespace) -> int:
     return int(record.get("exit_status", 0))
 
 
-def _handle_ingest_one(args: argparse.Namespace) -> int:
-    result = workflows.run_one_paper_ingest(
-        vault_path=args.vault,
-        candidate=_load_json(args.candidate),
-        pdf_path=args.pdf,
-        mineru_markdown_path=args.mineru_md,
-        mineru_tex_path=args.mineru_tex,
-        mineru_images_dir=args.mineru_images,
-        workflow_mode=args.mode,
-    )
-    print(f"paper_root={result['paper_root']}")
-    print(f"staging_root={result['staging_root']}")
-    return 0
-
-
-def _handle_acquire_paper(args: argparse.Namespace) -> int:
-    candidate = _load_json(args.candidate)
-    record = workflows.acquire_paper_from_candidate(args.vault, candidate)
-    print(f"acquire_status={record['status']}")
-    print(f"paper_root={raw_paper_root(args.vault, candidate['slug'])}")
-    return 0 if record["status"] == "success" else 1
-
-
-def _handle_advance_paper(args: argparse.Namespace) -> int:
-    state = workflows.advance_paper_once(
-        args.vault,
-        _load_json(args.candidate),
-        mineru_command=args.mineru_command,
-        mineru_timeout=args.mineru_timeout,
-        workflow_mode=args.mode,
-    )
-    print(f"paper_state={state['state']}")
-    print(f"last_action={state['last_action']}")
-    print(f"workflow_mode={state.get('workflow_mode', args.mode)}")
-    if state.get("next_action"):
-        print(f"next_action={state['next_action']}")
-    return 0 if not state["state"].endswith("_failed") else 1
-
-
-def _handle_advance_batch(args: argparse.Namespace) -> int:
-    batch = workflows.advance_paper_batch(
-        args.vault,
-        _load_json(args.candidates),
-        mineru_command=args.mineru_command,
-        max_papers=args.max_papers,
-        mineru_timeout=args.mineru_timeout,
-        workflow_mode=args.mode,
-        selection_policy=args.selection_policy,
-    )
-    print(f"run_dir={runs_root(args.vault) / batch['run_id']}")
-    print(f"batch_state={batch['state']}")
-    print(f"workflow_mode={batch.get('workflow_mode', args.mode)}")
-    print(f"selection_policy={batch.get('selection_policy', args.selection_policy)}")
-    print(f"processed_count={batch['processed_count']}")
-    return 0 if batch["state"] != "batch_failed" else 1
-
-
-def _handle_advance_ranked(args: argparse.Namespace) -> int:
-    batch = workflows.advance_paper_batch_from_run(
-        args.vault,
-        args.run_id,
-        mineru_command=args.mineru_command,
-        max_papers=args.max_papers,
-        include_review_candidates=args.include_review_candidates,
-        mineru_timeout=args.mineru_timeout,
-        workflow_mode=args.mode,
-        selection_policy=args.selection_policy,
-    )
-    print(f"run_dir={runs_root(args.vault) / batch['run_id']}")
-    print(f"batch_state={batch['state']}")
-    print(f"workflow_mode={batch.get('workflow_mode', args.mode)}")
-    print(f"selection_policy={batch.get('selection_policy', args.selection_policy)}")
-    print(f"processed_count={batch['processed_count']}")
-    return 0 if batch["state"] != "batch_failed" else 1
-
-
 def _handle_prepare_ranked(args: argparse.Namespace) -> int:
     batch = workflows.prepare_ranked_papers_from_run(
         args.vault,
@@ -528,16 +446,6 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
     return 0 if batch["state"] != "prepare_failed" else 1
 
 
-def _handle_parse_paper(args: argparse.Namespace) -> int:
-    record = workflows.parse_paper_with_mineru(
-        args.vault, args.slug, mineru_command=args.mineru_command, mineru_timeout=args.mineru_timeout
-    )
-    print(f"parse_status={record['status']}")
-    if record.get("batch_id"):
-        print(f"batch_id={record['batch_id']}")
-    return 0 if record["status"] == "success" else 1
-
-
 def _handle_normalize_mineru_assets(args: argparse.Namespace) -> int:
     paper_root = existing_raw_paper_root(args.vault, args.slug)
     record = normalize_mineru_assets(paper_root, execute=args.execute)
@@ -553,145 +461,6 @@ def _handle_normalize_mineru_assets(args: argparse.Namespace) -> int:
             print("warnings:")
             for warning in record["warnings"]:
                 print(f"- {warning}")
-    return 0
-
-
-def _handle_promote_to_wiki(args: argparse.Namespace) -> int:
-    vault_path = args.vault.resolve()
-    run_id, run_dir = workflows._new_run_dir(vault_path, "promote-to-wiki")
-    started_at = utc_now()
-    try:
-        record = workflows.promote_paper(args.vault, args.slug, approved_by=args.approved_by)
-    except ValueError as exc:
-        report_md = run_dir / "report.md"
-        report_json = run_dir / "report.json"
-        message = str(exc)
-        report_md.write_text(
-            "\n".join(
-                [
-                    f"# Paper Source Promote To Wiki Deprecated - {args.slug}",
-                    "",
-                    "- workflow_type: promote-to-wiki",
-                    "- status: failed",
-                    f"- reason: {message}",
-                    "- next_action: wiki-ingest-handoff",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-        report_json.write_text(
-            json.dumps(
-                {
-                    "workflow_type": "promote-to-wiki",
-                    "run_id": run_id,
-                    "status": "failed",
-                    "paper_slug": args.slug,
-                    "error": message,
-                    "wiki_pages_written": [],
-                    "next_actions": ["wiki-ingest-handoff"],
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-        write_json_atomic(
-            run_dir / "run-state.json",
-            {
-                "stage": "promote-to-wiki",
-                "run_id": run_id,
-                "workflow_type": "promote-to-wiki",
-                "state": "deprecated",
-                "status": "failed",
-                "paper_slug": args.slug,
-                "vault_path": str(vault_path),
-                "compiled_wiki_write": False,
-                "record_only": True,
-                "started_at": started_at,
-                "finished_at": utc_now(),
-                "exit_status": 1,
-                "error": message,
-            },
-        )
-        workflows._refresh_run_index(vault_path)
-        print(f"promotion_status=deprecated")
-        print(f"reason={message}")
-        print(f"run_dir={run_dir}")
-        return 1
-    paper_root = raw_paper_root(vault_path, args.slug)
-    promotion_record_path = paper_root / "promotion-record.json"
-    zotero_results = workflows._zotero_record_only(vault_path, paper_root)
-    workflows._write_promotion_routed_report(
-        run_dir,
-        run_id=run_id,
-        slug=args.slug,
-        promoted_page_paths=record["promoted_page_paths"],
-        human_gate=record.get("human_gate_decision", {}),
-        zotero_results=zotero_results,
-    )
-    workflows._write_promotion_or_rollback_run_state(
-        run_dir,
-        run_id=run_id,
-        workflow_type="promote-to-wiki",
-        vault_path=vault_path,
-        slug=args.slug,
-        started_at=started_at,
-        finished_at=utc_now(),
-        input_artifact_hashes={"promotion-record.json": file_sha256(promotion_record_path)},
-        output_artifact_hashes=workflows._hash_existing_outputs(
-            {
-                "promotion-record.json": promotion_record_path,
-                "zotero-record.json": paper_root / "zotero-record.json",
-                "report.md": run_dir / "report.md",
-                "report.json": run_dir / "report.json",
-            }
-        ),
-        zotero_results=zotero_results,
-    )
-    workflows._refresh_run_index(vault_path)
-    print(f"promotion_status={record['status']}")
-    print(f"promoted_pages={len(record['promoted_page_paths'])}")
-    return 0
-
-
-def _handle_rollback_promotion(args: argparse.Namespace) -> int:
-    vault_path = args.vault.resolve()
-    run_id, run_dir = workflows._new_run_dir(vault_path, "rollback-promotion")
-    started_at = utc_now()
-    record = workflows.rollback_promotion(args.vault, args.slug)
-    paper_root = raw_paper_root(vault_path, args.slug)
-    promotion_record_path = paper_root / "promotion-record.json"
-    rollback_record_path = paper_root / "rollback-record.json"
-    promotion_record = _load_json(promotion_record_path)
-    workflows._write_rollback_routed_report(
-        run_dir,
-        run_id=run_id,
-        slug=args.slug,
-        human_gate=promotion_record.get("human_gate_decision"),
-        restored_paths=record.get("restored_paths", []),
-        removed_paths=record.get("removed_paths", []),
-    )
-    workflows._write_promotion_or_rollback_run_state(
-        run_dir,
-        run_id=run_id,
-        workflow_type="rollback-promotion",
-        vault_path=vault_path,
-        slug=args.slug,
-        started_at=started_at,
-        finished_at=utc_now(),
-        input_artifact_hashes={"promotion-record.json": file_sha256(promotion_record_path)},
-        output_artifact_hashes=workflows._hash_existing_outputs(
-            {
-                "promotion-record.json": promotion_record_path,
-                "rollback-record.json": rollback_record_path,
-                "report.md": run_dir / "report.md",
-                "report.json": run_dir / "report.json",
-            }
-        ),
-    )
-    workflows._refresh_run_index(vault_path)
-    print(f"rollback_status={record['status']}")
     return 0
 
 
@@ -783,29 +552,6 @@ def _handle_recritic(args: argparse.Namespace) -> int:
     return 0
 
 
-def _handle_zotero_sync(args: argparse.Namespace) -> int:
-    record = workflows.sync_zotero_record(
-        args.paper_root,
-        enabled=args.enabled,
-        collection=args.collection,
-        item_key=args.item_key,
-    )
-    print(f"zotero_status={record['status']}")
-    return 0
-
-
-def _handle_record_feedback(args: argparse.Namespace) -> int:
-    feedback_record = workflows.record_feedback(
-        args.vault,
-        feedback_type=args.type,
-        target=args.target,
-        message=args.message,
-        source=args.source,
-    )
-    print(f"feedback_id={feedback_record['id']}")
-    return 0
-
-
 def _json_object_arg(value: str | None) -> dict:
     return json.loads(value) if value else {}
 
@@ -835,124 +581,45 @@ def _handle_evaluation_brief(args: argparse.Namespace) -> int:
     return 0
 
 
-def _handle_propose_evolution(args: argparse.Namespace) -> int:
-    before_metrics = json.loads(args.before_metrics_json) if args.before_metrics_json else None
-    acceptance_gates = json.loads(args.acceptance_gates_json) if args.acceptance_gates_json else None
-    proposal = workflows.propose_evolution(
-        args.vault,
-        reflection_type=args.reflection_type,
-        target_asset=args.target_asset,
-        rationale=args.rationale,
-        proposed_change=json.loads(args.proposed_change_json),
-        evidence=args.evidence,
-        evidence_type=args.evidence_type,
-        before_metrics=before_metrics,
-        acceptance_gates=acceptance_gates,
-        risk_level=args.risk_level,
+def _render_report_result(result: dict) -> str:
+    markdown = result.get("markdown") or ""
+    if markdown:
+        return markdown.rstrip()
+    return json.dumps(result.get("report") or {}, ensure_ascii=False, indent=2)
+
+
+def _render_config_recover(result: dict) -> str:
+    lines = [
+        f"candidate_count={result['candidate_count']}",
+        f"config_path={result['config_path']}",
+    ]
+    lines.extend(f"- {candidate['path']}" for candidate in result["candidates"])
+    return "\n".join(lines)
+
+
+def _render_config_restore(result: dict) -> str:
+    return "\n".join(
+        [
+            "config_restore_status=restored",
+            f"config_path={result['config_path']}",
+            f"restored_from={result['restored_from']}",
+        ]
     )
-    print(f"proposal_id={proposal['id']}")
-    return 0
 
 
-def _handle_activate_evolution(args: argparse.Namespace) -> int:
-    validation_result = json.loads(args.validation_result_json) if args.validation_result_json else None
-    activated = workflows.activate_evolution(
-        args.vault,
-        args.proposal_id,
-        approved=args.approved,
-        validation_result=validation_result,
-    )
-    print(f"evolution_status={activated['status']}")
-    return 0
-
-
-def _handle_evolution_query(args: argparse.Namespace) -> int:
-    result = workflows.query_evolution(
-        args.vault.resolve(),
-        status=args.status,
-        limit=args.limit,
-    )
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+def _render_wiki_reset(result: dict) -> str:
+    lines = [
+        f"wiki_reset_status={result['status']}",
+        f"vault_path={result['vault_path']}",
+        f"backup_root={result['backup_root']}",
+    ]
+    if result["status"] == "preview":
+        lines.append(f"preserve_config={str(result['preserve_config']).lower()}")
+        lines.append(f"planned_actions={len(result['actions'])}")
     else:
-        print(workflows.render_evolution_query(result))
-    return 0
-
-
-def _handle_runs_query(args: argparse.Namespace) -> int:
-    result = workflows.query_runs(
-        args.vault.resolve(),
-        failed=args.failed,
-        human_gate=args.human_gate,
-        workflow=args.workflow,
-        latest_success=args.latest_success,
-        limit=args.limit,
-    )
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(workflows.render_runs_query(result))
-    return 0
-
-
-def _handle_report(args: argparse.Namespace) -> int:
-    result = load_run_report(args.vault, args.run_id)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        markdown = result.get("markdown") or ""
-        if markdown:
-            print(markdown.rstrip())
-        else:
-            print(json.dumps(result.get("report") or {}, ensure_ascii=False, indent=2))
-    return 0
-
-
-def _handle_config_recover(args: argparse.Namespace) -> int:
-    result = recover_config_candidates(args.vault, backup_root=args.backup_root)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(f"candidate_count={result['candidate_count']}")
-        print(f"config_path={result['config_path']}")
-        for candidate in result["candidates"]:
-            print(f"- {candidate['path']}")
-    return 0
-
-
-def _handle_config_restore(args: argparse.Namespace) -> int:
-    result = restore_config_from_file(args.vault, args.source_path, confirmed_by=args.confirmed_by)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print("config_restore_status=restored")
-        print(f"config_path={result['config_path']}")
-        print(f"restored_from={result['restored_from']}")
-    return 0
-
-
-def _handle_wiki_reset(args: argparse.Namespace) -> int:
-    result = reset_wiki_vault(
-        args.vault,
-        confirmed_by=args.confirmed_by,
-        reset_config_confirmed_by=args.reset_config_confirmed_by,
-        backup_root=args.backup_root,
-        no_backup=args.no_backup,
-        preview=args.preview,
-    )
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(f"wiki_reset_status={result['status']}")
-        print(f"vault_path={result['vault_path']}")
-        print(f"backup_root={result['backup_root']}")
-        if result["status"] == "preview":
-            print(f"preserve_config={str(result['preserve_config']).lower()}")
-            print(f"planned_actions={len(result['actions'])}")
-        else:
-            print(f"preserved_config={str(result['preserved_config']).lower()}")
-            print(f"manifest_path={result['manifest_path']}")
-    return 0
+        lines.append(f"preserved_config={str(result['preserved_config']).lower()}")
+        lines.append(f"manifest_path={result['manifest_path']}")
+    return "\n".join(lines)
 
 
 def _handle_wiki_repair(args: argparse.Namespace) -> int:
@@ -981,156 +648,352 @@ def _handle_wiki_repair(args: argparse.Namespace) -> int:
     return 0 if result["after_config"]["configured"] else 1
 
 
-def _handle_run_lifecycle(args: argparse.Namespace) -> int:
-    result = workflows.prune_run_lifecycle(
-        args.vault.resolve(),
-        keep_latest=args.keep_latest,
-        keep_per_workflow=args.keep_per_workflow,
-        max_age_days=args.max_age_days,
-        apply=args.apply,
+def _render_repository_migrate(result: dict) -> str:
+    lines = [
+        f"paper_source_repository_migrate_status={result['status']}",
+        f"paper_source_root={result['paper_source_root']}",
+        f"actions={len(result['actions'])}",
+    ]
+    if result.get("manifest_path"):
+        lines.append(f"manifest_path={result['manifest_path']}")
+    return "\n".join(lines)
+
+
+def _render_repository_cleanup(result: dict) -> str:
+    lines = [
+        f"paper_source_repository_cleanup_status={result['status']}",
+        f"over_budget={str(bool(result['over_budget'])).lower()}",
+        f"actions={len(result['actions'])}",
+    ]
+    if result.get("manifest_path"):
+        lines.append(f"manifest_path={result['manifest_path']}")
+    return "\n".join(lines)
+
+
+def _call_acquire_paper(args: argparse.Namespace) -> dict:
+    candidate = read_json(args.candidate)
+    record = workflows.acquire_paper_from_candidate(args.vault, candidate)
+    return {"record": record, "paper_root": raw_paper_root(args.vault, candidate["slug"])}
+
+
+def _call_advance_paper(args: argparse.Namespace) -> dict:
+    state = workflows.advance_paper_once(
+        args.vault,
+        read_json(args.candidate),
+        mineru_command=args.mineru_command,
+        mineru_timeout=args.mineru_timeout,
+        workflow_mode=args.mode,
     )
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(workflows.render_run_lifecycle(result))
-    return 0
+    return {**state, "workflow_mode": state.get("workflow_mode", args.mode)}
 
 
-def _handle_paper_source_repository_migrate(args: argparse.Namespace) -> int:
-    result = migrate_legacy_paper_source_roots(args.vault, dry_run=args.preview)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(f"paper_source_repository_migrate_status={result['status']}")
-        print(f"paper_source_root={result['paper_source_root']}")
-        print(f"actions={len(result['actions'])}")
-        if result.get("manifest_path"):
-            print(f"manifest_path={result['manifest_path']}")
-    return 0
-
-
-def _handle_paper_source_repository_cleanup(args: argparse.Namespace) -> int:
-    result = cleanup_paper_source_repository(args.vault, dry_run=args.preview)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(f"paper_source_repository_cleanup_status={result['status']}")
-        print(f"over_budget={str(bool(result['over_budget'])).lower()}")
-        print(f"actions={len(result['actions'])}")
-        if result.get("manifest_path"):
-            print(f"manifest_path={result['manifest_path']}")
-    return 0
-
-
-def _handle_research_queue(args: argparse.Namespace) -> int:
-    result = workflows.query_research_queue(
-        args.vault.resolve(),
-        bucket=args.bucket,
-        limit=args.limit,
-        include_actions=args.actions,
+def _call_advance_batch(args: argparse.Namespace) -> dict:
+    batch = workflows.advance_paper_batch(
+        args.vault,
+        read_json(args.candidates),
+        mineru_command=args.mineru_command,
+        max_papers=args.max_papers,
+        mineru_timeout=args.mineru_timeout,
+        workflow_mode=args.mode,
+        selection_policy=args.selection_policy,
     )
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(workflows.render_research_queue_query(result))
-    return 0
+    return _batch_output(batch, args)
 
 
-def _handle_wiki_query(args: argparse.Namespace) -> int:
-    result = workflows.query_wiki(
-        args.vault.resolve(),
-        consensus=args.consensus,
-        role=args.role,
-        verdict=args.verdict,
-        warning_reviewer=args.warning_reviewer,
-        blocking_lens=args.blocking_lens,
-        limit=args.limit,
+def _call_advance_ranked(args: argparse.Namespace) -> dict:
+    batch = workflows.advance_paper_batch_from_run(
+        args.vault,
+        args.run_id,
+        mineru_command=args.mineru_command,
+        max_papers=args.max_papers,
+        include_review_candidates=args.include_review_candidates,
+        mineru_timeout=args.mineru_timeout,
+        workflow_mode=args.mode,
+        selection_policy=args.selection_policy,
     )
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(workflows.render_wiki_query(result))
-    return 0
+    return _batch_output(batch, args)
 
 
-def _handle_wiki_ask(args: argparse.Namespace) -> int:
-    result = workflows.ask_wiki(
-        args.vault.resolve(),
-        question=args.question,
-        limit=args.limit,
-        max_hops=args.max_hops,
+def _batch_output(batch: dict, args: argparse.Namespace) -> dict:
+    return {
+        **batch,
+        "run_dir": runs_root(args.vault) / batch["run_id"],
+        "workflow_mode": batch.get("workflow_mode", args.mode),
+        "selection_policy": batch.get("selection_policy", args.selection_policy),
+    }
+
+
+def _render_advance_paper(state: dict) -> str:
+    lines = [
+        f"paper_state={state['state']}",
+        f"last_action={state['last_action']}",
+        f"workflow_mode={state['workflow_mode']}",
+    ]
+    if state.get("next_action"):
+        lines.append(f"next_action={state['next_action']}")
+    return "\n".join(lines)
+
+
+def _render_advance_batch(batch: dict) -> str:
+    return "\n".join(
+        [
+            f"run_dir={batch['run_dir']}",
+            f"batch_state={batch['state']}",
+            f"workflow_mode={batch['workflow_mode']}",
+            f"selection_policy={batch['selection_policy']}",
+            f"processed_count={batch['processed_count']}",
+        ]
     )
-    if args.json:
+
+
+def _render_parse_paper(record: dict) -> str:
+    lines = [f"parse_status={record['status']}"]
+    if record.get("batch_id"):
+        lines.append(f"batch_id={record['batch_id']}")
+    return "\n".join(lines)
+
+
+def _select_output(result: dict, selector: str | object) -> object:
+    if callable(selector):
+        return selector(result)
+    value: object = result
+    for part in str(selector).split("."):
+        if not isinstance(value, dict):
+            raise TypeError(f"cannot read {selector!r} from non-object output")
+        value = value[part]
+    return value
+
+
+def _render_outputs(result: dict, outputs: tuple[tuple[str, str | object], ...]) -> str:
+    return "\n".join(f"{key}={_select_output(result, selector)}" for key, selector in outputs)
+
+
+_TABLE_DRIVEN_COMMANDS = {
+    "ingest-one": {
+        "call": lambda args: workflows.run_one_paper_ingest(
+            vault_path=args.vault,
+            candidate=read_json(args.candidate),
+            pdf_path=args.pdf,
+            mineru_markdown_path=args.mineru_md,
+            mineru_tex_path=args.mineru_tex,
+            mineru_images_dir=args.mineru_images,
+            workflow_mode=args.mode,
+        ),
+        "outputs": (("paper_root", "paper_root"), ("staging_root", "staging_root")),
+    },
+    "acquire-paper": {
+        "call": _call_acquire_paper,
+        "outputs": (("acquire_status", "record.status"), ("paper_root", "paper_root")),
+        "exit_status": lambda result: 0 if result["record"]["status"] == "success" else 1,
+    },
+    "advance-paper": {
+        "call": _call_advance_paper,
+        "render": _render_advance_paper,
+        "exit_status": lambda result: 0 if not result["state"].endswith("_failed") else 1,
+    },
+    "advance-batch": {
+        "call": _call_advance_batch,
+        "render": _render_advance_batch,
+        "exit_status": lambda result: 0 if result["state"] != "batch_failed" else 1,
+    },
+    "advance-ranked": {
+        "call": _call_advance_ranked,
+        "render": _render_advance_batch,
+        "exit_status": lambda result: 0 if result["state"] != "batch_failed" else 1,
+    },
+    "parse-paper": {
+        "call": lambda args: workflows.parse_paper_with_mineru(
+            args.vault, args.slug, mineru_command=args.mineru_command, mineru_timeout=args.mineru_timeout
+        ),
+        "render": _render_parse_paper,
+        "exit_status": lambda result: 0 if result["status"] == "success" else 1,
+    },
+    "config-recover": {
+        "call": lambda args: recover_config_candidates(args.vault, backup_root=args.backup_root),
+        "render": _render_config_recover,
+    },
+    "config-restore": {
+        "call": lambda args: restore_config_from_file(args.vault, args.source_path, confirmed_by=args.confirmed_by),
+        "render": _render_config_restore,
+    },
+    "wiki-reset": {
+        "call": lambda args: reset_wiki_vault(
+            args.vault,
+            confirmed_by=args.confirmed_by,
+            reset_config_confirmed_by=args.reset_config_confirmed_by,
+            backup_root=args.backup_root,
+            no_backup=args.no_backup,
+            preview=args.preview,
+        ),
+        "render": _render_wiki_reset,
+    },
+    "evolution-query": {
+        "call": lambda args: workflows.query_evolution(args.vault.resolve(), status=args.status, limit=args.limit),
+        "render": workflows.render_evolution_query,
+    },
+    "runs-query": {
+        "call": lambda args: workflows.query_runs(
+            args.vault.resolve(),
+            failed=args.failed,
+            human_gate=args.human_gate,
+            workflow=args.workflow,
+            latest_success=args.latest_success,
+            limit=args.limit,
+        ),
+        "render": workflows.render_runs_query,
+    },
+    "report": {
+        "call": lambda args: load_run_report(args.vault, args.run_id),
+        "render": _render_report_result,
+    },
+    "run-lifecycle": {
+        "call": lambda args: workflows.prune_run_lifecycle(
+            args.vault.resolve(),
+            keep_latest=args.keep_latest,
+            keep_per_workflow=args.keep_per_workflow,
+            max_age_days=args.max_age_days,
+            apply=args.apply,
+        ),
+        "render": workflows.render_run_lifecycle,
+    },
+    "paper-source-repository-migrate": {
+        "call": lambda args: migrate_legacy_paper_source_roots(args.vault, dry_run=args.preview),
+        "render": _render_repository_migrate,
+    },
+    "paper-source-repository-cleanup": {
+        "call": lambda args: cleanup_paper_source_repository(args.vault, dry_run=args.preview),
+        "render": _render_repository_cleanup,
+    },
+    "zotero-sync": {
+        "call": lambda args: workflows.sync_zotero_record(
+            args.paper_root,
+            enabled=args.enabled,
+            collection=args.collection,
+            item_key=args.item_key,
+        ),
+        "outputs": (("zotero_status", "status"),),
+    },
+    "record-feedback": {
+        "call": lambda args: workflows.record_feedback(
+            args.vault,
+            feedback_type=args.type,
+            target=args.target,
+            message=args.message,
+            source=args.source,
+        ),
+        "outputs": (("feedback_id", "id"),),
+    },
+    "propose-evolution": {
+        "call": lambda args: workflows.propose_evolution(
+            args.vault,
+            reflection_type=args.reflection_type,
+            target_asset=args.target_asset,
+            rationale=args.rationale,
+            proposed_change=json.loads(args.proposed_change_json),
+            evidence=args.evidence,
+            evidence_type=args.evidence_type,
+            before_metrics=json.loads(args.before_metrics_json) if args.before_metrics_json else None,
+            acceptance_gates=json.loads(args.acceptance_gates_json) if args.acceptance_gates_json else None,
+            risk_level=args.risk_level,
+        ),
+        "outputs": (("proposal_id", "id"),),
+    },
+    "activate-evolution": {
+        "call": lambda args: workflows.activate_evolution(
+            args.vault,
+            args.proposal_id,
+            approved=args.approved,
+            validation_result=json.loads(args.validation_result_json) if args.validation_result_json else None,
+        ),
+        "outputs": (("evolution_status", "status"),),
+    },
+    "research-queue": {
+        "call": lambda args: workflows.query_research_queue(
+            args.vault.resolve(),
+            bucket=args.bucket,
+            limit=args.limit,
+            include_actions=args.actions,
+        ),
+        "render": workflows.render_research_queue_query,
+    },
+    "wiki-query": {
+        "call": lambda args: workflows.query_wiki(
+            args.vault.resolve(),
+            consensus=args.consensus,
+            role=args.role,
+            verdict=args.verdict,
+            warning_reviewer=args.warning_reviewer,
+            blocking_lens=args.blocking_lens,
+            limit=args.limit,
+        ),
+        "render": workflows.render_wiki_query,
+    },
+    "wiki-ask": {
+        "call": lambda args: workflows.ask_wiki(
+            args.vault.resolve(),
+            question=args.question,
+            limit=args.limit,
+            max_hops=args.max_hops,
+        ),
+        "render": workflows.render_wiki_ask,
+    },
+    "wiki-ingest-handoff": {
+        "call": lambda args: workflows.build_wiki_ingest_handoff(args.vault.resolve(), args.slug),
+        "render": workflows.render_wiki_ingest_handoff,
+    },
+    "wiki-ingest-trigger": {
+        "call": lambda args: workflows.build_wiki_ingest_trigger(args.vault.resolve(), args.slug),
+        "render": workflows.render_wiki_ingest_trigger,
+        "exit_status": lambda result: 0 if result.get("status") in {"ready", "already_recorded"} else 1,
+    },
+    "record-human-approval": {
+        "call": lambda args: workflows.record_human_approval(
+            args.vault.resolve(),
+            args.slug,
+            approved_by=args.approved_by,
+            scope=args.scope,
+            notes=args.notes,
+        ),
+        "outputs": (
+            ("approval_status", "record.status"),
+            ("approval_path", "record_path"),
+            ("run_dir", "run_dir"),
+        ),
+    },
+    "record-wiki-ingest": {
+        "call": lambda args: workflows.record_wiki_ingest(
+            args.vault.resolve(),
+            args.slug,
+            args.page or [],
+            approved_by=args.approved_by,
+            notes=args.notes,
+            source_review_path=args.source_review,
+            from_paper_wiki_request=args.from_paper_wiki_request,
+        ),
+        "outputs": (
+            ("record_status", "record.status"),
+            ("record_path", "record_path"),
+            ("recorded_pages", lambda result: len(result["record"]["page_records"])),
+            ("run_dir", "run_dir"),
+        ),
+    },
+    "paper-gate": {
+        "call": lambda args: workflows.build_paper_gate(args.vault.resolve(), args.slug),
+        "render": workflows.render_paper_gate,
+    },
+}
+
+
+def _handle_table_driven(args: argparse.Namespace) -> int:
+    spec = _TABLE_DRIVEN_COMMANDS[args.command]
+    result = spec["call"](args)
+    if getattr(args, "json", False):
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
-        print(workflows.render_wiki_ask(result))
-    return 0
-
-
-def _handle_wiki_ingest_handoff(args: argparse.Namespace) -> int:
-    result = workflows.build_wiki_ingest_handoff(args.vault.resolve(), args.slug)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(workflows.render_wiki_ingest_handoff(result))
-    return 0
-
-
-def _handle_wiki_ingest_trigger(args: argparse.Namespace) -> int:
-    result = workflows.build_wiki_ingest_trigger(args.vault.resolve(), args.slug)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(workflows.render_wiki_ingest_trigger(result))
-    return 0 if result.get("status") in {"ready", "already_recorded"} else 1
-
-
-def _handle_record_human_approval(args: argparse.Namespace) -> int:
-    result = workflows.record_human_approval(
-        args.vault.resolve(),
-        args.slug,
-        approved_by=args.approved_by,
-        scope=args.scope,
-        notes=args.notes,
-    )
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        record = result["record"]
-        print(f"approval_status={record['status']}")
-        print(f"approval_path={result['record_path']}")
-        print(f"run_dir={result['run_dir']}")
-    return 0
-
-
-def _handle_record_wiki_ingest(args: argparse.Namespace) -> int:
-    result = workflows.record_wiki_ingest(
-        args.vault.resolve(),
-        args.slug,
-        args.page or [],
-        approved_by=args.approved_by,
-        notes=args.notes,
-        source_review_path=args.source_review,
-        from_paper_wiki_request=args.from_paper_wiki_request,
-    )
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        record = result["record"]
-        print(f"record_status={record['status']}")
-        print(f"record_path={result['record_path']}")
-        print(f"recorded_pages={len(record['page_records'])}")
-        print(f"run_dir={result['run_dir']}")
-    return 0
-
-
-def _handle_paper_gate(args: argparse.Namespace) -> int:
-    result = workflows.build_paper_gate(args.vault.resolve(), args.slug)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    else:
-        print(workflows.render_paper_gate(result))
-    return 0
+        render = spec.get("render")
+        print(render(result) if render else _render_outputs(result, spec["outputs"]))
+    exit_status = spec.get("exit_status")
+    return int(exit_status(result)) if exit_status else 0
 
 
 HANDLERS = cli_routes.bind_handlers(globals())

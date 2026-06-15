@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from paper_source.artifacts import write_text_atomic
+from paper_source.artifacts import read_json_dict, write_text_atomic
 
 
 REVISION_GUIDANCE_BASIS = "critic-revision-guidance"
 
 
 def _read_plan(plan_path: Path) -> dict | None:
-    try:
-        plan = json.loads(plan_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return None
-    return plan if isinstance(plan, dict) else None
+    return read_json_dict(plan_path, default=None)
 
 
 def _render_repair_items(items: list[dict]) -> list[str]:

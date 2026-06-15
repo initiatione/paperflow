@@ -46,7 +46,7 @@ python scripts\orchestrator.py <command>
 - 解析与修复：`parse-paper`、`normalize-mineru-assets`、`redo-acquire`、`redo-parse`、`redo-read`、`recritic`。
 - Reader/Critic/Gate：推进命令内部生成 reader 和 critic；只读检查用 `paper-gate`。
 - Report：`report` 是公开读取入口；`report --run-id <run-id> [--json]` 读取已有 run report artifact；内部生成模块是 `report_run.py`，不是额外的 `run-report` CLI。
-- Staging 与 Wiki handoff：`stage_wiki.py` 生成 `wiki-ingest-brief.json` canonical Paper Source-to-Paper Wiki handoff 和 `promotion-plan.json`，新链路不生成 `wiki_deposition_task.json`；`wiki-ingest-handoff` 渲染 agent-mediated handoff；`record-human-approval` 记录外部 agent 写入前的人类批准；`wiki-ingest-trigger` 写继续任务；Paper Wiki `$paper-research-wiki` 是用户级正式论文 wiki 写入和维护入口；`paper-source-paper-deposition` 仅用于历史 handoff 清理；`record-wiki-ingest` 记录外部 agent 已完成的最终页路径、hash 和 formal page gate；`promote-to-wiki` 不是黄金路径的一部分。
+- Staging 与 Wiki handoff：`stage_wiki.py` 生成 `wiki-ingest-brief.json` canonical Paper Source-to-Paper Wiki handoff 和 `promotion-plan.json`，新链路不生成 `wiki_deposition_task.json`；`wiki-ingest-handoff` 渲染 agent-mediated handoff；`record-human-approval` 记录外部 agent 写入前的人类批准；`wiki-ingest-trigger` 写继续任务；Paper Wiki `$paper-research-wiki` 是用户级正式论文 wiki 写入和维护入口；`paper-source-paper-deposition` 仅用于历史 handoff 清理；`record-wiki-ingest` 记录外部 agent 已完成的最终页路径、hash 和 formal page gate。
 - 索引与查询：`runs-query`、`research-queue`、`wiki-query`、`wiki-ask`。
 - 反馈、评估与进化：`record-feedback`、`evaluation-brief`、`propose-evolution`、`activate-evolution`、`evolution-query`。`evaluation-brief` 把 Plugin Eval、`paper-source-quality-gates`、benchmark 和 before/after metrics 合并成本地 improvement brief，再交给 `propose-evolution`。
 - 外部集成：`zotero-sync`，以及 MinerU 解析相关命令。
@@ -70,21 +70,27 @@ scripts/build/paper_source/
   rank_papers.py
   review_sessions.py
   fetch_plan.py
+  frontmatter.py
   acquire_papers.py
   run_mineru_parse.py
   asset_normalization.py
   evidence_index.py
-  generate_reader.py
-  reader_*.py
-  run_critic.py
+  review/
+    generate_reader.py
+    reader_*.py
+    run_critic.py
+    role_critics.py
+    critic_contracts.py
   report_run.py
   wiki_contracts.py
   paper_quality.py
-  role_critics.py
   research_decision.py
   reproduction_plan.py
-  reader_revision_*.py
+  query_plan_build.py
+  orchestrator_discovery.py
+  orchestrator_repair.py
   stage_wiki.py
+  stage_wiki_brief.py
   paper_gate.py
   source_bundle_audit.py
   graph_visibility.py
@@ -95,7 +101,6 @@ scripts/build/paper_source/
   wiki_ingest_trigger.py
   wiki_ingest_record.py
   wiki_record_workflows.py
-  promote_to_wiki.py
   raw_cleanup.py
   run_index.py
   wiki_query.py
@@ -104,8 +109,9 @@ scripts/build/paper_source/
 ```
 
 - `cli.py` 保留公开 CLI 入口；`cli_parser.py` 和 `cli_routes.py` 拆出参数定义、JSON/Markdown 输出和命令分发，避免入口继续膨胀。`dry-run` 支持 repeated `--query-variant`、`--domain-focus-term`、`--agent-query-plan-json`、`--year-min`、`--code-policy` 和 `--selection-policy`，用于记录 agent 计划后的检索式、显式硬过滤锚点和请求级约束。
-- `orchestrator.py` 是主入口和流程编排层，负责 dry-run、discover-to-handoff、one-paper ingest、batch advance、redo/recritic 等阶段串联；record/promote 相关 helper 已拆到 `wiki_record_workflows.py`。dry-run 把原始自然语言 `--query` 当作意图标签，把 agent-supplied query variants 当作实际 MCP 搜索输入，并在 `query-plan.json` 中审计来源、`hard_domain_anchors`、`soft_recall_terms`、`term_provenance`、`year_min`、`code_policy` 和 `selection_policy`；`discover-to-handoff` 只串联 dry-run 与 prepare-ranked，停在 source-staging。
-- `artifacts.py` 负责 Paper Source 路径约定、sha256、时间戳和原子写入；`write_json_atomic` / `write_text_atomic` 用临时文件加 `os.replace` 写 JSON/Markdown，避免 `_paper_source/runs/index.json`、record 和 report 在异常中写坏。
+- `orchestrator.py` 是主入口和流程编排层，负责 dry-run、discover-to-handoff、one-paper ingest、batch advance、redo/recritic 等阶段串联；repair、query-plan assembly 和 discovery/source coverage 已分别拆到 `orchestrator_repair.py`、`query_plan_build.py`、`orchestrator_discovery.py`，record/promote 相关 helper 已拆到 `wiki_record_workflows.py`。dry-run 把原始自然语言 `--query` 当作意图标签，把 agent-supplied query variants 当作实际 MCP 搜索输入，并在 `query-plan.json` 中审计来源、`hard_domain_anchors`、`soft_recall_terms`、`term_provenance`、`year_min`、`code_policy` 和 `selection_policy`；`discover-to-handoff` 只串联 dry-run 与 prepare-ranked，停在 source-staging。
+- `artifacts.py` 负责 Paper Source 路径约定、sha256、时间戳和原子写入；`write_json_atomic` / `write_text_atomic` 用临时文件加 `os.replace` 写 JSON/Markdown，避免 `_paper_source/runs/index.json`、record 和 report 在异常中写坏；`read_json` / `read_json_dict` 是 JSON artifact 读取入口。
+- `frontmatter.py` 是宽松 YAML/frontmatter 解析、strip 和 scalar/list 处理 helper，供 record、query、language gate 和 Stage Wiki brief 复用。
 - `config.py` 负责 `_paper_source/meta/paper-source-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。旧配置文件只作为迁移读取来源，不作为新配置入口。
 - `config_protection.py` 负责共享确认口令和 config 保护白名单，供 reset、repair、restore 复用。
 - `wiki_reset.py` 负责 wiki reset 执行器：preview、确认口令、备份/删除、config 默认保护、初始化和 reset manifest。
@@ -122,12 +128,12 @@ scripts/build/paper_source/
 - `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization；默认 7200 秒超时，可由 `--mineru-timeout` 或 `PAPER_SOURCE_MINERU_TIMEOUT` 覆盖。成功 parse 会调用 `asset_normalization.py` 规范化 MinerU raw 图片/公式截图，再调用 `evidence_index.py` 写 `_paper_source/raw/<slug>/evidence-index.json` 并刷新 `_paper_source/meta/evidence-index.json`。
 - `asset_normalization.py` 负责 raw MinerU asset normalization：按 `Fig.` / `Figure` / `图` 标签把 hash-like 图片重命名为 `fig-###-*`，把无法映射的图片标记为 `unmapped-*`，把有 Markdown/TeX LaTeX 证据的公式截图从 raw 图片中删除并从 Markdown 图片引用中移除，同时写 `figure-index.json`、`formula-index.json` 和 `asset-normalization-record.json`。公开 CLI `normalize-mineru-assets --slug <slug> [--execute] [--json]` 可对 `_paper_source/raw` 或 legacy `_epi/raw` 历史 bundle 做 dry-run-first 修复；它不修改正式 wiki 页面。
 - `evidence_index.py` 负责从 MinerU Markdown 建立 full-text locator index：按 heading/page marker/chunk 记录 page、section_path、source_locator、chunk hash、input hashes 和 warnings；它是 wiki provenance 的检索辅助，不替代 source-first reread。
-- `generate_reader.py`、`reader_outputs.py`、`reader_evidence.py`、`reader_protocol.py` 负责多角色 reader、evidence map 和证据地址校验；reader 以 MinerU Markdown 为主记录文本/公式/记号证据，并把 MinerU manifest、PDF fallback、figure/formula indexes、图片证据和可选非空原生 TeX（若存在）作为复核线索写入 evidence/claim-support，而不是只输出摘要。
-- `run_critic.py`、`paper_quality.py`、`role_critics.py` 负责 critic quorum、学术论文可靠性检查和三角色质量门；其中 `parse-quality-critic` 会检查 MinerU Markdown、images、manifest、figure/formula indexes、`parse-record.json`，以及可选非空原生 TeX（若存在），避免原文公式/图像证据在进入 reader/wiki 前被静默抹掉。
+- `review/generate_reader.py`、`review/reader_outputs.py`、`review/reader_evidence.py`、`review/reader_protocol.py` 负责可选 reviewed/audited ingest 的多角色 reader、evidence map 和证据地址校验；reader 以 MinerU Markdown 为主记录文本/公式/记号证据，并把 MinerU manifest、PDF fallback、figure/formula indexes、图片证据和可选非空原生 TeX（若存在）作为复核线索写入 evidence/claim-support，而不是只输出摘要。
+- `review/run_critic.py`、`paper_quality.py`、`review/role_critics.py` 负责可选 audited ingest 的 critic quorum、学术论文可靠性检查和三角色质量门；其中 `parse-quality-critic` 会检查 MinerU Markdown、images、manifest、figure/formula indexes、`parse-record.json`，以及可选非空原生 TeX（若存在），避免原文公式/图像证据在进入 reader/wiki 前被静默抹掉。
 - `report_run.py` 负责生成 `_paper_source/runs/<run-id>/report.md` 和 `report.json`，并提供 `report --run-id` 的只读 loader；该 CLI 会展示 run report artifact 和 `run-state.json` payload，但不刷新 index、queue、raw、staging、Zotero 或 wiki。
 - `research_decision.py`、`reader_revision_plan.py`、`reader_revision_guidance.py`、`reproduction_plan.py` 把 critic 结果翻译成决策、修复建议和紧凑复现 caveat。
 - `wiki_contracts.py` 固定七类正式页面、brief-first required Paper Source/Paper Wiki skills、frontmatter schema、quality gates、retired handoff cleanup 和 QMD collection boundary 等跨模块常量；`paper-research-wiki` qmd collection 允许正式页目录加 `AGENTS.md`、`index.md`、`hot.md`、`log.md`、`_meta/`，必须 ignore `_paper_source/**`、`.obsidian/**`、`.claude/**`，让 `_paper_source/meta/formal-page-snapshots/`、raw MinerU source Markdown 和 staging handoff 不进入 QMD。external wiki skills are optional helpers / policy references。
-- `stage_wiki.py` 负责 `_paper_source/staging` 内部证据包、轻阅读报告、`wiki-ingest-brief.json` canonical Paper Source-to-Paper Wiki handoff、`final_source_review_contract` 和 `promotion-plan.json`；默认新 staging 不需要也不生成 `wiki_deposition_task.json`。它会把 `evidence-index.json`、chunk count、input hashes、warnings 和 `_paper_source/meta/evidence-index.json` 作为 locator aid 暴露给 handoff，但不得把审计页当成正式 wiki 页写到根目录。
+- `stage_wiki.py` 负责 `_paper_source/staging` 内部证据包和 staging 写入编排；`stage_wiki_brief.py` 负责轻阅读报告、`wiki-ingest-brief.json` canonical Paper Source-to-Paper Wiki handoff、rule-source model、`final_source_review_contract` 和 reading-report Markdown 生成。默认新 staging 不需要也不生成 `wiki_deposition_task.json`。它会把 `evidence-index.json`、chunk count、input hashes、warnings 和 `_paper_source/meta/evidence-index.json` 作为 locator aid 暴露给 handoff，但不得把审计页当成正式 wiki 页写到根目录。
 - `paper_gate.py` 是只读质量门面板，决定当前 slug 是 failure、waiting for human gate，还是允许进入下一动作；它调用 `source_bundle_audit.py` 检查 `paper.pdf`、`metadata.json`、MinerU Markdown、`mineru/images/*` 和 `mineru/mineru-manifest.json`，当 source bundle is incomplete 时阻止 final handoff；`mineru/paper.tex` 只在非空原生 TeX 存在时作为可选公式源进入审阅。
 - `source_bundle_audit.py` 负责 raw source bundle 的磁盘完整性审计和 image hash 明细，供 `paper_gate.py` 与 record provenance 复用。
 - `graph_visibility.py` 负责 Obsidian `.obsidian/graph.json` 的正式目录 filter 和 `collapse-filter` 修复，避免过度转义导致图谱只剩 index。
@@ -137,14 +143,13 @@ scripts/build/paper_source/
 - `wiki_ingest_approval.py` 是 agent-mediated 前置人类批准 helper：写入并校验 `_paper_source/staging/papers/<slug>/human-approval.json`，要求当前 gate 只有 `human-approval` 待办。
 - `wiki_ingest_trigger.py` 是批准后的继续/触发 helper：写入 `_paper_source/staging/papers/<slug>/wiki-agent-trigger.json`，让 Paper Wiki `$paper-research-wiki` 或当前 Claude、Codex 等 wiki-capable agent 按同一 target vault contract 继续最终页写入；它不写最终 wiki 页面。
 - `wiki_ingest_record.py` 是 agent-mediated 完成态记录器：只读取最终 Markdown 页面、前置 `human-approval.json`、canonical `wiki-ingest-brief.json` 和 `final-source-review.json`，校验路径在 vault 内且不在 Paper Source 内部目录，验证源工件 hash、公式/图片/PDF 复核和 final page provenance，检查 formal frontmatter、`category/page_family`、provenance、wikilinks、Chinese-default 正文、forbidden formula blocks 和 family-specific quality gates，记录 hash 和 human approval，不写最终页面。legacy `wiki_deposition_task.json` 只作为兼容 sidecar 记录。
-- `wiki_record_workflows.py` 承接 `record-human-approval`、`record-wiki-ingest`、legacy promote/rollback run-state/report 写入，先完成 record 校验再创建 `_paper_source/runs/record-wiki-ingest-*`，避免失败校验留下空 run 目录。
-- `promote_to_wiki.py` 只保留 legacy compiled-draft promotion 和 rollback，不能替代 agent-mediated wiki ingest。
+- `wiki_record_workflows.py` 承接 `record-human-approval`、`record-wiki-ingest` 的 run-state/report 写入，先完成 record 校验再创建 `_paper_source/runs/record-wiki-ingest-*`，避免失败校验留下空 run 目录。
 - `zotero_sync.py` 负责本地 record-only Zotero sidecar：读取论文 metadata 和 wiki ingest record，写 `zotero-record.json`，不调用外部 Zotero API。
-- `run_index.py` 负责 `_paper_source/runs/index.json`、dashboard 和 `research-queue.json`，并在 ready queue 里嵌入当前 paper-gate 摘要；record/promote routed runs 会把 `zotero_results` 带入 index 和 dashboard。
+- `run_index.py` 负责 `_paper_source/runs/index.json`、dashboard 和 `research-queue.json`，并在 ready queue 里嵌入当前 paper-gate 摘要；record routed runs 会把 `zotero_results` 带入 index 和 dashboard。
 - `wiki_query.py` 同时保留 manifest/index 视角的 `wiki-query`，并提供 read-only `wiki-ask` formal graph retrieval：读取正式页根目录，扩展 backlinks/outlinks/aliases/tags/co-links，输出具体的证据/综合/推断/不确定 answer sections 和 correction candidates；它只读解析 frontmatter `sources` 和正文 `## 原文与证据入口` 中标题显示的 canonical `_paper_source/raw/<slug>/paper.pdf` Markdown PDF URI 来确认源工件可用性，短标签、plain path、retired `_epi` 或内部 wikilink PDF 只作为修复候选，不作为正常 evidence fallback；`_paper_source/raw` 不作为 formal graph node；它不写 `log.md`、正式页、QMD、`paper-wiki-record-request.json` 或 Paper Source artifacts。
 - `skill_aware_evolve.py` 负责 proposal-based 自进化，默认不直接修改插件代码、用户配置或 compiled wiki。
 - `evaluation_loop.py` 负责插件开发质量环：合并 Plugin Eval、`paper-source-quality-gates`、benchmark、before/after metrics，写出 `paper-source-improvement-brief-v1` JSON/Markdown 和 `proposed_evolution` payload。默认输出目录是 `.plugin-eval/improvement-briefs/`，属于本地开发产物。
-- `paper_source_repository.py` 负责 `_paper_source` 初始化、manifest、migration 和 repository cleanup。`epi_repository.py` 是内部迁移 shim，不作为用户入口。`paper-source-repository-cleanup --preview --json` 是 no-write inspection；非 preview cleanup 即使未超总文件/体积阈值，也会按 retention lifecycle 上限清理 terminal run dirs、维护 manifest、formal-page snapshots 和临时 manual PDFs，但不得删除 `_paper_source/raw`、`_paper_source/reviews`、配置历史、Zotero record 或最终 wiki 页。
+- `paper_source_repository.py` 负责 `_paper_source` 初始化、manifest、migration 和 repository cleanup；旧 `epi_repository.py` shim 已在 Paper Source 2.0.0 删除，不再作为代码入口或用户入口。`paper-source-repository-cleanup --preview --json` 是 no-write inspection；非 preview cleanup 即使未超总文件/体积阈值，也会按 retention lifecycle 上限清理 terminal run dirs、维护 manifest、formal-page snapshots 和临时 manual PDFs，但不得删除 `_paper_source/raw`、`_paper_source/reviews`、配置历史、Zotero record 或最终 wiki 页。
 
 ## Skills 结构
 
@@ -174,7 +179,7 @@ skills/
 - `wiki-provenance`：final wiki 页 provenance、claim support status、evidence address 和 round-trip retrieval hook；它承接“最终页上的这句话到底来自哪里”这类问题，`paper-ingest` 只保留 source-first handoff。
 - `skill-aware-evolve`：根据 evidence 和验证结果提出受控变更；配置问题必须走配置 proposal。
 - `wiki-setup`：初始化、检查、修复和重置 paper wiki vault。入口只保留边界和命令，详细恢复与误删清单见 `skills/wiki-setup/references/reset-recovery.md`。初始化会创建或保留 vault-local git repository，写入 `AGENTS.md` 和 `_meta/agent-operating-contract.md`、`_meta/schema.md`、`_meta/taxonomy.md`、`_meta/directory-structure.md`，默认要求 source-first paper ingest：最终 wiki 写入先读 `mineru/<slug>.md`、`mineru/images/*`、manifest，以及非空原生 `mineru/paper.tex`（若存在）。
-- `zotero-sync`：Zotero 记录和可选同步，默认安全边界是本地记录优先；`record-wiki-ingest` 会自动写 record-only sidecar 并把结果带入 report，`promote-to-wiki` 不是黄金路径的一部分。
+- `zotero-sync`：Zotero 记录和可选同步，默认安全边界是本地记录优先；`record-wiki-ingest` 会自动写 record-only sidecar 并把结果带入 report。
 
 ## Vault Artifact 结构
 
@@ -292,7 +297,6 @@ Paper Source 默认 vault 形态。除根 `_meta/` wiki contract 文件外，Pap
 - 批准后可用 `wiki-ingest-trigger --slug <slug>` 写 `_paper_source/staging/papers/<slug>/wiki-agent-trigger.json`，作为当前 agent 或下一次 `@Paper Source` 的继续写入指令；该触发包不等于最终 wiki 写入。
 - agent-mediated wiki ingest 完成后，先由 wiki agent 写 `final-source-review.json`，再用 `record-wiki-ingest --source-review ...` 只写 `_paper_source/raw/<slug>/wiki-ingest-record.json` 和 `_paper_source/staging/papers/<slug>/wiki-ingest-record.json`，记录目标 vault agent 已写出的最终 Markdown 页、source review、pre-write approval 及其 sha256；它不得修改最终页、manifest、index、log 或 hot。
 - Zotero 集成只写 `_paper_source/raw/<slug>/zotero-record.json` 和 run report 中的 `zotero_results`；它不得调用外部 API、改 final wiki 页或删除 Zotero 数据。
-- `promote-to-wiki` 只处理显式 compiled targets，并要求 `approved-by`；新任务不要把它作为黄金路径。
 - 旧顶层 `_raw`、`_staging`、`_runs`、`_quarantine`、`_evolution` 只作为 legacy migration 输入存在；新初始化不得创建这些顶层目录。
 - `_paper_source/policies/retention.json` 同时定义总量阈值和 lifecycle 上限。默认总量预算是 3000 files / 1 GiB，用来尽早暴露内部仓库体量压力；`_paper_source/meta/run-lifecycle`、`_paper_source/meta/raw-cleanup`、`_paper_source/meta/repository-maintenance`、`_paper_source/meta/migrations`、`_paper_source/meta/wiki-reset`、`_paper_source/meta/formal-page-snapshots` 和 `_paper_source/tmp-manual-pdfs` 都是有上限的维护/临时区，不应无限累计。
 

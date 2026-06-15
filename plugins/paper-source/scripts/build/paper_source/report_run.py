@@ -1,19 +1,8 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from paper_source.artifacts import existing_run_dir, write_json_atomic, write_text_atomic
-
-
-def _load_dict_json(path: Path) -> dict | None:
-    if not path.exists():
-        return None
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-    return payload if isinstance(payload, dict) else None
+from paper_source.artifacts import existing_run_dir, read_json_dict, write_json_atomic, write_text_atomic
 
 
 def load_run_report(vault_path: Path, run_id: str) -> dict:
@@ -25,8 +14,8 @@ def load_run_report(vault_path: Path, run_id: str) -> dict:
     report_md_path = run_dir / "report.md"
     run_state_path = run_dir / "run-state.json"
 
-    report_payload = _load_dict_json(report_json_path)
-    run_state_payload = _load_dict_json(run_state_path) or {}
+    report_payload = read_json_dict(report_json_path, default=None)
+    run_state_payload = read_json_dict(run_state_path, default=None) or {}
     markdown = report_md_path.read_text(encoding="utf-8") if report_md_path.exists() else ""
     if report_payload is None and not markdown:
         raise FileNotFoundError(f"missing report artifacts for Paper Source run: {run_dir}")

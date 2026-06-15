@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Any
 
-from paper_source.artifacts import paper_source_root, utc_now, write_json_atomic
+from paper_source.artifacts import paper_source_root, read_json_dict, utc_now, write_json_atomic
 
 
 EASYSCHOLAR_API_BASE = "https://www.easyscholar.cc/open"
@@ -292,9 +292,8 @@ def _parse_dt(value: object) -> datetime | None:
 
 
 def _load_cache(path: Path) -> dict | None:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    payload = read_json_dict(path, default=None)
+    if payload is None:
         return None
     if payload.get("schema_version") != EASYSCHOLAR_CACHE_SCHEMA:
         return None

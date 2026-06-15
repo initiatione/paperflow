@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 import re
 import uuid
 from pathlib import Path
 from typing import Any
 
-from paper_source.artifacts import utc_now, write_json_atomic, write_text_atomic
+from paper_source.artifacts import read_json, utc_now, write_json_atomic, write_text_atomic
 
 
 SCHEMA_VERSION = "paper-source-improvement-brief-v1"
@@ -33,13 +32,6 @@ RETIRED_METRIC_NAMES = {
     "epi-quality-gate-pass-rate",
     "epi_quality_gate_pass_rate",
 }
-
-
-def _read_json(path: Path | None) -> dict[str, Any]:
-    if path is None or not path.exists():
-        return {}
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return payload if isinstance(payload, dict) else {}
 
 
 def _coerce_number(value: Any) -> float | None:
@@ -171,7 +163,8 @@ def default_acceptance_gates(before_metrics: dict[str, float]) -> list[dict[str,
 
 
 def _source_record(path: Path | None, source_kind: str) -> dict[str, Any]:
-    payload = _read_json(path)
+    payload = read_json(path, default={}) if path is not None else {}
+    payload = payload if isinstance(payload, dict) else {}
     record = {
         "kind": source_kind,
         "path": str(path) if path else None,

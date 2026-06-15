@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from paper_source.artifacts import file_sha256, utc_now, write_json_atomic, write_text_atomic
+from paper_source.artifacts import file_sha256, read_json, read_json_dict, utc_now, write_json_atomic, write_text_atomic
 from paper_source.claim_support import build_claim_support_map
-from paper_source.reader_protocol import (
+from paper_source.review.reader_protocol import (
     READER_ROLES,
     REQUIRED_ARTIFACTS,
     claim_record,
     evidence_line,
     markdown_sections,
 )
-from paper_source.reader_outputs import write_role_reader_outputs
-from paper_source.reader_revision_guidance import render_role_revision_focus_section
+from paper_source.review.reader_outputs import write_role_reader_outputs
+from paper_source.review.reader_revision_guidance import render_role_revision_focus_section
 from paper_source.source_artifacts import (
     has_nonempty_mineru_tex,
     is_nonempty_file,
@@ -27,26 +26,16 @@ def _revision_guidance_text(reader_dir: Path) -> str:
     return guidance_path.read_text(encoding="utf-8") if guidance_path.exists() else ""
 
 
-def _read_optional_json_object(path: Path) -> dict:
-    if not path.exists():
-        return {}
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}
-    return payload if isinstance(payload, dict) else {}
-
-
 def generate_reader_outputs(paper_root: Path) -> dict:
     started_at = utc_now()
-    metadata = json.loads((paper_root / "metadata.json").read_text(encoding="utf-8"))
+    metadata = read_json(paper_root / "metadata.json")
     mineru_markdown_path = resolve_mineru_markdown_path(paper_root)
     mineru_text = mineru_markdown_path.read_text(encoding="utf-8")
     paper_pdf_path = paper_root / "paper.pdf"
     paper_tex_path = paper_root / "mineru" / "paper.tex"
     mineru_manifest_path = paper_root / "mineru" / "mineru-manifest.json"
     paper_tex_text = paper_tex_path.read_text(encoding="utf-8", errors="ignore") if has_nonempty_mineru_tex(paper_root) else ""
-    mineru_manifest = _read_optional_json_object(mineru_manifest_path)
+    mineru_manifest = read_json_dict(mineru_manifest_path, default={}) or {}
     sections = markdown_sections(mineru_text)
     title = metadata.get("title", "Untitled Paper")
     reader_dir = paper_root / "reader"

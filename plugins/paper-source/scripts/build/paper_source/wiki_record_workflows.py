@@ -7,6 +7,7 @@ from pathlib import Path
 from paper_source.artifacts import (
     file_sha256,
     raw_paper_root,
+    read_json,
     runs_root,
     staging_paper_root,
     utc_now,
@@ -16,7 +17,6 @@ from paper_source.artifacts import (
 from paper_source.config import load_wiki_config
 from paper_source.paper_source_repository import ensure_paper_source_repository
 from paper_source.paper_gate import build_paper_gate
-from paper_source.promote_to_wiki import promote_paper, rollback_promotion
 from paper_source.report_run import write_report
 from paper_source.run_index import refresh_run_index
 from paper_source.wiki_ingest_approval import create_human_approval_record, human_approval_record_path
@@ -145,40 +145,6 @@ def _paper_run_state(
     return payload
 
 
-def _write_promotion_or_rollback_run_state(
-    run_dir: Path,
-    *,
-    run_id: str,
-    workflow_type: str,
-    vault_path: Path,
-    slug: str,
-    started_at: str,
-    finished_at: str,
-    input_artifact_hashes: dict[str, str],
-    output_artifact_hashes: dict[str, str],
-    zotero_results: dict | None = None,
-) -> None:
-    state = {
-        "stage": workflow_type,
-        "run_id": run_id,
-        "workflow_type": workflow_type,
-        "state": "reported",
-        "status": "success",
-        "paper_slug": slug,
-        "vault_path": str(vault_path),
-        "compiled_wiki_write": True,
-        "started_at": started_at,
-        "finished_at": finished_at,
-        "exit_status": 0,
-        "tool_versions": _tool_versions("orchestrator", "report_run", "promote_to_wiki"),
-        "input_artifact_hashes": input_artifact_hashes,
-        "output_artifact_hashes": output_artifact_hashes,
-    }
-    if zotero_results is not None:
-        state["zotero_results"] = zotero_results
-    _write_json(run_dir / "run-state.json", state)
-
-
 def _write_wiki_ingest_record_report(
     run_dir: Path,
     *,
@@ -221,7 +187,7 @@ def _write_wiki_ingest_record_report(
         changed_artifacts=changed_artifacts,
     )
     report_json_path = run_dir / "report.json"
-    report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
+    report_payload = read_json(report_json_path)
     report_payload["paper_states"] = [
         {"paper_slug": slug, "state": "wiki_ingest_recorded", "next_action": next_actions[0]}
     ]
@@ -464,127 +430,14 @@ def record_wiki_ingest(
     }
 
 
-def _write_promotion_routed_report(
-    run_dir: Path,
-    *,
-    run_id: str,
-    slug: str,
-    promoted_page_paths: list[str],
-    human_gate: dict,
-    zotero_results: dict,
-) -> None:
-    next_actions = ["review-promoted-pages"]
-    report_paper_states = [
-        {
-            "slug": slug,
-            "paper_slug": slug,
-            "title": slug,
-            "state": "promoted",
-            "last_action": "promote-to-wiki",
-            "next_action": next_actions[0],
-            "human_gate_required": False,
-        }
-    ]
-    write_report(
-        run_dir,
-        [{"slug": slug, "title": slug, "state": "promoted"}],
-        [],
-        workflow_type="promote-to-wiki",
-        run_id=run_id,
-        paper_states=report_paper_states,
-        failed_papers=[],
-        budget_usage={},
-        wiki_pages_written=promoted_page_paths,
-        zotero_results=zotero_results,
-        next_actions=next_actions,
-    )
-    report_json_path = run_dir / "report.json"
-    report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
-    report_payload["paper_states"] = [
-        {"paper_slug": slug, "state": "promoted", "next_action": next_actions[0]}
-    ]
-    report_payload["failed_papers"] = []
-    report_payload["wiki_pages_written"] = promoted_page_paths
-    report_payload["human_gate"] = human_gate
-    report_payload["next_actions"] = next_actions
-    report_payload["zotero_results"] = zotero_results
-    _write_json(report_json_path, report_payload)
-    _append_report_sections(
-        run_dir / "report.md",
-        human_gate=human_gate,
-        wiki_pages_written=promoted_page_paths,
-    )
-
-
-def _write_rollback_routed_report(
-    run_dir: Path,
-    *,
-    run_id: str,
-    slug: str,
-    human_gate: dict | None,
-    restored_paths: list[str],
-    removed_paths: list[str],
-) -> None:
-    next_actions = ["re-review-before-repromote"]
-    report_paper_states = [
-        {
-            "slug": slug,
-            "paper_slug": slug,
-            "title": slug,
-            "state": "rolled_back",
-            "last_action": "rollback-promotion",
-            "next_action": next_actions[0],
-            "human_gate_required": False,
-        }
-    ]
-    write_report(
-        run_dir,
-        [],
-        [],
-        workflow_type="rollback-promotion",
-        run_id=run_id,
-        paper_states=report_paper_states,
-        failed_papers=[],
-        budget_usage={},
-        wiki_pages_written=[],
-        zotero_results={"status": "not_run", "records": []},
-        next_actions=next_actions,
-    )
-    report_json_path = run_dir / "report.json"
-    report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
-    report_payload["paper_states"] = [
-        {"paper_slug": slug, "state": "rolled_back", "next_action": next_actions[0]}
-    ]
-    report_payload["failed_papers"] = []
-    report_payload["wiki_pages_written"] = []
-    report_payload["restored_paths"] = restored_paths
-    report_payload["removed_paths"] = removed_paths
-    report_payload["next_actions"] = next_actions
-    if human_gate is not None:
-        report_payload["human_gate"] = human_gate
-    _write_json(report_json_path, report_payload)
-    _append_report_sections(
-        run_dir / "report.md",
-        human_gate=human_gate,
-        wiki_pages_written=[],
-        restored_paths=restored_paths,
-        removed_paths=removed_paths,
-    )
-
-
 __all__ = [
-    "promote_paper",
     "record_human_approval",
     "record_wiki_ingest",
-    "rollback_promotion",
     "_append_report_sections",
     "_hash_existing_outputs",
     "_new_run_dir",
     "_refresh_run_index",
     "_write_human_approval_report",
-    "_write_promotion_or_rollback_run_state",
-    "_write_promotion_routed_report",
-    "_write_rollback_routed_report",
     "_write_wiki_ingest_record_report",
     "_zotero_record_only",
 ]

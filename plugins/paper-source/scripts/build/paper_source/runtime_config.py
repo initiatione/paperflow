@@ -6,6 +6,8 @@ import shlex
 from pathlib import Path
 from typing import Any
 
+from paper_source.artifacts import read_json
+
 
 RUNTIME_CONFIG_ENV = "PAPER_SOURCE_RUNTIME_CONFIG"
 RUNTIME_CONFIG_SCHEMA = "paper-source-runtime-config-v1"
@@ -203,7 +205,7 @@ def apply_runtime_config() -> dict[str, Any]:
     if not path.exists():
         return status
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = read_json(path)
     except json.JSONDecodeError as exc:
         status["warnings"].append(f"invalid runtime config JSON: {exc}")
         return status

@@ -9,6 +9,7 @@ from typing import Any
 
 from paper_source.artifacts import (
     paper_source_meta_root,
+    read_json_dict,
     runs_root,
     utc_now,
     write_json_atomic,
@@ -367,7 +368,7 @@ def config_status(vault_path: Path) -> dict[str, Any]:
     paths = config_paths(vault_path)
     state: dict[str, Any] = {}
     if paths.state_path.exists():
-        state = json.loads(paths.state_path.read_text(encoding="utf-8"))
+        state = read_json_dict(paths.state_path, default={}) or {}
     configured = paths.config_path.exists() and state.get("configured", True) is not False
     return {
         "configured": configured,

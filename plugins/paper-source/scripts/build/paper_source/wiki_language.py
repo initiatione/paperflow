@@ -2,22 +2,14 @@ from __future__ import annotations
 
 import re
 
+from paper_source.frontmatter import strip_frontmatter
+
 
 _CJK_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 _FENCED_BLOCK_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 _EVIDENCE_ENTRY_SECTION_PATTERN = re.compile(
     r"(?ms)^##\s*原文与证据入口\s*$.*?(?=^##\s+|\Z)"
 )
-
-
-def strip_frontmatter(markdown: str) -> str:
-    lines = markdown.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return markdown
-    for index, line in enumerate(lines[1:], start=1):
-        if line.strip() == "---":
-            return "\n".join(lines[index + 1 :])
-    return markdown
 
 
 def body_language_signal(markdown: str) -> dict[str, object]:

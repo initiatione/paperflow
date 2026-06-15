@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +9,7 @@ from paper_source.artifacts import (
     paper_source_meta_root,
     raw_paper_root,
     raw_papers_root,
+    read_json_dict,
     staging_paper_root,
     utc_now,
     write_json_atomic,
@@ -17,16 +17,8 @@ from paper_source.artifacts import (
 from paper_source.source_artifacts import resolve_mineru_markdown_path
 
 
-def _load_json(path: Path) -> dict[str, Any] | None:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return None
-    return payload if isinstance(payload, dict) else None
-
-
 def _has_complete_parse(paper_root: Path) -> bool:
-    parse_record = _load_json(paper_root / "parse-record.json") or {}
+    parse_record = read_json_dict(paper_root / "parse-record.json", default=None) or {}
     mineru_dir = paper_root / "mineru"
     return (
         parse_record.get("status") == "success"

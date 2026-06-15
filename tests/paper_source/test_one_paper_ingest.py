@@ -3,7 +3,7 @@ import json
 import pytest
 
 from paper_source.orchestrator import run_one_paper_ingest
-from paper_source.run_critic import run_critics
+from paper_source.review.run_critic import run_critics
 from paper_source.stage_wiki import stage_paper
 
 

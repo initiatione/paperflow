@@ -4,7 +4,7 @@ import json
 import uuid
 from pathlib import Path
 
-from paper_source.artifacts import runs_root, utc_now, write_json_atomic
+from paper_source.artifacts import read_json_dict, runs_root, utc_now, write_json_atomic
 
 
 def record_feedback(
@@ -33,7 +33,7 @@ def record_feedback(
     if run_id is not None:
         summary_path = log_path.parent / run_id / "feedback-summary.json"
         if summary_path.is_file():
-            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary = read_json_dict(summary_path, default={}) or {}
         else:
             summary = {
                 "run_id": run_id,

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from pathlib import PurePosixPath
@@ -11,8 +10,9 @@ from paper_source.artifacts import (
     existing_raw_paper_root,
     existing_staging_paper_root,
     paper_source_meta_root,
+    read_json_dict,
 )
-from paper_source.run_critic import HARD_RULE
+from paper_source.review.constants import HARD_RULE
 from paper_source.source_bundle_audit import audit_source_bundle
 from paper_source.source_artifacts import is_mineru_markdown_artifact
 from paper_source.wiki_ingest_approval import (
@@ -39,13 +39,6 @@ PAPER_SOURCE_WRITE_SCOPE = "internal-underscore-artifacts-only"
 
 def _paper_source_write_scope(payload: dict[str, Any]) -> Any:
     return payload.get("paper_source_write_scope")
-
-
-def _read_json(path: Path) -> dict[str, Any] | None:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return None
 
 
 def _check_run(name: str, conclusion: str, summary: str, *, details: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -111,7 +104,7 @@ def _wiki_ingest_brief_check(plan: dict[str, Any]) -> dict[str, Any]:
             "Promotion plan is missing wiki_ingest_brief_path for agent-mediated wiki ingest.",
         )
     brief_path = Path(brief_path_value)
-    brief = _read_json(brief_path)
+    brief = read_json_dict(brief_path, default=None)
     if not brief:
         return _check_run(
             "wiki-ingest-brief",
@@ -411,7 +404,7 @@ def _source_bundle_check(paper_root: Path) -> dict[str, Any]:
 
 def _critic_quorum_check(paper_root: Path, critic_report: dict[str, Any]) -> dict[str, Any]:
     quorum_path = Path(critic_report.get("reviewer_quorum_path") or paper_root / "critic" / "critic-quorum.json")
-    quorum = _read_json(quorum_path)
+    quorum = read_json_dict(quorum_path, default=None)
     if not quorum:
         return _check_run(
             "critic-quorum",
@@ -438,7 +431,7 @@ def _critic_quorum_check(paper_root: Path, critic_report: dict[str, Any]) -> dic
 
 def _completion_record_check(paper_root: Path) -> dict[str, Any] | None:
     record_path = paper_root / "promotion-record.json"
-    record = _read_json(record_path)
+    record = read_json_dict(record_path, default=None)
     if record:
         human_gate = record.get("human_gate_decision") if isinstance(record.get("human_gate_decision"), dict) else {}
         if record.get("status") == "promoted" and human_gate.get("status") == "approved":
@@ -460,7 +453,7 @@ def _completion_record_check(paper_root: Path) -> dict[str, Any] | None:
         )
 
     wiki_record_path = paper_root / "wiki-ingest-record.json"
-    wiki_record = _read_json(wiki_record_path)
+    wiki_record = read_json_dict(wiki_record_path, default=None)
     if not wiki_record:
         return None
     human_gate = (
@@ -607,7 +600,7 @@ def _record_correction_check(vault_path: Path, slug: str, paper_root: Path) -> d
             seen_paths.add(resolved)
             correction_paths.append(path)
     for path in correction_paths:
-        correction = _read_json(path)
+        correction = read_json_dict(path, default=None)
         if not correction:
             continue
         if correction.get("correction_type") != "premature-wiki-ingest-record":
@@ -618,7 +611,7 @@ def _record_correction_check(vault_path: Path, slug: str, paper_root: Path) -> d
     if not matches:
         return None
     path, correction, affected_paper = matches[-1]
-    wiki_record = _read_json(paper_root / "wiki-ingest-record.json") or {}
+    wiki_record = read_json_dict(paper_root / "wiki-ingest-record.json", default=None) or {}
     if _record_supersedes_correction_repair(wiki_record, correction):
         return None
     status_after = (
@@ -690,14 +683,14 @@ def build_paper_gate(vault_path: Path, slug: str) -> dict[str, Any]:
     vault_path = vault_path.resolve()
     paper_root = existing_raw_paper_root(vault_path, slug)
     staging_root = existing_staging_paper_root(vault_path, slug)
-    metadata = _read_json(paper_root / "metadata.json") or {}
+    metadata = read_json_dict(paper_root / "metadata.json", default=None) or {}
     check_runs: list[dict[str, Any]] = []
 
     plan_path = staging_root / "promotion-plan.json"
-    plan = _read_json(plan_path)
+    plan = read_json_dict(plan_path, default=None)
     critic_required = bool(plan.get("critic_required")) if plan else True
     critic_path = paper_root / "critic" / "critic-report.json"
-    critic_report = _read_json(critic_path)
+    critic_report = read_json_dict(critic_path, default=None)
     if not critic_report:
         check_runs.append(
             _check_run(

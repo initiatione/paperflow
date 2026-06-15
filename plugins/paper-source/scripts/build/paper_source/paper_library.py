@@ -1,20 +1,11 @@
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 from typing import Any
 
-from paper_source.artifacts import raw_papers_root
+from paper_source.artifacts import raw_papers_root, read_json_dict
 from paper_source.schemas import slugify_title
-
-
-def _load_json(path: Path) -> dict[str, Any] | None:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return None
-    return payload if isinstance(payload, dict) else None
 
 
 def _normalize_doi(value: object) -> str | None:
@@ -106,7 +97,7 @@ def _index_keys(record: dict[str, Any], *, include_existing_dedupe_keys: bool = 
 
 def _load_reference_index_entries(vault_path: Path) -> tuple[Path, dict[str, Any] | None, list[dict[str, Any]]]:
     path = Path(vault_path).resolve() / "_meta" / "reference-index.json"
-    payload = _load_json(path)
+    payload = read_json_dict(path, default=None)
     raw_entries = payload.get("entries") if isinstance(payload, dict) else None
     entries = raw_entries if isinstance(raw_entries, list) else []
     normalized_entries: list[dict[str, Any]] = []
@@ -147,7 +138,7 @@ def load_existing_paper_index(vault_path: Path) -> dict[str, Any]:
     raw_entries: list[dict[str, Any]] = []
     if papers_root.exists():
         for paper_root in sorted(path for path in papers_root.iterdir() if path.is_dir()):
-            metadata = _load_json(paper_root / "metadata.json") or {}
+            metadata = read_json_dict(paper_root / "metadata.json", default=None) or {}
             entry = {
                 "source_type": "raw_library",
                 "slug": metadata.get("slug") or paper_root.name,

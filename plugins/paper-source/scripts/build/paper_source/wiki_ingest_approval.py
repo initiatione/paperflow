@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
-from paper_source.artifacts import staging_paper_root, utc_now, write_json_atomic
+from paper_source.artifacts import read_json_dict, staging_paper_root, utc_now, write_json_atomic
 
 
 HUMAN_APPROVAL_SCHEMA_VERSION = "paper-source-human-approval-v1"
@@ -16,14 +15,6 @@ HUMAN_APPROVAL_SCOPE = "run-wiki-ingest-agent"
 
 def human_approval_record_path(vault_path: Path, slug: str) -> Path:
     return staging_paper_root(vault_path.resolve(), slug) / "human-approval.json"
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
 
 
 def _gate_check_names(gate: dict[str, Any], conclusion: str) -> list[str]:
@@ -96,7 +87,7 @@ def load_human_approval_record(vault_path: Path, slug: str) -> dict[str, Any] | 
     path = human_approval_record_path(vault_path, slug)
     if not path.exists():
         return None
-    return _read_json(path)
+    return read_json_dict(path, default={}) or {}
 
 
 def validate_human_approval_record(

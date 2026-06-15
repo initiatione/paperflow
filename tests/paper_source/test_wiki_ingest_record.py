@@ -92,11 +92,6 @@ def test_orchestrator_reexports_wiki_record_workflow_entrypoints():
 
     assert orchestrator_module.record_human_approval is wiki_record_workflows.record_human_approval
     assert orchestrator_module.record_wiki_ingest is wiki_record_workflows.record_wiki_ingest
-    assert orchestrator_module._write_promotion_or_rollback_run_state is (
-        wiki_record_workflows._write_promotion_or_rollback_run_state
-    )
-    assert orchestrator_module._write_promotion_routed_report is wiki_record_workflows._write_promotion_routed_report
-    assert orchestrator_module._write_rollback_routed_report is wiki_record_workflows._write_rollback_routed_report
 
 
 def _write_json(path, payload):

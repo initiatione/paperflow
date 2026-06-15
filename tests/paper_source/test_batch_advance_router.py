@@ -8,7 +8,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from paper_source.artifacts import file_sha256, json_sha256
-from paper_source.generate_reader import generate_reader_outputs
+from paper_source.review.generate_reader import generate_reader_outputs
 from paper_source.orchestrator import advance_paper_batch, advance_paper_batch_from_run, prepare_ranked_papers_from_run
 
 

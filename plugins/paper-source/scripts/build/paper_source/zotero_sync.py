@@ -1,29 +1,20 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
-from paper_source.artifacts import utc_now, write_json_atomic
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
+from paper_source.artifacts import read_json_dict, utc_now, write_json_atomic
 
 
 def _metadata_snapshot(paper_root: Path) -> dict[str, Any]:
-    metadata = _read_json(paper_root / "metadata.json")
+    metadata = read_json_dict(paper_root / "metadata.json", default={}) or {}
     keys = ["slug", "title", "doi", "arxiv_id", "venue", "year", "authors", "pdf_url"]
     return {key: metadata[key] for key in keys if key in metadata}
 
 
 def _wiki_ingest_snapshot(paper_root: Path) -> dict[str, Any]:
     record_path = paper_root / "wiki-ingest-record.json"
-    record = _read_json(record_path)
+    record = read_json_dict(record_path, default={}) or {}
     if not record:
         return {"status": "not_recorded", "record_path": str(record_path), "final_wiki_pages": []}
     return {

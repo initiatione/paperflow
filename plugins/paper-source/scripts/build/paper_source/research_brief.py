@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from paper_source.artifacts import json_sha256, paper_source_root, utc_now, write_json_atomic, write_text_atomic
+from paper_source.artifacts import json_sha256, paper_source_root, read_json, utc_now, write_json_atomic, write_text_atomic
 
 SCHEMA_VERSION = "paper-source-research-brief-v1"
 STATUS_VALUES = {"draft", "confirmed", "superseded"}
@@ -365,7 +365,7 @@ def create_research_brief(vault_path: Path, answers: dict[str, Any], *, now: str
 
 def load_research_brief(path: Path, *, allow_draft: bool = False) -> dict[str, Any]:
     json_path = Path(path)
-    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    payload = read_json(json_path)
     validated = _validate_persisted_research_brief_payload(payload)
     status = validated["status"]
     if status == "draft":

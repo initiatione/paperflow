@@ -10,7 +10,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from paper_source.artifacts import PAPER_SOURCE_ROOT_NAME, file_sha256, utc_now, write_json_atomic, write_text_atomic
+from paper_source.artifacts import PAPER_SOURCE_ROOT_NAME, file_sha256, read_json, utc_now, write_json_atomic, write_text_atomic
 from paper_source.asset_normalization import count_preserved_images, normalize_mineru_assets
 from paper_source.evidence_index import build_paper_evidence_index
 from paper_source.runtime_config import apply_runtime_config
@@ -79,7 +79,7 @@ def _read_manifest(output_dir: Path) -> tuple[dict | None, Path | None]:
     if not manifests:
         return None, None
     manifest_path = manifests[0]
-    return json.loads(manifest_path.read_text(encoding="utf-8")), manifest_path
+    return read_json(manifest_path), manifest_path
 
 
 def _resolve_manifest_path(work_dir: Path, value: str | None) -> Path | None:

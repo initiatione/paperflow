@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Any
 
 from paper_source.artifacts import write_text_atomic
-from paper_source.reader_protocol import claim_record, evidence_line, first_section
-from paper_source.reader_revision_guidance import render_role_revision_focus_section
+from paper_source.review.reader_protocol import claim_record, evidence_line, first_section
+from paper_source.review.reader_revision_guidance import render_role_revision_focus_section
 from paper_source.source_artifacts import MINERU_MARKDOWN_ARTIFACT_LABEL
 
 

@@ -1,6 +1,6 @@
 import json
 
-from paper_source.generate_reader import generate_reader_outputs
+from paper_source.review.generate_reader import generate_reader_outputs
 
 
 def test_generate_reader_outputs_emits_structured_evidence_addresses(tmp_path):

@@ -1,5 +1,5 @@
-from paper_source.reader_outputs import write_role_reader_outputs
-from paper_source.reader_revision_guidance import render_revision_guidance
+from paper_source.review.reader_outputs import write_role_reader_outputs
+from paper_source.review.reader_revision_guidance import render_revision_guidance
 
 
 def test_reader_outputs_module_writes_role_artifacts_and_claim_records(tmp_path):

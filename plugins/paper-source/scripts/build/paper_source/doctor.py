@@ -7,6 +7,7 @@ import shutil
 import webbrowser
 from pathlib import Path
 
+from paper_source.artifacts import read_json
 from paper_source.config import config_status
 from paper_source.paper_search_adapter import paper_search_provider_readiness
 from paper_source.paper_search_adapter import paper_search_source_capabilities
@@ -104,7 +105,7 @@ def _load_plugin_metadata(plugin_root: Path) -> tuple[dict, dict]:
             },
         )
     try:
-        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        payload = read_json(manifest_path)
     except json.JSONDecodeError as exc:
         return (
             {"name": "unknown", "version": "unknown"},
@@ -358,7 +359,7 @@ def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
             "message": "plugin .mcp.json is missing; paper-search-mcp self-registration will not be installed",
         }
     try:
-        payload = json.loads(mcp_path.read_text(encoding="utf-8"))
+        payload = read_json(mcp_path)
     except (OSError, json.JSONDecodeError) as exc:
         return {
             "name": "mcp_outer_launcher",
