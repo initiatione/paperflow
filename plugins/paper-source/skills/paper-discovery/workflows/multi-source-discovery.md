@@ -14,13 +14,14 @@ Use this workflow when the user asks for high-quality papers, latest papers, non
 2. Build a query plan by `query-planner.md`; use config first and `domain-ontology.md` only as optional examples for synonyms, exclusions, and evidence terms.
 3. Build 5-8 query variants from agent analysis of the user request. Include exact phrases, acronym expansions, task/method branches, code or benchmark evidence terms when requested, and `-review -survey` unless reviews are explicitly requested.
    - If the user specifies recent papers, public code, or similar executable constraints, pass them as `year_min` and `code_policy` via `--agent-query-plan-json` or CLI flags; do not leave them only in query text.
+   - Put only confirmed hard anchors in `hard_domain_anchors` / `hard_constraints` or CLI `--domain-focus-term`; put inferred expansions in `soft_recall_terms`.
 4. Route sources by `source-tiers.md`.
 5. Search T1 sources first through `paper_search_mcp` or configured source adapters by passing the compiled variants with repeated `--query-variant` or `--agent-query-plan-json`; keep the raw user request only as the run intent label.
 6. Use `two-stage-retrieval.md`: collect a high-recall candidate pool before precision filtering.
-7. Deduplicate by `dedup-engine.md`.
+7. Deduplicate by `dedup-engine.md`, using wiki `_meta/reference-index.json` before raw `_paper_source` metadata.
 8. Apply venue prior using `venue-prior.md`, then verify venue/citation/DOI/PDF/code and record unverified metrics explicitly.
 9. Expand strong seed papers with `citation-graph.md` when latest/high-quality recall matters.
-10. Apply `quality-gate.md` to label Tier A/B/C/Reject.
+10. Apply `quality-gate.md` to label Tier A/B/C/Reject and record `selection_policy`.
 11. If venue priors indicate missing obvious venues or papers, run a sharper rerun and record the recall gap.
 12. Present all kept papers using `output-format.md`.
 
@@ -39,6 +40,7 @@ Do not promote a paper only because a venue is highly ranked. A strong venue wit
 The final answer should distinguish:
 
 - `query_plan`: concept blocks, query variants, domain anchors, and request constraints used.
+- `discovery_diagnostics`: hard vs soft term provenance, recommendation filter counts, `needs_pdf`, and rejection/readiness reasons.
 - `candidate_pool`: rough size before and after dedup/filter.
 - `venue_prior`: community or curated venue tier, if used.
 - `verified_metrics`: DOI, citation count, IF/JCR/CiteScore, official venue page, PDF/code.

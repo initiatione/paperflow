@@ -106,6 +106,7 @@ def test_rank_candidates_routes_weak_reproducibility_as_review_candidate():
         candidates,
         positive_keywords=["humanoid", "control"],
         venue_tiers={"icra": 1.0},
+        selection_policy="strict_advance",
     )
 
     protocol = ranked[0]["ranking_protocol"]
@@ -120,6 +121,33 @@ def test_rank_candidates_routes_weak_reproducibility_as_review_candidate():
     assert rationale["recommendation"] == "review-candidate"
     assert "review before ingest" in rationale["one_sentence"]
     assert "weak_reproducibility_signal" in rationale["review_before_ingest"]
+
+
+def test_rank_candidates_balanced_policy_advances_reviewable_tier_b_candidate():
+    candidates = [
+        {
+            "slug": "interesting-no-code",
+            "title": "Humanoid Control in Simulation",
+            "abstract": "A robotics control method evaluated in simulation.",
+            "year": 2025,
+            "venue": "Workshop",
+            "citation_count": 1,
+            "pdf_url": "https://example.org/paper.pdf",
+        }
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=["humanoid", "control"],
+        venue_tiers={"icra": 1.0},
+    )
+
+    protocol = ranked[0]["ranking_protocol"]
+    assert protocol["selection_policy"] == "balanced_high_quality"
+    assert protocol["decision"] == "advance-candidate"
+    assert protocol["quality_tier"] == "Tier B"
+    assert "weak_reproducibility_signal" in protocol["cautions"]
+    assert ranked[0]["ranking_rationale"]["recommendation"] == "advance-candidate"
 
 
 def test_rank_candidates_penalizes_negative_profile_keywords():

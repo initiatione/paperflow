@@ -251,8 +251,8 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     assert "5-8 query variants" in search_protocol
     assert "--no-query-plan" in search_protocol
     assert "profile or current request" in search_protocol
-    assert "domain_focus_terms" in search_protocol
-    assert "hard anchor gate" in search_protocol
+    assert "hard_domain_anchors" in search_protocol
+    assert "soft_recall_terms" in search_protocol
     assert "targeted verification fallback only after a Paper Source candidate or run artifact exists" in search_protocol
     assert "Do not use Firecrawl, generic web search, publisher search, or GitHub search as the primary discovery provider" in search_protocol
     assert "Default to `dry-run` resume" in search_protocol
@@ -264,6 +264,8 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     assert "source tier" in source_tiers.lower()
     assert "field community lists" in source_tiers
     assert "DOI" in dedup_engine
+    assert "_meta\\reference-index.json" in dedup_engine
+    assert "already_in_wiki:<page>" in dedup_engine
     assert "already_in_library:<slug>" in dedup_engine
     assert "venue_prior" in venue_prior
     assert "configured or curated prior" in venue_prior
@@ -271,7 +273,7 @@ def test_paper_discovery_reference_files_exist_and_hold_split_protocol():
     assert "Robotics/control profiles may list" in venue_prior
     assert "High Recall Candidate Pool" in two_stage
     assert "query-plan.json" in two_stage
-    assert "domain_focus_terms" in two_stage
+    assert "hard_domain_anchors" in two_stage
     assert "precision_at_10" in evaluation_set
     assert "recent cited-by" in citation_graph
     assert "query_plan" in workflow

@@ -1,7 +1,7 @@
 {
   "name": "paper-source",
-  "version": "1.0.6",
-  "description": "Paper Source finds, ranks, parses, stages, and hands off paper evidence for Paper Wiki-compatible vaults.",
+  "version": "1.1.0",
+  "description": "Paper Source finds, deduplicates against Paper Wiki backlogs, ranks, parses, stages, and hands off paper evidence for Paper Wiki-compatible vaults.",
   "author": {
     "name": "liuchf"
   },
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Source",
-    "shortDescription": "v1.0.6 | Paper Source: find, parse, stage, hand off, and record.",
-    "longDescription": "Paper Source is the source/evidence layer for PaperFlow: configure profile-driven discovery, acquire PDFs or manual-download records, parse with MinerU, preserve source bundles, produce Chinese approval reports, hand off via wiki-ingest-brief.json, and record final wiki ingest. Paper Wiki or another wiki-capable agent owns formal page writing.",
+    "shortDescription": "v1.1.0 | Paper Source: find, dedupe, rank, stage, hand off, record.",
+    "longDescription": "Paper Source is the source/evidence layer for PaperFlow: configure profile-driven discovery, deduplicate against wiki _meta/reference-index.json before raw source bundles, record transparent query plans with hard/soft constraints, acquire PDFs or manual-download records, parse with MinerU, preserve source bundles, produce Chinese approval reports, hand off via wiki-ingest-brief.json, and record final wiki ingest. Paper Wiki or another wiki-capable agent owns formal page writing.",
     "developerName": "liuchf",
     "category": "Productivity",
     "capabilities": [
@@ -32,7 +32,7 @@
     "termsOfServiceURL": "https://github.com/initiatione/paperflow/blob/main/plugins/paper-source/docs/terms.md",
     "defaultPrompt": [
       "Set up Paper Source / PS configuration.",
-      "Use Paper Source / PS to find, rank, and stage high-quality papers.",
+      "Use Paper Source / PS to find, dedupe, rank, diagnose, and stage high-quality papers.",
       "Prepare selected papers for Paper Wiki handoff and record wiki ingest."
     ]
   }

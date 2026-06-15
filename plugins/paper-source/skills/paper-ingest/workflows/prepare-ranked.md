@@ -7,13 +7,14 @@ Use after `paper-discovery` produced a ranked dry-run and the user wants source 
 ```powershell
 python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 10 --skip-existing --include-review-candidates --vault <vault>
 python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 10 --skip-existing --include-review-candidates --vault <vault> --json
+python scripts\orchestrator.py discover-to-handoff --query "<topic>" --max-results 20 --max-papers 10 --selection-policy balanced_high_quality --skip-existing --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <dry-run-id> --max-papers 1 --vault <vault>
 python scripts\orchestrator.py advance-ranked --run-id <dry-run-id> --max-papers 3 --mode reviewed-ingest --vault <vault>
 python scripts\orchestrator.py advance-ranked --run-id <dry-run-id> --max-papers 3 --mode audited-ingest --vault <vault>
 python scripts\orchestrator.py advance-batch --candidates <candidate-json> --max-papers 3 --mode audited-ingest --vault <vault>
 ```
 
-Use `--max-papers 10 --skip-existing` for real testing; `--max-papers 1` is a smoke test. Use `--json` to capture prepared/source run ids, processed/skipped counts, `stops_after=source-staging`, and artifact paths. `--skip-existing` skips only papers with complete source artifacts plus matching source-staging `promotion-plan.json`; parsed-only papers still need staging and a report. Use `reviewed-ingest` when reader navigation is needed; use `audited-ingest` for key, reproducibility, contradiction, explicit-review, or project-decision papers.
+Use `--max-papers 10 --skip-existing` for real testing; `--max-papers 1` is a smoke test. Use `--json` to capture prepared/source run ids, processed/skipped counts, `stops_after=source-staging`, selection policy, and artifact paths. `--skip-existing` skips only papers with complete source artifacts plus matching source-staging `promotion-plan.json`; parsed-only papers still need staging and a report. Use `--selection-policy strict_advance` to keep old advance-only behavior, `balanced_high_quality` for the default high-quality review-candidate path, and `code_required` only when the user made code a hard requirement. Use `reviewed-ingest` when reader navigation is needed; use `audited-ingest` for key, reproducibility, contradiction, explicit-review, or project-decision papers. `discover-to-handoff` wraps dry-run plus prepare-ranked and writes a summary run, but it does not record approval, invoke Paper Wiki, or write final wiki pages.
 
 ## Acquisition Policy
 

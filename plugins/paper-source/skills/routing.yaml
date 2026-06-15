@@ -8,14 +8,14 @@ session_discipline: {re_match_every_task: true, re_read_when: [route_changed, co
 always_read: [../AGENTS.md, routing.yaml]
 routes:
   config_setup: {category: primary, triggers: [配置 Paper Source, 初始化配置, 查看当前配置, 修改研究画像, missing config, update runtime config], skill: config-setup/SKILL.md, docs: [../docs/config.md]}
-  paper_discovery: {category: primary, triggers: [用 PS 找论文, 找最新论文, 推荐优先阅读论文, Paper Source search, dry-run], skill: paper-discovery/SKILL.md, workflows: [paper-discovery/workflows/run-discovery.md, paper-discovery/workflows/multi-source-discovery.md], notes: [profile-driven, not fixed-domain]}
+  paper_discovery: {category: primary, triggers: [用 PS 找论文, 找最新论文, 推荐优先阅读论文, Paper Source search, dry-run, discover-to-handoff], skill: paper-discovery/SKILL.md, workflows: [paper-discovery/workflows/run-discovery.md, paper-discovery/workflows/multi-source-discovery.md], notes: [profile-driven, not fixed-domain, hard-soft-query-plan]}
   research_grill_me:
     category: primary
     triggers: [clarify a research direction, 研究简报, 帮我梳理科研方向, 强追问科研问题, deep-research prompt]
     skill: research-grill-me/SKILL.md
     notes: [one decision point per turn, chat-visible deep-research prompt, Research Briefs override Research Profile for the current task, Research Briefs cannot bypass source-staging or Paper Wiki handoff gates]
   topic_tracking: {category: primary, triggers: [持续跟踪方向, 最近有什么新论文, backlog, coverage gap], skill: topic-tracking/SKILL.md, notes: [paper-discovery retrieves; topic-tracking owns the ledger]}
-  paper_ingest: {category: primary, triggers: [用 PS 推进论文, 推进论文, 生成阅读报告, 准备 wiki handoff, prepare-ranked, advance-paper], skill: paper-ingest/SKILL.md, workflows: [paper-ingest/workflows/prepare-ranked.md, paper-ingest/workflows/approval-and-trigger.md], notes: [source_bundle_audit blocks incomplete handoff, final prose defaults to Chinese]}
+  paper_ingest: {category: primary, triggers: [用 PS 推进论文, 推进论文, 生成阅读报告, 准备 wiki handoff, prepare-ranked, discover-to-handoff, advance-paper], skill: paper-ingest/SKILL.md, workflows: [paper-ingest/workflows/prepare-ranked.md, paper-ingest/workflows/approval-and-trigger.md], notes: [source_bundle_audit blocks incomplete handoff, discover-to-handoff stops before approval, final prose defaults to Chinese]}
   mineru_paper_parser: {category: support, triggers: [MinerU 解析, PDF 转 Markdown, parse-paper, mineru-manifest.json, figure-index.json, formula-index.json, normalize-mineru-assets], skill: mineru-paper-parser/SKILL.md, notes: [raw asset normalization; formal figure repairs route to Paper Wiki]}
   paper_source_paper_deposition:
     category: maintenance

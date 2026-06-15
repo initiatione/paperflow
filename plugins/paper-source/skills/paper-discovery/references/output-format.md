@@ -29,7 +29,7 @@ Then add `Paper Source 实测证据` with:
 - ranking evidence: `paper_type`, `quality_tier`, `quality_gate`, `ranking_confidence`, and key rubric dimensions
 - EasyScholar evidence: `easyscholar-record.json`, `easyscholar_score`, and matched/no-match/missing-key counts when checked
 - accepted/rejected counts
-- review exclusion evidence and already-downloaded exclusions such as `already_in_library:<slug>`
+- review exclusion evidence, wiki backlog exclusions such as `already_in_wiki:<page>`, and raw-library exclusions such as `already_in_library:<slug>`
 - query variants and whether a sharper rerun was needed
 - venue prior sources used, especially configured field venues or curated field lists; weak community hints must be labeled as unverified context
 - citation graph expansion evidence when used

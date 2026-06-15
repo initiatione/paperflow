@@ -398,6 +398,24 @@ def write_report(
                     "- request_constraints: "
                     + ", ".join(f"{key}={value}" for key, value in request_constraints.items())
                 )
+            recommendation_filter = discovery_context.get("recommendation_filter") or {}
+            if recommendation_filter:
+                report.append(
+                    "- recommendation_filter: "
+                    + ", ".join(f"{key}={value}" for key, value in recommendation_filter.items())
+                )
+            existing_library = discovery_context.get("existing_library") or {}
+            if existing_library:
+                report.append(
+                    "- existing_library: "
+                    + ", ".join(
+                        f"{key}={value}"
+                        for key, value in existing_library.items()
+                        if key in {"wiki_count", "raw_count", "reference_index_status"}
+                    )
+                )
+            if discovery_context.get("diagnostics_path"):
+                report.append(f"- diagnostics: {discovery_context['diagnostics_path']}")
             candidate_pool = discovery_context.get("candidate_pool") or {}
             if candidate_pool:
                 report.append(

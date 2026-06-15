@@ -24,9 +24,17 @@ When duplicates appear, keep the record with:
 
 Do not silently discard useful fields from duplicates. Preserve alternate source names, source URLs, and metadata provenance when the implementation supports it.
 
-## Wiki Library Dedup
+## Wiki Backlog Dedup
 
-Before recommending, compare candidates against `<vault>\_paper_source\\raw\\*\metadata.json`.
+Before recommending, compare candidates against `<vault>\_meta\reference-index.json`. This index is the lightweight backlog of papers already deposited into the wiki.
+
+Reject already deposited papers with:
+
+```text
+already_in_wiki:<page>
+```
+
+Then fall back to `<vault>\_paper_source\\raw\\*\metadata.json` for papers that have source bundles but may not yet have formal reference pages.
 
 Reject already downloaded papers with:
 
@@ -34,7 +42,7 @@ Reject already downloaded papers with:
 already_in_library:<slug>
 ```
 
-Do not recommend them again unless the user explicitly asks to repair, reparse, or revisit an existing paper.
+Do not recommend either class again unless the user explicitly asks to repair, reparse, update, or revisit an existing paper.
 
 ## Conflict Handling
 

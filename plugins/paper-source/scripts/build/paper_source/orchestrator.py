@@ -39,7 +39,7 @@ from paper_source.paper_search_adapter import (
 )
 from paper_source.query_planner import build_query_plan, build_query_plan_from_research_brief, infer_research_mode, topic_focus_terms
 from paper_source.raw_cleanup import cleanup_failed_raw_paper
-from paper_source.rank_papers import rank_candidates
+from paper_source.rank_papers import SELECTION_POLICIES, rank_candidates
 from paper_source.redo import redo_acquire, redo_parse, redo_read, redo_read_recritic, recritic
 from paper_source.research_brief import ResearchBriefValidationError, load_research_brief
 from paper_source.report_run import write_report
@@ -240,6 +240,13 @@ def _unique_nonempty_strings(values: list[str] | None, *, split_commas: bool = F
 CODE_POLICIES = {"ignore", "prefer", "require"}
 
 
+def _normalize_selection_policy(value: object) -> str:
+    policy = str(value or "balanced_high_quality").strip().lower()
+    if policy not in SELECTION_POLICIES:
+        raise ValueError(f"unknown selection_policy: {value}")
+    return policy
+
+
 def _normalize_year_min(value: object) -> int | None:
     if value is None or value == "":
         return None
@@ -281,10 +288,26 @@ def _load_agent_query_plan_json(path: Path | None) -> dict | None:
         raise ValueError(f"agent query plan JSON is invalid: {path}") from exc
     if not isinstance(payload, dict):
         raise ValueError("agent query plan JSON must be an object")
-    for key in ("query_variants", "domain_focus_terms", "must_have_domain_anchors"):
+    list_fields = (
+        "query_variants",
+        "domain_focus_terms",
+        "must_have_domain_anchors",
+        "hard_domain_anchors",
+        "soft_recall_terms",
+        "exclusions",
+        "ambiguities",
+    )
+    for key in list_fields:
         value = payload.get(key)
         if value is not None and not isinstance(value, list):
             raise ValueError(f"agent query plan field must be a list: {key}")
+    hard_constraints = payload.get("hard_constraints")
+    if hard_constraints is not None and not isinstance(hard_constraints, (dict, list)):
+        raise ValueError("agent query plan field must be an object or list: hard_constraints")
+    for key in ("term_provenance", "confidence"):
+        value = payload.get(key)
+        if value is not None and not isinstance(value, dict):
+            raise ValueError(f"agent query plan field must be an object: {key}")
     return payload
 
 
@@ -313,6 +336,63 @@ def _agent_plan_constraint(payload: dict | None, key: str) -> object:
     return None
 
 
+def _constraint_terms(payload: object, *keys: str, split_commas: bool = True) -> list[str]:
+    terms: list[str] = []
+    if isinstance(payload, dict):
+        for key in keys:
+            value = payload.get(key)
+            if isinstance(value, str):
+                terms.append(value)
+            elif isinstance(value, list):
+                terms.extend(str(item) for item in value)
+        constraints = payload.get("constraints")
+        if isinstance(constraints, dict):
+            terms.extend(_constraint_terms(constraints, *keys, split_commas=split_commas))
+    elif isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, str):
+                terms.append(item)
+            elif isinstance(item, dict):
+                terms.extend(_constraint_terms(item, *keys, split_commas=split_commas))
+    return _unique_nonempty_strings(terms, split_commas=split_commas)
+
+
+def _agent_plan_hard_domain_anchors(payload: dict | None) -> list[str]:
+    if not payload:
+        return []
+    return _unique_nonempty_strings(
+        _agent_plan_strings(payload, "hard_domain_anchors", "must_have_domain_anchors", split_commas=True)
+        + _constraint_terms(
+            payload.get("hard_constraints"),
+            "domain_focus_terms",
+            "domain_anchors",
+            "hard_domain_anchors",
+            "must_have_domain_anchors",
+            split_commas=True,
+        ),
+        split_commas=True,
+    )
+
+
+def _agent_plan_soft_recall_terms(payload: dict | None) -> list[str]:
+    if not payload:
+        return []
+    return _unique_nonempty_strings(
+        _agent_plan_strings(payload, "soft_recall_terms", "recall_terms", "expanded_terms", split_commas=True)
+        + _agent_plan_strings(payload, "domain_focus_terms", split_commas=True),
+        split_commas=True,
+    )
+
+
+def _merge_term_provenance(plan: dict, terms: list[str], source: str) -> None:
+    if not terms:
+        return
+    provenance = plan.get("term_provenance") if isinstance(plan.get("term_provenance"), dict) else {}
+    for term in terms:
+        provenance.setdefault(term, source)
+    plan["term_provenance"] = provenance
+
+
 def _minimal_agent_supplied_query_plan(query: str, *, config) -> dict:
     focus_terms = topic_focus_terms(query)
     profile_terms = _unique_nonempty_strings(
@@ -338,6 +418,8 @@ def _minimal_agent_supplied_query_plan(query: str, *, config) -> dict:
             "profile_terms": profile_terms,
             "domain_terms": domain_terms,
             "domain_focus_terms": [],
+            "hard_domain_anchors": [],
+            "soft_recall_terms": [],
             "method_or_topic_terms": method_terms,
             "problem_terms": focus_terms,
             "context_terms": [],
@@ -378,28 +460,65 @@ def _apply_agent_supplied_query_inputs(
     if isinstance(plan_blocks, dict):
         for key, value in plan_blocks.items():
             if isinstance(value, list):
-                blocks[key] = _unique_nonempty_strings([str(item) for item in value] + list(blocks.get(key) or []))
-    if domain_focus_terms:
-        blocks["domain_focus_terms"] = _unique_nonempty_strings(domain_focus_terms)
-        blocks["domain_terms"] = _unique_nonempty_strings(domain_focus_terms + list(blocks.get("domain_terms") or []))
+                target_key = "soft_recall_terms" if key == "domain_focus_terms" else key
+                blocks[target_key] = _unique_nonempty_strings(
+                    [str(item) for item in value] + list(blocks.get(target_key) or [])
+                )
+    hard_domain_anchors = _unique_nonempty_strings(
+        domain_focus_terms + _agent_plan_hard_domain_anchors(agent_query_plan),
+        split_commas=True,
+    )
+    soft_recall_terms = _agent_plan_soft_recall_terms(agent_query_plan)
+    if hard_domain_anchors:
+        blocks["hard_domain_anchors"] = hard_domain_anchors
+        blocks["domain_focus_terms"] = _unique_nonempty_strings(
+            hard_domain_anchors + list(blocks.get("domain_focus_terms") or []),
+            split_commas=True,
+        )
+        blocks["domain_terms"] = _unique_nonempty_strings(hard_domain_anchors + list(blocks.get("domain_terms") or []))
+    if soft_recall_terms:
+        blocks["soft_recall_terms"] = _unique_nonempty_strings(
+            soft_recall_terms + list(blocks.get("soft_recall_terms") or []),
+            split_commas=True,
+        )
+    _merge_term_provenance(plan, domain_focus_terms, "cli_explicit_hard_anchor")
+    _merge_term_provenance(plan, _agent_plan_hard_domain_anchors(agent_query_plan), "agent_explicit_hard_anchor")
+    _merge_term_provenance(plan, list(blocks.get("soft_recall_terms") or []), "agent_or_topic_soft_recall")
     if query_variants:
         plan["query_variants"] = query_variants
         plan["query_variants_source"] = "agent_supplied"
-    if domain_focus_terms:
-        plan["domain_focus_terms_source"] = "agent_supplied"
+    if hard_domain_anchors:
+        plan["domain_focus_terms_source"] = "explicit_hard_anchor"
     request_constraints = _request_constraints_payload(year_min, code_policy)
     if request_constraints:
         plan["request_constraints"] = {
             **request_constraints,
             "source": "agent_supplied" if agent_query_plan or query_variants or domain_focus_terms else "cli",
         }
+    plan["hard_constraints"] = {
+        "domain_anchors": hard_domain_anchors,
+        "policy": "Only user/config/Research Brief/confirmed anchors should be passed here; inferred terms stay soft.",
+    }
+    plan["soft_recall_terms"] = list(blocks.get("soft_recall_terms") or [])
+    if isinstance(agent_query_plan, dict):
+        if isinstance(agent_query_plan.get("ambiguities"), list):
+            plan["ambiguities"] = [str(item) for item in agent_query_plan.get("ambiguities") or []]
+        if isinstance(agent_query_plan.get("confidence"), dict):
+            plan["confidence"] = agent_query_plan["confidence"]
+        if isinstance(agent_query_plan.get("term_provenance"), dict):
+            provenance = plan.get("term_provenance") if isinstance(plan.get("term_provenance"), dict) else {}
+            provenance = {**agent_query_plan["term_provenance"], **provenance}
+            plan["term_provenance"] = provenance
     plan["agent_supplied"] = {
         "query_variants": query_variants,
         "domain_focus_terms": domain_focus_terms,
+        "hard_domain_anchors": hard_domain_anchors,
+        "agent_hard_domain_anchors": _agent_plan_hard_domain_anchors(agent_query_plan),
+        "soft_recall_terms": list(blocks.get("soft_recall_terms") or []),
         "agent_query_plan_path": str(agent_query_plan_path) if agent_query_plan_path else None,
         "agent_query_plan": agent_query_plan or {},
         "request_constraints": request_constraints,
-        "contract": "agent_compiles_natural_language; script_records_and_executes",
+        "contract": "agent_plans_natural_language; script_validates_records_executes; inferred_terms_do_not_become_hard_filters",
     }
     return plan
 
@@ -482,12 +601,14 @@ def _venue_tiers_from_profile(config, query_plan: dict | None) -> dict[str, floa
 def _filter_domains_from_profile(config, query_plan: dict | None) -> list[str]:
     if query_plan:
         blocks = query_plan.get("concept_blocks") or {}
-        domain_focus_terms = blocks.get("domain_focus_terms") or []
-        if isinstance(domain_focus_terms, list) and domain_focus_terms:
-            return [str(term) for term in domain_focus_terms]
-        domain_terms = blocks.get("domain_terms") or []
-        if isinstance(domain_terms, list):
-            return [str(term) for term in domain_terms]
+        hard_domain_anchors = blocks.get("hard_domain_anchors") or []
+        if isinstance(hard_domain_anchors, list) and hard_domain_anchors:
+            return [str(term) for term in hard_domain_anchors]
+        if query_plan.get("domain") == "research-brief":
+            domain_focus_terms = blocks.get("domain_focus_terms") or []
+            if isinstance(domain_focus_terms, list) and domain_focus_terms:
+                return [str(term) for term in domain_focus_terms]
+        return []
     if config.domains:
         return config.domains
     return []
@@ -700,6 +821,15 @@ def _source_coverage_from_search_record(search_record: dict, deduped_total: int 
             "provider_readiness", coverage["provider_readiness"]
         )
     return coverage
+
+
+def _reason_counts(candidates: list[dict], field: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for candidate in candidates:
+        for reason in candidate.get(field) or []:
+            reason_text = str(reason)
+            counts[reason_text] = counts.get(reason_text, 0) + 1
+    return counts
 
 
 def _run_query_plan_discovery(
@@ -1098,12 +1228,14 @@ def run_dry_run(
     query_plan_domain: str = "auto",
     query_plan_max_queries: int = 6,
     enable_easyscholar: bool = True,
+    selection_policy: str = "balanced_high_quality",
     resume: bool = True,
     refresh: bool = False,
     from_brief: Path | None = None,
     allow_draft_brief: bool = False,
 ) -> Path:
     config = load_config(plugin_root=plugin_root, vault_path=vault_path, max_results=max_results)
+    selection_policy = _normalize_selection_policy(selection_policy)
     brief_payload: dict | None = None
     brief_metadata: dict | None = None
     if from_brief is not None:
@@ -1137,15 +1269,9 @@ def run_dry_run(
     supplied_query_variants = _unique_nonempty_strings(
         _agent_plan_strings(agent_query_plan_payload, "query_variants") + _unique_nonempty_strings(query_variants)
     )
-    supplied_domain_focus_terms = _unique_nonempty_strings(
-        _agent_plan_strings(
-            agent_query_plan_payload,
-            "domain_focus_terms",
-            "must_have_domain_anchors",
-            split_commas=True,
-        )
-        + _unique_nonempty_strings(domain_focus_terms, split_commas=True)
-    )
+    supplied_domain_focus_terms = _unique_nonempty_strings(domain_focus_terms, split_commas=True)
+    agent_soft_recall_terms = _agent_plan_soft_recall_terms(agent_query_plan_payload)
+    agent_hard_domain_anchors = _agent_plan_hard_domain_anchors(agent_query_plan_payload)
     request_year_min = _normalize_year_min(
         year_min if year_min is not None else _agent_plan_constraint(agent_query_plan_payload, "year_min")
     )
@@ -1207,11 +1333,14 @@ def run_dry_run(
             "use_query_plan": use_query_plan,
             "agent_query_variants": supplied_query_variants,
             "agent_domain_focus_terms": supplied_domain_focus_terms,
+            "agent_hard_domain_anchors": agent_hard_domain_anchors,
+            "agent_soft_recall_terms": agent_soft_recall_terms,
             "agent_query_plan_json": str(agent_query_plan_json) if agent_query_plan_json else None,
             "request_constraints": request_constraints,
             "query_plan_domain": query_plan_domain,
             "query_plan_max_queries": query_plan_max_queries,
             "enable_easyscholar": bool(enable_easyscholar and config.easyscholar_enabled),
+            "selection_policy": selection_policy,
             "research_brief": brief_metadata or {},
         }
     )
@@ -1253,6 +1382,7 @@ def run_dry_run(
     }
     if request_constraints:
         state["request_constraints"] = request_constraints
+    state["selection_policy"] = selection_policy
     if brief_metadata:
         state["research_brief"] = brief_metadata
     if query_plan:
@@ -1303,8 +1433,16 @@ def run_dry_run(
     filter_report["existing_library"] = {
         "papers_root": existing_library_index.get("papers_root"),
         "count": existing_library_index.get("count", 0),
+        "raw_count": existing_library_index.get("raw_count", 0),
+        "wiki_count": existing_library_index.get("wiki_count", 0),
+        "reference_index_path": existing_library_index.get("reference_index_path"),
+        "reference_index_status": existing_library_index.get("reference_index_status"),
+        "reference_index_schema": existing_library_index.get("reference_index_schema"),
+        "policy": "dedupe wiki _meta/reference-index.json first, then _paper_source/raw metadata fallback",
     }
     filtered = filter_report["kept"]
+    staging_ready = filter_report.get("staging_ready", [])
+    needs_pdf = filter_report.get("needs_pdf", [])
     rejected = filter_report["rejected"]
     write_json_atomic(run_dir / "filter-report.json", filter_report)
     state["state"] = "filtered"
@@ -1335,6 +1473,7 @@ def run_dry_run(
         venue_tiers=_venue_tiers_from_profile(config, query_plan),
         year_min=request_year_min,
         code_policy=request_code_policy,
+        selection_policy=selection_policy,
     )
     ranked = ranked_pool[: config.max_results]
     write_json_atomic(run_dir / "rank.json", ranked)
@@ -1349,7 +1488,10 @@ def run_dry_run(
         "filtered_candidate_pool_count": len(filtered),
         "ranked_candidate_pool_count": len(ranked_pool),
         "accepted_count": len(ranked),
+        "staging_ready_count": len(staging_ready),
+        "needs_pdf_count": len(needs_pdf),
         "rejected_count": len(rejected),
+        "selection_policy": selection_policy,
     }
     if query_plan:
         budget_usage["query_variant_count"] = len(query_plan.get("query_variants") or [])
@@ -1403,8 +1545,18 @@ def run_dry_run(
             "filtered": len(filtered),
             "ranked": len(ranked_pool),
             "accepted": len(ranked),
+            "staging_ready": len(staging_ready),
+            "needs_pdf": len(needs_pdf),
             "rejected": len(rejected),
         },
+        "recommendation_filter": {
+            "hard_filter_count": len(rejected),
+            "recommendable_count": len(filtered),
+            "staging_ready_count": len(staging_ready),
+            "needs_pdf_count": len(needs_pdf),
+            "policy": "missing PDF affects staging readiness, not recommendation eligibility when identity is stable",
+        },
+        "existing_library": filter_report.get("existing_library", {}),
         "query_records": search_record.get("query_records", []),
         "source_coverage": source_coverage,
         "request_constraints": request_constraints,
@@ -1416,6 +1568,38 @@ def run_dry_run(
         },
         "review_session": review_session_payload,
     }
+    discovery_diagnostics = {
+        "schema_version": "paper-source-discovery-diagnostics-v1",
+        "run_id": run_id,
+        "selection_policy": selection_policy,
+        "query_plan_contract": {
+            "hard_domain_anchors": (query_plan or {}).get("concept_blocks", {}).get("hard_domain_anchors", []),
+            "soft_recall_terms": (query_plan or {}).get("soft_recall_terms")
+            or (query_plan or {}).get("concept_blocks", {}).get("soft_recall_terms", []),
+            "term_provenance": (query_plan or {}).get("term_provenance", {}),
+            "policy": "hard filters come only from explicit/config/Research Brief anchors; inferred terms are recall evidence",
+        },
+        "candidate_pool": discovery_context["candidate_pool"],
+        "recommendation_filter": discovery_context["recommendation_filter"],
+        "existing_library": filter_report.get("existing_library", {}),
+        "rejection_reason_counts": _reason_counts(rejected, "filter_reasons"),
+        "readiness_reason_counts": _reason_counts(needs_pdf, "readiness_reasons"),
+        "needs_pdf": [
+            {
+                "slug": candidate.get("slug"),
+                "title": candidate.get("title"),
+                "doi": candidate.get("doi"),
+                "arxiv_id": candidate.get("arxiv_id"),
+                "url": candidate.get("url") or candidate.get("publisher_url") or candidate.get("landing_page_url"),
+                "readiness_reasons": candidate.get("readiness_reasons", []),
+            }
+            for candidate in needs_pdf
+        ],
+        "source_coverage": source_coverage,
+    }
+    diagnostics_path = run_dir / "discovery-diagnostics.json"
+    write_json_atomic(diagnostics_path, discovery_diagnostics)
+    discovery_context["diagnostics_path"] = str(diagnostics_path)
     if brief_metadata:
         discovery_context["research_brief"] = brief_metadata
     next_actions = ["Review accepted dry-run candidates before advancing ranked papers."]
@@ -1454,7 +1638,10 @@ def run_dry_run(
                 "query_plan": query_plan,
                 "source_routing": source_routing,
                 "agent_query_plan_json": str(agent_query_plan_json) if agent_query_plan_json else None,
+                "agent_hard_domain_anchors": agent_hard_domain_anchors,
+                "agent_soft_recall_terms": agent_soft_recall_terms,
                 "request_constraints": request_constraints,
+                "selection_policy": selection_policy,
                 "research_brief": brief_metadata,
             }
         )
@@ -1472,6 +1659,7 @@ def run_dry_run(
             "normalized.json": run_dir / "normalized.json",
             "filter-report.json": run_dir / "filter-report.json",
             "easyscholar-record.json": run_dir / "easyscholar-record.json",
+            "discovery-diagnostics.json": run_dir / "discovery-diagnostics.json",
             "rank.json": run_dir / "rank.json",
             "report.md": run_dir / "report.md",
             "paper-search-raw.json": run_dir / "paper-search-raw.json",
@@ -1807,9 +1995,11 @@ def advance_paper_batch(
     rank_decision_filter: list[str] | None = None,
     mineru_timeout: int | None = None,
     workflow_mode: str = FAST_INGEST_MODE,
+    selection_policy: str = "balanced_high_quality",
 ) -> dict:
     vault_path = vault_path.resolve()
     workflow_mode = normalize_ingest_mode(workflow_mode)
+    selection_policy = _normalize_selection_policy(selection_policy)
     initialize_paper_wiki(vault_path)
     if max_papers is not None and max_papers < 0:
         raise ValueError("max_papers must be greater than or equal to 0")
@@ -1944,6 +2134,7 @@ def advance_paper_batch(
         "processed_count": len(results),
         "skipped_count": source_candidate_count - len(results),
         "max_papers": max_papers,
+        "selection_policy": selection_policy,
     }
 
     batch = {
@@ -1953,6 +2144,7 @@ def advance_paper_batch(
         "state": batch_state,
         "status": status,
         "workflow_mode": workflow_mode,
+        "selection_policy": selection_policy,
         "vault_path": str(vault_path),
         "candidate_count": source_candidate_count,
         "processed_count": len(results),
@@ -2010,6 +2202,7 @@ def advance_paper_batch(
     report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
     report_payload["processed_count"] = batch["processed_count"]
     report_payload["skipped_count"] = batch["skipped_count"]
+    report_payload["selection_policy"] = selection_policy
     report_payload["skipped_ranked_candidates"] = skipped_ranked_candidates
     if rank_decision_filter is not None:
         report_payload["rank_decision_filter"] = rank_decision_filter
@@ -2047,15 +2240,30 @@ def _select_ranked_candidates(
     candidates: list[dict],
     *,
     include_review_candidates: bool,
+    selection_policy: str = "balanced_high_quality",
 ) -> tuple[list[dict], list[dict], list[str]]:
+    selection_policy = _normalize_selection_policy(selection_policy)
     allowed = ["advance-candidate"]
-    if include_review_candidates:
+    if include_review_candidates or selection_policy in {"balanced_high_quality", "code_preferred", "recent_high_quality", "broad_map"}:
         allowed.append("review-candidate")
     selected: list[dict] = []
     skipped: list[dict] = []
     for candidate in candidates:
         decision = _rank_decision(candidate)
         if decision in allowed:
+            if decision == "review-candidate" and not include_review_candidates and selection_policy != "broad_map":
+                tier = candidate.get("quality_tier") or (candidate.get("quality_gate") or {}).get("tier")
+                if tier not in {"Tier A", "Tier B"}:
+                    skipped.append(
+                        {
+                            "slug": candidate.get("slug"),
+                            "title": candidate.get("title"),
+                            "decision": decision,
+                            "quality_tier": tier,
+                            "reason": "review_candidate_below_selection_policy",
+                        }
+                    )
+                    continue
             selected.append(candidate)
             continue
         skipped.append(
@@ -2077,6 +2285,7 @@ def advance_paper_batch_from_run(
     include_review_candidates: bool = False,
     mineru_timeout: int | None = None,
     workflow_mode: str = FAST_INGEST_MODE,
+    selection_policy: str = "balanced_high_quality",
 ) -> dict:
     vault_path = vault_path.resolve()
     workflow_mode = normalize_ingest_mode(workflow_mode)
@@ -2087,6 +2296,7 @@ def advance_paper_batch_from_run(
     selected_candidates, skipped_ranked_candidates, rank_decision_filter = _select_ranked_candidates(
         candidates,
         include_review_candidates=include_review_candidates,
+        selection_policy=selection_policy,
     )
     return advance_paper_batch(
         vault_path,
@@ -2101,6 +2311,7 @@ def advance_paper_batch_from_run(
         rank_decision_filter=rank_decision_filter,
         mineru_timeout=mineru_timeout,
         workflow_mode=workflow_mode,
+        selection_policy=selection_policy,
     )
 
 
@@ -2314,9 +2525,11 @@ def prepare_ranked_papers_from_run(
     skip_existing: bool = False,
     mineru_timeout: int | None = None,
     workflow_mode: str = FAST_INGEST_MODE,
+    selection_policy: str = "balanced_high_quality",
 ) -> dict:
     vault_path = vault_path.resolve()
     workflow_mode = normalize_ingest_mode(workflow_mode)
+    selection_policy = _normalize_selection_policy(selection_policy)
     initialize_paper_wiki(vault_path)
     rank_path = existing_run_dir(vault_path, run_id) / "rank.json"
     if not rank_path.exists():
@@ -2325,6 +2538,7 @@ def prepare_ranked_papers_from_run(
     selected_candidates, skipped_ranked_candidates, rank_decision_filter = _select_ranked_candidates(
         candidates,
         include_review_candidates=include_review_candidates,
+        selection_policy=selection_policy,
     )
     source_candidate_count = len(candidates)
     skipped_existing_candidates: list[dict] = []
@@ -2407,6 +2621,7 @@ def prepare_ranked_papers_from_run(
         "state": "prepared" if not failed else "prepare_failed",
         "status": "waiting_for_human_gate" if awaiting_wiki_ingest and not failed else "success" if not failed else "failed",
         "workflow_mode": workflow_mode,
+        "selection_policy": selection_policy,
         "vault_path": str(vault_path),
         "candidate_count": source_candidate_count,
         "processed_count": len(results),
@@ -2458,6 +2673,7 @@ def prepare_ranked_papers_from_run(
             "skipped_existing_count": len(skipped_existing_candidates),
             "stops_after": "source-staging",
             "workflow_mode": workflow_mode,
+            "selection_policy": selection_policy,
         },
         wiki_pages_written=[],
         zotero_results={"status": "not_run", "records": []},
@@ -2493,6 +2709,225 @@ def prepare_ranked_papers_from_run(
         write_json_atomic(batch_run_dir / "run-state.json", batch)
     _refresh_run_index(vault_path)
     return batch
+
+
+def _run_artifacts(run_dir: Path) -> dict:
+    return {
+        "query_plan": str(run_dir / "query-plan.json") if (run_dir / "query-plan.json").exists() else None,
+        "search_record": str(run_dir / "search-record.json") if (run_dir / "search-record.json").exists() else None,
+        "filter_report": str(run_dir / "filter-report.json") if (run_dir / "filter-report.json").exists() else None,
+        "rank": str(run_dir / "rank.json") if (run_dir / "rank.json").exists() else None,
+        "batch_record": str(run_dir / "batch-advance-record.json")
+        if (run_dir / "batch-advance-record.json").exists()
+        else None,
+        "report": str(run_dir / "report.md") if (run_dir / "report.md").exists() else None,
+        "report_json": str(run_dir / "report.json") if (run_dir / "report.json").exists() else None,
+        "run_state": str(run_dir / "run-state.json") if (run_dir / "run-state.json").exists() else None,
+    }
+
+
+def discover_to_handoff(
+    *,
+    plugin_root: Path,
+    vault_path: Path,
+    query: str | None,
+    max_results: int | None,
+    max_papers: int | None = 10,
+    fixture_path: Path | None = None,
+    paper_search_command: str | None = None,
+    sources: list[str] | None = None,
+    use_query_plan: bool = True,
+    query_variants: list[str] | None = None,
+    domain_focus_terms: list[str] | None = None,
+    agent_query_plan_json: Path | None = None,
+    year_min: int | None = None,
+    code_policy: str | None = None,
+    query_plan_domain: str = "auto",
+    query_plan_max_queries: int = 6,
+    enable_easyscholar: bool = True,
+    selection_policy: str = "balanced_high_quality",
+    refresh: bool = False,
+    from_brief: Path | None = None,
+    allow_draft_brief: bool = False,
+    include_review_candidates: bool = False,
+    skip_existing: bool = True,
+    mineru_command: str | list[str] | None = None,
+    mineru_timeout: int | None = None,
+    workflow_mode: str = FAST_INGEST_MODE,
+) -> dict:
+    vault_path = vault_path.resolve()
+    selection_policy = _normalize_selection_policy(selection_policy)
+    workflow_mode = normalize_ingest_mode(workflow_mode)
+    started_at = utc_now()
+    discovery_run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=vault_path,
+        query=query,
+        from_brief=from_brief,
+        allow_draft_brief=allow_draft_brief,
+        max_results=max_results,
+        fixture_path=fixture_path,
+        paper_search_command=paper_search_command,
+        sources=sources,
+        use_query_plan=use_query_plan,
+        query_variants=query_variants,
+        domain_focus_terms=domain_focus_terms,
+        agent_query_plan_json=agent_query_plan_json,
+        year_min=year_min,
+        code_policy=code_policy,
+        query_plan_domain=query_plan_domain,
+        query_plan_max_queries=query_plan_max_queries,
+        enable_easyscholar=enable_easyscholar,
+        selection_policy=selection_policy,
+        resume=True,
+        refresh=refresh,
+    )
+    prepare_batch = prepare_ranked_papers_from_run(
+        vault_path,
+        discovery_run_dir.name,
+        mineru_command=mineru_command,
+        max_papers=max_papers,
+        include_review_candidates=include_review_candidates,
+        skip_existing=skip_existing,
+        mineru_timeout=mineru_timeout,
+        workflow_mode=workflow_mode,
+        selection_policy=selection_policy,
+    )
+    prepare_run_dir = runs_root(vault_path) / prepare_batch["run_id"]
+    run_id, run_dir = _new_run_dir(vault_path, "discover-to-handoff")
+    failed = prepare_batch.get("state") == "prepare_failed"
+    next_actions = [
+        "Review the source-staging approval report before recording human approval.",
+        "Run wiki-ingest-handoff for each prepared slug, then record-human-approval when approved.",
+        "Use Paper Wiki $paper-research-wiki after wiki-ingest-trigger; this command does not write final wiki pages.",
+    ]
+    record = {
+        "stage": "discover-to-handoff",
+        "run_id": run_id,
+        "workflow_type": "discover-to-handoff",
+        "state": "handoff_prepared" if not failed else "handoff_prepare_failed",
+        "status": prepare_batch.get("status", "failed" if failed else "success"),
+        "vault_path": str(vault_path),
+        "query": query,
+        "max_results": max_results,
+        "max_papers": max_papers,
+        "selection_policy": selection_policy,
+        "workflow_mode": workflow_mode,
+        "source_run_id": discovery_run_dir.name,
+        "prepare_run_id": prepare_batch["run_id"],
+        "processed_count": prepare_batch.get("processed_count", 0),
+        "skipped_count": prepare_batch.get("skipped_count", 0),
+        "skip_existing": skip_existing,
+        "include_review_candidates": include_review_candidates,
+        "compiled_wiki_write": False,
+        "human_approval_written": False,
+        "paper_wiki_invoked": False,
+        "stops_after": "source-staging",
+        "started_at": started_at,
+        "finished_at": utc_now(),
+        "exit_status": 1 if failed else 0,
+        "artifacts": {
+            "discovery": _run_artifacts(discovery_run_dir),
+            "prepare": _run_artifacts(prepare_run_dir),
+        },
+        "prepared_papers": [
+            {
+                "slug": result.get("paper_slug"),
+                "state": result.get("state"),
+                "next_action": result.get("next_action"),
+                "staging_root": str(staging_paper_root(vault_path, result.get("paper_slug", "")))
+                if result.get("paper_slug")
+                else None,
+                "wiki_ingest_brief": str(
+                    staging_paper_root(vault_path, result.get("paper_slug", "")) / "wiki-ingest-brief.json"
+                )
+                if result.get("paper_slug")
+                else None,
+            }
+            for result in prepare_batch.get("results", [])
+        ],
+        "manual_downloads": _manual_downloads_from_results(prepare_batch.get("results", [])),
+        "next_actions": next_actions,
+        "tool_versions": _tool_versions("orchestrator", "run_dry_run", "prepare_ranked_papers_from_run"),
+        "input_artifact_hashes": {
+            "discovery_run_state": file_sha256(discovery_run_dir / "run-state.json"),
+            "prepare_run_state": file_sha256(prepare_run_dir / "run-state.json"),
+        },
+    }
+    write_json_atomic(run_dir / "discover-to-handoff-record.json", record)
+    write_json_atomic(run_dir / "run-state.json", record)
+    report_lines = [
+        "# Paper Source Discover To Handoff",
+        "",
+        f"Run ID: {run_id}",
+        f"Discovery run: {discovery_run_dir.name}",
+        f"Prepare run: {prepare_batch['run_id']}",
+        f"Selection policy: {selection_policy}",
+        f"Stops after: {record['stops_after']}",
+        f"Final wiki write: {record['compiled_wiki_write']}",
+        f"Human approval written: {record['human_approval_written']}",
+        "",
+        "## Prepared Papers",
+    ]
+    if record["prepared_papers"]:
+        for index, paper in enumerate(record["prepared_papers"], start=1):
+            report_lines.append(f"{index}. {paper['slug']} - {paper['state']}")
+            if paper.get("wiki_ingest_brief"):
+                report_lines.append(f"   - wiki_ingest_brief: {paper['wiki_ingest_brief']}")
+            if paper.get("next_action"):
+                report_lines.append(f"   - next_action: {paper['next_action']}")
+    else:
+        report_lines.append("- None.")
+    if record["manual_downloads"]:
+        report_lines.append("")
+        report_lines.append("## Manual Downloads")
+        for item in record["manual_downloads"]:
+            report_lines.append(f"- {item.get('title') or item.get('slug')}: manual-download-required")
+    report_lines.append("")
+    report_lines.append("## Next Actions")
+    report_lines.extend(f"- {action}" for action in next_actions)
+    write_text_atomic(run_dir / "report.md", "\n".join(report_lines) + "\n")
+    write_json_atomic(
+        run_dir / "report.json",
+        {
+            "workflow_type": "discover-to-handoff",
+            "run_id": run_id,
+            "status": record["status"],
+            "state": record["state"],
+            "source_run_id": discovery_run_dir.name,
+            "prepare_run_id": prepare_batch["run_id"],
+            "selection_policy": selection_policy,
+            "workflow_mode": workflow_mode,
+            "stops_after": record["stops_after"],
+            "compiled_wiki_write": False,
+            "human_approval_written": False,
+            "paper_wiki_invoked": False,
+            "prepared_papers": record["prepared_papers"],
+            "manual_downloads": record["manual_downloads"],
+            "artifacts": record["artifacts"],
+            "next_actions": next_actions,
+            "errors": [] if not failed else ["prepare-ranked failed for at least one candidate"],
+        },
+    )
+    record["output_artifact_hashes"] = _hash_existing_outputs(
+        {
+            "discover-to-handoff-record.json": run_dir / "discover-to-handoff-record.json",
+            "report.md": run_dir / "report.md",
+            "report.json": run_dir / "report.json",
+        }
+    )
+    write_json_atomic(run_dir / "run-state.json", record)
+    lifecycle = _auto_manage_run_lifecycle(vault_path)
+    if lifecycle.get("deleted_count"):
+        record["run_lifecycle"] = {
+            "auto": True,
+            "deleted_count": lifecycle.get("deleted_count", 0),
+            "manifest_path": lifecycle.get("manifest_path"),
+            "policy": lifecycle.get("policy"),
+        }
+        write_json_atomic(run_dir / "run-state.json", record)
+    _refresh_run_index(vault_path)
+    return record
 
 
 def main() -> int:

@@ -216,7 +216,7 @@ def test_progress_doc_records_status_verification_and_next_steps():
     text = _read("progress.md")
 
     assert "# Paper Source 插件进度说明" in text
-    assert "更新时间：2026-06-14" in text
+    assert "更新时间：2026-06-15" in text
     assert "高质量论文收集和整理" in text
     assert "config-setup" in text
     assert "paper-quality-critic" in text
@@ -283,12 +283,15 @@ def test_linkage_doc_records_paper_discovery_bundle_and_venue_prior():
     assert "reader/claim-support.json" in text
     assert "parse-quality-critic" in text
     assert "parse-record.json" in text
-    assert "domain_focus_terms" in text
+    assert "hard_domain_anchors" in text
+    assert "soft_recall_terms" in text
     assert "5-8 条 query variants" in text
     assert "--agent-query-plan-json" in text
     assert "--year-min" in text
     assert "--code-policy" in text
+    assert "--selection-policy" in text
     assert "request_constraints" in text
+    assert "discovery-diagnostics.json" in text
     assert "two-stage retrieval" in text
     assert "--no-query-plan" in text
     assert "--skip-existing" in text
@@ -413,11 +416,14 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         ]
     )
 
-    assert manifest["version"] == "1.0.6"
-    assert "v1.0.6" in manifest["interface"]["shortDescription"]
+    assert manifest["version"] == "1.1.0"
+    assert "v1.1.0" in manifest["interface"]["shortDescription"]
     for phrase in [
         "search_papers",
         "source_coverage",
+        "_meta/reference-index.json",
+        "already_in_wiki:<page>",
+        "already_in_library:<slug>",
         "Source Coverage",
         "sources_used",
         "source_results",
@@ -470,6 +476,7 @@ def test_docs_document_paper_search_mcp_fallback_and_source_coverage():
         "wiki-ask",
         "read-only formal graph",
         "0.2.6",
+        "1.1.0",
         "1.0.6",
         "1.0.5",
         "1.0.4",
@@ -807,7 +814,7 @@ def test_marketplace_and_readme_describe_profile_driven_generic_paper_source():
     assert "Paper Source" in manifest_text
     assert "Paper Wiki" in manifest_text
     assert manifest["description"].startswith("Paper Source")
-    assert manifest["interface"]["shortDescription"].startswith("v1.0.6 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v1.1.0 |")
     assert "profile-driven discovery" in manifest_text
     assert "Paper Wiki handoff" in manifest_text
     assert "MinerU" in manifest_text
@@ -1025,7 +1032,7 @@ def test_read_only_ask_ownership_documented_paper_source_side():
 
 def test_plugin_versions_track_current_plugin_changes():
     expected = {
-        "plugins/paper-source/.codex-plugin/plugin.json": "1.0.6",
+        "plugins/paper-source/.codex-plugin/plugin.json": "1.1.0",
         "plugins/paper-wiki/.codex-plugin/plugin.json": "1.0.0",
     }
     for rel, version in expected.items():

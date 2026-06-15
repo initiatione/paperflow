@@ -21,6 +21,7 @@ HANDLER_NAMES: dict[str, str] = {
     "paper-source-repository-migrate": "_handle_paper_source_repository_migrate",
     "paper-source-repository-cleanup": "_handle_paper_source_repository_cleanup",
     "dry-run": "_handle_dry_run",
+    "discover-to-handoff": "_handle_discover_to_handoff",
     "ingest-one": "_handle_ingest_one",
     "acquire-paper": "_handle_acquire_paper",
     "advance-paper": "_handle_advance_paper",

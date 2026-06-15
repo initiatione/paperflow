@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from paper_source.cli_routes import COMMAND_ROUTES
+from paper_source.rank_papers import SELECTION_POLICIES
 from paper_source.run_index import RESEARCH_QUEUE_BUCKETS
 from paper_source.stage_wiki import FAST_INGEST_MODE, INGEST_MODES
 
@@ -26,6 +27,15 @@ def _add_common_vault(parser: argparse.ArgumentParser) -> None:
 
 def _add_ingest_mode(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--mode", choices=sorted(INGEST_MODES), default=FAST_INGEST_MODE)
+
+
+def _add_selection_policy(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--selection-policy",
+        choices=sorted(SELECTION_POLICIES),
+        default="balanced_high_quality",
+        help="Ranked-candidate selection policy; default keeps high-quality review candidates visible.",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -156,11 +166,43 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["auto", "profile"],
     )
     dry_run.add_argument("--query-plan-max-queries", type=int, default=6)
+    _add_selection_policy(dry_run)
     dry_run.add_argument("--no-easyscholar", action="store_true")
     dry_run_resume_group = dry_run.add_mutually_exclusive_group()
     dry_run_resume_group.add_argument("--refresh", action="store_true")
     dry_run_resume_group.add_argument("--no-resume", action="store_true")
     dry_run.add_argument("--json", action="store_true")
+
+    discover_to_handoff = subparsers.add_parser("discover-to-handoff")
+    discover_query_input = discover_to_handoff.add_mutually_exclusive_group(required=True)
+    discover_query_input.add_argument("--query", default=None)
+    discover_query_input.add_argument("--from-brief", type=Path, default=None)
+    discover_to_handoff.add_argument("--allow-draft-brief", action="store_true")
+    discover_to_handoff.add_argument("--max-results", type=int, default=None)
+    discover_to_handoff.add_argument("--max-papers", type=int, default=10)
+    _add_common_vault(discover_to_handoff)
+    discover_to_handoff.add_argument("--plugin-root", type=Path, default=_default_plugin_root())
+    discover_to_handoff.add_argument("--fixture", type=Path, default=None)
+    discover_to_handoff.add_argument("--paper-search-command", default=None)
+    discover_to_handoff.add_argument("--sources", default=None, help="Comma-separated paper-search sources for live discovery.")
+    discover_to_handoff.add_argument("--no-query-plan", action="store_true")
+    discover_to_handoff.add_argument("--agent-query-plan-json", type=Path, default=None)
+    discover_to_handoff.add_argument("--query-variant", action="append", default=None)
+    discover_to_handoff.add_argument("--domain-focus-term", action="append", default=None)
+    discover_to_handoff.add_argument("--year-min", type=int, default=None)
+    discover_to_handoff.add_argument("--code-policy", choices=["ignore", "prefer", "require"], default=None)
+    discover_to_handoff.add_argument("--query-plan-domain", default="auto", choices=["auto", "profile"])
+    discover_to_handoff.add_argument("--query-plan-max-queries", type=int, default=6)
+    _add_selection_policy(discover_to_handoff)
+    discover_to_handoff.add_argument("--no-easyscholar", action="store_true")
+    discover_to_handoff.add_argument("--refresh", action="store_true")
+    discover_to_handoff.add_argument("--include-review-candidates", action="store_true")
+    discover_to_handoff.add_argument("--skip-existing", dest="skip_existing", action="store_true", default=True)
+    discover_to_handoff.add_argument("--no-skip-existing", dest="skip_existing", action="store_false")
+    discover_to_handoff.add_argument("--mineru-command", default=None)
+    discover_to_handoff.add_argument("--mineru-timeout", type=int, default=None)
+    _add_ingest_mode(discover_to_handoff)
+    discover_to_handoff.add_argument("--json", action="store_true")
 
     ingest_one = subparsers.add_parser("ingest-one")
     ingest_one.add_argument("--candidate", type=Path, required=True)
@@ -188,6 +230,7 @@ def build_parser() -> argparse.ArgumentParser:
     advance_batch.add_argument("--max-papers", type=int, default=None)
     advance_batch.add_argument("--mineru-command", default=None)
     advance_batch.add_argument("--mineru-timeout", type=int, default=None)
+    _add_selection_policy(advance_batch)
     _add_ingest_mode(advance_batch)
 
     advance_ranked = subparsers.add_parser("advance-ranked")
@@ -197,6 +240,7 @@ def build_parser() -> argparse.ArgumentParser:
     advance_ranked.add_argument("--mineru-command", default=None)
     advance_ranked.add_argument("--mineru-timeout", type=int, default=None)
     advance_ranked.add_argument("--include-review-candidates", action="store_true")
+    _add_selection_policy(advance_ranked)
     _add_ingest_mode(advance_ranked)
 
     prepare_ranked = subparsers.add_parser("prepare-ranked")
@@ -207,6 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare_ranked.add_argument("--mineru-timeout", type=int, default=None)
     prepare_ranked.add_argument("--include-review-candidates", action="store_true")
     prepare_ranked.add_argument("--skip-existing", action="store_true")
+    _add_selection_policy(prepare_ranked)
     _add_ingest_mode(prepare_ranked)
     prepare_ranked.add_argument("--json", action="store_true")
 

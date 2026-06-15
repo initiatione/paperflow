@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Paper Source 1.1.0: add transparent hard/soft query-plan provenance, `discovery-diagnostics.json`, configurable `--selection-policy`, missing-PDF readiness separation, wiki `_meta/reference-index.json` first dedupe with `already_in_wiki:<page>`, and `discover-to-handoff` as an explicit discovery -> source-staging wrapper that does not approve papers or write final wiki pages.
 - Paper Source 1.0.6: switch the `paper-search-mcp` outer MCP registration to `cmd /c .\scripts\paper_search_mcp_launcher.cmd` with plugin-root `cwd: "."`, so Codex Desktop does not depend on its own `python` PATH before the launcher can load runtime.json and select the configured Python interpreter.
 - Paper Source 1.0.5: fix Codex MCP self-registration for `paper-search-mcp` by using plugin-root `cwd: "."` plus `./scripts/paper_search_mcp_launcher.py` instead of an unresolved `${CLAUDE_PLUGIN_ROOT}` path, and teach `doctor --json` to flag unresolved plugin-root placeholders before they become opaque handshake failures.
 - Paper Source 1.0.4: harden MinerU output ZIP retrieval. MinerU batch downloads now retry transient CDN/network failures, write `download_failed` manifest entries, and surface concrete output-download errors in `parse-record.json` instead of only reporting missing Markdown.
@@ -9,6 +10,7 @@
 - Paper Source 1.0.2: remove built-in discipline query packs from paper discovery. The query planner and `dry-run --query-plan-domain` now accept only `auto` / `profile`; field vocabulary must come from config, Research Briefs, current user requests, or explicit agent-supplied query variants/domain focus terms.
 - Paper Source 1.0.1: add agent-supplied discovery inputs. `dry-run` accepts repeated `--query-variant` and `--domain-focus-term`, records them in `query-plan.json`, and executes compiled academic queries instead of using raw natural-language topics as MCP search strings. Also tightens excluded-term matching so `surveying` is not rejected as `survey`.
 - Paper Source 1.0.0 / Paper Wiki 1.0.0: current-only handoff and naming cleanup. `wiki-ingest-brief.json` is the only new Paper Source-to-Paper Wiki handoff; old aliases are not user entrypoints, route triggers, env fallbacks, or new artifact contracts.
+- Paper Source 0.2.6: historical installed-cache/source-line marker retained for upgrade audits; current runtime claims must still be checked against the installed plugin cache.
 - Paper Source 0.2.5 / Paper Wiki 0.2.4: enforce title-display canonical PDF Markdown links in formal-page `sources` and body source PDF entries, reject `原论文 PDF` as clickable link text, refresh active `_paper_source` sidecars, and document the installed-cache refresh boundary.
 - S3b brief-first machine-contract 收敛用户黄金路径：`wiki-ingest-brief.json` 作为新链路 canonical handoff，`wiki_deposition_task.json` 只作为历史 handoff 清理对象，旧别名不再作为用户入口或路由触发条件。
 

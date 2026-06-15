@@ -16,3 +16,8 @@ plugins/*/coverage/
 .tmp/
 .codex_tmp_refs/
 .worktrees/
+/.codex_tmp
+/.trellis
+/.claude
+/.agents
+/.codex

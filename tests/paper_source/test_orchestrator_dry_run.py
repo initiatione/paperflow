@@ -185,7 +185,14 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     ]
     assert "Embodied Navigation Control for Mobile Robots" in queued_titles
     assert report["rejected"][0]["title"] == "Graph Theory Notes"
-    assert sorted(report["rejected"][0]["filter_reasons"]) == ["missing_pdf", "outside_domain"]
+    assert sorted(report["rejected"][0]["filter_reasons"]) == [
+        "missing_pdf_and_stable_identity",
+        "outside_domain",
+    ]
+    assert report["rejected"][0]["readiness_reasons"] == ["missing_pdf"]
+    diagnostics = json.loads((run_dir / "discovery-diagnostics.json").read_text(encoding="utf-8"))
+    assert diagnostics["schema_version"] == "paper-source-discovery-diagnostics-v1"
+    assert diagnostics["readiness_reason_counts"] == {}
     assert report["quarantined"] == []
     assert report["critic_failures"] == []
     assert report["budget_usage"]["max_results"] == 5
@@ -525,7 +532,10 @@ def test_dry_run_uses_agent_supplied_query_variants_instead_of_raw_topic(tmp_pat
     assert raw_topic not in search_queries
     assert query_plan["query_variants"] == variants
     assert query_plan["query_variants_source"] == "agent_supplied"
-    assert query_plan["agent_supplied"]["contract"] == "agent_compiles_natural_language; script_records_and_executes"
+    assert query_plan["agent_supplied"]["contract"] == (
+        "agent_plans_natural_language; script_validates_records_executes; "
+        "inferred_terms_do_not_become_hard_filters"
+    )
     assert query_plan["concept_blocks"]["domain_focus_terms"][:3] == [
         "AUV",
         "autonomous underwater vehicle",
@@ -627,7 +637,9 @@ def test_dry_run_records_structured_agent_query_plan_and_request_constraints(tmp
         '"autonomous underwater vehicle" "attitude control" "model predictive control" -review -survey',
         '"AUV" "attitude control" "reinforcement learning" code -review -survey',
     ]
-    assert query_plan["concept_blocks"]["domain_focus_terms"] == ["AUV", "autonomous underwater vehicle"]
+    assert query_plan["concept_blocks"]["domain_focus_terms"] == []
+    assert query_plan["hard_constraints"]["domain_anchors"] == []
+    assert query_plan["soft_recall_terms"][:2] == ["AUV", "autonomous underwater vehicle"]
     assert query_plan["request_constraints"] == {
         "year_min": 2021,
         "code_policy": "prefer",
@@ -759,10 +771,13 @@ def test_dry_run_with_generic_config_derives_filter_terms_from_query_plan(tmp_pa
     assert query_plan["domain"] == "topic-derived"
     assert "molecular property prediction" in query_plan["concept_blocks"]["domain_terms"]
     assert [candidate["title"] for candidate in report["accepted"]] == [
-        "Graph Neural Networks for Molecular Property Prediction"
+        "Graph Neural Networks for Molecular Property Prediction",
+        "Warehouse Robot Navigation",
     ]
-    assert report["rejected"][0]["title"] == "Warehouse Robot Navigation"
-    assert "outside_domain" in report["rejected"][0]["filter_reasons"]
+    assert report["rejected"] == []
+    diagnostics = json.loads((run_dir / "discovery-diagnostics.json").read_text(encoding="utf-8"))
+    assert "molecular property prediction" in diagnostics["query_plan_contract"]["soft_recall_terms"]
+    assert diagnostics["query_plan_contract"]["hard_domain_anchors"] == []
 
 
 def test_dry_run_filters_method_only_results_with_generic_topic_anchors(tmp_path):
@@ -824,12 +839,13 @@ def test_dry_run_filters_method_only_results_with_generic_topic_anchors(tmp_path
     query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
     report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
 
-    assert "molecular property prediction" in query_plan["concept_blocks"]["domain_focus_terms"]
+    assert query_plan["concept_blocks"]["domain_focus_terms"] == []
+    assert "molecular property prediction" in query_plan["concept_blocks"]["soft_recall_terms"]
     assert [candidate["title"] for candidate in report["accepted"]] == [
-        "Graph Neural Networks for Molecular Property Prediction"
+        "Graph Neural Networks for Molecular Property Prediction",
+        "Scalable Graph Neural Network Training",
     ]
-    rejected = {candidate["title"]: candidate["filter_reasons"] for candidate in report["rejected"]}
-    assert rejected["Scalable Graph Neural Network Training"] == ["outside_domain"]
+    assert report["rejected"] == []
 
 
 def test_dry_run_ranking_does_not_dilute_topic_fit_with_recall_expansion_terms(tmp_path):
@@ -1563,3 +1579,74 @@ def test_dry_run_uses_unique_run_ids_within_same_second(tmp_path, monkeypatch):
     )
 
     assert first_run.name != second_run.name
+
+
+def test_discover_to_handoff_writes_record_without_final_wiki_or_approval(tmp_path, monkeypatch):
+    vault = tmp_path / "vault"
+    dry_run_dir = vault / "_paper_source" / "runs" / "dry-run-001"
+    prepare_run_dir = vault / "_paper_source" / "runs" / "prepare-ranked-001"
+    dry_run_dir.mkdir(parents=True)
+    prepare_run_dir.mkdir(parents=True)
+    (dry_run_dir / "run-state.json").write_text("{}", encoding="utf-8")
+    (dry_run_dir / "rank.json").write_text("[]", encoding="utf-8")
+    (prepare_run_dir / "run-state.json").write_text("{}", encoding="utf-8")
+    (prepare_run_dir / "batch-advance-record.json").write_text("{}", encoding="utf-8")
+
+    def fake_run_dry_run(**kwargs):
+        return dry_run_dir
+
+    def fake_prepare_ranked_papers_from_run(
+        vault_path,
+        run_id,
+        *,
+        mineru_command=None,
+        max_papers=None,
+        include_review_candidates=False,
+        skip_existing=True,
+        mineru_timeout=None,
+        workflow_mode="fast-ingest",
+        selection_policy="balanced_high_quality",
+    ):
+        return {
+            "run_id": "prepare-ranked-001",
+            "state": "prepared",
+            "status": "waiting_for_human_gate",
+            "processed_count": 1,
+            "skipped_count": 0,
+            "results": [
+                {
+                    "paper_slug": "fixture-paper",
+                    "state": "staged",
+                    "next_action": "run-wiki-ingest-agent",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(orchestrator_module, "run_dry_run", fake_run_dry_run)
+    monkeypatch.setattr(orchestrator_module, "prepare_ranked_papers_from_run", fake_prepare_ranked_papers_from_run)
+
+    record = orchestrator_module.discover_to_handoff(
+        plugin_root=tmp_path / "plugin",
+        vault_path=vault,
+        query="AUV attitude control",
+        max_results=10,
+        max_papers=1,
+        selection_policy="code_preferred",
+    )
+
+    run_dir = vault / "_paper_source" / "runs" / record["run_id"]
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+
+    assert record["workflow_type"] == "discover-to-handoff"
+    assert record["source_run_id"] == "dry-run-001"
+    assert record["prepare_run_id"] == "prepare-ranked-001"
+    assert record["selection_policy"] == "code_preferred"
+    assert record["compiled_wiki_write"] is False
+    assert record["human_approval_written"] is False
+    assert record["paper_wiki_invoked"] is False
+    assert record["stops_after"] == "source-staging"
+    assert (run_dir / "discover-to-handoff-record.json").is_file()
+    assert report["compiled_wiki_write"] is False
+    assert report["human_approval_written"] is False
+    assert report["paper_wiki_invoked"] is False
+    assert report["prepared_papers"][0]["wiki_ingest_brief"].endswith("wiki-ingest-brief.json")

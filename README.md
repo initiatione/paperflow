@@ -8,7 +8,7 @@
 
 Paper Source 是通用论文智能工作流插件，不默认绑定某个学科方向。它围绕用户画像、当前研究问题、领域关键词、排除词、venue prior 和质量门控来运行，目标是把高质量论文从检索候选推进到可沉淀的证据包。
 
-复杂自然语言论文主题先由 agent 拆成 5-8 条短学术检索式，再通过 Paper Source `dry-run --query-variant` 或 `--agent-query-plan-json` 传给 paper-search MCP；`--domain-focus-term`、`--year-min` 和 `--code-policy` 表达硬锚点、近期范围和公开代码偏好/要求。脚本记录和执行这些显式字段，不把 AUV、医学、材料等具体学科语义写死成全局规则。
+复杂自然语言论文主题先由 agent 形成透明 query plan，再通过 Paper Source `dry-run --query-variant` 或 `--agent-query-plan-json` 传给 paper-search MCP；`hard_domain_anchors` / `--domain-focus-term`、`soft_recall_terms`、`--year-min`、`--code-policy` 和 `--selection-policy` 分别表达硬锚点、软召回、近期范围、公开代码偏好/要求和推荐推进策略。脚本验证、记录和执行这些显式字段，不把 AUV、医学、材料等具体学科语义写死成全局规则。
 
 用户口语别名：PS。PS 只是自然语言别名，不是 `$PS` 入口，也不是独立插件名。Paper Source 当前 machine-facing name 是 `paper-source`。
 
@@ -31,7 +31,7 @@ Paper Wiki 的核心链路是 Paper Source handoff -> wiki state check 或 read-
 
 链路含义如下：
 
-- 画像驱动检索：根据研究画像、当前问题和领域配置生成检索意图；复杂主题由 agent 编译 `query variants`，避免把插件固定成单一学科工具。
+- 画像驱动检索：根据研究画像、当前问题和领域配置生成透明 query plan；复杂主题由 agent 提供 `query variants`、hard/soft constraints 和 provenance，避免把插件固定成单一学科工具。
 - 论文候选排序：按主题相关性、来源质量、论文类型、指标证据和可复现性线索筛选候选。
 - source-first 保存：优先保留 PDF、metadata、MinerU Markdown、TeX、图片和 manifest，缺关键来源时不进入正式 wiki。
 - 解析与阅读：用 MinerU 解析论文，再生成结构化阅读、证据地址和 claim-support 信息。
@@ -49,6 +49,7 @@ Paper Wiki 的核心链路是 Paper Source handoff -> wiki state check 或 read-
 - Obsidian/LLM Wiki 目录初始化、graph 可见性修复、formal 页面语言策略和 provenance 约束。
 - run lifecycle、dashboard、研究队列、Zotero 同步和质量演化建议。
 - Paper Source `wiki-ask` 只读查询：从正式论文 wiki graph 检索，标记 wiki 证据、综合判断、推断、不确定性和纠错候选。
+- Paper Source `discover-to-handoff`：一条命令串联 discovery 和 source-staging，写 summary run，但不记录 human approval、不调用 Paper Wiki、不写正式页面。
 - 基于 skill-based architecture 的轻量路由：插件根入口保持 thin shell，具体任务交给 skill 与模块化脚本，独立子任务可在用户授权后交由 Codex subagents 完成。
 - Paper Wiki 正式 wiki 侧闭环：根据 wiki 提问、提取 Paper Source 论文、检测 wiki 库、更新正式页、重做/更详细提取、重link、修复 tracking/QMD surface，并把剩余 Paper Source `record-wiki-ingest` 动作报告清楚。
 

@@ -11,12 +11,13 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 日常使用优先走这条主线：
 
 1. `doctor --json` 检查安装、依赖和 vault 状态；配置缺失时先完成 `config-setup`。
-2. 方向模糊时先生成 Research Brief；方向明确时运行 `dry-run --query "<your topic>" --max-results 20 --vault <vault> --json`。
-3. 用 `report --run-id <run-id> --vault <vault>` 查看推荐优先级；持续追踪、net-new、coverage 和 backlog 交给 `topic-tracking` / `research-queue`。
-4. 用 `prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json` 推进高价值论文到 source-staging。
-5. 先读一份中文 approval report；同意后运行 `record-human-approval`，再用 `wiki-ingest-trigger` 生成 wiki agent resume package。
-6. 由 Paper Wiki `$paper-research-wiki` 或当前 wiki-capable agent 消费 `wiki-ingest-brief.json`，写正式页面和 `final-source-review.json`。
-7. 最后运行 `record-wiki-ingest`，让 Paper Source 记录最终页路径、hash、source review 和可选 Zotero sidecar。
+2. 方向模糊时先生成 Research Brief；方向明确时运行 `dry-run --query "<your topic>" --max-results 20 --vault <vault> --json`。`dry-run` 会先用 wiki `_meta/reference-index.json` 去重，再用 raw library fallback。
+3. 用 `report --run-id <run-id> --vault <vault>` 查看推荐优先级；持续追踪、net-new、coverage 和 backlog 以 wiki `_meta/reference-index.json` 为准，`topic-tracking` 只做增量视图。
+4. 选中的论文如果已经有足够 source evidence，交给 Paper Wiki `$paper-research-wiki` 做沉淀或更新。
+5. 只有需要补 PDF、MinerU、source-staging、approval report 或 `wiki-ingest-brief.json` 时，才显式运行 `prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json`；`discover-to-handoff` 也是显式重流程捷径，仍停在 source-staging。
+6. 如果走 source-staging，先读中文 approval report；同意后运行 `record-human-approval`，再用 `wiki-ingest-trigger` 生成 wiki agent resume package。
+7. 由 Paper Wiki `$paper-research-wiki` 或当前 wiki-capable agent 消费 `wiki-ingest-brief.json`，写正式页面和 `final-source-review.json`。
+8. 最后运行 `record-wiki-ingest`，让 Paper Source 记录最终页路径、hash、source review 和可选 Zotero sidecar。
 
 新任务只使用 `wiki-ingest-brief.json` 作为 handoff。`wiki_deposition_task.json` 只属于历史残留清理，不是黄金路径的一步。
 
@@ -37,9 +38,11 @@ python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 -
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\" -review -survey" --query-variant "\"<domain object>\" \"<task>\" code -review -survey" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 20 --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --selection-policy balanced_high_quality --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --refresh
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault> --json
+python scripts\orchestrator.py discover-to-handoff --query "<your topic>" --max-results 20 --max-papers 10 --skip-existing --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault>
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json
 python scripts\orchestrator.py advance-ranked --run-id <run-id> --max-papers 3 --vault <vault>
@@ -60,17 +63,17 @@ Full command semantics, artifact paths, and safety gates live in `docs/paper-sou
 
 ## Discovery And Source Intake
 
-Paper Source 是通用论文插件，不默认任何学科方向。`dry-run` derives `query-plan.json` from profile, domains, positive/negative keywords, venue prior, and the current request; AUV、机器人、医学等只能来自用户配置、当前请求、Research Brief 或 agent 显式传入的 query variants / domain focus terms。
+Paper Source 是通用论文插件，不默认任何学科方向。`dry-run` derives `query-plan.json` from profile, domains, positive/negative keywords, venue prior, and the current request; AUV、机器人、医学等只能来自用户配置、当前请求、Research Brief 或 agent 显式传入的 query variants / hard domain anchors。
 
-自然语言主题不能直接当作 MCP 主检索式。Agent 应先把用户意图拆成对象/任务/方法/约束/质量信号，生成 5-8 条短学术 query variants，再用 `--query-variant` 或 `--agent-query-plan-json` 传给 `dry-run`；需要硬过滤时用 `--domain-focus-term` 传对象/领域锚点。`--year-min` 表达明确的近期窗口，`--code-policy prefer` 表达“尽可能有公开代码”，`--code-policy require` 表达硬性代码要求。脚本负责记录和执行这些显式输入，而不是在 Python 里写死每个学科的语义词典。
+自然语言主题不能直接当作 MCP 主检索式。Agent 应先把用户意图形成透明 query plan，生成 5-8 条短学术 query variants，再用 `--query-variant` 或 `--agent-query-plan-json` 传给 `dry-run`；需要硬过滤时用 `--domain-focus-term`、`hard_domain_anchors` 或 `hard_constraints` 传对象/领域锚点。topic 推断词只能进入 `soft_recall_terms`，不得自动升级成 hard filter。`--year-min` 表达明确的近期窗口，`--code-policy prefer` 表达“尽可能有公开代码”，`--code-policy require` 表达硬性代码要求，`--selection-policy` 控制推荐到推进的阈值。脚本负责验证、记录和执行这些显式输入，而不是在 Python 里写死每个学科的语义词典。
 
-`dry-run` writes `_paper_source/runs` and resumable `_paper_source/reviews`; default resume skips provider calls for the same signature. Use `--refresh` to force provider search. It writes source coverage into `report.json.discovery_context.source_coverage` and request constraints into `report.json.discovery_context.request_constraints` / `query-plan.json`, with `sources_used`, `source_results`, `errors`, `raw_total`, `deduped_total`, `query_count`, `capabilities`, `provider_readiness`, `source_routing`, and `provider_gaps`.
+`dry-run` writes `_paper_source/runs` and resumable `_paper_source/reviews`; default resume skips provider calls for the same signature. Use `--refresh` to force provider search. Long-term library/backlog state lives in wiki `_meta/reference-index.json`, not in review sessions. It writes source coverage into `report.json.discovery_context.source_coverage`, request constraints into `report.json.discovery_context.request_constraints` / `query-plan.json`, and filtering/readiness diagnostics into `discovery-diagnostics.json`, with `sources_used`, `source_results`, `errors`, `raw_total`, `deduped_total`, `query_count`, `capabilities`, `provider_readiness`, `source_routing`, `provider_gaps`, `recommendable`, `staging_ready`, `needs_pdf`, `rejected`, `already_in_wiki`, and `already_in_library`.
 
 本机 runtime 由 `%USERPROFILE%\.codex\plugins\paperflow\paper-source\runtime.json` 补齐；token/secret/provider key 只来自进程环境或 approved env file。`doctor --json` reports `paper_search_provider_readiness` and provider gaps such as `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL`, `PAPER_SEARCH_MCP_CORE_API_KEY`, `PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY`, `PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL`, `PAPER_SEARCH_MCP_DOAJ_API_KEY`, and `PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN`.
 
 EasyScholar is default-on after filter and before rank. It writes `easyscholar-record.json`, `verified_metrics.easyscholar`, and `easyscholar_score`; missing key, no match, timeout, or API error soft-fails as `未核实`. Use `--no-easyscholar` for a single run.
 
-`prepare-ranked` is the search -> acquire -> MinerU -> source-staging path. Use `--max-papers 10 --skip-existing` for real batches and `--max-papers 1` only for smoke tests. It stops before human approval and final wiki writing.
+`prepare-ranked` is the explicit search -> acquire -> MinerU -> source-staging path. Use it only after selection when source artifacts are needed; use `--max-papers 10 --skip-existing` for real batches and `--max-papers 1` only for smoke tests. It stops before human approval and final wiki writing. `discover-to-handoff` is also an explicit heavy shortcut: it runs dry-run plus prepare-ranked and writes a summary run; it does not approve papers, invoke Paper Wiki, or write final pages.
 
 Acquisition first tries MCP `download_with_fallback`; no direct PDF plus exhausted OA fallback becomes `manual-download-required` with `manual_download.candidate_manual_urls`. Direct DOI/publisher links should be shown for organization/institution download instead of weak fallback loops. Successful source read preview writes `paper-search-read-preview.txt` only as non-authoritative retrieval preview, not replacing MinerU.
 

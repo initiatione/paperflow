@@ -377,9 +377,11 @@ def _term_blocks(
     configured_domains = _as_terms(domains)
     topic_domain_terms = _configured_domain_terms_in_topic(configured_domains, topic)
     topic_anchor_terms = _topic_domain_anchor_terms(topic)
-    domain_focus_terms = unique(topic_domain_terms + topic_anchor_terms)
+    hard_domain_anchors = unique(topic_domain_terms)
+    soft_recall_terms = unique(topic_anchor_terms)
+    domain_focus_terms = hard_domain_anchors
 
-    domain_terms = unique(domain_focus_terms + configured_domains)
+    domain_terms = unique(hard_domain_anchors + soft_recall_terms + configured_domains)
     if not domain_terms:
         domain_terms = topic_terms[:3]
 
@@ -395,6 +397,8 @@ def _term_blocks(
         "profile_terms": profile_seed_terms,
         "domain_terms": domain_terms,
         "domain_focus_terms": domain_focus_terms,
+        "hard_domain_anchors": hard_domain_anchors,
+        "soft_recall_terms": soft_recall_terms,
         "method_or_topic_terms": method_or_topic_terms,
         "problem_terms": problem_terms,
         "context_terms": context_terms,
@@ -460,6 +464,15 @@ def build_query_plan(
             "library_dedup": ["DOI", "arXiv ID", "normalized title", "title+first-author+year"],
         },
         "quality_signals": blocks["quality_signals"],
+        "hard_constraints": {
+            "domain_anchors": blocks["hard_domain_anchors"],
+            "policy": "Only config/Research Brief/user-confirmed anchors are hard filters; topic-derived n-grams are soft recall terms.",
+        },
+        "soft_recall_terms": blocks["soft_recall_terms"],
+        "term_provenance": {
+            **{term: "config_domain_matched_in_topic" for term in blocks["hard_domain_anchors"]},
+            **{term: "topic_inferred_soft_recall" for term in blocks["soft_recall_terms"]},
+        },
     }
 
 
@@ -498,6 +511,7 @@ def build_query_plan_from_research_brief(
     blocks = plan["concept_blocks"]
     blocks["domain_terms"] = unique(([domain_scope] if domain_scope else []) + _as_terms(domains) + blocks["domain_terms"])
     blocks["domain_focus_terms"] = unique(([domain_scope] if domain_scope else []) + blocks.get("domain_focus_terms", []))
+    blocks["hard_domain_anchors"] = unique(([domain_scope] if domain_scope else []) + blocks.get("hard_domain_anchors", []))
     blocks["method_or_topic_terms"] = unique(keywords + blocks["method_or_topic_terms"])
     blocks["problem_terms"] = unique(questions + blocks["problem_terms"])
     blocks["exclusions"] = unique(exclusions + blocks["exclusions"])
@@ -505,6 +519,17 @@ def build_query_plan_from_research_brief(
         blocks["exclusions"] = unique(blocks["exclusions"] + ["review", "survey"])
     plan["domain"] = "research-brief"
     plan["query_variants"] = build_queries(blocks, topic, non_review, max(1, max_queries))
+    plan["hard_constraints"] = {
+        "domain_anchors": blocks["hard_domain_anchors"],
+        "policy": "Research Brief domain_scope is a confirmed hard anchor when present.",
+    }
+    plan["soft_recall_terms"] = blocks.get("soft_recall_terms", [])
+    provenance = plan.get("term_provenance") if isinstance(plan.get("term_provenance"), dict) else {}
+    if domain_scope:
+        provenance[domain_scope] = "research_brief_domain_scope"
+    for term in blocks.get("soft_recall_terms", []):
+        provenance.setdefault(term, "topic_inferred_soft_recall")
+    plan["term_provenance"] = provenance
     plan["research_brief"] = {
         "slug": brief.get("slug"),
         "status": brief.get("status"),

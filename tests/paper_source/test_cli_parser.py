@@ -108,6 +108,20 @@ def test_dry_run_parser_accepts_agent_supplied_query_variants_and_focus_terms():
     assert args.code_policy == "prefer"
 
 
+def test_dry_run_parser_accepts_selection_policy():
+    args = build_parser().parse_args(
+        [
+            "dry-run",
+            "--query",
+            "robotics control",
+            "--selection-policy",
+            "strict_advance",
+        ]
+    )
+
+    assert args.selection_policy == "strict_advance"
+
+
 def test_dry_run_parser_accepts_json_output():
     args = build_parser().parse_args(
         [
@@ -496,6 +510,7 @@ def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatc
         skip_existing=False,
         mineru_timeout=None,
         workflow_mode=None,
+        selection_policy=None,
     ):
         captured.update(
             {
@@ -507,6 +522,7 @@ def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatc
                 "skip_existing": skip_existing,
                 "mineru_timeout": mineru_timeout,
                 "workflow_mode": workflow_mode,
+                "selection_policy": selection_policy,
             }
         )
         return {
@@ -546,6 +562,7 @@ def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatc
     assert payload["batch_state"] == "prepared"
     assert payload["status"] == "waiting_for_human_gate"
     assert payload["workflow_mode"] == "fast-ingest"
+    assert payload["selection_policy"] == "balanced_high_quality"
     assert payload["processed_count"] == 2
     assert payload["skipped_count"] == 1
     assert payload["stops_after"] == "source-staging"
@@ -555,6 +572,7 @@ def test_prepare_ranked_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatc
     assert captured["skip_existing"] is True
     assert captured["include_review_candidates"] is True
     assert captured["workflow_mode"] == "fast-ingest"
+    assert captured["selection_policy"] == "balanced_high_quality"
 
 
 def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypatch, capsys):
@@ -570,6 +588,7 @@ def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypat
         skip_existing=False,
         mineru_timeout=None,
         workflow_mode=None,
+        selection_policy=None,
     ):
         captured.update(
             {
@@ -581,6 +600,7 @@ def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypat
                 "skip_existing": skip_existing,
                 "mineru_timeout": mineru_timeout,
                 "workflow_mode": workflow_mode,
+                "selection_policy": selection_policy,
             }
         )
         return {
@@ -619,10 +639,80 @@ def test_prepare_ranked_cli_passes_skip_existing_to_workflow(tmp_path, monkeypat
         "skip_existing": True,
         "mineru_timeout": None,
         "workflow_mode": "reviewed-ingest",
+        "selection_policy": "balanced_high_quality",
     }
     output = capsys.readouterr().out
     assert "workflow_mode=reviewed-ingest" in output
     assert "stops_after=source-staging" in output
+
+
+def test_discover_to_handoff_cli_outputs_safe_handoff_record(tmp_path, monkeypatch, capsys):
+    captured = {}
+
+    def fake_discover_to_handoff(**kwargs):
+        captured.update(kwargs)
+        return {
+            "run_id": "discover-to-handoff-001",
+            "source_run_id": "dry-run-001",
+            "prepare_run_id": "prepare-ranked-001",
+            "status": "waiting_for_human_gate",
+            "state": "handoff_prepared",
+            "selection_policy": "code_preferred",
+            "stops_after": "source-staging",
+            "compiled_wiki_write": False,
+            "human_approval_written": False,
+            "paper_wiki_invoked": False,
+            "processed_count": 1,
+            "skipped_count": 0,
+            "prepared_papers": [
+                {
+                    "slug": "fixture-paper",
+                    "state": "staged",
+                    "next_action": "run-wiki-ingest-agent",
+                    "wiki_ingest_brief": str(tmp_path / "_paper_source" / "staging" / "papers" / "fixture-paper" / "wiki-ingest-brief.json"),
+                }
+            ],
+            "manual_downloads": [],
+            "artifacts": {"discovery": {}, "prepare": {}},
+            "exit_status": 0,
+        }
+
+    monkeypatch.setattr(cli.workflows, "discover_to_handoff", fake_discover_to_handoff)
+
+    exit_code = cli.main(
+        [
+            "discover-to-handoff",
+            "--query",
+            "natural language topic",
+            "--vault",
+            str(tmp_path),
+            "--query-variant",
+            '"domain object" "task" -review -survey',
+            "--domain-focus-term",
+            "domain object",
+            "--selection-policy",
+            "code_preferred",
+            "--max-papers",
+            "2",
+            "--no-skip-existing",
+            "--json",
+        ]
+    )
+
+    payload = __import__("json").loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["run_id"] == "discover-to-handoff-001"
+    assert payload["source_run_id"] == "dry-run-001"
+    assert payload["prepare_run_id"] == "prepare-ranked-001"
+    assert payload["compiled_wiki_write"] is False
+    assert payload["human_approval_written"] is False
+    assert payload["paper_wiki_invoked"] is False
+    assert captured["query"] == "natural language topic"
+    assert captured["query_variants"] == ['"domain object" "task" -review -survey']
+    assert captured["domain_focus_terms"] == ["domain object"]
+    assert captured["selection_policy"] == "code_preferred"
+    assert captured["max_papers"] == 2
+    assert captured["skip_existing"] is False
 
 
 def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path, monkeypatch):
@@ -637,6 +727,7 @@ def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path
         include_review_candidates=False,
         mineru_timeout=None,
         workflow_mode=None,
+        selection_policy=None,
     ):
         captured.update(
             {
@@ -647,6 +738,7 @@ def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path
                 "include_review_candidates": include_review_candidates,
                 "mineru_timeout": mineru_timeout,
                 "workflow_mode": workflow_mode,
+                "selection_policy": selection_policy,
             }
         )
         return {"run_id": "advance-ranked-001", "state": "batch_done", "processed_count": 0}
@@ -675,6 +767,7 @@ def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path
         "include_review_candidates": True,
         "mineru_timeout": None,
         "workflow_mode": "fast-ingest",
+        "selection_policy": "balanced_high_quality",
     }
 
 
@@ -850,6 +943,46 @@ def test_record_wiki_ingest_parser_accepts_paper_wiki_record_request():
     assert args.slug is None
     assert args.page is None
     assert args.approved_by is None
+    assert args.json is True
+
+
+def test_discover_to_handoff_parser_accepts_discovery_and_prepare_options():
+    args = build_parser().parse_args(
+        [
+            "discover-to-handoff",
+            "--query",
+            "AUV attitude control recent papers",
+            "--query-variant",
+            '"AUV" "attitude control" -review -survey',
+            "--domain-focus-term",
+            "AUV",
+            "--year-min",
+            "2021",
+            "--code-policy",
+            "prefer",
+            "--selection-policy",
+            "code_preferred",
+            "--max-results",
+            "20",
+            "--max-papers",
+            "5",
+            "--include-review-candidates",
+            "--no-skip-existing",
+            "--json",
+        ]
+    )
+
+    assert args.command == "discover-to-handoff"
+    assert args.query == "AUV attitude control recent papers"
+    assert args.query_variant == ['"AUV" "attitude control" -review -survey']
+    assert args.domain_focus_term == ["AUV"]
+    assert args.year_min == 2021
+    assert args.code_policy == "prefer"
+    assert args.selection_policy == "code_preferred"
+    assert args.max_results == 20
+    assert args.max_papers == 5
+    assert args.include_review_candidates is True
+    assert args.skip_existing is False
     assert args.json is True
 
 

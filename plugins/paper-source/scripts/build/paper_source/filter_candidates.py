@@ -96,11 +96,31 @@ def _has_code_identity(candidate: dict) -> bool:
     return bool(candidate.get("code_url") or candidate.get("repository_url"))
 
 
+def _has_stable_paper_identity(candidate: dict) -> bool:
+    return bool(
+        candidate.get("doi")
+        or candidate.get("arxiv_id")
+        or candidate.get("url")
+        or candidate.get("publisher_url")
+        or candidate.get("landing_page_url")
+    )
+
+
 def _normalize_code_policy(code_policy: str | None) -> str:
     policy = str(code_policy or "ignore").strip().lower()
     if policy not in {"ignore", "prefer", "require"}:
         raise ValueError(f"unknown code_policy: {code_policy}")
     return policy
+
+
+def _existing_library_reason(match: dict | None) -> str | None:
+    if not match:
+        return None
+    if match.get("source_type") == "wiki_reference_index":
+        label = match.get("page") or match.get("source_id") or match.get("slug") or "unknown"
+        return f"already_in_wiki:{label}"
+    label = match.get("slug") or match.get("source_id") or "unknown"
+    return f"already_in_library:{label}"
 
 
 def default_discovery_exclusion_terms(query: str) -> list[str]:
@@ -130,7 +150,9 @@ def filter_candidates_with_report(
     year_min: int | None = None,
     code_policy: str | None = None,
 ) -> dict[str, list[dict]]:
-    kept: list[dict] = []
+    recommendable: list[dict] = []
+    staging_ready: list[dict] = []
+    needs_pdf: list[dict] = []
     rejected: list[dict] = []
     domain_terms = [term.lower() for term in domains]
     excluded = [term.lower() for term in (exclude_terms or [])]
@@ -143,35 +165,52 @@ def filter_candidates_with_report(
                 str(candidate.get("venue") or ""),
             ]
         ).lower()
-        reasons: list[str] = []
+        hard_reasons: list[str] = []
+        readiness_reasons: list[str] = []
         if require_pdf and not candidate.get("pdf_url"):
-            reasons.append("missing_pdf")
+            readiness_reasons.append("missing_pdf")
         matched_excluded_terms = [term for term in excluded if _excluded_term_matches_haystack(term, haystack)]
         if matched_excluded_terms:
-            reasons.append("excluded_terms:" + ",".join(matched_excluded_terms))
+            hard_reasons.append("excluded_terms:" + ",".join(matched_excluded_terms))
         library_match = existing_library_match(candidate, existing_library_index)
-        if library_match:
-            reasons.append(f"already_in_library:{library_match.get('slug')}")
+        library_reason = _existing_library_reason(library_match)
+        if library_reason:
+            hard_reasons.append(library_reason)
         if domain_terms and not any(_term_matches_haystack(term, haystack) for term in domain_terms):
-            reasons.append("outside_domain")
+            hard_reasons.append("outside_domain")
         if year_min is not None:
             candidate_year = _candidate_year(candidate)
             if candidate_year is None:
-                reasons.append("year_missing")
+                hard_reasons.append("year_missing")
             elif candidate_year < int(year_min):
-                reasons.append(f"year_before:{int(year_min)}")
+                hard_reasons.append(f"year_before:{int(year_min)}")
         if normalized_code_policy == "require" and not _has_code_identity(candidate):
-            reasons.append("missing_code")
+            hard_reasons.append("missing_code")
+        if readiness_reasons and not _has_stable_paper_identity(candidate):
+            hard_reasons.append("missing_pdf_and_stable_identity")
         filtered = dict(candidate)
         if library_match:
             filtered["existing_library_match"] = library_match
-        filtered["filter_reasons"] = reasons
-        filtered["filter_status"] = "rejected" if reasons else "kept"
-        if reasons:
+        filtered["filter_reasons"] = hard_reasons
+        filtered["readiness_reasons"] = readiness_reasons
+        filtered["recommendation_filter_status"] = "rejected" if hard_reasons else "recommendable"
+        filtered["staging_readiness"] = "needs_pdf" if readiness_reasons and not hard_reasons else "ready"
+        filtered["filter_status"] = "rejected" if hard_reasons else "kept"
+        if hard_reasons:
             rejected.append(filtered)
         else:
-            kept.append(filtered)
-    return {"kept": kept, "rejected": rejected}
+            recommendable.append(filtered)
+            if readiness_reasons:
+                needs_pdf.append(filtered)
+            else:
+                staging_ready.append(filtered)
+    return {
+        "kept": recommendable,
+        "recommendable": recommendable,
+        "staging_ready": staging_ready,
+        "needs_pdf": needs_pdf,
+        "rejected": rejected,
+    }
 
 
 def filter_candidates(

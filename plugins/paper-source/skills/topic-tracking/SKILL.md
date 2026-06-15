@@ -10,7 +10,7 @@ Use this topic-level layer above per-paper stages. Goal: grow a trustworthy view
 
 ## Core Rule
 
-Treat every `dry-run`, `rank.json`, `report.json`, `_paper_source/raw/*/metadata.json`, and wiki-ingest record as the topic ledger. Separate net-new from known papers, then show coverage and next reading actions.
+Treat `_meta/reference-index.json` as the topic ledger/backlog for deposited papers. Use `dry-run`, `rank.json`, `report.json`, `_paper_source/reviews`, `_paper_source/raw/*/metadata.json`, and wiki-ingest records as supporting evidence and caches. Separate net-new from known papers, then show coverage and next reading actions.
 
 ## Pairing
 
@@ -22,12 +22,12 @@ Treat every `dry-run`, `rank.json`, `report.json`, `_paper_source/raw/*/metadata
 ## Workflow
 
 1. Identify boundary: user question, config/profile terms, must-include/exclude concepts, last covered run/date.
-2. Inspect prior state before searching: `_paper_source/runs/index.json`, recent reports/ranks, `_paper_source/raw/*/metadata.json`, and `research-queue`.
-3. Run or inspect discovery; surface `research_mode`, query variants, source route, `domain_focus_terms`, and `recall_gap_checks`.
-4. Build delta: `net_new`, `already_known`, `already_in_library:<slug>`, repeats, uncertain review/survey candidates.
+2. Inspect prior state before searching: `_meta/reference-index.json`, `_paper_source/runs/index.json`, recent reports/ranks, `_paper_source/raw/*/metadata.json`, and `research-queue`.
+3. Run or inspect discovery; surface `research_mode`, query variants, source route, `hard_domain_anchors`, `soft_recall_terms`, and `recall_gap_checks`.
+4. Build delta: `net_new`, `already_known`, `already_in_wiki:<page>`, `already_in_library:<slug>`, repeats, uncertain review/survey candidates.
 5. Rank backlog by quality tier, topic fit, identity, PDF availability, confidence, novelty, and parse/acquisition readiness.
 6. Report coverage before depth: venue/source/year/method/task/benchmark/citation-cluster breadth and missing clusters.
-7. Choose depth actions: `prepare-ranked --skip-existing`, reader/critic, wiki handoff, or manual PDF reading when parse fidelity is weak.
+7. Choose depth actions: Paper Wiki update/deposition for selected papers when enough source evidence exists; otherwise explicit `prepare-ranked --skip-existing`, reader/critic, wiki handoff, or manual PDF reading when parse fidelity is weak.
 
 ## Commands
 
@@ -39,7 +39,7 @@ python scripts\orchestrator.py research-queue --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json
 ```
 
-If no explicit `--since` exists, emulate it by comparing current run artifacts against prior runs and `_paper_source/raw/*/metadata.json`. Use `already_in_library:<slug>` as a hard dedupe signal, not a hidden filter.
+If no explicit `--since` exists, emulate it by comparing current run artifacts against `_meta/reference-index.json`, prior runs, and `_paper_source/raw/*/metadata.json`. Use `already_in_wiki:<page>` and `already_in_library:<slug>` as hard dedupe signals, not hidden filters.
 
 ## Output Contract
 

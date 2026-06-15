@@ -242,8 +242,9 @@ def test_query_planner_derives_generic_topic_anchors_from_narrow_request():
     )
 
     assert plan["domain"] == "profile-derived"
-    assert "molecular property prediction" in plan["concept_blocks"]["domain_focus_terms"]
-    assert "graph neural network" not in plan["concept_blocks"]["domain_focus_terms"]
+    assert plan["concept_blocks"]["domain_focus_terms"] == []
+    assert "molecular property prediction" in plan["concept_blocks"]["soft_recall_terms"]
+    assert "graph neural network" not in plan["concept_blocks"]["soft_recall_terms"]
     assert plan["concept_blocks"]["domain_terms"][0] == "molecular property prediction"
 
 

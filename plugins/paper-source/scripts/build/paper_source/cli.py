@@ -294,6 +294,7 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
         query_plan_domain=args.query_plan_domain,
         query_plan_max_queries=args.query_plan_max_queries,
         enable_easyscholar=not args.no_easyscholar,
+        selection_policy=args.selection_policy,
         resume=not args.no_resume,
         refresh=args.refresh,
     )
@@ -301,9 +302,14 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
         payload = {
             "run_dir": str(run_dir),
             "run_id": run_dir.name,
+            "selection_policy": args.selection_policy,
             "artifacts": {
                 "query_plan": str(run_dir / "query-plan.json") if (run_dir / "query-plan.json").exists() else None,
                 "search_record": str(run_dir / "search-record.json"),
+                "filter_report": str(run_dir / "filter-report.json"),
+                "discovery_diagnostics": str(run_dir / "discovery-diagnostics.json")
+                if (run_dir / "discovery-diagnostics.json").exists()
+                else None,
                 "rank": str(run_dir / "rank.json"),
                 "report": str(run_dir / "report.md"),
                 "report_json": str(run_dir / "report.json"),
@@ -326,6 +332,76 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
                 f"status={brief_payload.get('status')} overrides_profile=true"
             )
     return 0
+
+
+def _handle_discover_to_handoff(args: argparse.Namespace) -> int:
+    sources = [source.strip() for source in args.sources.split(",") if source.strip()] if args.sources else None
+    record = workflows.discover_to_handoff(
+        plugin_root=args.plugin_root,
+        vault_path=args.vault,
+        query=args.query,
+        from_brief=args.from_brief,
+        allow_draft_brief=args.allow_draft_brief,
+        max_results=args.max_results,
+        max_papers=args.max_papers,
+        fixture_path=args.fixture,
+        paper_search_command=args.paper_search_command,
+        sources=sources,
+        use_query_plan=not args.no_query_plan,
+        query_variants=args.query_variant,
+        domain_focus_terms=args.domain_focus_term,
+        agent_query_plan_json=args.agent_query_plan_json,
+        year_min=args.year_min,
+        code_policy=args.code_policy,
+        query_plan_domain=args.query_plan_domain,
+        query_plan_max_queries=args.query_plan_max_queries,
+        enable_easyscholar=not args.no_easyscholar,
+        selection_policy=args.selection_policy,
+        refresh=args.refresh,
+        include_review_candidates=args.include_review_candidates,
+        skip_existing=args.skip_existing,
+        mineru_command=args.mineru_command,
+        mineru_timeout=args.mineru_timeout,
+        workflow_mode=args.mode,
+    )
+    run_dir = runs_root(args.vault) / record["run_id"]
+    if args.json:
+        _print_json(
+            {
+                "run_dir": str(run_dir),
+                "run_id": record["run_id"],
+                "source_run_id": record["source_run_id"],
+                "prepare_run_id": record["prepare_run_id"],
+                "status": record["status"],
+                "state": record["state"],
+                "selection_policy": record["selection_policy"],
+                "stops_after": record["stops_after"],
+                "compiled_wiki_write": record["compiled_wiki_write"],
+                "human_approval_written": record["human_approval_written"],
+                "paper_wiki_invoked": record["paper_wiki_invoked"],
+                "processed_count": record["processed_count"],
+                "skipped_count": record["skipped_count"],
+                "prepared_papers": record["prepared_papers"],
+                "manual_downloads": record["manual_downloads"],
+                "artifacts": {
+                    "record": str(run_dir / "discover-to-handoff-record.json"),
+                    "report": str(run_dir / "report.md"),
+                    "report_json": str(run_dir / "report.json"),
+                    "run_state": str(run_dir / "run-state.json"),
+                    **record["artifacts"],
+                },
+            }
+        )
+        return int(record.get("exit_status", 0))
+    print(f"run_dir={run_dir}")
+    print(f"source_run_id={record['source_run_id']}")
+    print(f"prepare_run_id={record['prepare_run_id']}")
+    print(f"status={record['status']}")
+    print(f"selection_policy={record['selection_policy']}")
+    print(f"stops_after={record['stops_after']}")
+    print(f"compiled_wiki_write={str(record['compiled_wiki_write']).lower()}")
+    print(f"processed_count={record['processed_count']}")
+    return int(record.get("exit_status", 0))
 
 
 def _handle_ingest_one(args: argparse.Namespace) -> int:
@@ -375,10 +451,12 @@ def _handle_advance_batch(args: argparse.Namespace) -> int:
         max_papers=args.max_papers,
         mineru_timeout=args.mineru_timeout,
         workflow_mode=args.mode,
+        selection_policy=args.selection_policy,
     )
     print(f"run_dir={runs_root(args.vault) / batch['run_id']}")
     print(f"batch_state={batch['state']}")
     print(f"workflow_mode={batch.get('workflow_mode', args.mode)}")
+    print(f"selection_policy={batch.get('selection_policy', args.selection_policy)}")
     print(f"processed_count={batch['processed_count']}")
     return 0 if batch["state"] != "batch_failed" else 1
 
@@ -392,10 +470,12 @@ def _handle_advance_ranked(args: argparse.Namespace) -> int:
         include_review_candidates=args.include_review_candidates,
         mineru_timeout=args.mineru_timeout,
         workflow_mode=args.mode,
+        selection_policy=args.selection_policy,
     )
     print(f"run_dir={runs_root(args.vault) / batch['run_id']}")
     print(f"batch_state={batch['state']}")
     print(f"workflow_mode={batch.get('workflow_mode', args.mode)}")
+    print(f"selection_policy={batch.get('selection_policy', args.selection_policy)}")
     print(f"processed_count={batch['processed_count']}")
     return 0 if batch["state"] != "batch_failed" else 1
 
@@ -410,6 +490,7 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
         skip_existing=args.skip_existing,
         mineru_timeout=args.mineru_timeout,
         workflow_mode=args.mode,
+        selection_policy=args.selection_policy,
     )
     run_dir = runs_root(args.vault) / batch["run_id"]
     if args.json:
@@ -422,6 +503,7 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
                     "batch_state": batch["state"],
                     "status": batch.get("status"),
                     "workflow_mode": batch.get("workflow_mode", args.mode),
+                    "selection_policy": batch.get("selection_policy", args.selection_policy),
                     "processed_count": batch["processed_count"],
                     "skipped_count": batch.get("skipped_count", 0),
                     "stops_after": batch.get("stops_after", "source-staging"),
@@ -440,6 +522,7 @@ def _handle_prepare_ranked(args: argparse.Namespace) -> int:
     print(f"run_dir={runs_root(args.vault) / batch['run_id']}")
     print(f"batch_state={batch['state']}")
     print(f"workflow_mode={batch.get('workflow_mode', args.mode)}")
+    print(f"selection_policy={batch.get('selection_policy', args.selection_policy)}")
     print(f"processed_count={batch['processed_count']}")
     print(f"stops_after={batch.get('stops_after', 'source-staging')}")
     return 0 if batch["state"] != "prepare_failed" else 1

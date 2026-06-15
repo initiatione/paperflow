@@ -24,6 +24,15 @@ BENCHMARK_TERMS = (
     "metric",
 )
 
+SELECTION_POLICIES = {
+    "balanced_high_quality",
+    "code_preferred",
+    "code_required",
+    "recent_high_quality",
+    "broad_map",
+    "strict_advance",
+}
+
 PAPER_TYPE_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "survey",
@@ -255,6 +264,7 @@ def _ranking_protocol(
     signals: dict[str, float],
     code_available: bool,
     easyscholar_signal: dict | None = None,
+    selection_policy: str = "balanced_high_quality",
 ) -> dict:
     reasons: list[str] = []
     cautions: list[str] = []
@@ -276,17 +286,44 @@ def _ranking_protocol(
     if signals["venue_score"] < 0.5:
         cautions.append("weak_venue_signal")
 
-    decision = (
-        "advance-candidate"
-        if (
+    if selection_policy == "strict_advance":
+        advance = (
             signals["score"] >= 0.75
             and signals["reproducibility_score"] >= 0.35
             and signals["negative_keyword_penalty"] < 0.34
         )
-        else "review-candidate"
-    )
+    elif selection_policy == "code_required":
+        advance = code_available and signals["score"] >= 0.68 and signals["negative_keyword_penalty"] < 0.34
+    elif selection_policy == "code_preferred":
+        advance = (
+            signals["score"] >= 0.70
+            and signals["domain_fit_score"] >= 0.34
+            and signals["negative_keyword_penalty"] < 0.34
+            and (code_available or signals["reproducibility_score"] >= 0.25)
+        )
+    elif selection_policy == "recent_high_quality":
+        advance = (
+            signals["score"] >= 0.70
+            and signals["freshness_score"] >= 1.0
+            and signals["domain_fit_score"] >= 0.34
+            and signals["negative_keyword_penalty"] < 0.34
+        )
+    elif selection_policy == "broad_map":
+        advance = (
+            signals["score"] >= 0.58
+            and signals["domain_fit_score"] >= 0.25
+            and signals["negative_keyword_penalty"] < 0.5
+        )
+    else:
+        advance = (
+            signals["score"] >= 0.68
+            and signals["domain_fit_score"] >= 0.34
+            and signals["negative_keyword_penalty"] < 0.34
+        )
+    decision = "advance-candidate" if advance else "review-candidate"
     return {
         "schema_version": "paper-source-ranking-protocol-v1",
+        "selection_policy": selection_policy,
         "decision": decision,
         "matched_positive_keywords": matched_keywords,
         "matched_negative_keywords": matched_negative_keywords,
@@ -332,7 +369,7 @@ def _quality_gate(
     if signals["pdf_score"] > 0:
         evidence.append("pdf_available")
     else:
-        blockers.append("missing_pdf")
+        cautions.append("missing_pdf")
     if signals["domain_fit_score"] >= 0.67:
         evidence.append("high_topic_fit")
     elif signals["domain_fit_score"] >= 0.34:
@@ -470,6 +507,7 @@ def rank_candidates(
     negative_keywords: list[str] | None = None,
     year_min: int | None = None,
     code_policy: str | None = None,
+    selection_policy: str = "balanced_high_quality",
 ) -> list[dict]:
     ranked: list[dict] = []
     keywords = [keyword.lower() for keyword in positive_keywords]
@@ -477,6 +515,9 @@ def rank_candidates(
     normalized_code_policy = str(code_policy or "ignore").strip().lower()
     if normalized_code_policy not in {"ignore", "prefer", "require"}:
         raise ValueError(f"unknown code_policy: {code_policy}")
+    normalized_selection_policy = str(selection_policy or "balanced_high_quality").strip().lower()
+    if normalized_selection_policy not in SELECTION_POLICIES:
+        raise ValueError(f"unknown selection_policy: {selection_policy}")
     for candidate in candidates:
         text = _text(candidate)
         easyscholar_signal = (candidate.get("quality_signals") or {}).get("easyscholar") or {}
@@ -561,6 +602,7 @@ def rank_candidates(
             },
             code_available=bool(candidate.get("code_url")),
             easyscholar_signal=easyscholar_signal,
+            selection_policy=normalized_selection_policy,
         )
         protocol["paper_type"] = classification["primary_type"]
         protocol["classification_confidence"] = classification["confidence"]

@@ -23,10 +23,10 @@ Paper Source `dry-run` now performs this by default: it writes `query-plan.json`
 
 Filter and rank after the pool exists:
 
-1. Deduplicate by DOI, arXiv ID, stable URL, normalized title, and title+first-author+year.
-2. Deduplicate against `_paper_source/raw/*/metadata.json`.
+1. Deduplicate by DOI, arXiv base ID, stable URL, source ID, normalized title, and title+first-author+year.
+2. Deduplicate against `_meta/reference-index.json` as the wiki backlog, then `_paper_source/raw/*/metadata.json` as source-bundle fallback.
 3. Remove hard exclusions such as review/survey when requested.
-4. Enforce `domain_focus_terms` when present. This is the hard anchor gate for the current request; broad config or method terms should not let method-only papers pass.
+4. Enforce `hard_domain_anchors` only when present and confirmed. Broad config, method terms, or inferred topic n-grams should remain soft recall/ranking signals rather than hidden hard gates.
 5. Classify paper type from title/abstract using `paper-type-taxonomy.md`.
 6. Verify identity: title, year, venue, DOI/arXiv ID, PDF.
 7. Score topic fit by concept block coverage.
@@ -49,7 +49,7 @@ reading_priority =
   - review_or_survey_penalty
   - method_only_without_domain_anchor_penalty
   - weak_identity_penalty
-  - already_in_library_penalty
+  - already_in_wiki_or_library_penalty
 ```
 
 Stage 1 should be generous. Stage 2 should be strict.

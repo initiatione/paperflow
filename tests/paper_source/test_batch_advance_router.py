@@ -771,7 +771,7 @@ def test_advance_paper_batch_from_run_skips_review_candidates_by_default(tmp_pat
 
         batch = advance_paper_batch_from_run(vault, run_id)
 
-    assert batch["rank_decision_filter"] == ["advance-candidate"]
+    assert batch["rank_decision_filter"] == ["advance-candidate", "review-candidate"]
     assert batch["candidate_count"] == 2
     assert batch["processed_count"] == 1
     assert batch["skipped_count"] == 1
@@ -780,7 +780,8 @@ def test_advance_paper_batch_from_run_skips_review_candidates_by_default(tmp_pat
             "slug": "ranked-review",
             "title": "Ranked Review",
             "decision": "review-candidate",
-            "reason": "decision_not_selected",
+            "quality_tier": None,
+            "reason": "review_candidate_below_selection_policy",
         }
     ]
     assert (vault / "_paper_source" / "raw" / "ranked-advance" / "paper.pdf").is_file()
