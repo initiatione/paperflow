@@ -35,6 +35,7 @@ REQUIRED_PATHS = [
 PAPER_SEARCH_SETUP_URL = "https://github.com/openags/paper-search-mcp"
 MINERU_TOKEN_SETUP_URL = "https://mineru.net/apiManage/docs?openApplyModal=true"
 EASYSCHOLAR_SETUP_URL = "https://www.easyscholar.cc"
+GROK_SEARCH_RS_SETUP_URL = "https://github.com/"
 
 SETUP_GUIDES = {
     "paper_search_mcp": {
@@ -72,6 +73,15 @@ SETUP_GUIDES = {
         "commands": [
             "$env:EASYSCHOLAR_SECRET_KEY='<your EasyScholar secret key>'",
             "[Environment]::SetEnvironmentVariable('EASYSCHOLAR_SECRET_KEY', '<your EasyScholar secret key>', 'User')",
+        ],
+    },
+    "grok_search_mcp": {
+        "summary": "Configure optional grok-search-rs MCP",
+        "url": GROK_SEARCH_RS_SETUP_URL,
+        "description": "Point Paper Source at a local grok-search-rs MCP command and load provider keys via env_file.",
+        "commands": [
+            "$env:PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND='<path-to-grok-search-rs>'",
+            "$env:PAPER_SOURCE_GROK_SEARCH_MCP_ARGS='<stdio args if needed>'",
         ],
     },
 }
@@ -233,6 +243,32 @@ def _check_easyscholar() -> dict:
             else "EASYSCHOLAR_SECRET_KEY is not set; EasyScholar enrichment will soft-fail as unverified",
         }
     )
+
+
+def _check_grok_search_mcp() -> dict:
+    command = os.environ.get("PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND")
+    args = os.environ.get("PAPER_SOURCE_GROK_SEARCH_MCP_ARGS")
+    if not command:
+        return _with_setup(
+            {
+                "name": "grok_search_mcp",
+                "status": "warning",
+                "configured": False,
+                "message": "optional grok-search-rs MCP is not configured; Grok supplemental search resolves to off",
+            }
+        )
+    executable = command.strip().strip("\"'")
+    available = Path(executable).exists() or shutil.which(executable) is not None
+    return {
+        "name": "grok_search_mcp",
+        "status": "ok" if available else "warning",
+        "configured": True,
+        "command": executable,
+        "args_configured": bool(args),
+        "message": "optional grok-search-rs MCP command configured"
+        if available
+        else "optional grok-search-rs MCP command configured but not found on this machine",
+    }
 
 
 def _check_paper_search_provider_readiness() -> dict:
@@ -591,6 +627,7 @@ def collect_doctor_report(
     checks.append(_check_codex_mcp_registration())
     checks.append(_check_paper_search(paper_search_command))
     checks.append(_check_paper_search_provider_readiness())
+    checks.append(_check_grok_search_mcp())
     checks.append(_check_mineru_command(plugin_root, mineru_command))
     checks.append(_check_mineru_token())
     checks.append(_check_easyscholar())

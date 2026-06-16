@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from paper_source.grok_search_policy import grok_only_quota, usable_paper_search_candidate
+
 SCHEMA_VERSION = "paper-source-session-recommendations-v1"
 DEFAULT_PRIMARY_LIMIT = 10
 
@@ -33,6 +35,31 @@ def _is_primary_candidate(candidate: dict[str, Any]) -> bool:
 
 def _is_review_appendix_candidate(candidate: dict[str, Any]) -> bool:
     return _decision(candidate) == "review-candidate" or _quality_tier(candidate) == "Tier C"
+
+
+def _is_grok_only_candidate(candidate: dict[str, Any]) -> bool:
+    provenance = candidate.get("provider_provenance")
+    providers = set(provenance if isinstance(provenance, list) else [])
+    if not providers:
+        return False
+    return providers == {"grok_search"} or candidate.get("provenance_label") == "grok_only_with_paper_search_anchor"
+
+
+def _apply_paper_search_anchor_gate(candidates: list[dict[str, Any]], *, cap: int = 5) -> list[dict[str, Any]]:
+    usable_paper = [candidate for candidate in candidates if usable_paper_search_candidate(candidate)]
+    if not usable_paper:
+        return [candidate for candidate in candidates if not _is_grok_only_candidate(candidate)]
+    quota = grok_only_quota(candidates, cap)
+    accepted: list[dict[str, Any]] = []
+    grok_only_count = 0
+    for candidate in candidates:
+        if not _is_grok_only_candidate(candidate):
+            accepted.append(candidate)
+            continue
+        if grok_only_count < quota:
+            accepted.append(candidate)
+            grok_only_count += 1
+    return accepted
 
 
 def _doi_payload(candidate: dict[str, Any]) -> dict[str, str | None]:
@@ -183,6 +210,8 @@ def _recommendation_item(
         "quality_reason": _quality_reason(candidate),
         "ranking_decision": _decision(candidate),
         "ranking_rationale": candidate.get("ranking_rationale") or {},
+        "provenance_label": candidate.get("provenance_label"),
+        "provider_provenance": candidate.get("provider_provenance") or [],
         "pdf_status": _pdf_status(candidate),
         "pdf_url": candidate.get("pdf_url") or None,
         "manual_download": {
@@ -235,7 +264,9 @@ def build_session_recommendations(
     manual_downloads = manual_downloads or []
     manual_cards = _manual_cards_by_identity(manual_downloads)
 
-    primary_candidates = [candidate for candidate in ranked if _is_primary_candidate(candidate)]
+    primary_candidates = _apply_paper_search_anchor_gate(
+        [candidate for candidate in ranked if _is_primary_candidate(candidate)]
+    )
     primary_shown = primary_candidates[:primary_limit]
     primary_ids = {id(candidate) for candidate in primary_shown}
     appendix_candidates = [

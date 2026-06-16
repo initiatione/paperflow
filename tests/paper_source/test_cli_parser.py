@@ -150,6 +150,18 @@ def test_dry_run_parser_accepts_no_easyscholar_override():
     assert args.no_easyscholar is True
 
 
+def test_discovery_parsers_accept_grok_search_modes():
+    for command in ("dry-run", "discover-papers", "discover-to-handoff"):
+        args = build_parser().parse_args([command, "--query", "robotics control", "--grok-mode", "parallel"])
+        assert args.command == command
+        assert args.grok_mode == "parallel"
+        assert args.no_grok_search is False
+
+        disabled = build_parser().parse_args([command, "--query", "robotics control", "--no-grok-search"])
+        assert disabled.grok_mode is None
+        assert disabled.no_grok_search is True
+
+
 def test_dry_run_cli_json_outputs_run_artifact_paths(tmp_path, monkeypatch, capsys):
     run_dir = tmp_path / "_paper_source" / "runs" / "run-json-001"
     run_dir.mkdir(parents=True)
@@ -263,6 +275,34 @@ def test_dry_run_cli_passes_no_easyscholar_to_workflow(tmp_path, monkeypatch):
 
     assert exit_code == 0
     assert captured["enable_easyscholar"] is False
+
+
+def test_dry_run_cli_passes_grok_search_overrides_to_workflow(tmp_path, monkeypatch):
+    run_dir = tmp_path / "_paper_source" / "runs" / "run-json-001"
+    run_dir.mkdir(parents=True)
+    captured = {}
+
+    def fake_run_dry_run(**kwargs):
+        captured.update(kwargs)
+        return run_dir
+
+    monkeypatch.setattr(cli.workflows, "run_dry_run", fake_run_dry_run)
+
+    exit_code = cli.main(
+        [
+            "dry-run",
+            "--query",
+            "AUV reinforcement learning control",
+            "--vault",
+            str(tmp_path),
+            "--grok-mode",
+            "parallel",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["grok_mode"] == "parallel"
+    assert captured["no_grok_search"] is False
 
 
 def test_dry_run_parser_accepts_refresh_and_no_resume_as_exclusive_options():

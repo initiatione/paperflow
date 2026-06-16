@@ -18,6 +18,8 @@ Use for Paper Source / PS discovery and reading-priority ranking: natural-langua
 - Use `research_mode`, `paper_classification`, `ranking_rubric`, and EasyScholar `未核实` states as explanation contracts.
 - Before ranking or recommending, let `discover-papers` / `dry-run` deduplicate against the target vault's `_meta/reference-index.json` first, then `_paper_source\raw\*\metadata.json` as fallback. Treat wiki reference pages as the lightweight backlog.
 - For ordinary natural-language discovery, prefer `discover-papers`. Use `dry-run` when the user explicitly asks for evidence/debug mode or when you need search/rank artifacts without automatic source-staging.
+- Optional Grok supplemental discovery is part of the Paper Source workflow only when configured. Default to targeted mode, let Paper Source skip it when paper-search is already good enough, use `--grok-mode parallel` only for aggressive shortfall recall, and use `--no-grok-search` / `--grok-mode off` when the user wants the trusted paper-search path only.
+- Do not present Grok-only results as final recommendations unless the same final recommendation set includes at least one usable paper-search candidate. Treat Grok salvage without paper-search usable candidates as evidence/diagnostics.
 - For chat results, load `references/output-format.md` and report reading-priority order with short Chinese abstract, citation count, impact factor/quartile, CiteScore, or `未核实` metrics.
 
 ## Workflow Routing

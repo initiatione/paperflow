@@ -38,6 +38,20 @@ def _add_selection_policy(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_grok_search_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--grok-mode",
+        choices=["targeted", "parallel", "off"],
+        default=None,
+        help="Override optional Grok supplemental discovery mode.",
+    )
+    parser.add_argument(
+        "--no-grok-search",
+        action="store_true",
+        help="Disable optional Grok supplemental discovery for this run.",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Paper Source orchestrator.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -167,6 +181,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     dry_run.add_argument("--query-plan-max-queries", type=int, default=6)
     _add_selection_policy(dry_run)
+    _add_grok_search_options(dry_run)
     dry_run.add_argument("--no-easyscholar", action="store_true")
     dry_run_resume_group = dry_run.add_mutually_exclusive_group()
     dry_run_resume_group.add_argument("--refresh", action="store_true")
@@ -193,6 +208,7 @@ def build_parser() -> argparse.ArgumentParser:
     discover_papers.add_argument("--query-plan-domain", default="auto", choices=["auto", "profile"])
     discover_papers.add_argument("--query-plan-max-queries", type=int, default=6)
     _add_selection_policy(discover_papers)
+    _add_grok_search_options(discover_papers)
     discover_papers.add_argument("--no-easyscholar", action="store_true")
     discover_papers.add_argument("--refresh", action="store_true")
     discover_papers.add_argument("--max-auto-stage", type=int, default=3)
@@ -226,6 +242,7 @@ def build_parser() -> argparse.ArgumentParser:
     discover_to_handoff.add_argument("--query-plan-domain", default="auto", choices=["auto", "profile"])
     discover_to_handoff.add_argument("--query-plan-max-queries", type=int, default=6)
     _add_selection_policy(discover_to_handoff)
+    _add_grok_search_options(discover_to_handoff)
     discover_to_handoff.add_argument("--no-easyscholar", action="store_true")
     discover_to_handoff.add_argument("--refresh", action="store_true")
     discover_to_handoff.add_argument("--include-review-candidates", action="store_true")

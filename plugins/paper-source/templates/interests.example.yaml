@@ -5,3 +5,19 @@ negative_keywords: []
 venue_prior: []
 budget:
   max_results: 20
+paper_search:
+  command: paper-search
+  sources:
+    - arxiv
+    - semantic
+    - openalex
+    - crossref
+    - unpaywall
+grok_search:
+  mode: targeted
+  targeted_query_budget: 5
+  parallel_query_budget: 8
+  grok_only_recommendation_cap: 5
+  academic_domains:
+    mode: append
+    domains: []

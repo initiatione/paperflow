@@ -283,6 +283,26 @@ def _append_source_routing_section(report: list[str], discovery_context: dict) -
                 report.append(f"- risk: {provider} {status}{suffix}")
 
 
+def _append_grok_search_section(report: list[str], discovery_context: dict) -> None:
+    grok = discovery_context.get("grok_search") if isinstance(discovery_context, dict) else {}
+    grok = grok if isinstance(grok, dict) else {}
+    provider_records = discovery_context.get("provider_records") if isinstance(discovery_context, dict) else {}
+    provider_records = provider_records if isinstance(provider_records, dict) else {}
+    grok_provider = provider_records.get("grok_search")
+    grok_provider = grok_provider if isinstance(grok_provider, dict) else {}
+    if not grok and not grok_provider:
+        return
+    report.append("")
+    report.append("## Grok Supplemental Search")
+    for key in ("mode", "status", "reason", "record_count", "raw_response_path", "evidence_path"):
+        value = grok_provider.get(key, grok.get(key))
+        if value is not None:
+            report.append(f"- {key}: {value}")
+    warnings = grok_provider.get("warnings")
+    if isinstance(warnings, list) and warnings:
+        report.append("- warnings: " + "; ".join(str(item) for item in warnings))
+
+
 def _append_manual_downloads_section(report: list[str], manual_downloads: list[dict]) -> None:
     if not manual_downloads:
         return
@@ -461,6 +481,7 @@ def write_report(
             if source_coverage:
                 _append_source_coverage_section(report, source_coverage)
             _append_source_routing_section(report, discovery_context)
+            _append_grok_search_section(report, discovery_context)
         _append_easyscholar_section(report, easyscholar_context)
         review_session = discovery_context.get("review_session") if isinstance(discovery_context, dict) else {}
         review_session = review_session if isinstance(review_session, dict) else {}

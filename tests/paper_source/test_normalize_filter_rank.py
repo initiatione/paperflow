@@ -126,6 +126,63 @@ def test_normalize_candidates_preserves_alternate_sources_and_pdf_urls_for_dedup
     assert len(normalized[0]["raw_records"]) == 2
 
 
+def test_normalize_candidates_merges_grok_with_paper_search_priority():
+    raw_records = [
+        {
+            "source": "grok_search",
+            "provider": "grok_search",
+            "title": "Noisy Grok Title",
+            "authors": ["Wrong Author"],
+            "year": 2023,
+            "venue": "Web",
+            "abstract": "Noisy snippet.",
+            "doi": "10.1000/merge",
+            "pdf_url": "https://publisher.example/merge.pdf",
+            "landing_page_url": "https://publisher.example/merge",
+        },
+        {
+            "source": "semantic",
+            "provider": "paper_search",
+            "title": "Authoritative Paper Search Title",
+            "authors": ["A. Researcher"],
+            "year": 2025,
+            "venue": "ICRA",
+            "abstract": "Authoritative abstract.",
+            "doi": "10.1000/merge",
+        },
+    ]
+
+    normalized = normalize_candidates(raw_records)
+
+    assert len(normalized) == 1
+    assert normalized[0]["title"] == "Authoritative Paper Search Title"
+    assert normalized[0]["authors"] == ["A. Researcher"]
+    assert normalized[0]["year"] == 2025
+    assert normalized[0]["venue"] == "ICRA"
+    assert normalized[0]["abstract"] == "Authoritative abstract."
+    assert normalized[0]["pdf_url"] == "https://publisher.example/merge.pdf"
+    assert normalized[0]["landing_page_url"] == "https://publisher.example/merge"
+    assert normalized[0]["provider_provenance"] == ["grok_search", "paper_search"]
+    assert normalized[0]["provenance_label"] == "both_providers"
+
+
+def test_normalize_candidates_labels_grok_only_as_anchor_required_supplemental():
+    normalized = normalize_candidates(
+        [
+            {
+                "source": "grok_search",
+                "provider": "grok_search",
+                "title": "Supplemental Publisher Paper",
+                "doi": "10.1000/supplemental",
+                "landing_page_url": "https://publisher.example/supplemental",
+            }
+        ]
+    )
+
+    assert normalized[0]["provider_provenance"] == ["grok_search"]
+    assert normalized[0]["provenance_label"] == "grok_only_with_paper_search_anchor"
+
+
 def test_filter_candidates_can_hard_exclude_reviews_when_requested():
     candidates = [
         {

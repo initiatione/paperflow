@@ -299,6 +299,59 @@ def test_apply_runtime_config_loads_paper_search_provider_env_file(tmp_path, mon
     assert "semantic-key" not in json.dumps(status)
 
 
+def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_path, monkeypatch):
+    runtime_path = tmp_path / "runtime.json"
+    grok_env = tmp_path / "grok.env"
+    grok_env.write_text(
+        "OPENAI_COMPATIBLE_API_KEY=grok-compatible-key\n"
+        "TAVILY_API_KEY=tavily-key\n",
+        encoding="utf-8",
+    )
+    _write_json(
+        runtime_path,
+        {
+            "schema_version": "paper-source-runtime-config-v1",
+            "grok_search_mcp": {
+                "command": "grok-search-rs",
+                "args": ["--stdio"],
+                "env_file": str(grok_env),
+            },
+        },
+    )
+    monkeypatch.setenv("PAPER_SOURCE_RUNTIME_CONFIG", str(runtime_path))
+    for key in [
+        "PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND",
+        "PAPER_SOURCE_GROK_SEARCH_MCP_ARGS",
+        "OPENAI_COMPATIBLE_API_KEY",
+        "TAVILY_API_KEY",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    status = apply_runtime_config()
+
+    assert os.environ["PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND"] == "grok-search-rs"
+    assert os.environ["PAPER_SOURCE_GROK_SEARCH_MCP_ARGS"] == "--stdio"
+    assert os.environ["OPENAI_COMPATIBLE_API_KEY"] == "grok-compatible-key"
+    assert os.environ["TAVILY_API_KEY"] == "tavily-key"
+    assert "OPENAI_COMPATIBLE_API_KEY" in status["applied_env"]
+    assert "TAVILY_API_KEY" in status["applied_env"]
+    assert "grok-compatible-key" not in json.dumps(status)
+    assert "tavily-key" not in json.dumps(status)
+
+
+def test_apply_runtime_config_rejects_grok_provider_secret_in_runtime_env(tmp_path, monkeypatch):
+    runtime_path = tmp_path / "runtime.json"
+    _write_json(runtime_path, {"env": {"OPENAI_COMPATIBLE_API_KEY": "do-not-load"}})
+    monkeypatch.setenv("PAPER_SOURCE_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
+
+    status = apply_runtime_config()
+
+    assert "OPENAI_COMPATIBLE_API_KEY" not in os.environ
+    assert "OPENAI_COMPATIBLE_API_KEY" in status["skipped_env"]
+    assert "do-not-load" not in json.dumps(status)
+
+
 def test_apply_runtime_config_loads_all_documented_paper_search_provider_env_keys(tmp_path, monkeypatch):
     runtime_path = tmp_path / "runtime.json"
     paper_search_env = tmp_path / "paper-search.env"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +34,15 @@ from paper_source.filter_candidates import (
     exclusion_terms_from_query,
     filter_candidates,
     filter_candidates_with_report,
+)
+from paper_source.grok_search_adapter import SEARCH_TIMEOUT_SECONDS as GROK_SEARCH_TIMEOUT_SECONDS
+from paper_source.grok_search_adapter import discover_grok
+from paper_source.grok_search_policy import (
+    PARALLEL_FAN_IN_GRACE_SECONDS,
+    build_parallel_grok_queries,
+    build_targeted_grok_queries,
+    paper_search_good_enough,
+    resolve_grok_mode,
 )
 from paper_source.orchestrator_discovery import (
     filter_domains_from_profile as _filter_domains_from_profile,
@@ -231,6 +241,124 @@ def _normalize_selection_policy(value: object) -> str:
     return policy
 
 
+def _with_paper_search_provider(records: list[dict]) -> list[dict]:
+    enriched: list[dict] = []
+    for record in records:
+        item = dict(record)
+        item.setdefault("provider", "paper_search")
+        enriched.append(item)
+    return enriched
+
+
+def _evaluate_paper_search_good_enough(
+    *,
+    paper_search_record: dict,
+    config,
+    query: str,
+    query_plan: dict | None,
+    source_routing: dict | None,
+    review_survey_policy: str,
+    explicit_document_type_exclusions: bool,
+    request_year_min: int | None,
+    request_code_policy: str | None,
+    selection_policy: str,
+) -> tuple[bool, list[dict], dict]:
+    query_exclude_terms = (
+        default_discovery_exclusion_terms(query)
+        if review_survey_policy == "legacy_default" or explicit_document_type_exclusions
+        else []
+    )
+    normalized = normalize_candidates(_with_paper_search_provider(paper_search_record.get("records") or []))
+    filter_report = filter_candidates_with_report(
+        normalized,
+        domains=_filter_domains_from_profile(config, query_plan),
+        require_pdf=True,
+        exclude_terms=query_exclude_terms,
+        existing_library_index=load_existing_paper_index(config.vault_path),
+        year_min=request_year_min,
+        code_policy=request_code_policy,
+    )
+    ranked_pool = rank_candidates(
+        filter_report["kept"],
+        positive_keywords=_ranking_keywords_from_profile(config, query, query_plan),
+        negative_keywords=config.negative_keywords,
+        venue_tiers=_venue_tiers_from_profile(config, query_plan),
+        year_min=request_year_min,
+        code_policy=request_code_policy,
+        selection_policy=selection_policy,
+    )
+    evaluation = {
+        "normalized_count": len(normalized),
+        "recommendable_count": len(filter_report["kept"]),
+        "staging_ready_count": len(filter_report.get("staging_ready", [])),
+        "needs_pdf_count": len(filter_report.get("needs_pdf", [])),
+        "ranked_count": len(ranked_pool),
+    }
+    return paper_search_good_enough(ranked_pool, source_routing=source_routing), ranked_pool, evaluation
+
+
+def _merge_provider_search_records(
+    paper_search_record: dict,
+    grok_record: dict | None,
+    *,
+    grok_mode: str,
+    grok_status: str,
+    grok_reason: str | None = None,
+) -> dict:
+    paper_records = _with_paper_search_provider(paper_search_record.get("records") or [])
+    grok_records = []
+    if isinstance(grok_record, dict):
+        grok_records = [dict(record) for record in grok_record.get("records") or [] if isinstance(record, dict)]
+        if not paper_records:
+            for record in grok_records:
+                record["provenance_label"] = "grok_salvage_evidence"
+    merged = dict(paper_search_record)
+    merged["records"] = [*paper_records, *grok_records]
+    merged["provider_records"] = {
+        "paper_search": {
+            "status": "ok" if not paper_search_record.get("error") else "error",
+            "record_count": len(paper_records),
+            "raw_response_path": paper_search_record.get("raw_response_path"),
+        },
+        "grok_search": {
+            "mode": grok_mode,
+            "status": grok_status,
+            "reason": grok_reason,
+            "record_count": len(grok_records),
+            "raw_response_path": (grok_record or {}).get("raw_response_path") if isinstance(grok_record, dict) else None,
+            "evidence_path": (grok_record or {}).get("evidence_path") if isinstance(grok_record, dict) else None,
+            "warnings": (grok_record or {}).get("warnings", []) if isinstance(grok_record, dict) else [],
+        },
+    }
+    merged["grok_search"] = merged["provider_records"]["grok_search"]
+    merged["paper_search"] = merged["provider_records"]["paper_search"]
+    if grok_record and isinstance(grok_record.get("evidence"), list):
+        merged["grok_evidence_count"] = len(grok_record["evidence"])
+    return merged
+
+
+def _write_provider_records(run_dir: Path, paper_search_record: dict, grok_record: dict | None) -> None:
+    write_json_atomic(run_dir / "paper-search-record.json", paper_search_record)
+    if grok_record is not None:
+        write_json_atomic(run_dir / "grok-search-record.json", grok_record)
+
+
+def _run_grok_queries(
+    *,
+    queries: list[str],
+    include_domains: list[str],
+    run_dir: Path,
+    timeout_seconds: int = GROK_SEARCH_TIMEOUT_SECONDS,
+) -> dict:
+    return discover_grok(
+        queries=queries,
+        include_domains=include_domains,
+        raw_response_path=run_dir / "grok-search-raw.json",
+        evidence_path=run_dir / "grok-search-evidence.json",
+        timeout_seconds=timeout_seconds,
+    )
+
+
 
 def _write_repair_routed_report(
     vault_path: Path,
@@ -271,6 +399,8 @@ def run_dry_run(
     query_plan_max_queries: int = 6,
     enable_easyscholar: bool = True,
     selection_policy: str = "balanced_high_quality",
+    grok_mode: str | None = None,
+    no_grok_search: bool = False,
     resume: bool = True,
     refresh: bool = False,
     from_brief: Path | None = None,
@@ -389,6 +519,8 @@ def run_dry_run(
             "query_plan_max_queries": query_plan_max_queries,
             "enable_easyscholar": bool(enable_easyscholar and config.easyscholar_enabled),
             "selection_policy": selection_policy,
+            "grok_mode": grok_mode,
+            "no_grok_search": bool(no_grok_search),
             "research_brief": brief_metadata or {},
         }
     )
@@ -401,6 +533,11 @@ def run_dry_run(
     if query_plan:
         query_plan["source_routing"] = source_routing
         write_json_atomic(run_dir / "query-plan.json", query_plan)
+    effective_grok = resolve_grok_mode(
+        config.grok_search,
+        cli_mode=grok_mode,
+        no_grok_search=no_grok_search,
+    )
 
     state = {
         "stage": "paper-discovery-dry-run",
@@ -416,6 +553,12 @@ def run_dry_run(
         "requested_sources": requested_sources,
         "sources": effective_sources,
         "source_routing": source_routing,
+        "grok_search": {
+            "mode": effective_grok.mode,
+            "requested_mode": effective_grok.requested_mode,
+            "configured": effective_grok.configured,
+            "reason": effective_grok.reason,
+        },
         "vault_path": str(config.vault_path),
         "started_at": started_at,
         "tool_versions": _tool_versions(
@@ -443,17 +586,120 @@ def run_dry_run(
 
     if resumed_session:
         search_record = rehydrate_search_record_from_review(resumed_session)
+        paper_search_record = search_record
+        grok_record = None
     else:
-        search_record = _run_query_plan_discovery(
-            query=query,
-            query_plan=query_plan,
-            max_results=config.max_results,
-            fixture_path=fixture_path,
-            command=effective_paper_search_command,
-            sources=effective_sources,
-            run_dir=run_dir,
-            source_routing=source_routing,
-        )
+        grok_record = None
+        if effective_grok.mode == "parallel":
+            grok_queries = build_parallel_grok_queries(
+                query=query,
+                query_plan=query_plan,
+                source_routing=source_routing,
+                budget=config.grok_search.parallel_query_budget,
+            )
+            executor = ThreadPoolExecutor(max_workers=2)
+            try:
+                paper_future = executor.submit(
+                    _run_query_plan_discovery,
+                    query=query,
+                    query_plan=query_plan,
+                    max_results=config.max_results,
+                    fixture_path=fixture_path,
+                    command=effective_paper_search_command,
+                    sources=effective_sources,
+                    run_dir=run_dir,
+                    source_routing=source_routing,
+                )
+                grok_future = executor.submit(
+                    _run_grok_queries,
+                    queries=grok_queries,
+                    include_domains=config.grok_search.academic_domains.effective_domains,
+                    run_dir=run_dir,
+                )
+                paper_search_record = paper_future.result()
+                paper_records = paper_search_record.get("records") or []
+                try:
+                    grok_record = (
+                        grok_future.result()
+                        if paper_search_record.get("error") or not paper_records
+                        else grok_future.result(timeout=PARALLEL_FAN_IN_GRACE_SECONDS)
+                    )
+                except TimeoutError:
+                    grok_record = {
+                        "provider": "grok_search",
+                        "source_mode": "grok_search_mcp",
+                        "status": "timeout_after_paper_search",
+                        "queries": grok_queries,
+                        "records": [],
+                        "evidence": [],
+                        "warnings": ["timeout_after_paper_search"],
+                    }
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+            search_record = _merge_provider_search_records(
+                paper_search_record,
+                grok_record,
+                grok_mode="parallel",
+                grok_status=str(grok_record.get("status") if isinstance(grok_record, dict) else "not_run"),
+            )
+        else:
+            paper_search_record = _run_query_plan_discovery(
+                query=query,
+                query_plan=query_plan,
+                max_results=config.max_results,
+                fixture_path=fixture_path,
+                command=effective_paper_search_command,
+                sources=effective_sources,
+                run_dir=run_dir,
+                source_routing=source_routing,
+            )
+            if effective_grok.mode == "targeted":
+                good_enough, targeted_ranked_pool, targeted_evaluation = _evaluate_paper_search_good_enough(
+                    paper_search_record=paper_search_record,
+                    config=config,
+                    query=query,
+                    query_plan=query_plan,
+                    source_routing=source_routing,
+                    review_survey_policy=review_survey_policy,
+                    explicit_document_type_exclusions=explicit_document_type_exclusions,
+                    request_year_min=request_year_min,
+                    request_code_policy=request_code_policy,
+                    selection_policy=selection_policy,
+                )
+                paper_search_record["targeted_grok_gate"] = {
+                    "good_enough": good_enough,
+                    **targeted_evaluation,
+                }
+                should_run_grok = not good_enough
+                if should_run_grok:
+                    grok_queries = build_targeted_grok_queries(
+                        query=query,
+                        query_plan=query_plan,
+                        source_routing=source_routing,
+                        ranked=targeted_ranked_pool,
+                        budget=config.grok_search.targeted_query_budget,
+                    )
+                    grok_record = _run_grok_queries(
+                        queries=grok_queries,
+                        include_domains=config.grok_search.academic_domains.effective_domains,
+                        run_dir=run_dir,
+                    )
+                    grok_status = str(grok_record.get("status"))
+                    grok_reason = "paper_search_shortfall"
+                else:
+                    grok_status = "skipped_good_enough"
+                    grok_reason = "paper_search_good_enough"
+            else:
+                grok_status = "off"
+                grok_reason = effective_grok.reason
+            search_record = _merge_provider_search_records(
+                paper_search_record,
+                grok_record,
+                grok_mode=effective_grok.requested_mode,
+                grok_status=grok_status,
+                grok_reason=grok_reason,
+            )
+        _write_provider_records(run_dir, paper_search_record, grok_record)
     if brief_metadata:
         search_record["research_brief"] = brief_metadata
     write_json_atomic(run_dir / "search-record.json", search_record)
@@ -611,6 +857,8 @@ def run_dry_run(
         "existing_library": filter_report.get("existing_library", {}),
         "query_records": search_record.get("query_records", []),
         "source_coverage": source_coverage,
+        "provider_records": search_record.get("provider_records", {}),
+        "grok_search": search_record.get("grok_search", state.get("grok_search", {})),
         "request_constraints": request_constraints,
         "warnings": search_record.get("warnings", []),
         "easyscholar": {
@@ -648,6 +896,8 @@ def run_dry_run(
             for candidate in needs_pdf
         ],
         "source_coverage": source_coverage,
+        "provider_records": search_record.get("provider_records", {}),
+        "grok_search": search_record.get("grok_search", state.get("grok_search", {})),
     }
     diagnostics_path = run_dir / "discovery-diagnostics.json"
     write_json_atomic(diagnostics_path, discovery_diagnostics)
@@ -1808,6 +2058,8 @@ def discover_to_handoff(
     query_plan_max_queries: int = 6,
     enable_easyscholar: bool = True,
     selection_policy: str = "balanced_high_quality",
+    grok_mode: str | None = None,
+    no_grok_search: bool = False,
     refresh: bool = False,
     from_brief: Path | None = None,
     allow_draft_brief: bool = False,
@@ -1841,6 +2093,8 @@ def discover_to_handoff(
         query_plan_max_queries=query_plan_max_queries,
         enable_easyscholar=enable_easyscholar,
         selection_policy=selection_policy,
+        grok_mode=grok_mode,
+        no_grok_search=no_grok_search,
         resume=True,
         refresh=refresh,
     )

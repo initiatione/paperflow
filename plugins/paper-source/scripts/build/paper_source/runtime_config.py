@@ -25,6 +25,16 @@ PAPER_SEARCH_PROVIDER_ENV_KEYS = {
     "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN",
     "ZENODO_ACCESS_TOKEN",
 }
+GROK_SEARCH_PROVIDER_ENV_KEYS = {
+    "OPENAI_COMPATIBLE_API_KEY",
+    "OPENAI_API_KEY",
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "TAVILY_API_KEY",
+    "FIRECRAWL_API_KEY",
+    "BRAVE_API_KEY",
+    "SERPAPI_API_KEY",
+}
 
 
 def _codex_home() -> Path:
@@ -55,6 +65,7 @@ def _safe_env_key(key: str) -> bool:
     return (
         (key.startswith("PAPER_SOURCE_") and key != RUNTIME_CONFIG_ENV)
         or key in PAPER_SEARCH_PROVIDER_ENV_KEYS
+        or key in GROK_SEARCH_PROVIDER_ENV_KEYS
     )
 
 
@@ -80,6 +91,14 @@ def _runtime_secret_key(key: str) -> bool:
         "DOAJ_API_KEY",
         "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN",
         "ZENODO_ACCESS_TOKEN",
+        "OPENAI_COMPATIBLE_API_KEY",
+        "OPENAI_API_KEY",
+        "XAI_API_KEY",
+        "GROK_API_KEY",
+        "TAVILY_API_KEY",
+        "FIRECRAWL_API_KEY",
+        "BRAVE_API_KEY",
+        "SERPAPI_API_KEY",
     }
 
 
@@ -178,6 +197,16 @@ def _apply_runtime_payload(status: dict[str, Any], payload: dict[str, Any]) -> N
         if args:
             _set_env_if_missing(status, "PAPER_SOURCE_PAPER_SEARCH_MCP_ARGS", args)
         _apply_env_file_section(status, paper_search_mcp)
+
+    grok_search_mcp = payload.get("grok_search_mcp")
+    if isinstance(grok_search_mcp, dict):
+        command = grok_search_mcp.get("command")
+        args = _as_args_string(grok_search_mcp.get("args"))
+        if command:
+            _set_env_if_missing(status, "PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND", command)
+        if args:
+            _set_env_if_missing(status, "PAPER_SOURCE_GROK_SEARCH_MCP_ARGS", args)
+        _apply_env_file_section(status, grok_search_mcp)
 
     paper_search_cli = payload.get("paper_search_cli")
     if isinstance(paper_search_cli, dict) and paper_search_cli.get("command"):

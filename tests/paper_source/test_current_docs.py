@@ -30,15 +30,20 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.3.1"
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.1 | Paper Source:")
+    assert manifest["version"] == "2.3.2"
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.2 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
+    assert "Grok supplemental recall" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
+    assert "grok-search-rs MCP" in manifest["interface"]["longDescription"]
     assert "Codex automation approval" in manifest["interface"]["longDescription"]
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.3.2",
+            "grok-search-rs MCP",
+            "Grok-only",
             "Paper Source 2.3.0",
             "Paper Source 2.3.1",
             "PAPER_SOURCE_MINERU_CDN_RESOLVE",
@@ -162,6 +167,9 @@ def test_workflow_and_linkage_docs_cover_kept_runtime_pipeline():
             "discover-papers-record.json",
             "Paper Wiki",
             "final-source-review.json",
+            "grok-search-rs MCP",
+            "targeted",
+            "parallel",
         ],
     )
 

@@ -17,6 +17,34 @@ from paper_source.artifacts import (
 )
 from paper_source.config_protection import CONFIG_RESTORE_CONFIRMATION
 
+BUILTIN_GROK_ACADEMIC_DOMAINS = [
+    "ieeexplore.ieee.org",
+    "dl.acm.org",
+    "sciencedirect.com",
+    "link.springer.com",
+    "springer.com",
+    "jstor.org",
+    "webofscience.com",
+    "scopus.com",
+    "researchgate.net",
+]
+
+
+@dataclass(frozen=True)
+class GrokAcademicDomainsConfig:
+    mode: str
+    domains: list[str]
+    effective_domains: list[str]
+
+
+@dataclass(frozen=True)
+class GrokSearchConfig:
+    mode: str
+    targeted_query_budget: int
+    parallel_query_budget: int
+    grok_only_recommendation_cap: int
+    academic_domains: GrokAcademicDomainsConfig
+
 
 @dataclass(frozen=True)
 class PipelineConfig:
@@ -35,6 +63,7 @@ class PipelineConfig:
     easyscholar_timeout_seconds: int
     easyscholar_cache_ttl_days: int
     easyscholar_max_candidates_per_run: int
+    grok_search: GrokSearchConfig
 
 
 @dataclass(frozen=True)
@@ -54,6 +83,13 @@ DEFAULT_PAPER_SOURCE_CONFIG: dict[str, Any] = {
     "venue_prior": [],
     "budget": {"max_results": 20},
     "paper_search": {"command": "paper-search", "sources": ["arxiv", "semantic", "openalex", "crossref", "unpaywall"]},
+    "grok_search": {
+        "mode": "targeted",
+        "targeted_query_budget": 5,
+        "parallel_query_budget": 8,
+        "grok_only_recommendation_cap": 5,
+        "academic_domains": {"mode": "append", "domains": []},
+    },
     "quality_enrichment": {
         "easyscholar": {
             "enabled": True,
@@ -98,6 +134,7 @@ _TOP_LEVEL_CONFIG_KEYS = {
     "venue_prior",
     "budget",
     "paper_search",
+    "grok_search",
     "quality_enrichment",
     "mineru",
     "zotero",
@@ -251,6 +288,85 @@ def _as_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "y", "on", "enabled"}
     return bool(value)
+
+
+def _validate_choice(value: object, *, field: str, choices: set[str]) -> str:
+    text = str(value).strip().lower()
+    if text not in choices:
+        raise ValueError(f"{field} must be one of {sorted(choices)}; got {value!r}")
+    return text
+
+
+def _validate_int_range(value: object, *, field: str, minimum: int, maximum: int) -> int:
+    number = int(value)
+    if number < minimum or number > maximum:
+        raise ValueError(f"{field} must be between {minimum} and {maximum}; got {number}")
+    return number
+
+
+def _normalize_hostname(value: object) -> str:
+    text = str(value or "").strip().lower()
+    if "://" in text:
+        text = text.split("://", 1)[1]
+    text = text.split("/", 1)[0].strip().strip(".")
+    return text
+
+
+def _dedupe_domains(domains: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for domain in domains:
+        normalized = _normalize_hostname(domain)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        unique.append(normalized)
+    return unique
+
+
+def _parse_grok_search_config(interests: dict[str, Any]) -> GrokSearchConfig:
+    raw = interests.get("grok_search")
+    raw = raw if isinstance(raw, dict) else {}
+    domains_raw = raw.get("academic_domains")
+    domains_raw = domains_raw if isinstance(domains_raw, dict) else {}
+    domain_mode = _validate_choice(
+        domains_raw.get("mode", "append"),
+        field="grok_search.academic_domains.mode",
+        choices={"append", "override"},
+    )
+    configured_domains = _dedupe_domains([str(domain) for domain in _as_list(domains_raw.get("domains"))])
+    builtin_domains = list(BUILTIN_GROK_ACADEMIC_DOMAINS)
+    effective_domains = (
+        _dedupe_domains(configured_domains)
+        if domain_mode == "override"
+        else _dedupe_domains([*builtin_domains, *configured_domains])
+    )
+    return GrokSearchConfig(
+        mode=_validate_choice(raw.get("mode", "targeted"), field="grok_search.mode", choices={"targeted", "parallel", "off"}),
+        targeted_query_budget=_validate_int_range(
+            raw.get("targeted_query_budget", 5),
+            field="grok_search.targeted_query_budget",
+            minimum=3,
+            maximum=10,
+        ),
+        parallel_query_budget=_validate_int_range(
+            raw.get("parallel_query_budget", 8),
+            field="grok_search.parallel_query_budget",
+            minimum=5,
+            maximum=15,
+        ),
+        grok_only_recommendation_cap=_validate_int_range(
+            raw.get("grok_only_recommendation_cap", 5),
+            field="grok_search.grok_only_recommendation_cap",
+            minimum=0,
+            maximum=5,
+        ),
+        academic_domains=GrokAcademicDomainsConfig(
+            mode=domain_mode,
+            domains=configured_domains,
+            effective_domains=effective_domains,
+        ),
+    )
 
 
 def _normalize_flat_value(key: str, value: Any) -> Any:
@@ -609,6 +725,7 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
     easyscholar = quality_enrichment.get("easyscholar")
     if not isinstance(easyscholar, dict):
         easyscholar = {}
+    grok_search = _parse_grok_search_config(interests)
     return PipelineConfig(
         plugin_root=plugin_root,
         vault_path=vault_path,
@@ -625,4 +742,5 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
         easyscholar_timeout_seconds=int(easyscholar.get("timeout_seconds", 15)),
         easyscholar_cache_ttl_days=int(easyscholar.get("cache_ttl_days", 30)),
         easyscholar_max_candidates_per_run=int(easyscholar.get("max_candidates_per_run", 50)),
+        grok_search=grok_search,
     )

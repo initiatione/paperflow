@@ -45,6 +45,14 @@ def _record_source_name(record: dict) -> str:
     return str(record.get("source") or raw_record.get("source") or "unknown")
 
 
+def _record_provider_name(record: dict) -> str:
+    provider = str(record.get("provider") or "").strip()
+    if provider:
+        return provider
+    source = _record_source_name(record)
+    return "grok_search" if source == "grok_search" else "paper_search"
+
+
 def _record_paper_id(record: dict) -> str | None:
     raw_record = record.get("raw_record") if isinstance(record.get("raw_record"), dict) else {}
     for key in ("paper_id", "id", "arxiv_id", "doi"):
@@ -75,6 +83,22 @@ def _add_alternate_pdf_urls(current: dict, record: dict) -> None:
     urls.sort(key=lambda item: _pdf_url_score(item["url"]))
 
 
+def _add_provider_provenance(current: dict, record: dict) -> None:
+    provider = _record_provider_name(record)
+    if provider not in current["provider_provenance"]:
+        current["provider_provenance"].append(provider)
+        current["provider_provenance"].sort()
+    providers = set(current["provider_provenance"])
+    if providers == {"paper_search"}:
+        current["provenance_label"] = "paper_search_only"
+    elif providers == {"grok_search"}:
+        current["provenance_label"] = "grok_only_with_paper_search_anchor"
+    elif {"paper_search", "grok_search"}.issubset(providers):
+        current["provenance_label"] = "both_providers"
+    else:
+        current["provenance_label"] = "unknown_provider"
+
+
 def _merge_pdf_urls(current: dict, record: dict) -> None:
     urls = list(current.get("pdf_urls") or [])
     for url in _pdf_urls_from_record(record):
@@ -83,6 +107,24 @@ def _merge_pdf_urls(current: dict, record: dict) -> None:
     urls.sort(key=_pdf_url_score)
     current["pdf_urls"] = urls
     current["pdf_url"] = urls[0] if urls else None
+
+
+def _fill_grok_supplemental_fields(current: dict, record: dict) -> None:
+    if record.get("landing_page_url") and not current.get("landing_page_url"):
+        current["landing_page_url"] = record.get("landing_page_url")
+    if record.get("publisher_url") and not current.get("publisher_url"):
+        current["publisher_url"] = record.get("publisher_url")
+    if record.get("url") and not current.get("url"):
+        current["url"] = record.get("url")
+
+
+def _promote_paper_search_fields(current: dict, record: dict) -> None:
+    if _record_provider_name(record) != "paper_search":
+        return
+    for field in ("title", "authors", "year", "venue", "abstract", "doi", "arxiv_id"):
+        value = record.get(field)
+        if value:
+            current[field] = value
 
 
 def normalize_candidates(raw_records: list[dict]) -> list[dict]:
@@ -109,6 +151,11 @@ def normalize_candidates(raw_records: list[dict]) -> list[dict]:
                 "sources": [],
                 "alternate_sources": [],
                 "alternate_pdf_urls": [],
+                "provider_provenance": [],
+                "provenance_label": "unknown_provider",
+                "landing_page_url": record.get("landing_page_url"),
+                "publisher_url": record.get("publisher_url"),
+                "url": record.get("url"),
                 "raw_records": [],
             },
         )
@@ -118,8 +165,11 @@ def normalize_candidates(raw_records: list[dict]) -> list[dict]:
         current["sources"].sort()
         _add_alternate_source(current, record)
         _add_alternate_pdf_urls(current, record)
+        _add_provider_provenance(current, record)
         current["raw_records"].append(record)
         _merge_pdf_urls(current, record)
+        _fill_grok_supplemental_fields(current, record)
+        _promote_paper_search_fields(current, record)
         if not current.get("code_url") and record.get("code_url"):
             current["code_url"] = record.get("code_url")
         current["citation_count"] = max(current["citation_count"], int(record.get("citation_count") or 0))

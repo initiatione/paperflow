@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from paper_source.config import load_config
 
 
@@ -53,3 +55,74 @@ def test_load_config_defaults_include_open_access_pdf_source(tmp_path):
     config = load_config(plugin_root=plugin_root, vault_path=tmp_path / "vault", max_results=None)
 
     assert "unpaywall" in config.paper_search_sources
+
+
+def test_load_config_defaults_grok_search_to_targeted_gap_domains(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    templates = plugin_root / "templates"
+    templates.mkdir(parents=True)
+    (templates / "interests.example.yaml").write_text("profile: general_academic_research\n", encoding="utf-8")
+
+    config = load_config(plugin_root=plugin_root, vault_path=tmp_path / "vault", max_results=None)
+
+    assert config.grok_search.mode == "targeted"
+    assert config.grok_search.targeted_query_budget == 5
+    assert config.grok_search.parallel_query_budget == 8
+    assert config.grok_search.grok_only_recommendation_cap == 5
+    assert "ieeexplore.ieee.org" in config.grok_search.academic_domains.effective_domains
+    assert "arxiv.org" not in config.grok_search.academic_domains.effective_domains
+
+
+def test_load_config_grok_domains_append_and_override(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    templates = plugin_root / "templates"
+    templates.mkdir(parents=True)
+    (templates / "interests.example.yaml").write_text(
+        "profile: general_academic_research\n"
+        "grok_search:\n"
+        "  mode: parallel\n"
+        "  targeted_query_budget: 3\n"
+        "  parallel_query_budget: 15\n"
+        "  grok_only_recommendation_cap: 0\n"
+        "  academic_domains:\n"
+        "    mode: override\n"
+        "    domains:\n"
+        "      - https://ieeexplore.ieee.org/document/123\n"
+        "      - custom.example.org\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(plugin_root=plugin_root, vault_path=tmp_path / "vault", max_results=None)
+
+    assert config.grok_search.mode == "parallel"
+    assert config.grok_search.targeted_query_budget == 3
+    assert config.grok_search.parallel_query_budget == 15
+    assert config.grok_search.grok_only_recommendation_cap == 0
+    assert config.grok_search.academic_domains.domains == ["ieeexplore.ieee.org", "custom.example.org"]
+    assert config.grok_search.academic_domains.effective_domains == ["ieeexplore.ieee.org", "custom.example.org"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("mode", "loud"),
+        ("targeted_query_budget", 2),
+        ("targeted_query_budget", 11),
+        ("parallel_query_budget", 4),
+        ("parallel_query_budget", 16),
+        ("grok_only_recommendation_cap", 6),
+    ],
+)
+def test_load_config_rejects_invalid_grok_search_values(tmp_path, field, value):
+    plugin_root = tmp_path / "plugin"
+    templates = plugin_root / "templates"
+    templates.mkdir(parents=True)
+    (templates / "interests.example.yaml").write_text(
+        "profile: general_academic_research\n"
+        "grok_search:\n"
+        f"  {field}: {value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_config(plugin_root=plugin_root, vault_path=tmp_path / "vault", max_results=None)
