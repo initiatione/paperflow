@@ -10,7 +10,7 @@ from paper_source.query_planner import build_query_plan, infer_research_mode, to
 CODE_POLICIES = {"ignore", "prefer", "require"}
 
 
-def build_dry_run_query_plan(query: str, *, domain: str, max_queries: int, config) -> dict:
+def build_dry_run_query_plan(query: str, *, domain: str, max_queries: int, config, non_review: bool | None = None) -> dict:
     return build_query_plan(
         topic=query,
         domain=domain,
@@ -20,6 +20,7 @@ def build_dry_run_query_plan(query: str, *, domain: str, max_queries: int, confi
         positive_keywords=config.positive_keywords,
         negative_keywords=config.negative_keywords,
         venue_prior=config.venue_prior,
+        non_review=non_review,
     )
 
 

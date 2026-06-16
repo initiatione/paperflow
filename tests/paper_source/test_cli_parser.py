@@ -715,6 +715,114 @@ def test_discover_to_handoff_cli_outputs_safe_handoff_record(tmp_path, monkeypat
     assert captured["skip_existing"] is False
 
 
+def test_discover_papers_parser_accepts_discovery_and_auto_staging_options():
+    args = build_parser().parse_args(
+        [
+            "discover-papers",
+            "--query",
+            "AUV attitude control recent papers",
+            "--query-variant",
+            '"AUV" "attitude control" "model predictive control"',
+            "--domain-focus-term",
+            "AUV",
+            "--code-policy",
+            "prefer",
+            "--selection-policy",
+            "code_preferred",
+            "--max-results",
+            "20",
+            "--max-auto-stage",
+            "2",
+            "--review-survey-requested",
+            "--no-skip-existing",
+            "--json",
+        ]
+    )
+
+    assert args.command == "discover-papers"
+    assert args.query == "AUV attitude control recent papers"
+    assert args.query_variant == ['"AUV" "attitude control" "model predictive control"']
+    assert args.domain_focus_term == ["AUV"]
+    assert args.year_min is None
+    assert args.code_policy == "prefer"
+    assert args.selection_policy == "code_preferred"
+    assert args.max_results == 20
+    assert args.max_auto_stage == 2
+    assert args.review_survey_requested is True
+    assert args.auto_stage is True
+    assert args.skip_existing is False
+    assert args.mode == "fast-ingest"
+    assert args.json is True
+
+
+def test_discover_papers_cli_outputs_high_level_record(tmp_path, monkeypatch, capsys):
+    captured = {}
+
+    def fake_discover_papers(**kwargs):
+        captured.update(kwargs)
+        return {
+            "run_id": "discover-papers-001",
+            "discovery_run_id": "dry-run-001",
+            "auto_staging_run_id": "auto-staging-001",
+            "status": "waiting_for_human_gate",
+            "state": "source_staging_prepared",
+            "selection_policy": "code_preferred",
+            "workflow_mode": "fast-ingest",
+            "stops_after": "source-staging",
+            "compiled_wiki_write": False,
+            "human_approval_written": False,
+            "paper_wiki_invoked": False,
+            "auto_stage": True,
+            "processed_count": 2,
+            "skipped_count": 1,
+            "auto_staging_plan": {"selected": [{"slug": "fixture-paper"}]},
+            "session_recommendations": {"primary_recommendations": []},
+            "recommendation_summary": {"primary_count": 0, "auto_staging_status_counts": {}, "overflow_hidden_count": 0},
+            "manual_downloads": [],
+            "artifacts": {"discovery": {}, "auto_staging": {}},
+            "exit_status": 0,
+        }
+
+    monkeypatch.setattr(cli.discover_papers_workflow, "discover_papers", fake_discover_papers)
+
+    exit_code = cli.main(
+        [
+            "discover-papers",
+            "--query",
+            "natural language topic",
+            "--vault",
+            str(tmp_path),
+            "--query-variant",
+            '"domain object" "task"',
+            "--domain-focus-term",
+            "domain object",
+            "--selection-policy",
+            "code_preferred",
+            "--max-auto-stage",
+            "2",
+            "--no-skip-existing",
+            "--json",
+        ]
+    )
+
+    payload = __import__("json").loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["run_id"] == "discover-papers-001"
+    assert payload["discovery_run_id"] == "dry-run-001"
+    assert payload["auto_staging_run_id"] == "auto-staging-001"
+    assert payload["compiled_wiki_write"] is False
+    assert payload["human_approval_written"] is False
+    assert payload["paper_wiki_invoked"] is False
+    assert captured["query"] == "natural language topic"
+    assert captured["query_variants"] == ['"domain object" "task"']
+    assert captured["domain_focus_terms"] == ["domain object"]
+    assert captured["selection_policy"] == "code_preferred"
+    assert captured["max_auto_stage"] == 2
+    assert captured["auto_stage"] is True
+    assert captured["skip_existing"] is False
+    assert captured["year_min"] is None
+
+
 def test_advance_ranked_cli_does_not_forward_prepare_only_skip_existing(tmp_path, monkeypatch):
     captured = {}
 

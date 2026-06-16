@@ -28,7 +28,12 @@ from paper_source.paper_source_repository import (
 )
 from paper_source.feedback import record_feedback
 from paper_source.evaluation_loop import build_improvement_brief, render_improvement_brief, write_improvement_brief
-from paper_source.filter_candidates import default_discovery_exclusion_terms, filter_candidates, filter_candidates_with_report
+from paper_source.filter_candidates import (
+    default_discovery_exclusion_terms,
+    exclusion_terms_from_query,
+    filter_candidates,
+    filter_candidates_with_report,
+)
 from paper_source.orchestrator_discovery import (
     filter_domains_from_profile as _filter_domains_from_profile,
     ranking_keywords_from_profile as _ranking_keywords_from_profile,
@@ -270,6 +275,7 @@ def run_dry_run(
     refresh: bool = False,
     from_brief: Path | None = None,
     allow_draft_brief: bool = False,
+    review_survey_policy: str = "legacy_default",
 ) -> Path:
     config = load_config(plugin_root=plugin_root, vault_path=vault_path, max_results=max_results)
     selection_policy = _normalize_selection_policy(selection_policy)
@@ -318,8 +324,12 @@ def run_dry_run(
         else _agent_plan_constraint(agent_query_plan_payload, "code_policy")
     )
     request_constraints = _request_constraints_payload(request_year_min, request_code_policy)
+    if review_survey_policy not in {"legacy_default", "include_by_default"}:
+        raise ValueError(f"unknown review_survey_policy: {review_survey_policy}")
+    explicit_document_type_exclusions = bool(exclusion_terms_from_query(query))
     query_plan = None
     if use_query_plan:
+        force_non_review = False if review_survey_policy == "include_by_default" and not explicit_document_type_exclusions else None
         query_plan = (
             build_query_plan_from_research_brief(
                 brief_payload,
@@ -336,6 +346,7 @@ def run_dry_run(
                 domain=query_plan_domain,
                 max_queries=query_plan_max_queries,
                 config=config,
+                non_review=force_non_review,
             )
         )
     if supplied_query_variants or supplied_domain_focus_terms or agent_query_plan_payload:
@@ -454,7 +465,11 @@ def run_dry_run(
     state["state"] = "normalized"
     write_json_atomic(run_dir / "run-state.json", state)
 
-    query_exclude_terms = default_discovery_exclusion_terms(query)
+    query_exclude_terms = (
+        default_discovery_exclusion_terms(query)
+        if review_survey_policy == "legacy_default" or explicit_document_type_exclusions
+        else []
+    )
     existing_library_index = load_existing_paper_index(config.vault_path)
     filter_report = filter_candidates_with_report(
         normalized,

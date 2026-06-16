@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+from paper_source import discover_papers as discover_papers_workflow
 from paper_source import research_brief
 from paper_source import cli_routes, orchestrator as workflows
 from paper_source.artifacts import existing_raw_paper_root, file_sha256, raw_paper_root, read_json, runs_root, utc_now, write_json_atomic
@@ -392,6 +393,81 @@ def _handle_discover_to_handoff(args: argparse.Namespace) -> int:
     print(f"prepare_run_id={record['prepare_run_id']}")
     print(f"status={record['status']}")
     print(f"selection_policy={record['selection_policy']}")
+    print(f"stops_after={record['stops_after']}")
+    print(f"compiled_wiki_write={str(record['compiled_wiki_write']).lower()}")
+    print(f"processed_count={record['processed_count']}")
+    return int(record.get("exit_status", 0))
+
+
+def _handle_discover_papers(args: argparse.Namespace) -> int:
+    sources = [source.strip() for source in args.sources.split(",") if source.strip()] if args.sources else None
+    record = discover_papers_workflow.discover_papers(
+        plugin_root=args.plugin_root,
+        vault_path=args.vault,
+        query=args.query,
+        from_brief=args.from_brief,
+        allow_draft_brief=args.allow_draft_brief,
+        max_results=args.max_results,
+        fixture_path=args.fixture,
+        paper_search_command=args.paper_search_command,
+        sources=sources,
+        use_query_plan=not args.no_query_plan,
+        query_variants=args.query_variant,
+        domain_focus_terms=args.domain_focus_term,
+        agent_query_plan_json=args.agent_query_plan_json,
+        year_min=args.year_min,
+        code_policy=args.code_policy,
+        query_plan_domain=args.query_plan_domain,
+        query_plan_max_queries=args.query_plan_max_queries,
+        enable_easyscholar=not args.no_easyscholar,
+        selection_policy=args.selection_policy,
+        refresh=args.refresh,
+        auto_stage=args.auto_stage,
+        max_auto_stage=args.max_auto_stage,
+        review_survey_requested=args.review_survey_requested,
+        skip_existing=args.skip_existing,
+        mineru_command=args.mineru_command,
+        mineru_timeout=args.mineru_timeout,
+        workflow_mode=args.mode,
+    )
+    run_dir = runs_root(args.vault) / record["run_id"]
+    if args.json:
+        _print_json(
+            {
+                "run_dir": str(run_dir),
+                "run_id": record["run_id"],
+                "discovery_run_id": record["discovery_run_id"],
+                "auto_staging_run_id": record.get("auto_staging_run_id"),
+                "status": record["status"],
+                "state": record["state"],
+                "selection_policy": record["selection_policy"],
+                "workflow_mode": record["workflow_mode"],
+                "stops_after": record["stops_after"],
+                "compiled_wiki_write": record["compiled_wiki_write"],
+                "human_approval_written": record["human_approval_written"],
+                "paper_wiki_invoked": record["paper_wiki_invoked"],
+                "auto_stage": record["auto_stage"],
+                "processed_count": record["processed_count"],
+                "skipped_count": record["skipped_count"],
+                "recommendation_summary": record["recommendation_summary"],
+                "auto_staging_plan": record.get("auto_staging_plan"),
+                "manual_downloads": record["manual_downloads"],
+                "artifacts": {
+                    "record": str(run_dir / "discover-papers-record.json"),
+                    "report": str(run_dir / "report.md"),
+                    "report_json": str(run_dir / "report.json"),
+                    "run_state": str(run_dir / "run-state.json"),
+                    **record["artifacts"],
+                },
+            }
+        )
+        return int(record.get("exit_status", 0))
+    print(f"run_dir={run_dir}")
+    print(f"discovery_run_id={record['discovery_run_id']}")
+    print(f"auto_staging_run_id={record.get('auto_staging_run_id') or 'not_run'}")
+    print(f"status={record['status']}")
+    print(f"selection_policy={record['selection_policy']}")
+    print(f"workflow_mode={record['workflow_mode']}")
     print(f"stops_after={record['stops_after']}")
     print(f"compiled_wiki_write={str(record['compiled_wiki_write']).lower()}")
     print(f"processed_count={record['processed_count']}")
