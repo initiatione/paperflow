@@ -17,7 +17,7 @@ Suggested pool size:
 - High-quality/latest search: 80-150 raw candidates if source limits allow.
 - User asks for 10 papers: still build a larger pool, then rank down to kept papers.
 
-Paper Source `dry-run` now performs this by default: it writes `query-plan.json`, searches each query variant, stores per-variant evidence in `search-record.json.query_records`, and then sends the merged raw candidate pool through normalization, filtering, and ranking. Discovery excludes review/survey/meta candidates by default; keep reviews only when the user explicitly asks for review or survey papers. Use `--no-query-plan` only when debugging one raw search query.
+Paper Source `discover-papers` is the natural-language default for this flow. It writes a high-level run, calls the same lower-level `dry-run` evidence path, searches each query variant, stores per-variant evidence in `search-record.json.query_records`, and then sends the merged raw candidate pool through normalization, filtering, and ranking before safe auto-staging. `dry-run` remains available when you need only evidence/debug artifacts without source-staging. Review/survey/meta candidates are kept by default for `discover-papers`, classified, ranked, and capped by the auto-staging policy; exclude them only when explicit non-review intent is present. Use `--no-query-plan` only when debugging one raw search query.
 
 ## Stage 2: Precision Filtering And Ranking
 

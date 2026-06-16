@@ -11,10 +11,10 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 日常使用优先走这条主线：
 
 1. `doctor --json` 检查安装、依赖和 vault 状态；配置缺失时先完成 `config-setup`。
-2. 方向模糊时先生成 Research Brief；方向明确时运行 `dry-run --query "<your topic>" --max-results 20 --vault <vault> --json`。`dry-run` 会先用 wiki `_meta/reference-index.json` 去重，再用 raw library fallback。
-3. 用 `report --run-id <run-id> --vault <vault>` 查看推荐优先级；持续追踪、net-new、coverage 和 backlog 以 wiki `_meta/reference-index.json` 为准，`topic-tracking` 只做增量视图。
+2. 方向模糊时先生成 Research Brief；方向明确时运行 `discover-papers --query "<your topic>" --max-results 20 --vault <vault> --json`。`discover-papers` 先跑 discovery evidence，再按 primary recommendations 自动准备最多 3 篇 PDF-available 论文到 source-staging；review/survey/meta-analysis 默认保留，只有明确 non-review intent 才排除。
+3. 用 `report --run-id <discovery-run-id> --vault <vault>` 查看底层 discovery report，或直接读取 `discover-papers` JSON 输出里的 `session_recommendations` / `auto_staging_plan`；持续追踪、net-new、coverage 和 backlog 以 wiki `_meta/reference-index.json` 为准，`topic-tracking` 只做增量视图。
 4. 选中的论文如果已经有足够 source evidence，交给 Paper Wiki `$paper-research-wiki` 做沉淀或更新。
-5. 只有需要补 PDF、MinerU、source-staging、approval report 或 `wiki-ingest-brief.json` 时，才显式运行 `prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json`；`discover-to-handoff` 也是显式重流程捷径，仍停在 source-staging。
+5. 只有需要覆盖默认 auto-staging 选择、补 PDF、MinerU、source-staging、approval report 或 `wiki-ingest-brief.json` 时，才显式运行 `prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json`；`dry-run` 是 evidence/debug 底层命令，`discover-to-handoff` 是显式重流程捷径，仍停在 source-staging。
 6. 如果走 source-staging，先读中文 approval report；同意后运行 `record-human-approval`，再用 `wiki-ingest-trigger` 生成 wiki agent resume package。
 7. 由 Paper Wiki `$paper-research-wiki` 或当前 wiki-capable agent 消费 `wiki-ingest-brief.json`，写正式页面和 `final-source-review.json`。
 8. 最后运行 `record-wiki-ingest`，让 Paper Source 记录最终页路径、hash、source review 和可选 Zotero sidecar。
@@ -36,6 +36,9 @@ Task closure 只适用于代码、文档或 skill 行为变更。非平凡变更
 ```powershell
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault>
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --json
+python scripts\orchestrator.py discover-papers --query "<your topic>" --max-results 20 --vault <vault> --json
+python scripts\orchestrator.py discover-papers --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 20 --vault <vault> --json
+python scripts\orchestrator.py discover-papers --query "<your topic>" --max-results 20 --vault <vault> --no-auto-stage --json
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\" -review -survey" --query-variant "\"<domain object>\" \"<task>\" code -review -survey" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --selection-policy balanced_high_quality --max-results 20 --vault <vault> --json
@@ -67,7 +70,7 @@ Paper Source 是通用论文插件，不默认任何学科方向。`dry-run` der
 
 自然语言主题不能直接当作 MCP 主检索式。Agent 应先把用户意图形成透明 query plan，生成 5-8 条短学术 query variants，再用 `--query-variant` 或 `--agent-query-plan-json` 传给 `dry-run`；需要硬过滤时用 `--domain-focus-term`、`hard_domain_anchors` 或 `hard_constraints` 传对象/领域锚点。topic 推断词只能进入 `soft_recall_terms`，不得自动升级成 hard filter。`--year-min` 表达明确的近期窗口，`--code-policy prefer` 表达“尽可能有公开代码”，`--code-policy require` 表达硬性代码要求，`--selection-policy` 控制推荐到推进的阈值。脚本负责验证、记录和执行这些显式输入，而不是在 Python 里写死每个学科的语义词典。
 
-`dry-run` writes `_paper_source/runs` and resumable `_paper_source/reviews`; default resume skips provider calls for the same signature. Use `--refresh` to force provider search. Long-term library/backlog state lives in wiki `_meta/reference-index.json`, not in review sessions. It writes source coverage into `report.json.discovery_context.source_coverage`, request constraints into `report.json.discovery_context.request_constraints` / `query-plan.json`, chat-facing reading decisions into `report.json.session_recommendations`, and filtering/readiness diagnostics into `discovery-diagnostics.json`, with `sources_used`, `source_results`, `errors`, `raw_total`, `deduped_total`, `query_count`, `capabilities`, `provider_readiness`, `source_routing`, `provider_gaps`, `recommendable`, `staging_ready`, `needs_pdf`, `rejected`, `already_in_wiki`, and `already_in_library`.
+`discover-papers` is the natural-language default. It writes a high-level `discover-papers` run that links the underlying discovery run and optional auto-staging run, surfaces `session_recommendations`, `auto_staging_plan`, `manual_downloads`, `discover-papers-record.json`, `report.json`, and `run-state.json`, and stops before approval/Paper Wiki. `dry-run` remains the lower-level evidence/debug command: it writes `_paper_source/runs` and resumable `_paper_source/reviews`; default resume skips provider calls for the same signature. Use `--refresh` to force provider search. Long-term library/backlog state lives in wiki `_meta/reference-index.json`, not in review sessions. It writes source coverage into `report.json.discovery_context.source_coverage`, request constraints into `report.json.discovery_context.request_constraints` / `query-plan.json`, chat-facing reading decisions into `report.json.session_recommendations`, and filtering/readiness diagnostics into `discovery-diagnostics.json`, with `sources_used`, `source_results`, `errors`, `raw_total`, `deduped_total`, `query_count`, `capabilities`, `provider_readiness`, `source_routing`, `provider_gaps`, `recommendable`, `staging_ready`, `needs_pdf`, `rejected`, `already_in_wiki`, and `already_in_library`.
 
 `report.json.session_recommendations` uses `paper-source-session-recommendations-v1`: `primary_recommendations` is the capped chat-visible priority list, `review_appendix` keeps Tier C / `review-candidate` papers out of the primary recommendation list, `rejected_summary` gives count/reason evidence, and `overflow.hidden_count` tells the agent when more primary candidates remain in artifacts. Paper Source does not generate semantic Chinese summaries internally; the calling agent writes them from `original_abstract` / `chinese_summary.source_text`.
 

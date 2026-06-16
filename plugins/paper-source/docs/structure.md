@@ -42,7 +42,7 @@ python scripts\orchestrator.py <command>
 
 - 安装与配置：`doctor`、`config-status`、`init-config`、`propose-config-update`、`apply-config-update`。
 - Wiki 库初始化/重置：`wiki-setup` skill 负责初始化和重置流程；初始化只补缺失结构，并在 `<vault>\.git` 缺失时自动 `git init`，但不自动创建首个 commit。初始化后的 Paper Source 内部产物只在 `_paper_source/` 下展开，根 `_meta/` 只保留 wiki contract 文件。重置必须先盘点、备份计划并要求用户二次确认 `确认重置 Paper Source wiki`。`wiki-reset --preview` 先列出会备份、删除、保留的路径；`wiki-reset` 是执行器，默认备份内容并保留 `_paper_source\meta\paper-source-config.yaml`、`_paper_source\meta\paper-source-config-state.json`、config history 目录，且不得触碰用户级 `%USERPROFILE%\.codex\plugins\paperflow\paper-source\runtime.json`。如需同时重置配置，必须另行确认 `确认同时重置 Paper Source config` 并显式传入 `--reset-config-confirmed-by`。若出现误删或误操作，先停止后续论文流程，用 `wiki-repair` 单入口检查恢复状态，或用 `config-recover` 查找候选配置，再用 `config-restore` 在确认后恢复。
-- 发现与推进：`dry-run`、`discover-to-handoff`、`prepare-ranked`、`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`acquire-paper`。
+- 发现与推进：`discover-papers`、`dry-run`、`discover-to-handoff`、`prepare-ranked`、`advance-ranked`、`advance-paper`、`advance-batch`、`ingest-one`、`acquire-paper`。
 - 解析与修复：`parse-paper`、`normalize-mineru-assets`、`redo-acquire`、`redo-parse`、`redo-read`、`recritic`。
 - Reader/Critic/Gate：推进命令内部生成 reader 和 critic；只读检查用 `paper-gate`。
 - Report：`report` 是公开读取入口；`report --run-id <run-id> [--json]` 读取已有 run report artifact；内部生成模块是 `report_run.py`，不是额外的 `run-report` CLI。
@@ -59,6 +59,7 @@ scripts/build/paper_source/
   cli_parser.py
   cli_routes.py
   orchestrator.py
+  discover_papers.py
   artifacts.py
   config.py
   doctor.py
@@ -111,7 +112,8 @@ scripts/build/paper_source/
 ```
 
 - `cli.py` 保留公开 CLI 入口；`cli_parser.py` 和 `cli_routes.py` 拆出参数定义、JSON/Markdown 输出和命令分发，避免入口继续膨胀。`dry-run` 支持 repeated `--query-variant`、`--domain-focus-term`、`--agent-query-plan-json`、`--year-min`、`--code-policy` 和 `--selection-policy`，用于记录 agent 计划后的检索式、显式硬过滤锚点和请求级约束。
-- `orchestrator.py` 是主入口和流程编排层，负责 dry-run、discover-to-handoff、one-paper ingest、batch advance、redo/recritic 等阶段串联；repair、query-plan assembly 和 discovery/source coverage 已分别拆到 `orchestrator_repair.py`、`query_plan_build.py`、`orchestrator_discovery.py`，record/promote 相关 helper 已拆到 `wiki_record_workflows.py`。dry-run 把原始自然语言 `--query` 当作意图标签，把 agent-supplied query variants 当作实际 MCP 搜索输入，并在 `query-plan.json` 中审计来源、`hard_domain_anchors`、`soft_recall_terms`、`term_provenance`、`year_min`、`code_policy` 和 `selection_policy`；`discover-to-handoff` 只串联 dry-run 与 prepare-ranked，停在 source-staging。
+- `orchestrator.py` 是低层流程编排层，负责 dry-run、discover-to-handoff、one-paper ingest、batch advance、redo/recritic 等阶段串联；repair、query-plan assembly 和 discovery/source coverage 已分别拆到 `orchestrator_repair.py`、`query_plan_build.py`、`orchestrator_discovery.py`，record/promote 相关 helper 已拆到 `wiki_record_workflows.py`。dry-run 把原始自然语言 `--query` 当作意图标签，把 agent-supplied query variants 当作实际 MCP 搜索输入，并在 `query-plan.json` 中审计来源、`hard_domain_anchors`、`soft_recall_terms`、`term_provenance`、`year_min`、`code_policy` 和 `selection_policy`；`discover-to-handoff` 只串联 dry-run 与 prepare-ranked，停在 source-staging。
+- `discover_papers.py` 是自然语言发现的高层编排模块：调用 `run_dry_run(...)` 生成 evidence/report，再调用 `auto_stage_recommendations_from_run(...)` 按 `session_recommendations.primary_recommendations` 自动准备 source-staging，写 `discover-papers-record.json`、`report.json` 和 `run-state.json`。它默认保留 review/survey/meta-analysis 候选，除非用户显式要求 non-review；它不写 approval、wiki-ingest trigger/record 或 Paper Wiki 正式页。
 - `artifacts.py` 负责 Paper Source 路径约定、sha256、时间戳和原子写入；`write_json_atomic` / `write_text_atomic` 用临时文件加 `os.replace` 写 JSON/Markdown，避免 `_paper_source/runs/index.json`、record 和 report 在异常中写坏；`read_json` / `read_json_dict` 是 JSON artifact 读取入口。
 - `frontmatter.py` 是宽松 YAML/frontmatter 解析、strip 和 scalar/list 处理 helper，供 record、query、language gate 和 Stage Wiki brief 复用。
 - `config.py` 负责 `_paper_source/meta/paper-source-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。旧配置文件只作为迁移读取来源，不作为新配置入口。
@@ -171,7 +173,7 @@ skills/
 ```
 
 - `config-setup`：首次使用或修改配置时的唯一交互入口。入口保持短句和边界，完整聊天式引导与更新流见 `docs/config.md`；最终确认前不运行 `init-config` 或 `apply-config-update`。
-- `paper-discovery`：搜索、排序和 dry-run；默认停在轻量候选排序和 wiki reference-index 去重，不写 raw/staging/final wiki。`prepare-ranked` 是显式深入入口，写 raw 源材料、MinerU 解析产物和 source-staging 审批报告，不写最终 wiki。
+- `paper-discovery`：自然语言 `discover-papers`、低层 dry-run、搜索、排序和推荐输出；默认 `discover-papers` 会先保留轻量候选排序和 wiki reference-index 去重，再按 auto-staging policy 选择最多 3 篇 PDF-available primary recommendations 写入 source-staging，不写 approval/final wiki。`dry-run` 是 evidence/debug 底层命令。`prepare-ranked` 是显式深入入口，写 raw 源材料、MinerU 解析产物和 source-staging 审批报告，不写最终 wiki。
   - `paper-discovery/scripts/query-planner.py` 与 `paper-discovery/references/` 保存可维护检索策略：mode routing、query planner、paper type taxonomy、ranking rubric、domain ontology、source tiers、dedup engine、venue prior、two-stage retrieval、citation graph、evaluation set、multi-source workflow、quality gate、anti-patterns 和对话输出格式。自然语言主题由 agent 实时拆解为 `--query-variant`，脚本不硬编码每个学科的语义词典；venue prior 从用户画像/config 衍生，社区榜单只进入对应领域的弱 prior，真实指标仍需单独核验。
 - `topic-tracking`：主题中心、纵向增量、backlog、coverage 和 broad-to-deep 阅读视图；它承接“这次之后有什么新东西”“我有没有漏掉关键分支”这类问题，`paper-discovery` 只保留检索/排序底层。
 - `paper-ingest`：推进已选论文进入 raw、source-staging 和 handoff；默认 `fast-ingest` 不跑 reader/critic，`reviewed-ingest` / `audited-ingest` 才按需加入。
@@ -213,6 +215,11 @@ Paper Source 默认 vault 形态。除根 `_meta/` wiki contract 文件外，Pap
         filter-report.json
         discovery-diagnostics.json
         rank.json
+        report.md
+        report.json
+        run-state.json
+      discover-papers-<id>/
+        discover-papers-record.json
         report.md
         report.json
         run-state.json
@@ -289,6 +296,7 @@ Paper Source 默认 vault 形态。除根 `_meta/` wiki contract 文件外，Pap
 
 写入边界：
 
+- `discover-papers` 写高层 `_paper_source/runs/discover-papers-*` 记录，链接 discovery run 与 optional auto-staging run；默认最多自动准备 3 篇 PDF-available primary recommendations 到 source-staging，保留 `needs_pdf` manual links，并停止在 approval/Paper Wiki 之前。
 - `dry-run` 写 `_paper_source/runs`、`discovery-diagnostics.json` 和 resumable `_paper_source/reviews` provider cache；默认自动 resume，`--refresh` 强制 provider 重搜。已沉淀文献 backlog / 去重 source of truth 是 `_meta/reference-index.json`。
 - `discover-to-handoff` 写一个汇总 run，引用 discovery run 和 prepare-ranked run；它不写 `human-approval.json`，不调用 Paper Wiki，不写最终 wiki 页面。
 - raw 阶段写 `_paper_source/raw/<slug>`，不写最终 wiki。

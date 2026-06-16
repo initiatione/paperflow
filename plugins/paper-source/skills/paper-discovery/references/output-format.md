@@ -1,6 +1,6 @@
 # Output Format
 
-When the user asks to "find papers", "找最新/高质量论文", "不要综述", or similar, do not stop at the raw dry-run report. Run the Paper Source discovery evidence first, then curate the chat answer for reading decisions from `report.json.session_recommendations`.
+When the user asks to "find papers", "找最新/高质量论文", "不要综述", or similar, use `discover-papers` as the natural-language Paper Source default. Do not stop at a raw dry-run report. Run the Paper Source discovery evidence first, then curate the chat answer for reading decisions from `report.json.session_recommendations`.
 
 In the chat, present the curated result in a scan-friendly format before technical logs. The section title can be `推荐优先看`. Use `session_recommendations.primary_recommendations` as the primary list: it is capped at 10 papers by default and includes only non-`review-candidate` Tier A/B or `advance-candidate` papers. Do not mix Tier C or `review-candidate` papers into the primary list. Use `session_recommendations.review_appendix` for a compact lower-priority appendix, and mention `session_recommendations.overflow.hidden_count` when more primary candidates exist in the artifact. Do not output an unsorted title-only list.
 
@@ -23,6 +23,7 @@ Paper Source scripts do not generate semantic Chinese summaries. The calling age
 Then add `Paper Source 实测证据` with:
 
 - run path
+- `discover-papers` run path plus linked discovery / auto-staging run ids when available
 - `source_mode`
 - whether the answer came from a fresh Paper Source run, a resumed review session, or an existing run artifact; if live web search was used, label it as targeted verification and name the candidate identity it verified
 - query strategy: `query_plan_multi_query`, `single_query`, or fixture mode

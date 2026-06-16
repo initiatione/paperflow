@@ -437,6 +437,7 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     output_format = (SKILLS / "paper-discovery" / "references" / "output-format.md").read_text(encoding="utf-8")
 
     assert "report.json.session_recommendations" in output_format
+    assert "discover-papers" in output_format
     assert "session_recommendations.primary_recommendations" in output_format
     assert "session_recommendations.review_appendix" in output_format
     assert "session_recommendations.overflow.hidden_count" in output_format
