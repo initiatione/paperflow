@@ -1,8 +1,41 @@
+import importlib.util
+import io
 import json
 import sys
+import zipfile
+from pathlib import Path
+
+import pytest
+import requests
 
 from paper_source.orchestrator import parse_paper_with_mineru
 from paper_source.run_mineru_parse import _vault_path_from_paper_root, run_mineru_command
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def _load_mineru_batch_module():
+    script = ROOT / "plugins" / "paper-source" / "build" / "mineru-paper-parser" / "mineru_batch_to_md.py"
+    spec = importlib.util.spec_from_file_location("paper_source_mineru_batch_to_md_under_test", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def _mineru_zip_bytes() -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("full.md", "# Parsed Paper\n")
+        archive.writestr("images/figure-1.png", b"PNG")
+    return buffer.getvalue()
+
+
+def _response(status_code=200, content=b""):
+    response = requests.Response()
+    response.status_code = status_code
+    response._content = content
+    return response
 
 
 def _seed_paper_root(tmp_path, slug="paper"):
@@ -136,6 +169,117 @@ raise SystemExit(1)
         encoding="utf-8",
     )
     return script
+
+
+def test_mineru_zip_download_uses_configured_host_ip_override_after_tls_failure(tmp_path, monkeypatch):
+    module = _load_mineru_batch_module()
+    monkeypatch.setenv(module.MINERU_CDN_RESOLVE_ENV, "cdn-mineru.openxlab.org.cn=47.251.5.11")
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+
+    def fake_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        return [(module.socket.AF_INET, module.socket.SOCK_STREAM, 6, "", (str(host), port))]
+
+    seen_addresses = []
+
+    def fake_get(url, timeout):
+        seen_addresses.append(module.socket.getaddrinfo("cdn-mineru.openxlab.org.cn", 443)[0][4][0])
+        if len(seen_addresses) == 1:
+            raise module.RequestException("SSL EOF")
+        return _response(content=_mineru_zip_bytes())
+
+    monkeypatch.setattr(module.socket, "getaddrinfo", fake_getaddrinfo)
+    monkeypatch.setattr(module.requests, "get", fake_get)
+
+    md_bytes, image_count, recovery = module.download_markdown_and_assets_with_recovery(
+        "https://cdn-mineru.openxlab.org.cn/pdf/fixture.zip",
+        tmp_path,
+        extract_images=True,
+    )
+
+    assert md_bytes == b"# Parsed Paper\n"
+    assert image_count == 1
+    assert seen_addresses == ["cdn-mineru.openxlab.org.cn", "47.251.5.11"]
+    assert recovery == {
+        "mode": "host-ip-override",
+        "host": "cdn-mineru.openxlab.org.cn",
+        "ip": "47.251.5.11",
+        "attempt": 1,
+        "env": module.MINERU_CDN_RESOLVE_ENV,
+    }
+
+
+def test_mineru_zip_download_ignores_unrelated_or_invalid_host_ip_override(tmp_path, monkeypatch):
+    module = _load_mineru_batch_module()
+    monkeypatch.setenv(
+        module.MINERU_CDN_RESOLVE_ENV,
+        "other.example=47.251.5.11;cdn-mineru.openxlab.org.cn=not-an-ip",
+    )
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+
+    calls = []
+
+    def fake_get(url, timeout):
+        calls.append(url)
+        raise module.RequestException("SSL EOF")
+
+    monkeypatch.setattr(module.requests, "get", fake_get)
+
+    with pytest.raises(RuntimeError, match="download zip failed after 3 attempts: SSL EOF"):
+        module.download_markdown_and_assets_with_recovery(
+            "https://cdn-mineru.openxlab.org.cn/pdf/fixture.zip",
+            tmp_path,
+            extract_images=True,
+        )
+
+    assert calls == ["https://cdn-mineru.openxlab.org.cn/pdf/fixture.zip"] * 3
+
+
+def test_mineru_batch_manifest_records_download_recovery_metadata(tmp_path, monkeypatch):
+    module = _load_mineru_batch_module()
+    recovery = {
+        "mode": "host-ip-override",
+        "host": "cdn-mineru.openxlab.org.cn",
+        "ip": "47.251.5.11",
+        "attempt": 1,
+        "env": module.MINERU_CDN_RESOLVE_ENV,
+    }
+    monkeypatch.setenv("MINERU_TOKEN", "token")
+    monkeypatch.setattr(
+        module,
+        "poll_batch",
+        lambda token, batch_id, timeout, interval: [
+            {
+                "file_name": "paper.pdf",
+                "data_id": "paper",
+                "state": "done",
+                "full_zip_url": "https://cdn-mineru.openxlab.org.cn/pdf/fixture.zip",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        module,
+        "download_markdown_and_assets_with_recovery",
+        lambda zip_url, asset_root, extract_images: (b"# Parsed Paper\n", 0, recovery),
+    )
+    monkeypatch.setattr(
+        module.sys,
+        "argv",
+        [
+            "mineru_batch_to_md.py",
+            "--project-root",
+            str(tmp_path),
+            "--output-dir",
+            "parsed",
+            "--batch-id",
+            "batch-with-recovery",
+        ],
+    )
+
+    assert module.main() == 0
+
+    manifest = json.loads((tmp_path / "parsed" / "mineru_batch_batch-with-recovery.json").read_text(encoding="utf-8"))
+    assert manifest["outputs"][0]["download_recovery"] == recovery
+    assert (tmp_path / "parsed" / "paper" / "paper.md").read_bytes() == b"# Parsed Paper\n"
 
 
 def _write_download_failed_manifest_command(tmp_path):

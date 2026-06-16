@@ -47,7 +47,7 @@ python skills/mineru-paper-parser/scripts/mineru_batch_to_md.py --input-dir pape
 - Formula screenshots with Markdown/TeX LaTeX evidence move out of preserved figures and into `formula-index.json`; Markdown/TeX formulas must remain complete.
 - On failure, inspect `parse-record.json`, `mineru-command\stdout.txt`, then `mineru-command\stderr.txt`.
 - `MinerU reported done but produced no Markdown output` means no usable Markdown was found for `mineru\<slug>.md`; keep work folders, then rerun `parse-paper` or repair with `redo-parse`.
-- `MinerU output download failed` with a `download_failed` manifest entry means MinerU finished extraction but Paper Source could not fetch the output ZIP, commonly because of transient MinerU CDN/SSL/network failures. Rerun `parse-paper`; the bundled downloader retries transient ZIP failures before recording the final error.
+- `MinerU output download failed` with a `download_failed` manifest entry means MinerU finished extraction but Paper Source could not fetch the output ZIP, commonly because of transient MinerU CDN/SSL/network failures. Rerun `parse-paper`; for fake-IP/TLS environments, configure `PAPER_SOURCE_MINERU_CDN_RESOLVE` as described in `references/mineru_api.md`.
 - Token errors such as `A0202` or `A0211` usually mean authentication failed.
 
 Read tokens from `MINERU_TOKEN` or `.env/mineru.env`. Never print or persist token values. MinerU API details live in `references/mineru_api.md`.

@@ -1,4 +1,4 @@
 interface:
   display_name: "MinerU Paper Parser"
-  short_description: "Parse local PDFs with MinerU into Paper Source artifacts"
-  default_prompt: "Use $mineru-paper-parser to parse local PDFs into Paper Source source artifacts."
+  short_description: "Parse PDFs with MinerU and recover configured CDN ZIP downloads"
+  default_prompt: "Use $mineru-paper-parser to parse local PDFs into Paper Source artifacts and diagnose MinerU ZIP download failures."

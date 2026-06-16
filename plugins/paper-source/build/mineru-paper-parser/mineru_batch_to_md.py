@@ -1,9 +1,14 @@
 import argparse
+import contextlib
+import dataclasses
+import ipaddress
 import json
 import os
 import re
+import socket
 import sys
 import time
+import urllib.parse
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -15,6 +20,14 @@ from requests import RequestException
 API_ROOT = "https://mineru.net/api/v4"
 ZIP_DOWNLOAD_ATTEMPTS = 3
 ZIP_DOWNLOAD_BACKOFF_SECONDS = 5
+MINERU_CDN_RESOLVE_ENV = "PAPER_SOURCE_MINERU_CDN_RESOLVE"
+RETRYABLE_ZIP_HTTP_STATUS = {429, 500, 502, 503, 504}
+
+
+@dataclasses.dataclass(frozen=True)
+class ZipDownload:
+    response: requests.Response
+    recovery: dict | None = None
 
 
 def default_project_root() -> Path:
@@ -131,13 +144,97 @@ def poll_batch(token: str, batch_id: str, timeout: int, interval: int) -> list[d
     raise TimeoutError(f"timed out waiting for batch {batch_id}")
 
 
-def _download_zip_response(zip_url: str) -> requests.Response:
+def _canonical_host(value: str) -> str:
+    return value.strip().lower().rstrip(".")
+
+
+def _configured_host_ip_overrides() -> dict[str, list[str]]:
+    raw = os.environ.get(MINERU_CDN_RESOLVE_ENV, "")
+    overrides: dict[str, list[str]] = {}
+    for item in re.split(r"[;,\s]+", raw):
+        item = item.strip()
+        if not item or "=" not in item:
+            continue
+        host, ip = item.split("=", 1)
+        host = _canonical_host(host)
+        ip = ip.strip()
+        if not host or not ip:
+            continue
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
+            print(f"ignoring invalid {MINERU_CDN_RESOLVE_ENV} entry: {item}", file=sys.stderr)
+            continue
+        overrides.setdefault(host, []).append(ip)
+    return overrides
+
+
+@contextlib.contextmanager
+def _temporary_host_ip_override(host: str, ip: str):
+    target_host = _canonical_host(host)
+    original_getaddrinfo = socket.getaddrinfo
+
+    def patched_getaddrinfo(query_host, port, family=0, type=0, proto=0, flags=0):
+        if _canonical_host(str(query_host)) == target_host:
+            return original_getaddrinfo(ip, port, family, type, proto, flags)
+        return original_getaddrinfo(query_host, port, family, type, proto, flags)
+
+    socket.getaddrinfo = patched_getaddrinfo
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
+
+
+def _zip_host(zip_url: str) -> str:
+    return _canonical_host(urllib.parse.urlparse(zip_url).hostname or "")
+
+
+def _try_configured_zip_recovery(zip_url: str, attempt: int) -> ZipDownload | None:
+    host = _zip_host(zip_url)
+    for ip in _configured_host_ip_overrides().get(host, []):
+        try:
+            with _temporary_host_ip_override(host, ip):
+                response = requests.get(zip_url, timeout=600)
+        except RequestException as exc:
+            print(
+                f"download zip recovery via {host}={ip} failed on attempt {attempt}: {exc}",
+                file=sys.stderr,
+            )
+            continue
+        if response.status_code == 200:
+            print(f"download zip recovered via {host}={ip}", file=sys.stderr)
+            return ZipDownload(
+                response=response,
+                recovery={
+                    "mode": "host-ip-override",
+                    "host": host,
+                    "ip": ip,
+                    "attempt": attempt,
+                    "env": MINERU_CDN_RESOLVE_ENV,
+                },
+            )
+        if response.status_code in RETRYABLE_ZIP_HTTP_STATUS:
+            text = response.text[:500]
+            print(
+                f"download zip recovery via {host}={ip} returned HTTP {response.status_code}: {text}",
+                file=sys.stderr,
+            )
+            continue
+        return ZipDownload(response=response)
+    return None
+
+
+def _download_zip_response(zip_url: str) -> ZipDownload:
     last_error: Exception | None = None
     for attempt in range(1, ZIP_DOWNLOAD_ATTEMPTS + 1):
         try:
             response = requests.get(zip_url, timeout=600)
         except RequestException as exc:
             last_error = exc
+            recovered = _try_configured_zip_recovery(zip_url, attempt)
+            if recovered is not None:
+                return recovered
             if attempt < ZIP_DOWNLOAD_ATTEMPTS:
                 print(
                     f"download zip attempt {attempt}/{ZIP_DOWNLOAD_ATTEMPTS} failed: {exc}",
@@ -149,8 +246,12 @@ def _download_zip_response(zip_url: str) -> requests.Response:
                 f"download zip failed after {ZIP_DOWNLOAD_ATTEMPTS} attempts: {exc}"
             ) from exc
         if response.status_code == 200:
-            return response
-        if attempt < ZIP_DOWNLOAD_ATTEMPTS and response.status_code in {429, 500, 502, 503, 504}:
+            return ZipDownload(response=response)
+        if response.status_code in RETRYABLE_ZIP_HTTP_STATUS:
+            recovered = _try_configured_zip_recovery(zip_url, attempt)
+            if recovered is not None:
+                return recovered
+        if attempt < ZIP_DOWNLOAD_ATTEMPTS and response.status_code in RETRYABLE_ZIP_HTTP_STATUS:
             text = response.text[:500]
             print(
                 f"download zip attempt {attempt}/{ZIP_DOWNLOAD_ATTEMPTS} returned HTTP {response.status_code}: {text}",
@@ -158,12 +259,17 @@ def _download_zip_response(zip_url: str) -> requests.Response:
             )
             time.sleep(ZIP_DOWNLOAD_BACKOFF_SECONDS * attempt)
             continue
-        return response
+        return ZipDownload(response=response)
     raise RuntimeError(f"download zip failed after {ZIP_DOWNLOAD_ATTEMPTS} attempts: {last_error}")
 
 
-def download_markdown_and_assets(zip_url: str, asset_root: Path, extract_images: bool) -> tuple[bytes, int]:
-    response = _download_zip_response(zip_url)
+def download_markdown_and_assets_with_recovery(
+    zip_url: str,
+    asset_root: Path,
+    extract_images: bool,
+) -> tuple[bytes, int, dict | None]:
+    download = _download_zip_response(zip_url)
+    response = download.response
     if response.status_code != 200:
         text = response.text[:500]
         raise RuntimeError(f"download zip failed: HTTP {response.status_code}, {text}")
@@ -183,7 +289,12 @@ def download_markdown_and_assets(zip_url: str, asset_root: Path, extract_images:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(archive.read(member))
                 image_count += 1
-        return archive.read(candidates[0]), image_count
+        return archive.read(candidates[0]), image_count, download.recovery
+
+
+def download_markdown_and_assets(zip_url: str, asset_root: Path, extract_images: bool) -> tuple[bytes, int]:
+    md_bytes, image_count, _ = download_markdown_and_assets_with_recovery(zip_url, asset_root, extract_images)
+    return md_bytes, image_count
 
 
 def main() -> int:
@@ -274,7 +385,7 @@ def main() -> int:
             md_dir.mkdir(parents=True, exist_ok=True)
 
             try:
-                md_bytes, image_count = download_markdown_and_assets(
+                md_bytes, image_count, recovery = download_markdown_and_assets_with_recovery(
                     item["full_zip_url"],
                     asset_root,
                     extract_images=not args.no_extract_images,
@@ -292,6 +403,8 @@ def main() -> int:
                 entry["markdown_path"] = relative_text(project_root, out_path)
                 entry["image_count"] = image_count
                 entry["image_dir"] = relative_text(project_root, asset_root / "images") if image_count else ""
+                if recovery:
+                    entry["download_recovery"] = recovery
                 image_note = f" and {image_count} images" if image_count else ""
                 print(f"saved {relative_text(project_root, out_path)}{image_note}")
         else:
