@@ -9,7 +9,9 @@ import pytest
 
 from paper_source.artifacts import file_sha256, json_sha256
 from paper_source.review.generate_reader import generate_reader_outputs
+from paper_source.auto_staging import auto_stage_recommendations_from_run
 from paper_source.orchestrator import advance_paper_batch, advance_paper_batch_from_run, prepare_ranked_papers_from_run
+from paper_source.recommendation_output import build_session_recommendations
 
 
 class _QuietHandler(SimpleHTTPRequestHandler):
@@ -744,6 +746,91 @@ def test_prepare_ranked_papers_reparses_when_parse_record_missing_or_unsuccessfu
     assert batch["results"][0]["paper_slug"] == "stale-parse"
     assert batch["results"][0]["state"] == "staged"
     assert json.loads((stale_root / "parse-record.json").read_text(encoding="utf-8"))["status"] == "success"
+
+
+def test_auto_stage_recommendations_from_run_selects_primary_pdf_candidates_and_stops_at_handoff(tmp_path):
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+    for name in ["research1.pdf", "review1.pdf", "survey1.pdf", "research2.pdf"]:
+        (server_root / name).write_bytes(b"%PDF-1.4\nauto staging fixture\n")
+    vault = tmp_path / "vault"
+    run_id = "20260527T125000Z"
+    run_dir = vault / "_paper_source" / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    mineru_command = _write_success_mineru_command(tmp_path)
+
+    with _LocalServer(server_root) as base_url:
+        ranked = [
+            _candidate("auto-research-1", "Auto Research 1", f"{base_url}/research1.pdf"),
+            _candidate("auto-review-1", "Auto Review 1", f"{base_url}/review1.pdf"),
+            _candidate("auto-survey-1", "Auto Survey 1", f"{base_url}/survey1.pdf"),
+            _candidate("auto-needs-pdf", "Auto Needs PDF", None),
+            _candidate("auto-research-2", "Auto Research 2", f"{base_url}/research2.pdf"),
+        ]
+        ranked[0]["paper_type"] = "research-article"
+        ranked[1]["paper_type"] = "review"
+        ranked[2]["paper_type"] = "survey"
+        ranked[3]["doi"] = "10.1000/auto-needs-pdf"
+        ranked[3]["url"] = "https://publisher.example/auto-needs-pdf"
+        ranked[3]["staging_readiness"] = "needs_pdf"
+        ranked[3]["readiness_reasons"] = ["missing_pdf"]
+        for candidate in ranked:
+            candidate["ranking_protocol"] = {"decision": "advance-candidate"}
+            candidate["quality_tier"] = "Tier A"
+            candidate["abstract"] = f"{candidate['title']} abstract."
+        (run_dir / "rank.json").write_text(json.dumps(ranked), encoding="utf-8")
+        (run_dir / "report.json").write_text(
+            json.dumps({"session_recommendations": build_session_recommendations(ranked, [])}),
+            encoding="utf-8",
+        )
+
+        batch = auto_stage_recommendations_from_run(vault, run_id, mineru_command=mineru_command)
+
+    assert batch["workflow_type"] == "auto-staging"
+    assert batch["stops_after"] == "source-staging"
+    assert batch["compiled_wiki_write"] is False
+    assert batch["status"] == "waiting_for_human_gate"
+    assert batch["processed_count"] == 3
+    assert [result["paper_slug"] for result in batch["results"]] == [
+        "auto-research-1",
+        "auto-review-1",
+        "auto-research-2",
+    ]
+    assert all(result["state"] == "staged" for result in batch["results"])
+    assert [item["slug"] for item in batch["auto_staging_plan"]["selected"]] == [
+        "auto-research-1",
+        "auto-review-1",
+        "auto-research-2",
+    ]
+    skipped = {item["slug"]: item["reason"] for item in batch["auto_staging_plan"]["skipped"]}
+    assert skipped == {
+        "auto-survey-1": "review_survey_cap",
+        "auto-needs-pdf": "needs_manual_pdf",
+    }
+
+    report_json = json.loads((vault / "_paper_source" / "runs" / batch["run_id"] / "report.json").read_text(encoding="utf-8"))
+    statuses = {
+        item["slug"]: item["auto_staging_status"]
+        for item in report_json["session_recommendations"]["primary_recommendations"]
+    }
+    assert statuses["auto-research-1"] == "staged"
+    assert statuses["auto-review-1"] == "staged"
+    assert statuses["auto-survey-1"] == "skipped_review_survey_cap"
+    assert statuses["auto-needs-pdf"] == "skipped_needs_manual_pdf"
+    assert {"kind": "doi", "url": "https://doi.org/10.1000/auto-needs-pdf"} in next(
+        item
+        for item in report_json["session_recommendations"]["primary_recommendations"]
+        if item["slug"] == "auto-needs-pdf"
+    )["manual_download"]["links"]
+    for slug in ["auto-research-1", "auto-review-1", "auto-research-2"]:
+        paper_root = vault / "_paper_source" / "raw" / slug
+        staging_root = vault / "_paper_source" / "staging" / "papers" / slug
+        assert not (paper_root / "reader" / "reader.md").exists()
+        assert not (paper_root / "critic" / "critic-report.json").exists()
+        assert (staging_root / "wiki-ingest-brief.json").is_file()
+        assert not (staging_root / "human-approval.json").exists()
+        assert not (staging_root / "wiki-ingest-record.json").exists()
+    assert report_json["wiki_pages_written"] == []
 
 
 def test_advance_paper_batch_from_run_skips_review_candidates_by_default(tmp_path):

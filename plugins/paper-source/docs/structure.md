@@ -82,6 +82,7 @@ scripts/build/paper_source/
     role_critics.py
     critic_contracts.py
   recommendation_output.py
+  auto_staging.py
   report_run.py
   wiki_contracts.py
   paper_quality.py
@@ -131,7 +132,7 @@ scripts/build/paper_source/
 - `evidence_index.py` 负责从 MinerU Markdown 建立 full-text locator index：按 heading/page marker/chunk 记录 page、section_path、source_locator、chunk hash、input hashes 和 warnings；它是 wiki provenance 的检索辅助，不替代 source-first reread。
 - `review/generate_reader.py`、`review/reader_outputs.py`、`review/reader_evidence.py`、`review/reader_protocol.py` 负责可选 reviewed/audited ingest 的多角色 reader、evidence map 和证据地址校验；reader 以 MinerU Markdown 为主记录文本/公式/记号证据，并把 MinerU manifest、PDF fallback、figure/formula indexes、图片证据和可选非空原生 TeX（若存在）作为复核线索写入 evidence/claim-support，而不是只输出摘要。
 - `review/run_critic.py`、`paper_quality.py`、`review/role_critics.py` 负责可选 audited ingest 的 critic quorum、学术论文可靠性检查和三角色质量门；其中 `parse-quality-critic` 会检查 MinerU Markdown、images、manifest、figure/formula indexes、`parse-record.json`，以及可选非空原生 TeX（若存在），避免原文公式/图像证据在进入 reader/wiki 前被静默抹掉。
-- `recommendation_output.py` 负责 `report.json.session_recommendations` / `paper-source-session-recommendations-v1` 的 chat-facing 推荐投影；`report_run.py` 负责生成 `_paper_source/runs/<run-id>/report.md` 和 `report.json`，并提供 `report --run-id` 的只读 loader；该 CLI 会展示 run report artifact 和 `run-state.json` payload，但不刷新 index、queue、raw、staging、Zotero 或 wiki。
+- `recommendation_output.py` 负责 `report.json.session_recommendations` / `paper-source-session-recommendations-v1` 的 chat-facing 推荐投影；`auto_staging.py` 负责 `paper-source-auto-staging-plan-v1`，从 primary recommendations 中选择最多 3 篇 PDF-available 论文进入 fast source-staging，并把 `needs_pdf` / review-sideline / execution state 写回 `auto_staging_status`；`report_run.py` 负责生成 `_paper_source/runs/<run-id>/report.md` 和 `report.json`，并提供 `report --run-id` 的只读 loader；该 CLI 会展示 run report artifact 和 `run-state.json` payload，但不刷新 index、queue、raw、staging、Zotero 或 wiki。
 - `research_decision.py`、`reader_revision_plan.py`、`reader_revision_guidance.py`、`reproduction_plan.py` 把 critic 结果翻译成决策、修复建议和紧凑复现 caveat。
 - `wiki_contracts.py` 固定七类正式页面、brief-first required Paper Source/Paper Wiki skills、frontmatter schema、quality gates、retired handoff cleanup 和 QMD collection boundary 等跨模块常量；`paper-research-wiki` qmd collection 允许正式页目录加 `AGENTS.md`、`index.md`、`hot.md`、`log.md`、`_meta/`，必须 ignore `_paper_source/**`、`.obsidian/**`、`.claude/**`，让 `_paper_source/meta/formal-page-snapshots/`、raw MinerU source Markdown 和 staging handoff 不进入 QMD。external wiki skills are optional helpers / policy references。
 - `stage_wiki.py` 负责 `_paper_source/staging` 内部证据包和 staging 写入编排；`stage_wiki_brief.py` 负责轻阅读报告、`wiki-ingest-brief.json` canonical Paper Source-to-Paper Wiki handoff、rule-source model、`final_source_review_contract` 和 reading-report Markdown 生成。默认新 staging 不需要也不生成 `wiki_deposition_task.json`。它会把 `evidence-index.json`、chunk count、input hashes、warnings 和 `_paper_source/meta/evidence-index.json` 作为 locator aid 暴露给 handoff，但不得把审计页当成正式 wiki 页写到根目录。

@@ -32,6 +32,7 @@ Then add `Paper Source 实测证据` with:
 - EasyScholar evidence: `easyscholar-record.json`, `easyscholar_score`, and matched/no-match/missing-key counts when checked
 - accepted/rejected counts
 - `session_recommendations.rejected_summary` count/reason summary
+- `auto_staging_plan` summary when automatic source-staging ran: selected count, skipped reasons, and `auto_staging_status` values
 - review exclusion evidence, wiki backlog exclusions such as `already_in_wiki:<page>`, and raw-library exclusions such as `already_in_library:<slug>`
 - query variants and whether a sharper rerun was needed
 - venue prior sources used, especially configured field venues or curated field lists; weak community hints must be labeled as unverified context
