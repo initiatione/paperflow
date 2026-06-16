@@ -1,4 +1,4 @@
 interface:
   display_name: "Paper Source Discovery"
-  short_description: "Find and rank high-quality papers"
-  default_prompt: "Use $paper-discovery for Paper Source / PS to find and rank high-quality papers."
+  short_description: "Run discover-papers for high-quality papers"
+  default_prompt: "Use $paper-discovery to run Paper Source discover-papers for natural-language paper search and ranking."

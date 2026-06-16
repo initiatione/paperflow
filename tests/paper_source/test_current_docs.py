@@ -30,8 +30,8 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.2.0"
-    assert manifest["interface"]["shortDescription"].startswith("v2.2.0 | Paper Source:")
+    assert manifest["version"] == "2.2.1"
+    assert manifest["interface"]["shortDescription"].startswith("v2.2.1 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
@@ -39,6 +39,7 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
         docs,
         [
             "Paper Source 2.2.0",
+            "Paper Source 2.2.1",
             "Paper Source 2.1.1",
             "Paper Source 2.1.0",
             "Paper Source 2.0.0",

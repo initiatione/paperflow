@@ -401,6 +401,11 @@ def test_skill_ui_metadata_exists_for_each_skill():
         default_prompt = interface.get("default_prompt", "")
         assert f"${skill_dir.name}" in default_prompt, skill_dir.name
 
+        if skill_dir.name == "paper-discovery":
+            metadata_text = "\n".join([short_description, default_prompt])
+            assert "discover-papers" in metadata_text
+            assert "natural-language paper search" in metadata_text
+
 
 def test_skill_bundle_excludes_tracked_python_cache_artifacts_and_gitignore_covers_cache():
     result = subprocess.run(
@@ -435,9 +440,16 @@ def test_paper_discovery_keeps_policy_in_skill_and_references():
 
 def test_paper_discovery_output_format_uses_session_recommendations_contract():
     output_format = (SKILLS / "paper-discovery" / "references" / "output-format.md").read_text(encoding="utf-8")
+    routing = (SKILLS / "routing.yaml").read_text(encoding="utf-8")
+    discovery = (SKILLS / "paper-discovery" / "SKILL.md").read_text(encoding="utf-8")
+    workflow = (SKILLS / "paper-discovery" / "workflows" / "run-discovery.md").read_text(encoding="utf-8")
 
     assert "report.json.session_recommendations" in output_format
     assert "discover-papers" in output_format
+    assert "natural-language-default-discover-papers" in routing
+    assert "For ordinary natural-language discovery, prefer `discover-papers`" in discovery
+    assert "Use `dry-run` when" in discovery
+    assert "Default natural-language discovery uses `discover-papers`" in workflow
     assert "session_recommendations.primary_recommendations" in output_format
     assert "session_recommendations.review_appendix" in output_format
     assert "session_recommendations.overflow.hidden_count" in output_format

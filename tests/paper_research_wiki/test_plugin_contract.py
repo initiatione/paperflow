@@ -168,12 +168,12 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.2.0"
+    assert manifest["version"] == "2.2.1"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.2.0 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.2.1 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "record" in manifest["interface"]["shortDescription"]
     assert "Paper Source" in manifest["interface"]["longDescription"]
@@ -212,6 +212,24 @@ def test_plugin_has_one_public_skill_plus_language_gate():
     assert "source-grounded Chinese research-wiki prose" in language_skill
     assert "Language Gate" in language_skill
     assert "references/style-guide.md" in language_skill
+
+
+def test_paper_wiki_ui_metadata_keeps_formal_wiki_boundary():
+    metadata = _load_openai_metadata(PUBLIC_SKILL / "agents" / "openai.yaml")
+    interface = metadata["interface"]
+    combined = "\n".join(
+        [
+            interface.get("short_description", ""),
+            interface.get("default_prompt", ""),
+            _read(PLUGIN / ".codex-plugin" / "plugin.json"),
+        ]
+    )
+
+    for phrase in ["提取", "沉淀", "提问", "检测", "更新", "重link", "重做"]:
+        assert phrase in combined
+
+    for forbidden in ["discover-papers", "source-staging", "record-human-approval"]:
+        assert forbidden not in combined
 
 
 def test_paper_wiki_all_skill_entrypoints_stay_thin():
