@@ -22,6 +22,8 @@ Paper Wiki owns vault reads, Paper Source handoff reads, formal page writes/repa
 
 Paper Source owns paper discovery, ranking, download, MinerU parsing, paper-level deduplication, `wiki-setup`, `paper-gate`, human approval, and `record-wiki-ingest`; Paper Wiki reports the next Paper Source action and never performs Paper Source-owned writes.
 
+Explicit Codex automation may arrive through Paper Source `wiki-agent-trigger.json` with `automation_handoff` and `approved_by=codex-automation:<task-id>`; Paper Wiki consumes it only as permission context and still does not write Paper Source approval, trigger, or ingest-record artifacts.
+
 If missing vault structure blocks work (`_paper_source/` raw/staging/meta/policies, `_meta/`, `.obsidian`, `.git`, or formal roots), report it and point to Paper Source `wiki-setup`; Paper Wiki does not initialize, repair, reset, or silently create vault structure. On-demand `_paper_source/runs|cache|tmp|tmp-manual-pdfs|quarantine|evolution` are not bootstrap failures.
 
 ## Always Read

@@ -44,6 +44,8 @@ Paper Wiki health checks do not use a separate Paper Wiki CLI. Treat Paper Wiki 
 
 Paper Source prepares source bundles and handoff artifacts, including paper-level deduplication before Paper Wiki receives a handoff. Paper Wiki/PW reads new-paper handoffs and performs the formal wiki-side work without taking over Paper Source discovery, MinerU parsing, deduplication, paper-gate, human approval, or record-only completion.
 
+For Paper Source deposition, distinguish ordinary approval-waiting handoff from explicit Codex automation. In ordinary mode, Paper Wiki reports the required Paper Source approval and does not write formal pages. In explicit Codex automation, the running task may continue after consuming Paper Source `wiki-agent-trigger.json` with `automation_handoff` and `approved_by=codex-automation:<task-id>`. Paper Wiki may use that as permission context, then still writes only formal pages, `final-source-review.json`, and `paper-wiki-record-request.json` with `schema_version: paper-wiki-record-request-v1` and `automation_mode: ask`; it does not write `human-approval.json`, does not write `wiki-agent-trigger.json`, and does not write or replace `wiki-ingest-record.json`.
+
 Completion reports must include pages created or updated, links/tags/aliases repaired, tracking files updated, QMD refreshed / skipped / failed with fallback, remaining risks, and the next Paper Source/Paper Wiki action.
 
 ## Evaluation

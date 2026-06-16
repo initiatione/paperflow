@@ -12,7 +12,7 @@ Before planning or writing, read `../../../rules/wiki-writing-standard.md`, `../
 2. Read target `AGENTS.md`, `_meta/schema.md`, `_meta/taxonomy.md`, and `_meta/directory-structure.md` when present.
 3. Locate `_paper_source/staging/papers/*/wiki-ingest-brief.json` as the only Paper Source-to-Paper Wiki handoff contract.
 4. Treat Paper Source handoffs as paper-level deduplicated before they reach Paper Wiki; do graph-level merge-before-create against existing formal pages instead of paper deduplication.
-5. Group papers as ready, needs human approval, blocked-source-artifacts, or graph-conflict.
+5. Group papers as ready, automation-approved ready, needs human approval, blocked-source-artifacts, or graph-conflict. Ordinary approval-waiting handoff stops before formal page writes until Paper Source approval exists. Explicit Codex automation can continue only when Paper Source `wiki-agent-trigger.json` carries `automation_handoff` and `approved_by=codex-automation:<task-id>`.
 6. For ready papers, read metadata, MinerU Markdown, images, manifest, figure/formula indexes, reading report, and `wiki-ingest-brief.json`; use PDF, indexes, and image evidence only as fallback when MinerU Markdown is missing, wrong, ambiguous, or insufficient. Non-empty native `mineru/paper.tex` is optional cross-check only.
 
 ## Plan
@@ -34,7 +34,7 @@ Read manifest or `.manifest.json`, `index.md`, `log.md`, and `hot.md`; search ex
 
 When the vault contract expects it, update manifest / `.manifest.json`, `index.md`, `log.md`, and `hot.md` with source paths, hashes, pages written, and conceptual change.
 
-Write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` when formal pages and `final-source-review.json` are ready for Paper Source record. Include `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, final page paths/hashes, `final-source-review.json` path/hash, `human_approval.approved_by`, and `record-wiki-ingest --from-paper-wiki-request _paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json`; Paper Wiki writes the request artifact; Paper Source consumes it. Stop when source artifacts are missing and point back to Paper Source `paper-gate`.
+Write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` when formal pages and `final-source-review.json` are ready for Paper Source record. Include `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, final page paths/hashes, `final-source-review.json` path/hash, `human_approval.approved_by`, and `record-wiki-ingest --from-paper-wiki-request _paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json`; Paper Wiki writes the request artifact; Paper Source consumes it. Stop when source artifacts are missing and point back to Paper Source `paper-gate`. Paper Wiki does not write `human-approval.json`, does not write `wiki-agent-trigger.json`, and does not write or replace `wiki-ingest-record.json`.
 
 ## QMD Compatibility
 

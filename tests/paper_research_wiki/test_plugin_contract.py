@@ -146,7 +146,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "1.0.0"
+    assert manifest["version"] == "1.0.1"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -157,7 +157,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "link repair" in manifest["interface"]["longDescription"]
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v1.0.0 | Paper Wiki:")
+    assert manifest["interface"]["shortDescription"].startswith("v1.0.1 | Paper Wiki:")
     for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
@@ -653,6 +653,34 @@ def test_paper_wiki_documents_ask_mode_paper_source_record_request_handoff():
         assert phrase in combined
 
     assert "Paper Wiki writes or replaces `wiki-ingest-record.json`" not in combined
+
+
+def test_paper_wiki_documents_codex_automation_handoff_without_owning_paper_source_state():
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    workflow = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
+    artifact_contract = _read(PUBLIC_SKILL / "references" / "paper-source-artifact-contract.md")
+    integration = _read(PLUGIN / "docs" / "paper-source-integration.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+    combined = "\n".join([skill, workflow, artifact_contract, integration, workflow_doc])
+
+    for phrase in [
+        "wiki-agent-trigger.json",
+        "automation_handoff",
+        "codex-automation:<task-id>",
+        "explicit Codex automation",
+        "ordinary approval-waiting handoff",
+        "automation-approved ready",
+        "paper-wiki-record-request-v1",
+        "automation_mode: ask",
+    ]:
+        assert phrase in combined
+
+    for phrase in [
+        "does not write `human-approval.json`",
+        "does not write `wiki-agent-trigger.json`",
+        "does not write or replace `wiki-ingest-record.json`",
+    ]:
+        assert phrase in combined
 
 
 def test_check_wiki_supports_layered_checks_and_completion_reports():
