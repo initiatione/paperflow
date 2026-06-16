@@ -30,16 +30,21 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.0.0"
-    assert manifest["interface"]["shortDescription"].startswith("v2.0.0 | Paper Source:")
+    assert manifest["version"] == "2.1.0"
+    assert manifest["interface"]["shortDescription"].startswith("v2.1.0 | Paper Source:")
+    assert "recommend" in manifest["interface"]["shortDescription"]
+    assert "session_recommendations" in manifest["interface"]["longDescription"]
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.1.0",
             "Paper Source 2.0.0",
             "wiki-ingest-brief.json",
             "record-human-approval",
             "wiki-ingest-trigger",
             "record-wiki-ingest",
+            "session_recommendations",
+            "paper-source-session-recommendations-v1",
             "marketplace refresh / reinstall / installed-cache verification remain",
         ],
     )
@@ -88,6 +93,7 @@ def test_structure_doc_covers_current_slimmed_modules_and_boundaries():
             "stage_wiki_brief.py",
             "frontmatter.py",
             "review/",
+            "recommendation_output.py",
             "wiki_ingest_record.py",
             "wiki_query.py",
             "runtime_config.py",
@@ -130,6 +136,7 @@ def test_workflow_and_linkage_docs_cover_kept_runtime_pipeline():
             "source-staging",
             "_paper_source/reviews",
             "_paper_source/meta/evidence-index.json",
+            "session_recommendations",
             "Paper Wiki",
             "final-source-review.json",
         ],

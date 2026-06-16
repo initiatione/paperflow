@@ -433,6 +433,17 @@ def test_paper_discovery_keeps_policy_in_skill_and_references():
     assert not (SKILLS / "paper-discovery" / "README.md").exists()
 
 
+def test_paper_discovery_output_format_uses_session_recommendations_contract():
+    output_format = (SKILLS / "paper-discovery" / "references" / "output-format.md").read_text(encoding="utf-8")
+
+    assert "report.json.session_recommendations" in output_format
+    assert "session_recommendations.primary_recommendations" in output_format
+    assert "session_recommendations.review_appendix" in output_format
+    assert "session_recommendations.overflow.hidden_count" in output_format
+    assert "Paper Source scripts do not generate semantic Chinese summaries" in output_format
+    assert "do not list every kept paper in `推荐优先看`" in output_format
+
+
 def test_paper_source_paper_deposition_is_thin_handoff_cleanup_entry():
     deposition = (SKILLS / "paper-source-paper-deposition" / "SKILL.md").read_text(encoding="utf-8")
     formal_workflow = (

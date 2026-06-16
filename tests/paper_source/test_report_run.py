@@ -3,6 +3,48 @@ import json
 from paper_source.report_run import write_report
 
 
+def _ranked_candidate(
+    title,
+    *,
+    doi="10.1000/example",
+    include_doi=True,
+    quality_tier="Tier A",
+    decision="advance-candidate",
+    abstract="Original provider abstract with method, task, evidence, and caveat.",
+    pdf_url="https://example.org/paper.pdf",
+    score=0.9,
+):
+    candidate = {
+        "slug": title.lower().replace(" ", "-"),
+        "title": title,
+        "score": score,
+        "venue": "ICRA",
+        "year": 2025,
+        "abstract": abstract,
+        "pdf_url": pdf_url,
+        "paper_type": "benchmark",
+        "classification_confidence": 0.88,
+        "quality_tier": quality_tier,
+        "quality_gate": {
+            "evidence": ["stable_identifier", "high_topic_fit"],
+            "cautions": [],
+            "blocking_reasons": [],
+        },
+        "ranking_protocol": {
+            "decision": decision,
+            "reasons": ["matched user profile", "strong evidence"],
+            "cautions": [],
+        },
+        "ranking_rationale": {
+            "recommendation": decision,
+            "one_sentence": f"{title} has enough evidence for the requested topic.",
+        },
+    }
+    if include_doi:
+        candidate["doi"] = doi
+    return candidate
+
+
 def test_write_report_emits_required_sections_even_when_empty(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir(parents=True)
@@ -41,6 +83,120 @@ def test_write_report_emits_required_sections_even_when_empty(tmp_path):
     report_md = (run_dir / "report.md").read_text(encoding="utf-8")
     assert "## Budget Usage" in report_md
     assert "## Next Actions" in report_md
+
+
+def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+    ranked = [
+        _ranked_candidate("Primary Paper 01", doi="10.1000/p1", score=0.99),
+        _ranked_candidate("Primary Paper 02", include_doi=False, score=0.98),
+        _ranked_candidate("Primary Paper 03", doi="", score=0.97),
+        _ranked_candidate(
+            "Needs PDF Paper",
+            doi="10.1000/needs-pdf",
+            pdf_url="",
+            score=0.96,
+        )
+        | {
+            "staging_readiness": "needs_pdf",
+            "readiness_reasons": ["missing_pdf"],
+            "candidate_manual_urls": [{"kind": "publisher", "url": "https://publisher.example/needs-pdf"}],
+        },
+    ]
+    ranked.extend(
+        _ranked_candidate(f"Primary Paper {index:02d}", doi=f"10.1000/p{index}", score=0.95 - index / 100)
+        for index in range(4, 12)
+    )
+    ranked.extend(
+        [
+            _ranked_candidate(
+                "Review Candidate Paper",
+                doi="10.1000/review",
+                quality_tier="Tier B",
+                decision="review-candidate",
+                score=0.5,
+            ),
+            _ranked_candidate(
+                "Tier C Appendix Paper",
+                doi="10.1000/tier-c",
+                quality_tier="Tier C",
+                decision="advance-candidate",
+                score=0.4,
+            ),
+        ]
+    )
+
+    write_report(
+        run_dir,
+        ranked=ranked,
+        errors=[],
+        workflow_type="paper-discovery-dry-run",
+        run_id="dry-run-session",
+        rejected=[
+            {"title": "Duplicate", "filter_reasons": ["already_in_wiki:references/duplicate"]},
+            {"title": "Off Domain", "filter_reasons": ["outside_domain"]},
+            {"title": "Second Off Domain", "filter_reasons": ["outside_domain"]},
+        ],
+        discovery_context={"diagnostics_path": "vault/_paper_source/runs/dry-run-session/discovery-diagnostics.json"},
+    )
+
+    report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    report_md = (run_dir / "report.md").read_text(encoding="utf-8")
+    session = report_json["session_recommendations"]
+
+    assert session["schema_version"] == "paper-source-session-recommendations-v1"
+    assert session["summary_policy"] == {
+        "language": "zh",
+        "producer": "calling_agent",
+        "source": "original_abstract",
+    }
+    assert len(session["primary_recommendations"]) == 10
+    assert session["overflow"] == {
+        "primary_total": 12,
+        "hidden_count": 2,
+        "full_artifact": "report.json",
+    }
+    assert [item["title"] for item in session["primary_recommendations"][:4]] == [
+        "Primary Paper 01",
+        "Primary Paper 02",
+        "Primary Paper 03",
+        "Needs PDF Paper",
+    ]
+    assert session["primary_recommendations"][0]["doi"] == "10.1000/p1"
+    assert session["primary_recommendations"][0]["doi_status"] == "present"
+    assert session["primary_recommendations"][0]["original_abstract"].startswith("Original provider abstract")
+    assert session["primary_recommendations"][0]["chinese_summary"]["status"] == "agent_generated_required"
+    assert session["primary_recommendations"][0]["quality_reason"]["ranking_reasons"] == [
+        "matched user profile",
+        "strong evidence",
+    ]
+    assert session["primary_recommendations"][0]["pdf_status"] == "available"
+    assert session["primary_recommendations"][0]["auto_staging_status"] == "not_run"
+    assert session["primary_recommendations"][1]["doi"] == "未核实"
+    assert session["primary_recommendations"][1]["doi_status"] == "unverified"
+    assert session["primary_recommendations"][2]["doi"] == "缺失"
+    assert session["primary_recommendations"][2]["doi_status"] == "missing"
+    assert session["primary_recommendations"][3]["pdf_status"] == "needs_pdf"
+    assert {"kind": "publisher", "url": "https://publisher.example/needs-pdf"} in session[
+        "primary_recommendations"
+    ][3]["manual_download"]["links"]
+
+    appendix_titles = [item["title"] for item in session["review_appendix"]]
+    assert appendix_titles == ["Review Candidate Paper", "Tier C Appendix Paper"]
+    assert "Review Candidate Paper" not in [item["title"] for item in session["primary_recommendations"]]
+    assert "Tier C Appendix Paper" not in [item["title"] for item in session["primary_recommendations"]]
+    assert session["review_appendix"][0]["appendix_reason"].startswith("Review Candidate Paper has enough evidence")
+    assert session["review_appendix"][1]["appendix_reason"] == "Tier C"
+    assert session["rejected_summary"] == {
+        "total": 3,
+        "reason_counts": [
+            {"reason": "outside_domain", "count": 2},
+            {"reason": "already_in_wiki:references/duplicate", "count": 1},
+        ],
+    }
+    assert "## Session Recommendations" in report_md
+    assert "Chinese summaries: generated by the calling agent from original_abstract." in report_md
 
 
 def test_write_report_groups_dry_run_candidates_by_research_queue(tmp_path):
