@@ -30,14 +30,16 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.2.1"
-    assert manifest["interface"]["shortDescription"].startswith("v2.2.1 | Paper Source:")
+    assert manifest["version"] == "2.3.0"
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.0 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
+    assert "Codex automation approval" in manifest["interface"]["longDescription"]
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.3.0",
             "Paper Source 2.2.0",
             "Paper Source 2.2.1",
             "Paper Source 2.1.1",
@@ -47,6 +49,8 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
             "discover-papers-record.json",
             "wiki-ingest-brief.json",
             "record-human-approval",
+            "codex-automation:<task-id>",
+            "automation_handoff",
             "wiki-ingest-trigger",
             "record-wiki-ingest",
             "session_recommendations",
@@ -135,6 +139,10 @@ def test_workflow_and_linkage_docs_cover_kept_runtime_pipeline():
             "paper-gate",
             "wiki-ingest-handoff",
             "record-human-approval",
+            "Codex automation",
+            "codex-automation:<task-id>",
+            "automation_handoff",
+            "普通 `discover-papers`",
             "wiki-ingest-trigger",
             "record-wiki-ingest",
             "zotero-sync",

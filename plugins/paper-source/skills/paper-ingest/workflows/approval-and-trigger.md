@@ -14,6 +14,14 @@ python scripts\orchestrator.py record-human-approval --slug <slug> --approved-by
 
 Writes `_paper_source/staging/papers/<slug>/human-approval.json` and changes the handoff to `ready_for_agent=true`.
 
+Codex automation is explicit opt-in. Do not infer it from ordinary `discover-papers`, auto-staging, or a general "find papers" request. Only use it when the user has explicitly authorized the current Codex/Trellis task to continue through Paper Wiki deposition:
+
+```powershell
+python scripts\orchestrator.py record-human-approval --slug <slug> --approved-by codex-automation:<task-id> --scope run-wiki-ingest-agent --automation-mode codex-task --automation-task-id <task-id> --automation-task-source <task-path-or-session> --automation-authorization "<explicit user authorization>" --vault <vault> --json
+```
+
+This still writes the existing `paper-source-human-approval-v1` approval artifact. Automation approval requires `approved_by=codex-automation:<task-id>`, records `approval_actor_type=codex-automation` plus an `automation` object, and remains a pre-write approval for the current/wiki-capable agent. Paper Source does not write formal Paper Wiki pages.
+
 ## Queue And Trigger
 
 ```powershell
@@ -23,6 +31,8 @@ python scripts\orchestrator.py wiki-ingest-trigger --slug <slug> --vault <vault>
 ```
 
 `wiki-ingest-trigger` writes `_paper_source/staging/papers/<slug>/wiki-agent-trigger.json`, a resume package for Paper Wiki `$paper-research-wiki` or another wiki-capable agent following the Paper Wiki/vault contract. It does not spawn a hidden LLM process or write final pages. The trigger points at `wiki-ingest-brief.json`, the canonical Paper Source-to-Paper Wiki handoff.
+
+When the approval record contains automation metadata, the trigger includes `approved_by`, `approval_actor_type`, `automation_mode`, and `automation_handoff` so the running Codex task can audit why it may continue. Human approval triggers omit `automation_handoff`.
 
 ## Record Final Wiki Ingest
 

@@ -1029,6 +1029,10 @@ _TABLE_DRIVEN_COMMANDS = {
             approved_by=args.approved_by,
             scope=args.scope,
             notes=args.notes,
+            automation_mode=args.automation_mode,
+            automation_task_id=args.automation_task_id,
+            automation_task_source=args.automation_task_source,
+            automation_authorization=args.automation_authorization,
         ),
         "outputs": (
             ("approval_status", "record.status"),

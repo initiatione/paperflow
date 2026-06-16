@@ -15,7 +15,7 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 3. 用 `report --run-id <discovery-run-id> --vault <vault>` 查看底层 discovery report，或直接读取 `discover-papers` JSON 输出里的 `session_recommendations` / `auto_staging_plan`；持续追踪、net-new、coverage 和 backlog 以 wiki `_meta/reference-index.json` 为准，`topic-tracking` 只做增量视图。
 4. 选中的论文如果已经有足够 source evidence，交给 Paper Wiki `$paper-research-wiki` 做沉淀或更新。
 5. 只有需要覆盖默认 auto-staging 选择、补 PDF、MinerU、source-staging、approval report 或 `wiki-ingest-brief.json` 时，才显式运行 `prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json`；`dry-run` 是 evidence/debug 底层命令，`discover-to-handoff` 是显式重流程捷径，仍停在 source-staging。
-6. 如果走 source-staging，先读中文 approval report；同意后运行 `record-human-approval`，再用 `wiki-ingest-trigger` 生成 wiki agent resume package。
+6. 如果走 source-staging，先读中文 approval report；同意后运行 `record-human-approval`，再用 `wiki-ingest-trigger` 生成 wiki agent resume package。Codex automation 只能在用户明确授权当前 Trellis/Codex 任务继续沉淀时显式启用，不能从普通 `discover-papers`、auto-staging 或“找论文”请求推断。
 7. 由 Paper Wiki `$paper-research-wiki` 或当前 wiki-capable agent 消费 `wiki-ingest-brief.json`，写正式页面和 `final-source-review.json`。
 8. 最后运行 `record-wiki-ingest`，让 Paper Source 记录最终页路径、hash、source review 和可选 Zotero sidecar。
 
@@ -55,6 +55,7 @@ python scripts\orchestrator.py normalize-mineru-assets --slug <paper-slug> --vau
 python scripts\orchestrator.py paper-gate --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py wiki-ingest-handoff --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py record-human-approval --slug <paper-slug> --approved-by <name> --scope run-wiki-ingest-agent --vault <vault>
+python scripts\orchestrator.py record-human-approval --slug <paper-slug> --approved-by codex-automation:<task-id> --scope run-wiki-ingest-agent --automation-mode codex-task --automation-task-id <task-id> --automation-task-source <task-path-or-session> --automation-authorization "<explicit user authorization>" --vault <vault> --json
 python scripts\orchestrator.py wiki-ingest-trigger --slug <paper-slug> --vault <vault>
 python scripts\orchestrator.py record-wiki-ingest --slug <paper-slug> --page <final-page.md> --approved-by <name> --source-review <final-source-review.json> --vault <vault>
 python scripts\orchestrator.py wiki-ask --question "<research question>" --vault <vault>
@@ -94,7 +95,7 @@ Queue buckets are `ready_to_promote`, `needs_reader_repair`, `warning_only`, and
 
 Before recording approval, show one single human-readable 人工确认报告 / approval report instead of raw JSON, gate dumps, critic sidecars, or path lists. The report should be Chinese-first, use Chinese-English / 中英对照 for key terms, keep each card dense, and end with `建议沉淀`, `谨慎沉淀`, or `暂不沉淀`.
 
-Record pre-write approval with `record-human-approval --scope run-wiki-ingest-agent`; it writes `human-approval.json` and lets `wiki-ingest-handoff` show `ready_for_agent=true`. `wiki-ingest-trigger` writes a resume package for the current Claude, Codex, or other wiki-capable agent; it does not write final pages.
+Record pre-write approval with `record-human-approval --scope run-wiki-ingest-agent`; it writes `human-approval.json` and lets `wiki-ingest-handoff` show `ready_for_agent=true`. Explicit Codex automation uses the same `paper-source-human-approval-v1` artifact with `approved_by=codex-automation:<task-id>`, optional `automation` metadata, and `approval_actor_type=codex-automation`; all automation flags must be supplied together and match the actor. Ordinary human approval keeps `approval_actor_type=human` and has no `automation` object. `wiki-ingest-trigger` writes a resume package for the current Claude, Codex, or other wiki-capable agent and includes `automation_handoff` only when the approval record contains automation metadata; it does not write final pages.
 
 After Paper Wiki or another wiki-capable agent writes final pages and `final-source-review.json`, run `record-wiki-ingest`. Paper Wiki writes `paper-wiki-record-request.json` in ask-mode automation; Paper Source consumes it with `record-wiki-ingest --from-paper-wiki-request`, validates live page hashes, and writes or replaces `wiki-ingest-record.json`.
 

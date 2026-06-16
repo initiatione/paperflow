@@ -43,6 +43,17 @@ def _approved_by(vault_path: Path, slug: str) -> str:
     return str(record.get("approved_by") or "<same-approved-by>")
 
 
+def _approval_summary(vault_path: Path, slug: str) -> dict[str, Any]:
+    record = load_human_approval_record(vault_path, slug) or {}
+    automation = record.get("automation") if isinstance(record.get("automation"), dict) else None
+    return {
+        "approved_by": str(record.get("approved_by") or ""),
+        "approval_actor_type": record.get("approval_actor_type") or ("codex-automation" if automation else "human"),
+        "automation_mode": automation.get("mode") if automation else None,
+        "automation_handoff": automation,
+    }
+
+
 def _family_paths(values: object) -> list[str]:
     records = values if isinstance(values, list) else []
     paths: list[str] = []
@@ -164,10 +175,12 @@ def build_wiki_ingest_trigger(vault_path: Path, slug: str) -> dict[str, Any]:
 
     if handoff.get("ready_for_agent"):
         approved_by = _approved_by(vault_path, slug)
+        approval_summary = _approval_summary(vault_path, slug)
         payload.update(
             {
                 "status": "ready",
                 "next_action": "run-current-agent-as-wiki-ingest-agent",
+                **approval_summary,
                 "instruction": _ready_instruction(
                     slug=slug,
                     approved_by=approved_by,
@@ -244,6 +257,15 @@ def render_wiki_ingest_trigger(trigger: dict[str, Any]) -> str:
     lines.append(f"- paper_source_write_scope: {trigger.get('paper_source_write_scope') or '-'}")
     lines.append(f"- wiki_batch_handoff_required: {str(bool(trigger.get('wiki_batch_handoff_required'))).lower()}")
     lines.append("- required_skills: " + (", ".join(str(item) for item in trigger.get("required_wiki_skills") or []) or "-"))
+    if trigger.get("automation_handoff"):
+        automation = trigger.get("automation_handoff") if isinstance(trigger.get("automation_handoff"), dict) else {}
+        lines.extend(["", "## Automation Handoff", ""])
+        lines.append(f"- approved_by: {trigger.get('approved_by') or '-'}")
+        lines.append(f"- approval_actor_type: {trigger.get('approval_actor_type') or '-'}")
+        lines.append(f"- automation_mode: {trigger.get('automation_mode') or '-'}")
+        lines.append(f"- task_id: {automation.get('task_id') or '-'}")
+        lines.append(f"- task_source: {automation.get('task_source') or '-'}")
+        lines.append(f"- original_authorization: {automation.get('original_authorization') or '-'}")
     context_policy = trigger.get("agent_context_policy") if isinstance(trigger.get("agent_context_policy"), dict) else {}
     lines.extend(["", "## Agent Context Policy", ""])
     if context_policy:

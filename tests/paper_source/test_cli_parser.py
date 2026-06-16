@@ -1153,6 +1153,36 @@ def test_record_human_approval_parser_accepts_scope_notes_and_json():
     assert args.json is True
 
 
+def test_record_human_approval_parser_accepts_codex_automation_fields():
+    args = build_parser().parse_args(
+        [
+            "record-human-approval",
+            "--slug",
+            "fixture-paper",
+            "--approved-by",
+            "codex-automation:task-123",
+            "--scope",
+            "run-wiki-ingest-agent",
+            "--automation-mode",
+            "codex-task",
+            "--automation-task-id",
+            "task-123",
+            "--automation-task-source",
+            ".trellis/tasks/example",
+            "--automation-authorization",
+            "User explicitly approved automation in this task.",
+            "--json",
+        ]
+    )
+
+    assert args.command == "record-human-approval"
+    assert args.approved_by == "codex-automation:task-123"
+    assert args.automation_mode == "codex-task"
+    assert args.automation_task_id == "task-123"
+    assert args.automation_task_source == ".trellis/tasks/example"
+    assert args.automation_authorization == "User explicitly approved automation in this task."
+
+
 def test_paper_gate_parser_accepts_slug_and_json():
     args = build_parser().parse_args(
         [

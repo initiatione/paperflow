@@ -1,6 +1,8 @@
 import json
 import sys
 
+import pytest
+
 from paper_source.orchestrator import main, record_human_approval
 from paper_source.paper_gate import build_paper_gate, render_paper_gate
 from paper_source.stage_wiki import _build_wiki_ingest_brief
@@ -218,6 +220,8 @@ def test_paper_gate_marks_agent_handoff_approved_before_wiki_ingest(tmp_path):
 
     assert approval["record"]["schema_version"] == "paper-source-human-approval-v1"
     assert approval["record"]["approved_by"] == "codex-test"
+    assert approval["record"]["approval_actor_type"] == "human"
+    assert "automation" not in approval["record"]
     assert gate["status"] == "ready_for_wiki_ingest_agent"
     assert gate["check_suite"]["conclusion"] == "success"
     assert gate["next_action"] == "run-wiki-ingest-agent"
@@ -225,6 +229,55 @@ def test_paper_gate_marks_agent_handoff_approved_before_wiki_ingest(tmp_path):
     assert checks["human-approval"]["conclusion"] == "success"
     assert checks["human-approval"]["details"]["record_type"] == "human-approval"
     assert checks["human-approval"]["details"]["approved_by"] == "codex-test"
+
+
+def test_paper_gate_accepts_explicit_codex_automation_approval(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    _seed_paper_gate_fixture(vault, slug)
+
+    approval = record_human_approval(
+        vault,
+        slug,
+        approved_by="codex-automation:task-123",
+        scope="run-wiki-ingest-agent",
+        automation_mode="codex-task",
+        automation_task_id="task-123",
+        automation_task_source=".trellis/tasks/example",
+        automation_authorization="User explicitly approved automation in this task.",
+    )
+    gate = build_paper_gate(vault, slug)
+
+    record = approval["record"]
+    assert record["schema_version"] == "paper-source-human-approval-v1"
+    assert record["approved_by"] == "codex-automation:task-123"
+    assert record["approval_actor_type"] == "codex-automation"
+    assert record["automation"]["mode"] == "codex-task"
+    assert record["automation"]["task_id"] == "task-123"
+    assert record["automation"]["task_source"] == ".trellis/tasks/example"
+    assert record["automation"]["original_authorization"] == "User explicitly approved automation in this task."
+    assert record["automation"]["handoff_context"]["paper_slug"] == slug
+    checks = {run["name"]: run for run in gate["check_suite"]["check_runs"]}
+    assert checks["human-approval"]["conclusion"] == "success"
+    assert checks["human-approval"]["details"]["approved_by"] == "codex-automation:task-123"
+
+
+def test_codex_automation_approval_requires_matching_actor(tmp_path):
+    vault = tmp_path / "vault"
+    slug = "fixture-paper"
+    _seed_paper_gate_fixture(vault, slug)
+
+    with pytest.raises(ValueError, match="automation approved-by must be codex-automation:task-123"):
+        record_human_approval(
+            vault,
+            slug,
+            approved_by="codex-test",
+            scope="run-wiki-ingest-agent",
+            automation_mode="codex-task",
+            automation_task_id="task-123",
+            automation_task_source=".trellis/tasks/example",
+            automation_authorization="User explicitly approved automation in this task.",
+        )
 
 
 def test_paper_gate_surfaces_corrected_premature_wiki_ingest_record(tmp_path):

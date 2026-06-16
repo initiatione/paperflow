@@ -441,6 +441,10 @@ def build_parser() -> argparse.ArgumentParser:
     record_human_approval.add_argument("--approved-by", required=True)
     record_human_approval.add_argument("--scope", required=True)
     record_human_approval.add_argument("--notes", default=None)
+    record_human_approval.add_argument("--automation-mode", default=None)
+    record_human_approval.add_argument("--automation-task-id", default=None)
+    record_human_approval.add_argument("--automation-task-source", default=None)
+    record_human_approval.add_argument("--automation-authorization", default=None)
     record_human_approval.add_argument("--json", action="store_true")
 
     record_wiki_ingest = subparsers.add_parser("record-wiki-ingest")

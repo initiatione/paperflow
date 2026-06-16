@@ -435,6 +435,7 @@ def test_wiki_ingest_trigger_requires_human_approval_before_agent_start(tmp_path
     assert trigger["ready_after_human_approval"] is True
     assert trigger["next_action"] == "record-human-approval"
     assert "record-human-approval" in trigger["instruction"]
+    assert "automation_handoff" not in trigger
     assert not (vault / "_paper_source" / "staging" / "papers" / slug / "wiki-agent-trigger.json").exists()
 
 
@@ -466,6 +467,11 @@ def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_pat
         trigger["agent_context_policy"]["codex_permission_note"]
     )
     assert stored["agent_context_policy"] == trigger["agent_context_policy"]
+    assert trigger["approval_actor_type"] == "human"
+    assert trigger["approved_by"] == "codex-test"
+    assert trigger["automation_mode"] is None
+    assert trigger["automation_handoff"] is None
+    assert stored["automation_handoff"] is None
     assert trigger["required_wiki_skills"] == EXPECTED_RESEARCH_WIKI_SKILLS
     assert "paper-research-wiki" in trigger["instruction"]
     assert "wiki-ingest-brief.json" in trigger["instruction"]
@@ -486,6 +492,36 @@ def test_wiki_ingest_trigger_writes_agent_neutral_trigger_after_approval(tmp_pat
     assert any("No reader claim map is required" in item for item in trigger["agent_checklist"])
     assert any("paper.pdf" in item and "MinerU" in item for item in trigger["agent_checklist"])
     assert not (vault / "references").exists()
+
+
+def test_wiki_ingest_trigger_includes_codex_automation_handoff_after_approval(tmp_path):
+    vault = tmp_path / "vault"
+    slug = _seed_agent_handoff(vault)
+    record_human_approval(
+        vault,
+        slug,
+        approved_by="codex-automation:task-123",
+        scope="run-wiki-ingest-agent",
+        automation_mode="codex-task",
+        automation_task_id="task-123",
+        automation_task_source=".trellis/tasks/example",
+        automation_authorization="User explicitly approved automation in this task.",
+    )
+
+    trigger = build_wiki_ingest_trigger(vault, slug)
+    output = render_wiki_ingest_trigger(trigger)
+
+    assert trigger["status"] == "ready"
+    assert trigger["approved_by"] == "codex-automation:task-123"
+    assert trigger["approval_actor_type"] == "codex-automation"
+    assert trigger["automation_mode"] == "codex-task"
+    assert trigger["automation_handoff"]["task_id"] == "task-123"
+    assert trigger["automation_handoff"]["task_source"] == ".trellis/tasks/example"
+    assert trigger["automation_handoff"]["original_authorization"] == "User explicitly approved automation in this task."
+    assert trigger["automation_handoff"]["handoff_context"]["paper_slug"] == slug
+    assert "## Automation Handoff" in output
+    assert "codex-automation:task-123" in output
+    assert "User explicitly approved automation in this task." in output
 
 
 def test_render_wiki_ingest_trigger_shows_resume_command_after_approval(tmp_path):

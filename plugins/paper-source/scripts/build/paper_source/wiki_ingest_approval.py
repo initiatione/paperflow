@@ -11,6 +11,7 @@ ACCEPTED_HUMAN_APPROVAL_SCHEMA_VERSIONS = {
     HUMAN_APPROVAL_SCHEMA_VERSION,
 }
 HUMAN_APPROVAL_SCOPE = "run-wiki-ingest-agent"
+CODEX_AUTOMATION_ACTOR_PREFIX = "codex-automation:"
 
 
 def human_approval_record_path(vault_path: Path, slug: str) -> Path:
@@ -61,11 +62,25 @@ def create_human_approval_record(
     scope: str,
     gate: dict[str, Any],
     notes: str | None = None,
+    automation_mode: str | None = None,
+    automation_task_id: str | None = None,
+    automation_task_source: str | None = None,
+    automation_authorization: str | None = None,
 ) -> dict[str, Any]:
     approved_by_value = str(approved_by or "").strip()
     if not approved_by_value:
         raise ValueError("approved-by is required for record-human-approval")
     ensure_gate_allows_human_approval(gate, scope=scope)
+    automation = _automation_payload(
+        approved_by=approved_by_value,
+        mode=automation_mode,
+        task_id=automation_task_id,
+        task_source=automation_task_source,
+        authorization=automation_authorization,
+        slug=slug,
+        scope=scope,
+        gate=gate,
+    )
     record = {
         "schema_version": HUMAN_APPROVAL_SCHEMA_VERSION,
         "stage": "record-human-approval",
@@ -73,14 +88,64 @@ def create_human_approval_record(
         "paper_slug": slug,
         "scope": scope,
         "approved_by": approved_by_value,
+        "approval_actor_type": "codex-automation" if automation else "human",
         "approved_at": utc_now(),
         "paper_gate_snapshot": paper_gate_snapshot(gate),
     }
+    if automation:
+        record["automation"] = automation
     if notes:
         record["notes"] = notes
     path = human_approval_record_path(vault_path, slug)
     write_json_atomic(path, record)
     return record
+
+
+def _automation_payload(
+    *,
+    approved_by: str,
+    mode: str | None,
+    task_id: str | None,
+    task_source: str | None,
+    authorization: str | None,
+    slug: str,
+    scope: str,
+    gate: dict[str, Any],
+) -> dict[str, Any] | None:
+    values = [mode, task_id, task_source, authorization]
+    if not any(str(value or "").strip() for value in values):
+        return None
+    mode_value = str(mode or "").strip()
+    task_id_value = str(task_id or "").strip()
+    task_source_value = str(task_source or "").strip()
+    authorization_value = str(authorization or "").strip()
+    missing = [
+        name
+        for name, value in {
+            "automation-mode": mode_value,
+            "automation-task-id": task_id_value,
+            "automation-task-source": task_source_value,
+            "automation-authorization": authorization_value,
+        }.items()
+        if not value
+    ]
+    if missing:
+        raise ValueError("automation approval requires " + ", ".join(missing))
+    expected_actor = f"{CODEX_AUTOMATION_ACTOR_PREFIX}{task_id_value}"
+    if approved_by != expected_actor:
+        raise ValueError(f"automation approved-by must be {expected_actor}")
+    return {
+        "mode": mode_value,
+        "task_id": task_id_value,
+        "task_source": task_source_value,
+        "original_authorization": authorization_value,
+        "authorized_at": utc_now(),
+        "handoff_context": {
+            "paper_slug": slug,
+            "approval_scope": scope,
+            "paper_gate_snapshot": paper_gate_snapshot(gate),
+        },
+    }
 
 
 def load_human_approval_record(vault_path: Path, slug: str) -> dict[str, Any] | None:
@@ -116,6 +181,19 @@ def validate_human_approval_record(
     record_approved_by = str(record.get("approved_by") or "").strip()
     if not record_approved_by:
         issues.append("human approval record approved_by is missing")
+    automation = record.get("automation") if isinstance(record.get("automation"), dict) else None
+    if automation:
+        task_id = str(automation.get("task_id") or "").strip()
+        expected_actor = f"{CODEX_AUTOMATION_ACTOR_PREFIX}{task_id}" if task_id else ""
+        if record.get("approval_actor_type") != "codex-automation":
+            issues.append("automation approval record actor type must be codex-automation")
+        if not task_id:
+            issues.append("automation approval task_id is missing")
+        if expected_actor and record_approved_by != expected_actor:
+            issues.append("automation approval approved_by does not match task_id")
+        for field in ["mode", "task_source", "original_authorization", "authorized_at", "handoff_context"]:
+            if not automation.get(field):
+                issues.append(f"automation approval {field} is missing")
     expected_approved_by = str(approved_by or "").strip()
     if expected_approved_by and record_approved_by != expected_approved_by:
         issues.append(

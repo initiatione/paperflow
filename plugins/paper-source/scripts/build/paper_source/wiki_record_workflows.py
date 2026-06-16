@@ -246,6 +246,10 @@ def record_human_approval(
     approved_by: str,
     scope: str,
     notes: str | None = None,
+    automation_mode: str | None = None,
+    automation_task_id: str | None = None,
+    automation_task_source: str | None = None,
+    automation_authorization: str | None = None,
 ) -> dict:
     vault_path = vault_path.resolve()
     gate = build_paper_gate(vault_path, slug)
@@ -256,6 +260,10 @@ def record_human_approval(
         scope=scope,
         notes=notes,
         gate=gate,
+        automation_mode=automation_mode,
+        automation_task_id=automation_task_id,
+        automation_task_source=automation_task_source,
+        automation_authorization=automation_authorization,
     )
     record_path = human_approval_record_path(vault_path, slug)
     record["record_path"] = str(record_path)
