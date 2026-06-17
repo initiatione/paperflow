@@ -50,7 +50,7 @@ def test_query_planner_generates_profile_derived_non_review_plan():
     assert len(plan["query_variants"]) >= 5
     assert all("-review -survey" in query for query in plan["query_variants"])
     assert "paper_search_mcp" in plan["source_route"]["t1"]
-    assert "unpaywall" in plan["source_route"]["t1"]
+    assert "unpaywall" not in plan["source_route"]["t1"]
     assert "JACS" in plan["recall_gap_checks"]["venue_families"]
     assert "recent cited-by" in plan["recall_gap_checks"]["citation_graph"]
 

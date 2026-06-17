@@ -32,21 +32,21 @@ Do not start with Firecrawl, generic web search, publisher search, or GitHub sea
 ## Dry Run And Report
 
 ```powershell
-python scripts\orchestrator.py discover-papers --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault> --json
+python scripts\orchestrator.py discover-papers --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault> --json
 python scripts\orchestrator.py discover-papers --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 20 --selection-policy balanced_high_quality --plugin-root <plugin-root> --vault <vault> --json
 python scripts\orchestrator.py discover-papers --query "<topic>" --max-results 10 --plugin-root <plugin-root> --vault <vault> --no-auto-stage --json
-python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault>
-python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault> --json
-python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault> --refresh
-python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\" -review -survey" --query-variant "\"<domain object>\" \"<task>\" code -review -survey" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault> --json
-python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault>
+python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<topic>" --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault> --refresh
+python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\" -review -survey" --query-variant "\"<domain object>\" \"<task>\" code -review -survey" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault> --json
 python scripts\orchestrator.py discover-to-handoff --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 20 --max-papers 10 --selection-policy balanced_high_quality --skip-existing --plugin-root <plugin-root> --vault <vault> --json
-python scripts\orchestrator.py dry-run --query "<exact narrow topic>" --no-query-plan --max-results 10 --sources arxiv,semantic,openalex,crossref,unpaywall --plugin-root <plugin-root> --vault <vault>
+python scripts\orchestrator.py dry-run --query "<exact narrow topic>" --no-query-plan --max-results 10 --sources arxiv,semantic,openalex,crossref --plugin-root <plugin-root> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault>
 python scripts\orchestrator.py report --run-id <run-id> --vault <vault> --json
 ```
 
-Use `--json` when another agent/script needs the run id and artifact paths. `discover-papers --json` returns the high-level run id, underlying discovery run id, optional auto-staging run id, `auto_staging_plan`, status counts, and artifact paths. The default source list includes `unpaywall`; if `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL` / `UNPAYWALL_EMAIL` is missing, configure the provider env file before judging PDF recall. Use `--no-query-plan` only for debugging or exact narrow topics.
+Use `--json` when another agent/script needs the run id and artifact paths. `discover-papers --json` returns the high-level run id, underlying discovery run id, optional auto-staging run id, `auto_staging_plan`, status counts, and artifact paths. The default broad keyword source list excludes Unpaywall because it is a DOI lookup / OA locator; configure `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL` / `UNPAYWALL_EMAIL` before judging DOI-backed PDF recall or exact DOI lookup. Use `--no-query-plan` only for debugging or exact narrow topics.
 
 When `--query-variant` or `--agent-query-plan-json` is present, the script records `query_variants_source=agent_supplied` and executes those variants instead of the raw `--query` text. `--year-min` and `--code-policy` are recorded under `request_constraints`; `prefer` affects ranking while `require` rejects missing code metadata. `--selection-policy` is recorded in rank/report artifacts. Agent-plan `domain_focus_terms` are treated as soft recall for compatibility; use `hard_domain_anchors` or `hard_constraints` for hard filtering. This is the preferred path for complex Chinese/English mixed requests, code-preferred searches, and topics where domain vocabulary quality determines recall.
 

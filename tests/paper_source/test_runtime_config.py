@@ -306,6 +306,7 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
         "OPENAI_COMPATIBLE_API_URL=https://api.example.org\n"
         "OPENAI_COMPATIBLE_API_KEY=grok-compatible-key\n"
         "OPENAI_COMPATIBLE_MODEL=grok-model\n"
+        "GROK_SEARCH_API_KEY=grok-search-key\n"
         "GROK_SEARCH_WEB_SEARCH=true\n"
         "GROK_SEARCH_TIMEOUT_SECONDS=120\n"
         "TAVILY_API_KEY=tavily-key\n",
@@ -329,6 +330,7 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
         "OPENAI_COMPATIBLE_API_URL",
         "OPENAI_COMPATIBLE_API_KEY",
         "OPENAI_COMPATIBLE_MODEL",
+        "GROK_SEARCH_API_KEY",
         "GROK_SEARCH_WEB_SEARCH",
         "GROK_SEARCH_TIMEOUT_SECONDS",
         "TAVILY_API_KEY",
@@ -342,17 +344,20 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
     assert os.environ["OPENAI_COMPATIBLE_API_URL"] == "https://api.example.org"
     assert os.environ["OPENAI_COMPATIBLE_API_KEY"] == "grok-compatible-key"
     assert os.environ["OPENAI_COMPATIBLE_MODEL"] == "grok-model"
+    assert os.environ["GROK_SEARCH_API_KEY"] == "grok-search-key"
     assert os.environ["GROK_SEARCH_WEB_SEARCH"] == "true"
     assert os.environ["GROK_SEARCH_TIMEOUT_SECONDS"] == "120"
     assert os.environ["TAVILY_API_KEY"] == "tavily-key"
     assert "OPENAI_COMPATIBLE_API_URL" in status["applied_env"]
     assert "OPENAI_COMPATIBLE_API_KEY" in status["applied_env"]
     assert "OPENAI_COMPATIBLE_MODEL" in status["applied_env"]
+    assert "GROK_SEARCH_API_KEY" in status["applied_env"]
     assert "GROK_SEARCH_WEB_SEARCH" in status["applied_env"]
     assert "GROK_SEARCH_TIMEOUT_SECONDS" in status["applied_env"]
     assert "TAVILY_API_KEY" in status["applied_env"]
     assert "https://api.example.org" not in json.dumps(status)
     assert "grok-compatible-key" not in json.dumps(status)
+    assert "grok-search-key" not in json.dumps(status)
     assert "grok-model" not in json.dumps(status)
     assert "tavily-key" not in json.dumps(status)
 

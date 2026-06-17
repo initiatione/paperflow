@@ -1280,8 +1280,8 @@ def test_dry_run_records_provider_aware_source_routing_in_query_plan_search_and_
     fake_command = tmp_path / "provider-aware-paper-search.ps1"
     fake_payload = {
         "query": "auv pinn rl control",
-        "sources_used": ["semantic", "unpaywall"],
-        "source_results": {"semantic": 0, "unpaywall": 0},
+        "sources_used": ["semantic"],
+        "source_results": {"semantic": 0},
         "errors": {},
         "total": 0,
         "papers": [],
@@ -1313,21 +1313,23 @@ def test_dry_run_records_provider_aware_source_routing_in_query_plan_search_and_
     report_md = (run_dir / "report.md").read_text(encoding="utf-8")
     invoked_args = json.loads(args_path.read_text(encoding="utf-8-sig"))
 
-    assert query_plan["source_routing"]["selected_sources"] == ["semantic", "unpaywall"]
+    assert query_plan["source_routing"]["selected_sources"] == ["semantic"]
     assert query_plan["source_routing"]["demoted_sources"] == [
-        {"source": "google_scholar", "reason": "unstable_source"}
+        {"source": "google_scholar", "reason": "unstable_source"},
+        {"source": "unpaywall", "reason": "doi_lookup_source"},
     ]
-    assert query_plan["source_routing"]["provider_readiness"]["unpaywall"]["status"] == "missing_required_env"
-    assert query_plan["source_routing"]["provider_gaps"][0]["provider_gap"] == "unpaywall_email_missing"
-    assert search_record["source_routing"]["provider_gaps"][0]["provider_gap"] == "unpaywall_email_missing"
+    assert "unpaywall" not in query_plan["source_routing"]["provider_readiness"]
+    assert query_plan["source_routing"]["provider_gaps"] == []
+    assert search_record["source_routing"]["provider_gaps"] == []
     source_coverage = report["discovery_context"]["source_coverage"]
-    assert source_coverage["source_routing"]["selected_sources"] == ["semantic", "unpaywall"]
-    assert source_coverage["source_routing"]["provider_gaps"][0]["provider_gap"] == "unpaywall_email_missing"
+    assert source_coverage["source_routing"]["selected_sources"] == ["semantic"]
+    assert source_coverage["source_routing"]["provider_gaps"] == []
     assert "## Source Routing" in report_md
-    assert "selected_sources: semantic, unpaywall" in report_md
+    assert "selected_sources: semantic" in report_md
     assert "demoted: google_scholar (unstable_source)" in report_md
-    assert "risk: unpaywall missing_required_env (PAPER_SEARCH_MCP_UNPAYWALL_EMAIL)" in report_md
-    assert invoked_args[-1] == "semantic,unpaywall"
+    assert "demoted: unpaywall (doi_lookup_source)" in report_md
+    assert "risk: unpaywall missing_required_env" not in report_md
+    assert invoked_args[-1] == "semantic"
 
 
 def test_dry_run_exact_doi_uses_single_identifier_query_and_narrowed_sources(tmp_path, monkeypatch):

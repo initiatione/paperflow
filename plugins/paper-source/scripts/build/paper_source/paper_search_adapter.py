@@ -16,7 +16,7 @@ from paper_source.artifacts import read_json
 from paper_source.runtime_config import apply_runtime_config
 
 
-DEFAULT_SOURCES = ["arxiv", "semantic", "openalex", "crossref", "unpaywall", "dblp"]
+DEFAULT_SOURCES = ["arxiv", "semantic", "openalex", "crossref", "dblp"]
 COMMAND_UNAVAILABLE = (
     "paper-search command unavailable; install paper-search-mcp or configure "
     "PAPER_SOURCE_PAPER_SEARCH_COMMAND"
@@ -201,13 +201,17 @@ def plan_source_routing(
     include_unstable: bool = False,
     query: str | None = None,
 ) -> dict:
+    explicit_sources = sources is not None
     requested_sources = _dedupe_sources(sources)
     exact_lookup = _detect_exact_lookup(query)
     if exact_lookup:
         policy = EXACT_SOURCE_POLICIES[exact_lookup["kind"]]
         policy_sources = [source for source in policy["sources"] if source in SOURCE_CAPABILITIES]
         requested_set = set(requested_sources)
-        selected_sources = [source for source in policy_sources if source in requested_set] or policy_sources
+        if explicit_sources:
+            selected_sources = [source for source in policy_sources if source in requested_set] or policy_sources
+        else:
+            selected_sources = policy_sources
         demoted_sources = [
             {"source": source, "reason": policy["demotion_reason"]}
             for source in requested_sources
@@ -261,6 +265,9 @@ def plan_source_routing(
         capability = SOURCE_CAPABILITIES.get(source_name, {})
         if capability.get("search") == "unstable" and not include_unstable:
             demoted_sources.append({"source": source_name, "reason": "unstable_source"})
+            continue
+        if capability.get("search") == "doi-lookup":
+            demoted_sources.append({"source": source_name, "reason": "doi_lookup_source"})
             continue
         selected_sources.append(source_name)
 

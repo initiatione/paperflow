@@ -46,7 +46,7 @@ def test_load_config_uses_relative_defaults(tmp_path):
     assert config.paper_search_sources == ["arxiv", "semantic", "openalex"]
 
 
-def test_load_config_defaults_include_open_access_pdf_source(tmp_path):
+def test_load_config_defaults_keep_doi_lookup_out_of_broad_sources(tmp_path):
     plugin_root = tmp_path / "plugin"
     templates = plugin_root / "templates"
     templates.mkdir(parents=True)
@@ -54,7 +54,8 @@ def test_load_config_defaults_include_open_access_pdf_source(tmp_path):
 
     config = load_config(plugin_root=plugin_root, vault_path=tmp_path / "vault", max_results=None)
 
-    assert "unpaywall" in config.paper_search_sources
+    assert config.paper_search_sources == ["arxiv", "semantic", "openalex", "crossref"]
+    assert "unpaywall" not in config.paper_search_sources
 
 
 def test_load_config_defaults_grok_search_to_targeted_gap_domains(tmp_path):

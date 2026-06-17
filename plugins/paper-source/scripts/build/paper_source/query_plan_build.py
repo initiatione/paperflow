@@ -222,7 +222,7 @@ def _minimal_agent_supplied_query_plan(query: str, *, config) -> dict:
         },
         "query_variants": [query],
         "source_route": {
-            "t1": ["paper_search_mcp", "arxiv", "semantic", "openalex", "crossref", "unpaywall"],
+            "t1": ["paper_search_mcp", "arxiv", "semantic", "openalex", "crossref"],
             "t2": ["official venue pages", "publisher DOI pages", "field-specific indexes"],
             "t3": ["citation graph", "lab/project pages", "profile-specific curated venue lists"],
         },

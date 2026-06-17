@@ -119,12 +119,13 @@ def test_plan_source_routing_demotes_unstable_sources_and_reports_provider_risks
     )
 
     assert plan["requested_sources"] == ["google_scholar", "semantic", "core", "unpaywall", "base"]
-    assert plan["selected_sources"] == ["semantic", "core", "unpaywall"]
+    assert plan["selected_sources"] == ["semantic", "core"]
     assert plan["demoted_sources"] == [
         {"source": "google_scholar", "reason": "unstable_source"},
+        {"source": "unpaywall", "reason": "doi_lookup_source"},
         {"source": "base", "reason": "unstable_source"},
     ]
-    assert plan["provider_readiness"]["unpaywall"]["status"] == "set"
+    assert "unpaywall" not in plan["provider_readiness"]
     assert plan["provider_readiness"]["core"]["status"] == "missing_recommended_env"
     assert plan["provider_risks"] == [
         {

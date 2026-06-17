@@ -14,7 +14,7 @@ Paper Source uses source tiers to avoid treating one search transport as the def
 
 | Intent | T1 Sources | T2 Verification | T3 / Manual |
 | --- | --- | --- | --- |
-| General academic discovery | arXiv, Semantic Scholar, OpenAlex, CrossRef, Unpaywall | official venue or publisher pages, DOI pages, field indexes | lab/project pages, code repos, field community lists |
+| General academic discovery | arXiv, Semantic Scholar, OpenAlex, CrossRef | official venue or publisher pages, DOI pages, field indexes, Unpaywall after DOI identity exists | lab/project pages, code repos, field community lists |
 | Configured domain papers | Sources listed in `paper_search.sources` | venues/databases listed in `venue_prior` | profile-specific curated lists or community hints |
 | Venue quality verification | OpenAlex/CrossRef venue metadata | official venue or publisher page, domain-curated venue database | forum/community discussion only as weak context |
 
@@ -24,7 +24,7 @@ Optional `grok-search-rs` supplemental search is T2/T3 recall evidence depending
 
 For journal/conference quality priors, load `venue-prior.md`. Keep venue prior separate from verified metrics. Domain-curated venue pages can be useful priors; forum discussions are weak recall hints only.
 
-Unpaywall is a T1 open-access locator for DOI-backed papers. Treat it as a PDF/source-availability signal, not as a venue-quality score.
+Unpaywall is an open-access locator for DOI-backed papers. Treat it as a PDF/source-availability signal after DOI identity exists, not as a broad keyword discovery source or venue-quality score.
 
 ## Escalation Rules
 
