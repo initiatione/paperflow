@@ -92,3 +92,16 @@ def test_grok_only_quota_requires_paper_search_anchor_and_hard_cap():
     assert usable_paper_search_candidate(ranked[2]) is False
     assert grok_only_quota(ranked, cap=5) == 2
     assert grok_only_quota(ranked, cap=1) == 1
+
+
+def test_parallel_fan_in_grace_is_runtime_configurable(monkeypatch):
+    import importlib
+    import paper_source.grok_search_policy as policy
+
+    monkeypatch.setenv("PAPER_SOURCE_GROK_PARALLEL_GRACE_SECONDS", "91")
+    reloaded = importlib.reload(policy)
+
+    assert reloaded.PARALLEL_FAN_IN_GRACE_SECONDS == 91
+
+    monkeypatch.delenv("PAPER_SOURCE_GROK_PARALLEL_GRACE_SECONDS", raising=False)
+    importlib.reload(policy)

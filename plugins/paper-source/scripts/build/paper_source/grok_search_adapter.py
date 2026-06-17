@@ -18,6 +18,13 @@ from paper_source.artifacts import write_json_atomic
 MCP_PROTOCOL_VERSION = "2025-11-25"
 SEARCH_TIMEOUT_SECONDS = 180
 GROK_SEARCH_RESPONSE_FORMAT = "detailed"
+DEFAULT_MODEL_FALLBACKS = [
+    "grok-4.20-multi-agent-xhigh",
+    "grok-4.20-multi-agent-high",
+    "grok-4.20-multi-agent-medium",
+    "grok-4.20-multi-agent-console",
+    "grok-4.3-high",
+]
 DOI_PATTERN = re.compile(r"\b10\.\d{4,9}/[^\s\"'<>]+\b", re.IGNORECASE)
 ARXIV_ID_PATTERN = re.compile(r"(?i)(?:arxiv:\s*|arxiv\.org/(?:abs|pdf)/)?(\d{4}\.\d{4,5}(?:v\d+)?)")
 PAPER_HOST_HINTS = {
@@ -186,10 +193,19 @@ def _extract_mcp_tool_payload(result: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _call_mcp_tool(tool_name: str, arguments: dict[str, Any], timeout_seconds: int) -> dict[str, Any]:
+def _call_mcp_tool(
+    tool_name: str,
+    arguments: dict[str, Any],
+    timeout_seconds: int,
+    *,
+    env_overrides: dict[str, str] | None = None,
+) -> dict[str, Any]:
     command_args, probe = _mcp_command_args()
     if not command_args:
         raise GrokSearchMCPError("grok-search MCP server is not configured", probe=probe)
+    process_env = os.environ.copy()
+    if env_overrides:
+        process_env.update(env_overrides)
     process = subprocess.Popen(
         command_args,
         stdin=subprocess.PIPE,
@@ -197,6 +213,7 @@ def _call_mcp_tool(tool_name: str, arguments: dict[str, Any], timeout_seconds: i
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
+        env=process_env,
     )
     stdout_lines: queue.Queue[str] = queue.Queue()
     stderr_lines: queue.Queue[str] = queue.Queue()
@@ -356,6 +373,62 @@ def normalize_grok_payload(payload: dict[str, Any], *, query: str, index: int) -
     return accepted, evidence
 
 
+def _configured_model_fallbacks() -> list[str]:
+    configured = os.environ.get("PAPER_SOURCE_GROK_MODEL_FALLBACKS", "")
+    configured_models = [item.strip() for item in re.split(r"[,;\s]+", configured) if item.strip()]
+    primary = os.environ.get("OPENAI_COMPATIBLE_MODEL", "").strip()
+    models = [primary, *configured_models, *DEFAULT_MODEL_FALLBACKS]
+    return list(dict.fromkeys(model for model in models if model))
+
+
+def _grok_provider_retryable(payload: dict[str, Any]) -> bool:
+    fallback_reason = str(payload.get("fallback_reason") or "")
+    search_provider = str(payload.get("search_provider") or "")
+    return (bool(payload.get("fallback_used")) and fallback_reason == "grok_provider_error") or search_provider == "source_fallback"
+
+
+def _call_web_search_with_model_fallbacks(
+    *,
+    arguments: dict[str, Any],
+    timeout_seconds: int,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    attempts: list[dict[str, Any]] = []
+    last_result: dict[str, Any] | None = None
+    for model in _configured_model_fallbacks():
+        try:
+            result = _call_mcp_tool(
+                "web_search",
+                arguments,
+                timeout_seconds=timeout_seconds,
+                env_overrides={"OPENAI_COMPATIBLE_MODEL": model},
+            )
+        except GrokSearchMCPError as exc:
+            attempts.append({"model": model, "status": "error", "error": str(exc), "probe": exc.probe})
+            continue
+        payload = result["payload"]
+        attempts.append(
+            {
+                "model": model,
+                "status": "retryable_fallback" if _grok_provider_retryable(payload) else "ok",
+                "search_provider": payload.get("search_provider"),
+                "fallback_used": payload.get("fallback_used"),
+                "fallback_reason": payload.get("fallback_reason"),
+                "sources_count": payload.get("sources_count"),
+            }
+        )
+        last_result = result
+        if not _grok_provider_retryable(payload):
+            result["model_attempts"] = attempts
+            return result, attempts
+    if last_result is not None:
+        last_result["model_attempts"] = attempts
+        return last_result, attempts
+    raise GrokSearchMCPError(
+        "grok-search MCP web_search failed for all configured model fallbacks",
+        raw_response={"model_attempts": attempts},
+    )
+
+
 def discover_grok(
     *,
     queries: list[str],
@@ -385,9 +458,8 @@ def discover_grok(
     warnings: list[str] = []
     for index, query in enumerate(queries, start=1):
         try:
-            result = _call_mcp_tool(
-                "web_search",
-                {
+            result, model_attempts = _call_web_search_with_model_fallbacks(
+                arguments={
                     "query": query,
                     "include_domains": include_domains,
                     "include_content": False,
@@ -400,7 +472,14 @@ def discover_grok(
             raw_responses.append({"query": query, "error": str(exc), "probe": exc.probe, "raw_response": exc.raw_response})
             continue
         payload = result["payload"]
-        raw_responses.append({"query": query, "payload": payload, "raw_response": result["raw_response"]})
+        raw_responses.append(
+            {
+                "query": query,
+                "payload": payload,
+                "raw_response": result["raw_response"],
+                "model_attempts": model_attempts,
+            }
+        )
         accepted, rejected = normalize_grok_payload(payload, query=query, index=index)
         records.extend(accepted)
         evidence.extend(rejected)

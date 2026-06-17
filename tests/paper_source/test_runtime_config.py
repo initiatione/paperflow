@@ -309,6 +309,8 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
         "GROK_SEARCH_API_KEY=grok-search-key\n"
         "GROK_SEARCH_WEB_SEARCH=true\n"
         "GROK_SEARCH_TIMEOUT_SECONDS=120\n"
+        "PAPER_SOURCE_GROK_MODEL_FALLBACKS=grok-backup-one,grok-backup-two\n"
+        "PAPER_SOURCE_GROK_PARALLEL_GRACE_SECONDS=180\n"
         "TAVILY_API_KEY=tavily-key\n",
         encoding="utf-8",
     )
@@ -333,6 +335,8 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
         "GROK_SEARCH_API_KEY",
         "GROK_SEARCH_WEB_SEARCH",
         "GROK_SEARCH_TIMEOUT_SECONDS",
+        "PAPER_SOURCE_GROK_MODEL_FALLBACKS",
+        "PAPER_SOURCE_GROK_PARALLEL_GRACE_SECONDS",
         "TAVILY_API_KEY",
     ]:
         monkeypatch.delenv(key, raising=False)
@@ -347,6 +351,8 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
     assert os.environ["GROK_SEARCH_API_KEY"] == "grok-search-key"
     assert os.environ["GROK_SEARCH_WEB_SEARCH"] == "true"
     assert os.environ["GROK_SEARCH_TIMEOUT_SECONDS"] == "120"
+    assert os.environ["PAPER_SOURCE_GROK_MODEL_FALLBACKS"] == "grok-backup-one,grok-backup-two"
+    assert os.environ["PAPER_SOURCE_GROK_PARALLEL_GRACE_SECONDS"] == "180"
     assert os.environ["TAVILY_API_KEY"] == "tavily-key"
     assert "OPENAI_COMPATIBLE_API_URL" in status["applied_env"]
     assert "OPENAI_COMPATIBLE_API_KEY" in status["applied_env"]
@@ -354,11 +360,14 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
     assert "GROK_SEARCH_API_KEY" in status["applied_env"]
     assert "GROK_SEARCH_WEB_SEARCH" in status["applied_env"]
     assert "GROK_SEARCH_TIMEOUT_SECONDS" in status["applied_env"]
+    assert "PAPER_SOURCE_GROK_MODEL_FALLBACKS" in status["applied_env"]
+    assert "PAPER_SOURCE_GROK_PARALLEL_GRACE_SECONDS" in status["applied_env"]
     assert "TAVILY_API_KEY" in status["applied_env"]
     assert "https://api.example.org" not in json.dumps(status)
     assert "grok-compatible-key" not in json.dumps(status)
     assert "grok-search-key" not in json.dumps(status)
     assert "grok-model" not in json.dumps(status)
+    assert "grok-backup-one" not in json.dumps(status)
     assert "tavily-key" not in json.dumps(status)
 
 

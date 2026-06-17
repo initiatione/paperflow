@@ -7,7 +7,7 @@ from typing import Any
 from paper_source.config import GrokSearchConfig
 
 
-PARALLEL_FAN_IN_GRACE_SECONDS = 30
+PARALLEL_FAN_IN_GRACE_SECONDS = int(os.environ.get("PAPER_SOURCE_GROK_PARALLEL_GRACE_SECONDS", "180"))
 
 
 @dataclass(frozen=True)
