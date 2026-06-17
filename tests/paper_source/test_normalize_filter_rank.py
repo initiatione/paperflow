@@ -5,6 +5,7 @@ from paper_source.filter_candidates import (
     filter_candidates_with_report,
 )
 from paper_source.normalize_candidates import normalize_candidates
+from paper_source.orchestrator_discovery import ranking_priority_keywords_from_query_plan
 from paper_source.rank_papers import rank_candidates
 
 
@@ -422,6 +423,104 @@ def test_rank_candidates_uses_priority_keywords_to_avoid_profile_dilution_for_na
     assert "weak_topic_fit" not in candidate["quality_gate"]["blocking_reasons"]
     assert candidate["quality_tier"] in {"Tier A", "Tier B"}
     assert candidate["ranking_protocol"]["decision"] == "advance-candidate"
+
+
+def test_query_plan_hard_anchors_prevent_quality_gate_false_reject_from_long_keyword_plan():
+    query_plan = {
+        "concept_blocks": {
+            "hard_domain_anchors": [
+                "AUV",
+                "autonomous underwater vehicle",
+                "underwater vehicle",
+                "underwater vehicles",
+            ],
+            "domain_focus_terms": ["AUV control"],
+            "method_or_topic_terms": [
+                "control",
+                "motion control",
+                "trajectory tracking",
+                "path following",
+                "position control",
+                "attitude control",
+                "model predictive control",
+                "reinforcement learning",
+                "adaptive control",
+                "fault tolerant control",
+                "sim-to-real",
+            ],
+            "problem_terms": [
+                "current disturbance",
+                "hydrodynamic uncertainty",
+                "6-DOF dynamics",
+                "station keeping",
+                "path following",
+                "trajectory tracking",
+            ],
+            "context_terms": ["application", "evaluation", "method", "system", "implementation"],
+        },
+        "hard_constraints": {
+            "domain_anchors": [
+                "AUV",
+                "autonomous underwater vehicle",
+                "underwater vehicle",
+                "underwater vehicles",
+            ],
+            "policy": "Only explicit anchors are hard relevance terms.",
+        },
+    }
+
+    priority_keywords = ranking_priority_keywords_from_query_plan(query_plan)
+    assert "policy" not in [term.lower() for term in priority_keywords]
+    assert "trajectory tracking" not in [term.lower() for term in priority_keywords]
+
+    ranked = rank_candidates(
+        [
+            {
+                "title": "A Comprehensive Study on Modelling and Control of Autonomous Underwater Vehicle",
+                "abstract": (
+                    "Autonomous underwater vehicles (AUV) use hydrodynamics and control systems. "
+                    "The study evaluates depth, yaw, and speed controllers under ocean currents."
+                ),
+                "year": 2023,
+                "venue": "",
+                "doi": "10.48550/arXiv.2312.02690",
+                "arxiv_id": "2312.02690v3",
+                "pdf_url": "https://arxiv.org/pdf/2312.02690v3",
+                "citation_count": 0,
+            }
+        ],
+        positive_keywords=[
+            "AUV",
+            "autonomous underwater vehicle",
+            "underwater vehicle",
+            "underwater vehicles",
+            "AUV control",
+            "high-quality auv control",
+            "auv control reproducible",
+            "control reproducible code",
+            "reproducible code preferred",
+            "robotics",
+            "robot control",
+            "embodied intelligence",
+            "artificial intelligence",
+            "reinforcement learning",
+            "application",
+            "evaluation",
+            "method",
+            "system",
+            "implementation",
+        ],
+        priority_keywords=priority_keywords,
+        venue_tiers={},
+        year_min=2023,
+        code_policy="prefer",
+        selection_policy="code_preferred",
+    )
+
+    candidate = ranked[0]
+    assert candidate["ranking_signals"]["priority_topic_score"] >= 0.8
+    assert "weak_topic_fit" not in candidate["quality_gate"]["blocking_reasons"]
+    assert candidate["quality_tier"] != "Reject"
 
 
 def test_filter_candidates_does_not_treat_surveying_as_survey_paper():

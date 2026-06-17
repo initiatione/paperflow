@@ -24,7 +24,7 @@ Paper Source `discover-papers` is the natural-language default for this flow. It
 Filter and rank after the pool exists:
 
 1. Deduplicate by DOI, arXiv base ID, stable URL, source ID, normalized title, and title+first-author+year.
-2. Deduplicate against `_meta/reference-index.json` as the wiki backlog, then `_paper_source/raw/*/metadata.json` as source-bundle fallback.
+2. Deduplicate against `_meta/reference-index.json` as the canonical wiki/raw backlog. Scan `_paper_source/raw/*/metadata.json` only as a source-bundle fallback when the reference index is missing or unreadable.
 3. Remove hard exclusions such as review/survey when requested.
 4. Enforce `hard_domain_anchors` only when present and confirmed. Broad config, method terms, or inferred topic n-grams should remain soft recall/ranking signals rather than hidden hard gates.
 5. Classify paper type from title/abstract using `paper-type-taxonomy.md`.

@@ -45,7 +45,7 @@ For a graph-aware rewrite:
 3. Treat references/ pages are evidence source nodes: when a reference page changes, inspect dependent `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/` pages for stale claims or missing reusable knowledge.
 4. Update dependent formal pages when the rewrite changes claim/evidence boundaries, formula or figure/table evidence, evidence-tier wording, relationships, or downstream synthesis.
 5. Create a new `derivations/` or `concepts/` page when the rewrite exposes a reusable formula chain, mechanism, dataset, metric, or distinction that should not stay buried in a reference page.
-6. Refresh manifest or `.manifest.json`, `final-source-review.json`, `index.md`, `log.md`, and `hot.md` in the same run as the markdown rewrite. Read previous `wiki-ingest-record.json` only as provenance and reverse-dependency evidence.
+6. Refresh manifest or `.manifest.json`, `_meta/reference-index.json` when `references/` pages changed, `final-source-review.json`, `index.md`, `log.md`, and `hot.md` in the same run as the markdown rewrite. Read previous `wiki-ingest-record.json` only as provenance and reverse-dependency evidence.
 7. Report Paper Source record readiness. Paper Wiki records readiness; Paper Source writes or replaces `wiki-ingest-record.json` through `record-wiki-ingest`. For ask-mode automation, write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` with `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, final page hashes, `final-source-review.json` hash, and `record-wiki-ingest --from-paper-wiki-request ...`; Paper Wiki writes the request artifact; Paper Source consumes it.
 8. Run `qmd update` and `qmd embed` when QMD is in scope, or report the fallback to direct Markdown inventory.
 
@@ -175,6 +175,7 @@ After creating or materially updating pages, update the tracking surface expecte
 - update `index.md` entries and summaries
 - append a parseable `log.md` operation entry
 - refresh `hot.md` with the conceptual change, not a file list
+- refresh `_meta/reference-index.json` after any `references/` page write/rewrite/repair, then verify the changed reference page/source id appears in the index
 
 If the vault stages writes, update `index.md`, `log.md`, and `hot.md` immediately while keeping formal page changes under the staging path required by the vault.
 

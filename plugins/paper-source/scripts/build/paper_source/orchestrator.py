@@ -922,7 +922,8 @@ def run_dry_run(
         "reference_index_path": existing_library_index.get("reference_index_path"),
         "reference_index_status": existing_library_index.get("reference_index_status"),
         "reference_index_schema": existing_library_index.get("reference_index_schema"),
-        "policy": "dedupe wiki _meta/reference-index.json first, then _paper_source/raw metadata fallback",
+        "raw_scan_policy": existing_library_index.get("raw_scan_policy"),
+        "policy": "dedupe from wiki _meta/reference-index.json when loaded; use _paper_source/raw metadata only as missing-index fallback",
     }
     filtered = filter_report["kept"]
     staging_ready = filter_report.get("staging_ready", [])

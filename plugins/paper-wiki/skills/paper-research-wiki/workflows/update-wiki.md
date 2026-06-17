@@ -27,7 +27,7 @@ Use for material rewrite work. A graph-aware rewrite treats the target page and 
 4. references/ pages are evidence source nodes; if one changes, inspect dependent `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`.
 5. Update dependent pages when these triggers apply: Claim/evidence boundary changes; Formula or figure/table evidence changes; Evidence-tier changes; Relationship or reusable-knowledge changes; Hash/provenance drift.
 6. Create a new `derivations/` or `concepts/` node when reusable knowledge would otherwise stay trapped in one reference page.
-7. Refresh manifest or `.manifest.json`, `final-source-review.json`, `index.md`, `log.md`, and `hot.md`; read previous `wiki-ingest-record.json` only as provenance and reverse-dependency evidence.
+7. Refresh manifest or `.manifest.json`, `_meta/reference-index.json` when `references/` pages changed, `final-source-review.json`, `index.md`, `log.md`, and `hot.md`; read previous `wiki-ingest-record.json` only as provenance and reverse-dependency evidence.
 8. Report Paper Source record readiness. Paper Wiki records readiness; Paper Source writes or replaces `wiki-ingest-record.json` through `record-wiki-ingest`. If pages are record-ready, write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` with `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, final page hashes, `final-source-review.json` hash, and `record-wiki-ingest --from-paper-wiki-request ...`; Paper Wiki writes the request artifact; Paper Source consumes it.
 9. Run or report `qmd update` and `qmd embed`; confirm `_paper_source/` remains outside the formal graph/index.
 
@@ -39,4 +39,4 @@ When the wiki has link chaos, Scan formal pages in the seven allowed page famili
 
 Use QMD only after reading the Markdown vault inventory. If installed and responsive, use it to accelerate lookup, then refresh after writes with `qmd update` and `qmd embed`. If QMD is missing, stale, slow, or noisy, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, and direct file search; do not block on qmd query.
 
-After confirmed maintenance writes, report broken wikilinks, ambiguous aliases, duplicate concept owners, forbidden internal links, relationship direction issues, QMD refresh status, stale tracking files, and remaining Paper Source `record-wiki-ingest` work.
+After confirmed maintenance writes, report broken wikilinks, ambiguous aliases, duplicate concept owners, forbidden internal links, relationship direction issues, `_meta/reference-index.json` refresh/verification status, QMD refresh status, stale tracking files, and remaining Paper Source `record-wiki-ingest` work.

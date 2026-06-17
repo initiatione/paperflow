@@ -18,7 +18,7 @@ Keep layers separate: `kepano/obsidian-skills` owns Obsidian syntax; Paper Wiki 
 
 ## Boundary
 
-Paper Wiki owns vault reads, Paper Source handoff reads, formal page writes/repairs, graph cleanup, manifest/index/log/hot updates, `final-source-review.json`, and readiness checks.
+Paper Wiki owns vault reads, Paper Source handoff reads, formal page writes/repairs, graph cleanup, manifest/index/log/hot updates, `_meta/reference-index.json` refresh after reference-page writes, `final-source-review.json`, and readiness checks.
 
 Paper Source owns paper discovery, ranking, download, MinerU parsing, paper-level deduplication, `wiki-setup`, `paper-gate`, human approval, and `record-wiki-ingest`; Paper Wiki reports the next Paper Source action and never performs Paper Source-owned writes.
 
@@ -58,6 +58,6 @@ For vague Paper Source plus wiki requests, default to 沉淀: run `workflows/che
 - Ar9av/obsidian-wiki patterns are internalized locally; do not fetch upstream repositories during normal runs.
 - QMD is optional; Markdown, manifest, index, log, hot pages, and direct file search are source of truth.
 - Read-only ask workflows answer from the formal graph and correction candidates; ask before repair and do not write `log.md`, formal pages, QMD, or Paper Source artifacts.
-- After writes, repairs, relinks, redo, or staged deposition, run the post-task check `workflows/check-wiki.md` before claiming completion. Default to Quick + Targeted; Full check only for explicit comprehensive audit or systemic link/tag chaos.
+- After writes, repairs, relinks, redo, or staged deposition, refresh `_meta/reference-index.json` when `references/` pages changed, then run the post-task check `workflows/check-wiki.md` before claiming completion. Default to Quick + Targeted; Full check only for explicit comprehensive audit or systemic link/tag chaos.
 
 Internal references: `references/paper-source-artifact-contract.md`, `references/page-provenance.md`, `references/page-family-contract.md`, `references/references-page-anatomy.md`, `references/survey-page-anatomy.md`, `references/upstream-obsidian-wiki-map.md`.

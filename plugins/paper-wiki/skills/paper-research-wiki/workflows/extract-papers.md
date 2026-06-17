@@ -28,11 +28,12 @@ Read manifest or `.manifest.json`, `index.md`, `log.md`, and `hot.md`; search ex
 5. Do not write `[[...]]` wikilinks, plain/relative PDF paths, DOI/arXiv URLs, GitHub URLs, metadata paths, MinerU paths, or figure paths in frontmatter `sources`. Do not write `[[...]]` wikilinks to `_paper_source/` from frontmatter or formal-page body links.
 6. Link only to existing formal pages; keep internal evidence paths as URI, file URL, code, or plain text.
 7. Write or update `final-source-review.json`.
-8. Run `workflows/check-wiki.md` after writing as the post-task check.
+8. Refresh `_meta/reference-index.json` after any `references/` page write with `python plugins/paper-wiki/scripts/refresh_reference_index.py --vault <vault> --json`, then verify the new source id/page is present.
+9. Run `workflows/check-wiki.md` after writing as the post-task check.
 
 ## Tracking
 
-When the vault contract expects it, update manifest / `.manifest.json`, `index.md`, `log.md`, and `hot.md` with source paths, hashes, pages written, and conceptual change.
+When the vault contract expects it, update manifest / `.manifest.json`, `_meta/reference-index.json`, `index.md`, `log.md`, and `hot.md` with source paths, hashes, pages written, and conceptual change.
 
 Write `_paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json` when formal pages and `final-source-review.json` are ready for Paper Source record. Include `schema_version: paper-wiki-record-request-v1`, `automation_mode: ask`, final page paths/hashes, `final-source-review.json` path/hash, `human_approval.approved_by`, and `record-wiki-ingest --from-paper-wiki-request _paper_source/staging/papers/<paper-slug>/paper-wiki-record-request.json`; Paper Wiki writes the request artifact; Paper Source consumes it. Stop when source artifacts are missing and point back to Paper Source `paper-gate`. Paper Wiki does not write `human-approval.json`, does not write `wiki-agent-trigger.json`, and does not write or replace `wiki-ingest-record.json`.
 
@@ -42,4 +43,4 @@ QMD is optional. Use it only after the source-first Markdown plan; after writes 
 
 ## Post-Task Check
 
-Run `workflows/check-wiki.md` after writing. Cover broken wikilinks, orphan pages, missing frontmatter, provenance drift, QMD refresh status, stale tracking files, staged review state, `final-source-review.json`, and whether Paper Source `record-wiki-ingest` remains.
+Run `workflows/check-wiki.md` after writing. Cover broken wikilinks, orphan pages, missing frontmatter, provenance drift, `_meta/reference-index.json` freshness and changed-page presence, QMD refresh status, stale tracking files, staged review state, `final-source-review.json`, and whether Paper Source `record-wiki-ingest` remains.

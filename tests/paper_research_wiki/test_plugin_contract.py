@@ -146,7 +146,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "1.0.1"
+    assert manifest["version"] == "1.0.2"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -157,7 +157,8 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "link repair" in manifest["interface"]["longDescription"]
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v1.0.1 | Paper Wiki:")
+    assert "_meta/reference-index.json" in manifest["interface"]["longDescription"]
+    assert manifest["interface"]["shortDescription"].startswith("v1.0.2 | Paper Wiki:")
     for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
@@ -168,19 +169,19 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.3.5"
+    assert manifest["version"] == "2.3.7"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.5 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.7 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
-    assert "DOI-required recommendations" in manifest["interface"]["shortDescription"]
+    assert "calibrated quality gates" in manifest["interface"]["shortDescription"]
     assert "record" in manifest["interface"]["shortDescription"]
     assert "Paper Source" in manifest["interface"]["longDescription"]
     assert "Paper Wiki" in manifest["interface"]["longDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
-    assert "DOI-required session_recommendations" in manifest["interface"]["longDescription"]
+    assert "non-Reject session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
     assert "grok-search-rs MCP" in manifest["interface"]["longDescription"]
     assert "Codex automation approval" in manifest["interface"]["longDescription"]
@@ -616,8 +617,32 @@ def test_paper_wiki_declares_closed_loop_boundary_and_completion_definition():
             "human approval",
             "record-wiki-ingest",
             "final-source-review.json",
+            "_meta/reference-index.json",
         ]:
             assert phrase in text
+
+
+def test_paper_wiki_refreshes_reference_index_after_reference_page_writes():
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    brief = _read(PLUGIN / "rules" / "wiki-writing-standard-brief.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+    integration = _read(PLUGIN / "docs" / "paper-source-integration.md")
+    structure = _read(PLUGIN / "docs" / "structure.md")
+    check = _read(PUBLIC_SKILL / "workflows" / "check-wiki.md")
+    extract = _read(PUBLIC_SKILL / "workflows" / "extract-papers.md")
+    update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
+    redo = _read(PUBLIC_SKILL / "workflows" / "redo-extraction.md")
+    combined = "\n".join([skill, standard, brief, workflow_doc, integration, structure, check, extract, update, redo])
+
+    for phrase in [
+        "scripts/refresh_reference_index.py",
+        "_meta/reference-index.json",
+        "paper-research-reference-index-v1",
+        "canonical lightweight backlog",
+        "changed reference page/source id appears in the index",
+    ]:
+        assert phrase in combined
 
 
 def test_paper_wiki_does_not_claim_to_refresh_paper_source_record_files():

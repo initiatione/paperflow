@@ -18,6 +18,8 @@ Read-only wiki Q&A lives in `skills/paper-research-wiki/workflows/ask-wiki.md`. 
 
 `rules/wiki-writing-standard-brief.md` is the always-read summary used for route matching and lightweight checks. `rules/wiki-writing-standard.md` is the mandatory full page-writing standard for formal paper wiki writes; load it before drafting, rewriting, materially repairing, relinking, or validating formal pages. It adapts Ar9av/obsidian-wiki page templates, merge-before-create behavior, provenance, wikilinks, relationships, tracking files, and lint/relink gates into the Paper Wiki paper workflow.
 
+`scripts/refresh_reference_index.py` is the thin command wrapper for `scripts/build/paper_wiki/reference_index.py`. After Paper Wiki writes, rewrites, or materially repairs `references/` pages, run it with `--vault <vault> --json` to refresh `_meta/reference-index.json`; the post-task check must verify the changed page/source id appears there. Paper Source discovery treats that file as the canonical lightweight backlog for already-deposited/collected paper dedupe.
+
 Paper Wiki assumes Paper Source `wiki-setup` has initialized the target vault. It checks bootstrap structure and reports missing vault structure as a capability gap, but bootstrap, repair, and reset remain Paper Source responsibilities.
 
 Operational health is checked at three layers: source plugin validation, installed-cache plugin validation, and contract tests. Paper Wiki has no standalone CLI; its runtime correctness is protected by `paper-research-wiki` routing metadata, Paper Wiki contract tests, Paper Source handoff/record tests, and QMD surface checks that keep formal page roots visible while `_paper_source/**` and formal-page snapshot internals remain outside the indexed formal graph.

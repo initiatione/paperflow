@@ -149,6 +149,29 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
                 decision="review-candidate",
                 score=0.3,
             ),
+            _ranked_candidate(
+                "Rejected Review Candidate",
+                doi="10.1000/reject",
+                quality_tier="Reject",
+                decision="review-candidate",
+                score=0.2,
+            )
+            | {
+                "quality_gate": {
+                    "tier": "Reject",
+                    "evidence": ["stable_identifier", "pdf_available"],
+                    "cautions": ["weak_reproducibility_signal"],
+                    "blocking_reasons": ["weak_topic_fit"],
+                },
+                "raw_records": [
+                    {
+                        "source": "arxiv",
+                        "provider": "paper_search",
+                        "query_variant": '"AUV" "trajectory tracking"',
+                        "query_variant_index": 1,
+                    }
+                ],
+            },
         ]
     )
 
@@ -229,6 +252,12 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     assert all(item["doi_status"] == "present" for item in session["review_appendix"])
     assert "Review Candidate Paper" not in [item["title"] for item in session["primary_recommendations"]]
     assert "Tier C Appendix Paper" not in [item["title"] for item in session["primary_recommendations"]]
+    assert "Rejected Review Candidate" not in appendix_titles
+    assert session["quality_reject_debug"]["total"] == 1
+    reject_debug = session["quality_reject_debug"]["items"][0]
+    assert reject_debug["title"] == "Rejected Review Candidate"
+    assert reject_debug["blocking_reasons"] == ["weak_topic_fit"]
+    assert reject_debug["provenance"]["query_records"][0]["query_variant"] == '"AUV" "trajectory tracking"'
     assert session["review_appendix"][0]["appendix_reason"].startswith("Review Candidate Paper has enough evidence")
     assert session["review_appendix"][1]["appendix_reason"] == "Tier C"
     assert session["verification_summary"]["citation_count"] == {"verified": 10, "unverified": 0}
@@ -246,8 +275,66 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     assert "primary_url: https://example.org/paper.pdf" in report_md
     assert "citations: 17 (status=verified, source=openalex)" in report_md
     assert "missing_required_doi: 3" in report_md
+    assert "### Quality Reject Debug" in report_md
+    assert "Rejected Review Candidate" in report_md
     assert "### Verification Summary" in report_md
     assert "citation_count: verified=10, unverified=0" in report_md
+
+
+def test_zero_primary_report_explains_quality_rejects_without_appendix_leak(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+
+    write_report(
+        run_dir,
+        ranked=[
+            _ranked_candidate(
+                "AUV Paper Blocked By Gate",
+                doi="10.1000/blocked",
+                quality_tier="Reject",
+                decision="review-candidate",
+                score=0.42,
+            )
+            | {
+                "quality_gate": {
+                    "tier": "Reject",
+                    "evidence": ["stable_identifier", "pdf_available"],
+                    "cautions": ["weak_reproducibility_signal"],
+                    "blocking_reasons": ["weak_topic_fit"],
+                }
+            }
+        ],
+        errors=[],
+        workflow_type="paper-discovery-dry-run",
+        run_id="dry-run-zero-primary",
+        rejected=[
+            {
+                "slug": "existing-auv",
+                "title": "Existing AUV Paper",
+                "filter_reasons": ["already_in_wiki:references/existing-auv.md"],
+                "existing_library_match": {
+                    "source_type": "wiki_reference_index",
+                    "page": "references/existing-auv.md",
+                },
+            }
+        ],
+    )
+
+    report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    report_md = (run_dir / "report.md").read_text(encoding="utf-8")
+    session = report_json["session_recommendations"]
+
+    assert session["primary_recommendations"] == []
+    assert session["review_appendix"] == []
+    summary = session["no_primary_recommendations_summary"]
+    assert summary["status"] == "no_primary_recommendations"
+    assert "quality_gate_rejected_candidates" in summary["reasons"]
+    assert "existing_library_saturation" in summary["reasons"]
+    assert summary["quality_reject_count"] == 1
+    assert summary["existing_library_saturation_count"] == 1
+    assert "no_primary_reasons: quality_gate_rejected_candidates, existing_library_saturation" in report_md
+    assert "Inspect quality_reject_debug" in report_md
+    assert "AUV Paper Blocked By Gate" in report_md
 
 
 def test_session_recommendations_separate_existing_library_hits_from_new_recommendations(tmp_path):
@@ -298,7 +385,13 @@ def test_session_recommendations_separate_existing_library_hits_from_new_recomme
     assert session["existing_library_appendix"][0]["existing_page"] == "references/existing-auv.md"
     assert session["existing_library_appendix"][1]["existing_slug"] == "existing-raw"
     assert "### Already In Library Or Wiki" in report_md
-    assert "Existing Strong AUV Paper - already_in_wiki:references/existing-auv.md" in report_md
+    assert "These papers are already present in the wiki/raw library and are not new recommendations." in report_md
+    assert "| Paper | Year | Status | Entry | DOI |" in report_md
+    assert (
+        "| Existing Strong AUV Paper | 2024 | 已在 wiki | "
+        "references/existing-auv.md | https://doi.org/10.1000/existing |"
+    ) in report_md
+    assert "| Existing Raw AUV Paper | 2023 | 已在 raw library | existing-raw | - |" in report_md
 
 
 def test_write_report_groups_dry_run_candidates_by_research_queue(tmp_path):

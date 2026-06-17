@@ -30,30 +30,41 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.3.5"
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.5 | Paper Source:")
+    assert manifest["version"] == "2.3.7"
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.7 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
-    assert "DOI-required recommendations" in manifest["interface"]["shortDescription"]
+    assert "calibrated quality gates" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
-    assert "DOI-required session_recommendations" in manifest["interface"]["longDescription"]
+    assert "non-Reject session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
     assert "grok-search-rs MCP" in manifest["interface"]["longDescription"]
     assert "Codex automation approval" in manifest["interface"]["longDescription"]
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.3.7",
+            "Paper Source 2.3.6",
             "Paper Source 2.3.5",
+            "quality_reject_debug",
+            "no_primary_recommendations_summary",
+            "hard domain anchors",
+            "non-Reject",
             "Paper Source 2.3.4",
             "missing_required_doi",
             "doi_recovery_summary",
             "doi_resolution_summary",
             "PAPER_SOURCE_GROK_MODEL_FALLBACKS",
             "existing_library_appendix",
+            "raw_scan_policy",
+            "唯一 canonical backlog",
+            "reference-index 缺失/不可用",
             "verification_summary",
             "per-item verification warnings",
             "citation_count_source/status",
             "grok-search-rs MCP",
             "Grok-only",
+            "库中已有，可回看",
+            "禁止把多个已入库题名压成一行分号分隔列表",
             "Paper Source 2.3.2",
             "Paper Source 2.3.0",
             "Paper Source 2.3.1",

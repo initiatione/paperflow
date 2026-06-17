@@ -105,8 +105,9 @@ def _load_reference_index_entries(vault_path: Path) -> tuple[Path, dict[str, Any
         if not isinstance(item, dict):
             continue
         source_id = item.get("source_id")
+        source_type = "wiki_reference_index" if item.get("page") else "raw_library"
         entry = {
-            "source_type": "wiki_reference_index",
+            "source_type": source_type,
             "slug": source_id or slugify_title(str(item.get("title") or "untitled-paper")),
             "source_id": source_id,
             "title": item.get("title") or item.get("normalized_title") or "Untitled paper",
@@ -136,7 +137,11 @@ def load_existing_paper_index(vault_path: Path) -> dict[str, Any]:
             by_key.setdefault(key, entry)
 
     raw_entries: list[dict[str, Any]] = []
-    if papers_root.exists():
+    raw_scan_policy = "skipped_reference_index_loaded"
+    reference_wiki_count = sum(1 for entry in reference_entries if entry.get("source_type") == "wiki_reference_index")
+    reference_raw_count = sum(1 for entry in reference_entries if entry.get("source_type") == "raw_library")
+    if reference_payload is None and papers_root.exists():
+        raw_scan_policy = "fallback_reference_index_missing"
         for paper_root in sorted(path for path in papers_root.iterdir() if path.is_dir()):
             metadata = read_json_dict(paper_root / "metadata.json", default=None) or {}
             entry = {
@@ -152,6 +157,8 @@ def load_existing_paper_index(vault_path: Path) -> dict[str, Any]:
             entries.append(entry)
             for key in _index_keys({**metadata, "title": entry["title"], "slug": entry["slug"]}):
                 by_key.setdefault(key, entry)
+    elif reference_payload is None:
+        raw_scan_policy = "fallback_reference_index_missing_raw_root_absent"
     reference_status = "missing"
     if reference_payload is not None:
         reference_status = "loaded"
@@ -160,9 +167,10 @@ def load_existing_paper_index(vault_path: Path) -> dict[str, Any]:
         "reference_index_path": str(reference_index_path),
         "reference_index_status": reference_status,
         "reference_index_schema": (reference_payload or {}).get("schema_version") if reference_payload else None,
+        "raw_scan_policy": raw_scan_policy,
         "count": len(entries),
-        "raw_count": len(raw_entries),
-        "wiki_count": len(reference_entries),
+        "raw_count": reference_raw_count + len(raw_entries),
+        "wiki_count": reference_wiki_count,
         "by_key": by_key,
         "entries": entries,
     }

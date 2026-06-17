@@ -463,6 +463,10 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     assert "never call those items recommendations" in output_format
     assert "新增待复核候选" in output_format
     assert "库中已有，可回看" in output_format
+    assert "short explanatory sentence plus a Markdown table" in output_format
+    assert "`论文`, `年份`, `状态`, and `入口`" in output_format
+    assert "这些论文已在当前 wiki/raw library 中命中，未重复放入新推荐" in output_format
+    assert "one-line semicolon-separated list" in output_format
     assert "missing_required_doi" in output_format
     assert "DOI待补" in output_format
     assert "doi_url" in output_format
@@ -478,6 +482,9 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     assert "10.48550/arXiv.<base_id>" in search_protocol
     assert "targeted DOI recovery" in search_protocol
     assert "provider_records.grok_search.status=ok" in search_protocol
+    assert "canonical lightweight backlog" in search_protocol
+    assert "do not rescan formal pages or raw metadata" in search_protocol
+    assert "missing/unreadable reference-index fallback" in search_protocol
 
 
 def test_paper_source_paper_deposition_is_thin_handoff_cleanup_entry():

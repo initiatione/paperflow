@@ -20,10 +20,21 @@ def _decision(candidate: dict[str, Any]) -> str:
 
 
 def _quality_tier(candidate: dict[str, Any]) -> str:
-    return _text(candidate.get("quality_tier"))
+    tier = _text(candidate.get("quality_tier"))
+    if tier:
+        return tier
+    gate = candidate.get("quality_gate")
+    gate = gate if isinstance(gate, dict) else {}
+    return _text(gate.get("tier"))
+
+
+def _is_quality_reject(candidate: dict[str, Any]) -> bool:
+    return _quality_tier(candidate).lower() == "reject"
 
 
 def _is_primary_candidate(candidate: dict[str, Any]) -> bool:
+    if _is_quality_reject(candidate):
+        return False
     decision = _decision(candidate)
     if decision == "review-candidate":
         return False
@@ -34,6 +45,8 @@ def _is_primary_candidate(candidate: dict[str, Any]) -> bool:
 
 
 def _is_review_appendix_candidate(candidate: dict[str, Any]) -> bool:
+    if _is_quality_reject(candidate):
+        return False
     return _decision(candidate) == "review-candidate" or _quality_tier(candidate) == "Tier C"
 
 
@@ -327,6 +340,72 @@ def _rejected_summary(rejected: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _query_source_provenance(candidate: dict[str, Any]) -> dict[str, Any]:
+    queries: list[dict[str, Any]] = []
+    for record in candidate.get("raw_records") or []:
+        if not isinstance(record, dict):
+            continue
+        query = _text(record.get("query_variant"))
+        if not query:
+            continue
+        query_item = {
+            "query_variant": query,
+            "query_variant_index": record.get("query_variant_index"),
+            "provider": record.get("provider") or record.get("source"),
+            "source": record.get("source"),
+        }
+        if query_item not in queries:
+            queries.append(query_item)
+    return {
+        "provider_provenance": candidate.get("provider_provenance") or [],
+        "provenance_label": candidate.get("provenance_label"),
+        "sources": candidate.get("sources") or [],
+        "query_records": queries[:5],
+    }
+
+
+def _quality_reject_item(candidate: dict[str, Any]) -> dict[str, Any]:
+    doi = _doi_payload(candidate)
+    gate = candidate.get("quality_gate")
+    gate = gate if isinstance(gate, dict) else {}
+    return {
+        "slug": candidate.get("slug"),
+        "title": candidate.get("title"),
+        "venue": candidate.get("venue"),
+        "year": candidate.get("year"),
+        "score": candidate.get("score"),
+        "doi": doi["display"],
+        "doi_value": doi["value"],
+        "doi_status": doi["status"],
+        "doi_url": _doi_url(doi["value"]),
+        "arxiv_id": candidate.get("arxiv_id"),
+        "primary_url": _primary_url(candidate, _doi_url(doi["value"])),
+        "quality_tier": _quality_tier(candidate),
+        "blocking_reasons": list(gate.get("blocking_reasons") or []),
+        "ranking_decision": _decision(candidate),
+        "filter_status": candidate.get("filter_status"),
+        "recommendation_filter_status": candidate.get("recommendation_filter_status"),
+        "provenance": _query_source_provenance(candidate),
+    }
+
+
+def _quality_reject_debug(ranked: list[dict[str, Any]]) -> dict[str, Any]:
+    items = [_quality_reject_item(candidate) for candidate in ranked if _is_quality_reject(candidate)]
+    reason_counts: Counter[str] = Counter()
+    for item in items:
+        reasons = item.get("blocking_reasons") or ["unknown"]
+        for reason in reasons:
+            reason_counts[_text(reason) or "unknown"] += 1
+    return {
+        "total": len(items),
+        "reason_counts": [
+            {"reason": reason, "count": count}
+            for reason, count in sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))
+        ],
+        "items": items,
+    }
+
+
 def _existing_library_appendix(rejected: list[dict[str, Any]]) -> list[dict[str, Any]]:
     appendix: list[dict[str, Any]] = []
     for candidate in rejected:
@@ -401,6 +480,64 @@ def _doi_resolution_bucket(candidates: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _no_primary_recommendations_summary(
+    *,
+    primary_candidates: list[dict[str, Any]],
+    primary_candidates_with_doi: list[dict[str, Any]],
+    primary_recommendations: list[dict[str, Any]],
+    review_appendix: list[dict[str, Any]],
+    existing_library_appendix: list[dict[str, Any]],
+    quality_reject_debug: dict[str, Any],
+    doi_filtered_items: list[dict[str, Any]],
+    ranked_count: int,
+) -> dict[str, Any]:
+    reasons: list[str] = []
+    missing_doi_count = len([item for item in doi_filtered_items if item.get("surface") == "primary_recommendations"])
+    quality_reject_count = int(quality_reject_debug.get("total") or 0)
+    existing_count = len(existing_library_appendix)
+    review_count = len(review_appendix)
+
+    if not primary_recommendations:
+        if not ranked_count:
+            reasons.append("no_ranked_candidates")
+        if missing_doi_count:
+            reasons.append("primary_candidates_missing_required_doi")
+        if quality_reject_count:
+            reasons.append("quality_gate_rejected_candidates")
+        if review_count:
+            reasons.append("only_review_appendix_candidates")
+        if existing_count:
+            reasons.append("existing_library_saturation")
+        if primary_candidates and not primary_candidates_with_doi:
+            reasons.append("all_primary_candidates_failed_doi_policy")
+        if not reasons:
+            reasons.append("no_primary_candidate_met_selection_policy")
+
+    next_actions: list[str] = []
+    if missing_doi_count:
+        next_actions.append("Run targeted DOI recovery or inspect DOI-filtered candidates.")
+    if quality_reject_count:
+        next_actions.append("Inspect quality_reject_debug before tightening or relaxing query/ranking gates.")
+    if existing_count:
+        next_actions.append("Review existing_library_appendix before rerunning duplicate discovery.")
+    if not next_actions and not primary_recommendations:
+        next_actions.append("Tighten query variants or broaden source routing based on discovery diagnostics.")
+
+    return {
+        "status": "primary_recommendations_available" if primary_recommendations else "no_primary_recommendations",
+        "primary_candidates_before_doi": len(primary_candidates),
+        "primary_candidates_with_doi": len(primary_candidates_with_doi),
+        "primary_shown": len(primary_recommendations),
+        "review_appendix_count": review_count,
+        "existing_library_saturation_count": existing_count,
+        "quality_reject_count": quality_reject_count,
+        "missing_doi_count": missing_doi_count,
+        "ranked_count": ranked_count,
+        "reasons": reasons,
+        "recommended_next_actions": next_actions,
+    }
+
+
 def build_session_recommendations(
     ranked: list[dict[str, Any]],
     rejected: list[dict[str, Any]],
@@ -452,6 +589,19 @@ def build_session_recommendations(
         )
         for candidate in appendix_candidates
     ]
+    existing_library_appendix = _existing_library_appendix(rejected)
+    quality_reject_debug = _quality_reject_debug(ranked)
+    doi_filtered_items = [*primary_doi_filtered, *appendix_doi_filtered]
+    no_primary_summary = _no_primary_recommendations_summary(
+        primary_candidates=primary_candidates,
+        primary_candidates_with_doi=primary_candidates_with_doi,
+        primary_recommendations=primary_recommendations,
+        review_appendix=review_appendix,
+        existing_library_appendix=existing_library_appendix,
+        quality_reject_debug=quality_reject_debug,
+        doi_filtered_items=doi_filtered_items,
+        ranked_count=len(ranked),
+    )
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -467,14 +617,16 @@ def build_session_recommendations(
         "primary_limit": primary_limit,
         "primary_recommendations": primary_recommendations,
         "review_appendix": review_appendix,
-        "existing_library_appendix": _existing_library_appendix(rejected),
+        "existing_library_appendix": existing_library_appendix,
         "verification_summary": _verification_summary(primary_recommendations),
         "rejected_summary": _rejected_summary(rejected),
+        "quality_reject_debug": quality_reject_debug,
+        "no_primary_recommendations_summary": no_primary_summary,
         "doi_recovery_summary": discovery_context.get("doi_recovery") or {},
         "doi_resolution_summary": doi_resolution,
         "doi_filtered_summary": {
-            "total": len(primary_doi_filtered) + len(appendix_doi_filtered),
-            "items": [*primary_doi_filtered, *appendix_doi_filtered],
+            "total": len(doi_filtered_items),
+            "items": doi_filtered_items,
         },
         "overflow": {
             "primary_total": len(primary_candidates_with_doi),

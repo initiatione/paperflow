@@ -328,6 +328,38 @@ def _append_manual_downloads_section(report: list[str], manual_downloads: list[d
             report.append(f"   - recommended_action: {action}")
 
 
+def _markdown_cell(value: object) -> str:
+    text = str(value or "").replace("\n", " ").strip()
+    return text.replace("|", "\\|") or "-"
+
+
+def _existing_library_status(item: dict) -> str:
+    source_type = str(item.get("existing_source_type") or "")
+    reason = str(item.get("reason") or "")
+    if source_type == "wiki_reference_index" or reason.startswith("already_in_wiki:"):
+        return "已在 wiki"
+    if source_type == "raw_library" or reason.startswith("already_in_library:"):
+        return "已在 raw library"
+    return "已在 wiki/raw library"
+
+
+def _existing_library_entry(item: dict) -> str:
+    return (
+        item.get("existing_page")
+        or item.get("existing_slug")
+        or item.get("existing_source_id")
+        or item.get("reason")
+        or "-"
+    )
+
+
+def _existing_library_doi(item: dict) -> str:
+    doi = item.get("doi_url") or item.get("doi")
+    if doi in {"未核实", "缺失", "missing", "unverified"}:
+        return "-"
+    return str(doi or "-")
+
+
 def _append_session_recommendations_section(report: list[str], session_recommendations: dict) -> None:
     report.append("")
     report.append("## Session Recommendations")
@@ -357,11 +389,29 @@ def _append_session_recommendations_section(report: list[str], session_recommend
             f"recovered={doi_recovery.get('recovered_count', 0)}, "
             f"failed={doi_recovery.get('failed_count', 0)}"
         )
+    no_primary = session_recommendations.get("no_primary_recommendations_summary") or {}
+    if no_primary:
+        report.append(f"- primary_status: {no_primary.get('status')}")
+        if no_primary.get("status") == "no_primary_recommendations":
+            reasons = ", ".join(str(reason) for reason in no_primary.get("reasons") or [])
+            report.append(f"- no_primary_reasons: {reasons or 'unknown'}")
+            report.append(
+                "- no_primary_counts: "
+                f"ranked={no_primary.get('ranked_count', 0)}, "
+                f"quality_reject={no_primary.get('quality_reject_count', 0)}, "
+                f"missing_doi={no_primary.get('missing_doi_count', 0)}, "
+                f"review_appendix={no_primary.get('review_appendix_count', 0)}, "
+                f"existing_library={no_primary.get('existing_library_saturation_count', 0)}"
+            )
 
     primary = session_recommendations.get("primary_recommendations") or []
     report.append("### Primary Recommendations")
     if not primary:
         report.append("- None.")
+        if no_primary.get("recommended_next_actions"):
+            report.append("- why empty:")
+            for action in no_primary.get("recommended_next_actions") or []:
+                report.append(f"  - {action}")
     for index, item in enumerate(primary, start=1):
         report.append(f"{index}. {item.get('title')}")
         doi_line = item.get("doi")
@@ -428,14 +478,24 @@ def _append_session_recommendations_section(report: list[str], session_recommend
     report.append("### Already In Library Or Wiki")
     if not existing:
         report.append("- None.")
-    for index, item in enumerate(existing, start=1):
-        report.append(f"{index}. {item.get('title')} - {item.get('reason')}")
-        if item.get("existing_page"):
-            report.append(f"   - existing_page: {item.get('existing_page')}")
-        if item.get("existing_slug"):
-            report.append(f"   - existing_slug: {item.get('existing_slug')}")
-        if item.get("doi_url"):
-            report.append(f"   - doi: {item.get('doi_url')}")
+    else:
+        report.append("These papers are already present in the wiki/raw library and are not new recommendations.")
+        report.append("| Paper | Year | Status | Entry | DOI |")
+        report.append("|---|---:|---|---|---|")
+        for item in existing:
+            report.append(
+                "| "
+                + " | ".join(
+                    [
+                        _markdown_cell(item.get("title") or item.get("slug")),
+                        _markdown_cell(item.get("year")),
+                        _markdown_cell(_existing_library_status(item)),
+                        _markdown_cell(_existing_library_entry(item)),
+                        _markdown_cell(_existing_library_doi(item)),
+                    ]
+                )
+                + " |"
+            )
 
     appendix = session_recommendations.get("review_appendix") or []
     report.append("### Review Appendix")
@@ -443,6 +503,23 @@ def _append_session_recommendations_section(report: list[str], session_recommend
         report.append("- None.")
     for index, item in enumerate(appendix, start=1):
         report.append(f"{index}. {item.get('title')} - {item.get('appendix_reason')}")
+
+    quality_reject_debug = session_recommendations.get("quality_reject_debug") or {}
+    if quality_reject_debug:
+        report.append("### Quality Reject Debug")
+        report.append(f"- total: {quality_reject_debug.get('total', 0)}")
+        for item in quality_reject_debug.get("reason_counts") or []:
+            report.append(f"- {item.get('reason')}: {item.get('count')}")
+        debug_items = quality_reject_debug.get("items") or []
+        if debug_items:
+            report.append("- examples:")
+            for item in debug_items[:10]:
+                title = item.get("title") or item.get("slug") or "Untitled paper"
+                blockers = ", ".join(str(reason) for reason in item.get("blocking_reasons") or []) or "unknown"
+                report.append(
+                    f"  - {title} (tier={item.get('quality_tier')}, score={item.get('score')}, "
+                    f"blockers={blockers}, arxiv={item.get('arxiv_id') or 'none'})"
+                )
 
     rejected_summary = session_recommendations.get("rejected_summary") or {}
     report.append("### Rejected Summary")

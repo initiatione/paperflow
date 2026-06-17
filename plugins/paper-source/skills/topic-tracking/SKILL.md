@@ -10,7 +10,7 @@ Use this topic-level layer above per-paper stages. Goal: grow a trustworthy view
 
 ## Core Rule
 
-Treat `_meta/reference-index.json` as the topic ledger/backlog for deposited papers. Use `dry-run`, `rank.json`, `report.json`, `_paper_source/reviews`, `_paper_source/raw/*/metadata.json`, and wiki-ingest records as supporting evidence and caches. Separate net-new from known papers, then show coverage and next reading actions.
+Treat `_meta/reference-index.json` as the topic ledger/backlog for deposited and collected papers. Use `dry-run`, `rank.json`, `report.json`, `_paper_source/reviews`, `_paper_source/raw/*/metadata.json`, and wiki-ingest records as supporting evidence and caches; raw metadata is only a dedupe fallback when the reference index is missing or unreadable. Separate net-new from known papers, then show coverage and next reading actions.
 
 ## Pairing
 
@@ -22,7 +22,7 @@ Treat `_meta/reference-index.json` as the topic ledger/backlog for deposited pap
 ## Workflow
 
 1. Identify boundary: user question, config/profile terms, must-include/exclude concepts, last covered run/date.
-2. Inspect prior state before searching: `_meta/reference-index.json`, `_paper_source/runs/index.json`, recent reports/ranks, `_paper_source/raw/*/metadata.json`, and `research-queue`.
+2. Inspect prior state before searching: `_meta/reference-index.json`, `_paper_source/runs/index.json`, recent reports/ranks, and `research-queue`; inspect `_paper_source/raw/*/metadata.json` only when the reference index is missing, stale, or explicitly being repaired.
 3. Run or inspect discovery; surface `research_mode`, query variants, source route, `hard_domain_anchors`, `soft_recall_terms`, and `recall_gap_checks`.
 4. Build delta: `net_new`, `already_known`, `already_in_wiki:<page>`, `already_in_library:<slug>`, repeats, uncertain review/survey candidates.
 5. Rank backlog by quality tier, topic fit, identity, PDF availability, confidence, novelty, and parse/acquisition readiness.
@@ -39,7 +39,7 @@ python scripts\orchestrator.py research-queue --vault <vault> --json
 python scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json
 ```
 
-If no explicit `--since` exists, emulate it by comparing current run artifacts against `_meta/reference-index.json`, prior runs, and `_paper_source/raw/*/metadata.json`. Use `already_in_wiki:<page>` and `already_in_library:<slug>` as hard dedupe signals, not hidden filters.
+If no explicit `--since` exists, emulate it by comparing current run artifacts against `_meta/reference-index.json` and prior runs; use `_paper_source/raw/*/metadata.json` only as a missing-index fallback. Use `already_in_wiki:<page>` and `already_in_library:<slug>` as hard dedupe signals, not hidden filters.
 
 ## Output Contract
 

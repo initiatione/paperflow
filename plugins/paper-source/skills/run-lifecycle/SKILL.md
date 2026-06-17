@@ -31,4 +31,4 @@ Codex may use subagents only when the user explicitly authorizes delegation or p
 
 ## Discovery Coordination
 
-Discovery must deduplicate against wiki `_meta/reference-index.json` first (`already_in_wiki:<page>`) and `_paper_source\\raw` second (`already_in_library:<slug>`). This keeps lifecycle cleanup separate from library identity.
+Discovery must deduplicate against wiki `_meta/reference-index.json` as the canonical backlog (`already_in_wiki:<page>` for deposited entries) and use `_paper_source\\raw` only as a missing-index fallback (`already_in_library:<slug>`). This keeps lifecycle cleanup separate from library identity.

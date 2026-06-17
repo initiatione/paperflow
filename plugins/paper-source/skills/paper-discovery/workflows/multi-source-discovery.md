@@ -18,7 +18,7 @@ Use this workflow when the user asks for high-quality papers, latest papers, non
 4. Route sources by `source-tiers.md`.
 5. Search T1 sources first through `paper_search_mcp` or configured source adapters by passing the compiled variants with repeated `--query-variant` or `--agent-query-plan-json`; keep the raw user request only as the run intent label.
 6. Use `two-stage-retrieval.md`: collect a high-recall candidate pool before precision filtering.
-7. Deduplicate by `dedup-engine.md`, using wiki `_meta/reference-index.json` before raw `_paper_source` metadata.
+7. Deduplicate by `dedup-engine.md`, using wiki `_meta/reference-index.json` as the canonical backlog; use raw `_paper_source` metadata only when the index is missing or unreadable.
 8. Apply venue prior using `venue-prior.md`, then verify venue/citation/DOI/PDF/code and record unverified metrics explicitly.
 9. Expand strong seed papers with `citation-graph.md` when latest/high-quality recall matters.
 10. Apply `quality-gate.md` to label Tier A/B/C/Reject and record `selection_policy`.

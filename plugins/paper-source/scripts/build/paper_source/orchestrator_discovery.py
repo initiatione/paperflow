@@ -59,17 +59,13 @@ def ranking_priority_keywords_from_query_plan(query_plan: dict | None) -> list[s
         return []
     blocks = query_plan.get("concept_blocks") or {}
     terms: list[str] = []
-    for key in (
-        "hard_domain_anchors",
-        "domain_focus_terms",
-        "task_terms",
-        "problem_terms",
-        "method_or_topic_terms",
-        "method_branches",
-    ):
+    for key in ("hard_domain_anchors", "domain_focus_terms"):
         terms.extend(_strings_from_nested(blocks.get(key)))
     terms.extend(_strings_from_nested(query_plan.get("hard_domain_anchors")))
-    terms.extend(_strings_from_nested(query_plan.get("hard_constraints")))
+    hard_constraints = query_plan.get("hard_constraints")
+    if isinstance(hard_constraints, dict):
+        for key in ("domain_anchors", "hard_domain_anchors", "domain_focus_terms"):
+            terms.extend(_strings_from_nested(hard_constraints.get(key)))
     seen: set[str] = set()
     unique: list[str] = []
     for term in terms:

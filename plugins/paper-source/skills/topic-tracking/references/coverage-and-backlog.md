@@ -6,9 +6,9 @@ Use this reference when a user wants breadth, increments, or a reading plan for 
 
 Build a delta table with these buckets:
 
-- `net_new`: stable DOI/arXiv/title not seen in prior runs, not present in `_meta/reference-index.json`, and not present in `_paper_source/raw`.
+- `net_new`: stable DOI/arXiv/title not seen in prior runs and not present in `_meta/reference-index.json`; check `_paper_source/raw` only when the reference index is missing or being repaired.
 - `already_in_wiki`: candidate rejected by `already_in_wiki:<page>` or matching `_meta/reference-index.json`.
-- `already_in_library`: candidate rejected by `already_in_library:<slug>` or matching `_paper_source/raw/*/metadata.json`.
+- `already_in_library`: candidate rejected by `already_in_library:<slug>` from missing-index raw fallback, or represented as a collected/raw entry inside `_meta/reference-index.json`.
 - `seen_in_prior_run`: candidate appeared in an earlier `rank.json` or `report.json` but was not acquired.
 - `changed_status`: known paper whose PDF, parse, critic, or wiki-ingest state changed.
 - `uncertain_identity`: title-only or weak metadata match; ask for human review before suppressing.

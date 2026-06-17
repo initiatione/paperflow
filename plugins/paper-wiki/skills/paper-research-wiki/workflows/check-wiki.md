@@ -6,12 +6,13 @@ This adapts Ar9av/obsidian-wiki `wiki-status` and `wiki-lint`: report state, del
 
 ## Scope
 
-Check the target vault contract, pending Paper Source handoffs, staged pages, source-review sidecars, graph health, and QMD compatibility.
+Check the target vault contract, pending Paper Source handoffs, staged pages, source-review sidecars, `_meta/reference-index.json`, graph health, and QMD compatibility.
 
 - Bootstrap: core `_paper_source` roots (`_paper_source/`, `_paper_source/raw/`, `_paper_source/staging/`, `_paper_source/meta/`, `_paper_source/policies/`), `_meta/`, `.obsidian`, `.git`, and seven formal page roots. Paper Source `runs`, `cache`, `tmp`, `tmp-manual-pdfs`, `quarantine`, and `evolution` are on-demand, not bootstrap requirements.
 - Handoffs: pending Paper Source handoffs using `_paper_source/staging/papers/*/wiki-ingest-brief.json` as the only Paper Source-to-Paper Wiki handoff contract. Paper Source owns paper-level deduplication before handoff; Paper Wiki checks graph-level integration risks.
 - Formal graph: orphan pages, broken wikilinks, ambiguous aliases, duplicate concept owners, duplicate concept candidates, forbidden internal links from formal pages into `_paper_source/`, `_raw/`, `_staging/`, `_runs/`, `_quarantine/`, or `.obsidian/`, plus relationship direction and relationship type mistakes.
 - Provenance: missing `final-source-review.json`, sidecar hashes in `final-source-review.json` and previous `wiki-ingest-record.json`, provenance gaps, weak evidence addresses, formula/figure review gaps, page template drift, stale tags/aliases, fragmented tag clusters, stale core pages, and staged writes waiting for review.
+- Reference index: `_meta/reference-index.json` exists, uses `paper-research-reference-index-v1`, includes changed `references/` pages by page/source_id/DOI/arXiv/title dedupe keys, and was refreshed after the current write. This file is the canonical Paper Source dedupe backlog.
 - QMD: status of QMD, whether `qmd update` and `qmd embed` should run, lookup reliability, fallback to manifest, `.manifest.json`, `index.md`, `log.md`, `hot.md`, and direct file search; do not block on qmd query.
 
 ## Check Levels
@@ -32,7 +33,7 @@ Return:
 4. Bootstrap gaps: missing vault structure that requires Paper Source `wiki-setup`; Paper Wiki should not initialize or reset the vault.
 5. QMD compatibility: used, skipped, `qmd update` / `qmd embed` needed, or fallback used.
 6. What to Do Next: no more than six ranked actions.
-7. Completion Report when post-task: pages created or updated, links/tags/aliases repaired, tracking files updated, QMD refreshed / skipped / failed with fallback, remaining risks, and next Paper Source/Paper Wiki action.
+7. Completion Report when post-task: pages created or updated, links/tags/aliases repaired, tracking files updated, `_meta/reference-index.json` refreshed and verified, QMD refreshed / skipped / failed with fallback, remaining risks, and next Paper Source/Paper Wiki action.
 
 ## What to Do Next
 
@@ -40,6 +41,6 @@ Rank actions in this order: run Paper Source `wiki-setup` for blocking bootstrap
 
 ## Post-Task Check
 
-As a post-task check, re-read changed pages and their reverse dependencies, tracking files, and touched Paper Source sidecars. Confirm broken wikilinks, ambiguous aliases, duplicate concept owners, forbidden internal links, relationship direction issues, frontmatter, provenance, sidecar hashes, QMD refresh status, and `final-source-review.json` before reporting completion.
+As a post-task check, re-read changed pages and their reverse dependencies, tracking files, `_meta/reference-index.json`, and touched Paper Source sidecars. Confirm broken wikilinks, ambiguous aliases, duplicate concept owners, forbidden internal links, relationship direction issues, frontmatter, provenance, sidecar hashes, reference-index freshness, QMD refresh status, and `final-source-review.json` before reporting completion.
 
 Do not output raw JSON unless the user asks.
