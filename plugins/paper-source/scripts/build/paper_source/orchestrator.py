@@ -46,6 +46,7 @@ from paper_source.grok_search_policy import (
 )
 from paper_source.orchestrator_discovery import (
     filter_domains_from_profile as _filter_domains_from_profile,
+    ranking_priority_keywords_from_query_plan as _ranking_priority_keywords_from_query_plan,
     ranking_keywords_from_profile as _ranking_keywords_from_profile,
     reason_counts as _reason_counts,
     run_query_plan_discovery as _run_query_plan_discovery,
@@ -281,6 +282,7 @@ def _evaluate_paper_search_good_enough(
     ranked_pool = rank_candidates(
         filter_report["kept"],
         positive_keywords=_ranking_keywords_from_profile(config, query, query_plan),
+        priority_keywords=_ranking_priority_keywords_from_query_plan(query_plan),
         negative_keywords=config.negative_keywords,
         venue_tiers=_venue_tiers_from_profile(config, query_plan),
         year_min=request_year_min,
@@ -767,6 +769,7 @@ def run_dry_run(
     ranked_pool = rank_candidates(
         enriched_filtered,
         positive_keywords=_ranking_keywords_from_profile(config, query, query_plan),
+        priority_keywords=_ranking_priority_keywords_from_query_plan(query_plan),
         negative_keywords=config.negative_keywords,
         venue_tiers=_venue_tiers_from_profile(config, query_plan),
         year_min=request_year_min,

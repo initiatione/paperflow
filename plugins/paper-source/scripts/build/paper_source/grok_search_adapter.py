@@ -17,6 +17,7 @@ from paper_source.artifacts import write_json_atomic
 
 MCP_PROTOCOL_VERSION = "2025-11-25"
 SEARCH_TIMEOUT_SECONDS = 180
+GROK_SEARCH_RESPONSE_FORMAT = "detailed"
 DOI_PATTERN = re.compile(r"\b10\.\d{4,9}/[^\s\"'<>]+\b", re.IGNORECASE)
 ARXIV_ID_PATTERN = re.compile(r"(?i)(?:arxiv:\s*|arxiv\.org/(?:abs|pdf)/)?(\d{4}\.\d{4,5}(?:v\d+)?)")
 PAPER_HOST_HINTS = {
@@ -390,7 +391,7 @@ def discover_grok(
                     "query": query,
                     "include_domains": include_domains,
                     "include_content": False,
-                    "response_format": "json",
+                    "response_format": GROK_SEARCH_RESPONSE_FORMAT,
                 },
                 timeout_seconds=timeout_seconds,
             )

@@ -164,6 +164,58 @@ def test_normalize_candidates_merges_grok_with_paper_search_priority():
     assert normalized[0]["landing_page_url"] == "https://publisher.example/merge"
     assert normalized[0]["provider_provenance"] == ["grok_search", "paper_search"]
     assert normalized[0]["provenance_label"] == "both_providers"
+    assert normalized[0]["citation_count_source"] is None
+    assert normalized[0]["citation_count_status"] == "unverified"
+
+
+def test_normalize_candidates_preserves_citation_count_source_provenance():
+    normalized = normalize_candidates(
+        [
+            {
+                "source": "crossref",
+                "title": "AUV Attitude Control",
+                "doi": "10.1000/auv",
+                "citation_count": 12,
+            },
+            {
+                "source": "openalex",
+                "title": "AUV Attitude Control",
+                "doi": "10.1000/auv",
+                "citation_count": 55,
+            },
+        ]
+    )
+
+    assert normalized[0]["citation_count"] == 55
+    assert normalized[0]["citation_count_source"] == "openalex"
+    assert normalized[0]["citation_count_status"] == "verified"
+    assert normalized[0]["citation_count_sources"] == [
+        {"source": "openalex", "count": 55},
+        {"source": "crossref", "count": 12},
+    ]
+
+
+def test_normalize_candidates_treats_provider_zero_citations_as_verified():
+    normalized = normalize_candidates(
+        [
+            {
+                "source": "openalex",
+                "title": "New AUV Attitude Control",
+                "doi": "10.1000/new-auv-zero",
+                "citation_count": 0,
+            },
+            {
+                "source": "semantic",
+                "title": "New AUV Attitude Control",
+                "doi": "10.1000/new-auv-zero",
+            },
+        ]
+    )
+
+    assert normalized[0]["citation_count"] == 0
+    assert normalized[0]["citation_count_source"] == "openalex"
+    assert normalized[0]["citation_count_status"] == "verified"
+    assert normalized[0]["citation_count_sources"] == [{"source": "openalex", "count": 0}]
 
 
 def test_normalize_candidates_labels_grok_only_as_anchor_required_supplemental():
@@ -279,6 +331,53 @@ def test_rank_candidates_records_request_constraints_and_prefers_code_when_reque
     assert ranked[0]["title"] == "AUV Attitude Control with Public Code"
     assert ranked[0]["ranking_signals"]["year_min"] == 2021
     assert ranked[0]["ranking_signals"]["code_policy"] == "prefer"
+
+
+def test_rank_candidates_uses_priority_keywords_to_avoid_profile_dilution_for_narrow_topic():
+    ranked = rank_candidates(
+        [
+            {
+                "title": "Adaptive Integral Sliding Mode Control for Attitude Tracking of Underwater Robots",
+                "abstract": (
+                    "This paper studies underwater robot attitude control with large range pitch variations, "
+                    "simultaneous roll and yaw control, experiments, comparison studies, and Lyapunov analysis."
+                ),
+                "year": 2024,
+                "venue": "IEEE Robotics and Automation Letters",
+                "doi": "10.1109/LRA.2024.3515733",
+                "pdf_url": "https://arxiv.org/pdf/2405.00269v1",
+                "citation_count": 18,
+            }
+        ],
+        positive_keywords=[
+            "robot control",
+            "embodied intelligence",
+            "reinforcement learning",
+            "learning-based control",
+            "sim-to-real",
+            "real robot",
+            "field trial",
+            "sea trial",
+            "benchmark",
+            "reproducible code",
+            "AUV",
+            "underwater robot",
+            "attitude control",
+            "yaw",
+            "pitch",
+            "roll",
+            "sliding mode control",
+        ],
+        priority_keywords=["underwater robot", "attitude control", "yaw", "pitch", "roll", "sliding mode control"],
+        venue_tiers={},
+        selection_policy="broad_map",
+    )
+
+    candidate = ranked[0]
+    assert candidate["ranking_signals"]["priority_topic_score"] >= 0.8
+    assert "weak_topic_fit" not in candidate["quality_gate"]["blocking_reasons"]
+    assert candidate["quality_tier"] in {"Tier A", "Tier B"}
+    assert candidate["ranking_protocol"]["decision"] == "advance-candidate"
 
 
 def test_filter_candidates_does_not_treat_surveying_as_survey_paper():

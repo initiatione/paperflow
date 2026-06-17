@@ -62,6 +62,55 @@ def _record_paper_id(record: dict) -> str | None:
     return None
 
 
+def _record_has_citation_count(record: dict) -> bool:
+    raw_record = record.get("raw_record") if isinstance(record.get("raw_record"), dict) else {}
+    return (
+        "citation_count" in record
+        or "citations" in record
+        or "citation_count" in raw_record
+        or "citations" in raw_record
+    )
+
+
+def _record_citation_count(record: dict) -> int:
+    raw_record = record.get("raw_record") if isinstance(record.get("raw_record"), dict) else {}
+    value = None
+    for key in ("citation_count", "citations"):
+        if record.get(key) is not None:
+            value = record.get(key)
+            break
+        if raw_record.get(key) is not None:
+            value = raw_record.get(key)
+            break
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _record_citation_source(record: dict) -> str | None:
+    if not _record_has_citation_count(record):
+        return None
+    return _record_source_name(record)
+
+
+def _citation_status(source: str | None) -> str:
+    if source:
+        return "verified"
+    return "unverified"
+
+
+def _add_citation_source(current: dict, record: dict) -> None:
+    source = _record_citation_source(record)
+    if not source:
+        return
+    count = _record_citation_count(record)
+    item = {"source": source, "count": count}
+    if item not in current["citation_count_sources"]:
+        current["citation_count_sources"].append(item)
+        current["citation_count_sources"].sort(key=lambda value: (-int(value.get("count") or 0), value.get("source") or ""))
+
+
 def _add_alternate_source(current: dict, record: dict) -> None:
     source = _record_source_name(record)
     alternate = {"source": source}
@@ -147,7 +196,10 @@ def normalize_candidates(raw_records: list[dict]) -> list[dict]:
                 "pdf_url": record_pdf_urls[0] if record_pdf_urls else record.get("pdf_url"),
                 "pdf_urls": record_pdf_urls,
                 "code_url": record.get("code_url"),
-                "citation_count": int(record.get("citation_count") or 0),
+                "citation_count": _record_citation_count(record),
+                "citation_count_source": _record_citation_source(record),
+                "citation_count_status": _citation_status(_record_citation_source(record)),
+                "citation_count_sources": [],
                 "sources": [],
                 "alternate_sources": [],
                 "alternate_pdf_urls": [],
@@ -166,11 +218,19 @@ def normalize_candidates(raw_records: list[dict]) -> list[dict]:
         _add_alternate_source(current, record)
         _add_alternate_pdf_urls(current, record)
         _add_provider_provenance(current, record)
+        _add_citation_source(current, record)
         current["raw_records"].append(record)
         _merge_pdf_urls(current, record)
         _fill_grok_supplemental_fields(current, record)
         _promote_paper_search_fields(current, record)
         if not current.get("code_url") and record.get("code_url"):
             current["code_url"] = record.get("code_url")
-        current["citation_count"] = max(current["citation_count"], int(record.get("citation_count") or 0))
+        record_citations = _record_citation_count(record)
+        record_citation_source = _record_citation_source(record)
+        if record_citation_source and (
+            not current.get("citation_count_source") or record_citations > int(current.get("citation_count") or 0)
+        ):
+            current["citation_count"] = record_citations
+            current["citation_count_source"] = record_citation_source
+            current["citation_count_status"] = _citation_status(record_citation_source)
     return list(merged.values())

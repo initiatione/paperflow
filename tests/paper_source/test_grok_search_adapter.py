@@ -1,4 +1,4 @@
-from paper_source.grok_search_adapter import normalize_grok_payload
+from paper_source.grok_search_adapter import discover_grok, normalize_grok_payload
 
 
 def test_normalize_grok_payload_accepts_stable_paper_identity():
@@ -53,3 +53,38 @@ def test_normalize_grok_payload_accepts_arxiv_pdf_without_doi():
     assert evidence == []
     assert accepted[0]["arxiv_id"] == "2501.12345"
     assert accepted[0]["pdf_url"] == "https://arxiv.org/pdf/2501.12345"
+
+
+def test_discover_grok_uses_supported_detailed_response_format(tmp_path, monkeypatch):
+    captured = {}
+
+    def fake_call(tool_name, arguments, timeout_seconds):
+        captured["tool_name"] = tool_name
+        captured["arguments"] = arguments
+        return {
+            "payload": {
+                "sources": [
+                    {
+                        "title": "AUV Attitude Control",
+                        "url": "https://doi.org/10.1000/auv-attitude",
+                        "content": "Underwater robot attitude tracking paper.",
+                    }
+                ]
+            },
+            "raw_response": {"ok": True},
+        }
+
+    monkeypatch.setenv("PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND", "configured-grok")
+    monkeypatch.setattr("paper_source.grok_search_adapter._mcp_command_args", lambda: (["configured-grok"], {}))
+    monkeypatch.setattr("paper_source.grok_search_adapter._call_mcp_tool", fake_call)
+
+    record = discover_grok(
+        queries=["AUV attitude control"],
+        include_domains=["ieeexplore.ieee.org"],
+        raw_response_path=tmp_path / "raw.json",
+        evidence_path=tmp_path / "evidence.json",
+    )
+
+    assert record["status"] == "ok"
+    assert captured["tool_name"] == "web_search"
+    assert captured["arguments"]["response_format"] == "detailed"

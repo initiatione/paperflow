@@ -344,10 +344,52 @@ def _append_session_recommendations_section(report: list[str], session_recommend
         report.append("- None.")
     for index, item in enumerate(primary, start=1):
         report.append(f"{index}. {item.get('title')}")
-        report.append(f"   - doi: {item.get('doi')}")
+        doi_line = item.get("doi")
+        if item.get("doi_url"):
+            doi_line = f"{doi_line} ({item.get('doi_url')})"
+        report.append(f"   - doi: {doi_line}")
+        report.append(f"   - primary_url: {item.get('primary_url')}")
+        citation_count = item.get("citation_count")
+        citation_status = item.get("citation_count_status")
+        citation_source = item.get("citation_count_source")
+        report.append(
+            f"   - citations: {citation_count if citation_count is not None else '未核实'} "
+            f"(status={citation_status}, source={citation_source or '未核实'})"
+        )
+        warnings = item.get("verification_warnings") or []
+        if warnings:
+            report.append(f"   - verification_warnings: {', '.join(warnings)}")
         report.append(f"   - quality_tier: {item.get('quality_tier')}")
         report.append(f"   - pdf_status: {item.get('pdf_status')}")
         report.append(f"   - auto_staging_status: {item.get('auto_staging_status')}")
+
+    verification_summary = session_recommendations.get("verification_summary")
+    verification_summary = verification_summary if isinstance(verification_summary, dict) else {}
+    if verification_summary:
+        citation = verification_summary.get("citation_count") or {}
+        venue = verification_summary.get("venue_metrics") or {}
+        report.append("### Verification Summary")
+        report.append(
+            f"- citation_count: verified={citation.get('verified', 0)}, "
+            f"unverified={citation.get('unverified', 0)}"
+        )
+        report.append(
+            f"- venue_metrics: verified={venue.get('verified', 0)}, "
+            f"unverified={venue.get('unverified', 0)}"
+        )
+
+    existing = session_recommendations.get("existing_library_appendix") or []
+    report.append("### Already In Library Or Wiki")
+    if not existing:
+        report.append("- None.")
+    for index, item in enumerate(existing, start=1):
+        report.append(f"{index}. {item.get('title')} - {item.get('reason')}")
+        if item.get("existing_page"):
+            report.append(f"   - existing_page: {item.get('existing_page')}")
+        if item.get("existing_slug"):
+            report.append(f"   - existing_slug: {item.get('existing_slug')}")
+        if item.get("doi_url"):
+            report.append(f"   - doi: {item.get('doi_url')}")
 
     appendix = session_recommendations.get("review_appendix") or []
     report.append("### Review Appendix")

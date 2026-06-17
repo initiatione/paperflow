@@ -79,6 +79,20 @@ def _doi_url(doi: str | None) -> str | None:
     return f"https://doi.org/{doi}"
 
 
+def _primary_url(candidate: dict[str, Any], doi_url: str | None) -> str | None:
+    for value in (
+        candidate.get("pdf_url"),
+        doi_url,
+        candidate.get("publisher_url"),
+        candidate.get("landing_page_url"),
+        candidate.get("url"),
+    ):
+        text = _text(value)
+        if text:
+            return text
+    return None
+
+
 def _manual_links(candidate: dict[str, Any], manual_card: dict[str, Any] | None) -> list[dict[str, str]]:
     links: list[dict[str, str]] = []
 
@@ -194,6 +208,9 @@ def _recommendation_item(
     appendix_reason: str | None = None,
 ) -> dict[str, Any]:
     doi = _doi_payload(candidate)
+    doi_url = _doi_url(doi["value"])
+    citation_status = _text(candidate.get("citation_count_status")) or "unverified"
+    verified_metrics = candidate.get("verified_metrics") or {}
     item = {
         "slug": candidate.get("slug"),
         "title": candidate.get("title"),
@@ -203,6 +220,13 @@ def _recommendation_item(
         "doi": doi["display"],
         "doi_value": doi["value"],
         "doi_status": doi["status"],
+        "doi_url": doi_url,
+        "primary_url": _primary_url(candidate, doi_url),
+        "citation_count": candidate.get("citation_count"),
+        "citation_count_status": citation_status,
+        "citation_count_source": candidate.get("citation_count_source"),
+        "citation_count_sources": candidate.get("citation_count_sources") or [],
+        "verified_metrics": verified_metrics,
         "original_abstract": _summary_payload(candidate)["source_text"],
         "chinese_summary": _summary_payload(candidate),
         "classification": _classification(candidate),
@@ -221,9 +245,57 @@ def _recommendation_item(
         },
         "auto_staging_status": candidate.get("auto_staging_status") or "not_run",
     }
+    item["verification_warnings"] = _verification_warnings(item)
     if appendix_reason:
         item["appendix_reason"] = appendix_reason
     return item
+
+
+def _verification_warnings(item: dict[str, Any]) -> list[str]:
+    warnings: list[str] = []
+    if item.get("doi_status") != "present":
+        warnings.append(f"doi_{item.get('doi_status') or 'unverified'}")
+    if item.get("citation_count_status") != "verified" or not item.get("citation_count_source"):
+        warnings.append("citation_count_unverified")
+    metrics = item.get("verified_metrics")
+    metrics = metrics if isinstance(metrics, dict) else {}
+    if not metrics.get("easyscholar"):
+        warnings.append("venue_metrics_unverified")
+    return warnings
+
+
+def _verification_summary(primary_recommendations: list[dict[str, Any]]) -> dict[str, Any]:
+    citation_verified = [
+        item
+        for item in primary_recommendations
+        if item.get("citation_count_status") == "verified" and item.get("citation_count_source")
+    ]
+    venue_metrics_verified = [
+        item
+        for item in primary_recommendations
+        if isinstance(item.get("verified_metrics"), dict) and item.get("verified_metrics", {}).get("easyscholar")
+    ]
+    items_requiring_verification = [
+        {
+            "slug": item.get("slug"),
+            "title": item.get("title"),
+            "warnings": item.get("verification_warnings") or [],
+        }
+        for item in primary_recommendations
+        if item.get("verification_warnings")
+    ]
+    return {
+        "primary_total": len(primary_recommendations),
+        "citation_count": {
+            "verified": len(citation_verified),
+            "unverified": len(primary_recommendations) - len(citation_verified),
+        },
+        "venue_metrics": {
+            "verified": len(venue_metrics_verified),
+            "unverified": len(primary_recommendations) - len(venue_metrics_verified),
+        },
+        "items_requiring_verification": items_requiring_verification,
+    }
 
 
 def _appendix_reason(candidate: dict[str, Any]) -> str:
@@ -249,6 +321,41 @@ def _rejected_summary(rejected: list[dict[str, Any]]) -> dict[str, Any]:
             for reason, count in sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))
         ],
     }
+
+
+def _existing_library_appendix(rejected: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    appendix: list[dict[str, Any]] = []
+    for candidate in rejected:
+        reasons = [_text(reason) for reason in candidate.get("filter_reasons") or []]
+        existing_reasons = [
+            reason for reason in reasons if reason.startswith("already_in_wiki:") or reason.startswith("already_in_library:")
+        ]
+        if not existing_reasons:
+            continue
+        doi = _doi_payload(candidate)
+        doi_url = _doi_url(doi["value"])
+        match = candidate.get("existing_library_match")
+        match = match if isinstance(match, dict) else {}
+        appendix.append(
+            {
+                "slug": candidate.get("slug"),
+                "title": candidate.get("title"),
+                "venue": candidate.get("venue"),
+                "year": candidate.get("year"),
+                "doi": doi["display"],
+                "doi_value": doi["value"],
+                "doi_status": doi["status"],
+                "doi_url": doi_url,
+                "primary_url": _primary_url(candidate, doi_url),
+                "reason": existing_reasons[0],
+                "reasons": existing_reasons,
+                "existing_source_type": match.get("source_type"),
+                "existing_page": match.get("page"),
+                "existing_slug": match.get("slug"),
+                "existing_source_id": match.get("source_id"),
+            }
+        )
+    return appendix
 
 
 def build_session_recommendations(
@@ -298,6 +405,8 @@ def build_session_recommendations(
         "primary_limit": primary_limit,
         "primary_recommendations": primary_recommendations,
         "review_appendix": review_appendix,
+        "existing_library_appendix": _existing_library_appendix(rejected),
+        "verification_summary": _verification_summary(primary_recommendations),
         "rejected_summary": _rejected_summary(rejected),
         "overflow": {
             "primary_total": len(primary_candidates),

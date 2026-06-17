@@ -63,6 +63,27 @@ def test_mcp_jsonrpc_client_info_uses_paper_source_name(monkeypatch):
     assert messages[0]["params"]["clientInfo"]["name"] == "paper-source"
 
 
+def test_normalized_paper_search_record_does_not_invent_zero_citations():
+    without_citations = paper_search_adapter._normalize_paper_search_record(
+        {
+            "source": "openalex",
+            "title": "AUV Attitude Control",
+            "doi": "10.1000/auv",
+        }
+    )
+    with_zero_citations = paper_search_adapter._normalize_paper_search_record(
+        {
+            "source": "openalex",
+            "title": "New AUV Attitude Control",
+            "doi": "10.1000/new-auv",
+            "citation_count": 0,
+        }
+    )
+
+    assert "citation_count" not in without_citations
+    assert with_zero_citations["citation_count"] == 0
+
+
 def test_mcp_probe_client_info_uses_paper_source_doctor_name(monkeypatch):
     messages = []
 

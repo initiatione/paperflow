@@ -34,6 +34,52 @@ def ranking_keywords_from_profile(config, query: str, query_plan: dict | None) -
     return unique
 
 
+def _strings_from_nested(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    if isinstance(value, dict):
+        terms: list[str] = []
+        for item in value.values():
+            terms.extend(_strings_from_nested(item))
+        return terms
+    if isinstance(value, (list, tuple, set)):
+        terms: list[str] = []
+        for item in value:
+            terms.extend(_strings_from_nested(item))
+        return terms
+    text = str(value).strip()
+    return [text] if text else []
+
+
+def ranking_priority_keywords_from_query_plan(query_plan: dict | None) -> list[str]:
+    if not query_plan:
+        return []
+    blocks = query_plan.get("concept_blocks") or {}
+    terms: list[str] = []
+    for key in (
+        "hard_domain_anchors",
+        "domain_focus_terms",
+        "task_terms",
+        "problem_terms",
+        "method_or_topic_terms",
+        "method_branches",
+    ):
+        terms.extend(_strings_from_nested(blocks.get(key)))
+    terms.extend(_strings_from_nested(query_plan.get("hard_domain_anchors")))
+    terms.extend(_strings_from_nested(query_plan.get("hard_constraints")))
+    seen: set[str] = set()
+    unique: list[str] = []
+    for term in terms:
+        normalized = term.lower()
+        if normalized not in seen:
+            seen.add(normalized)
+            unique.append(term)
+    return unique
+
+
 def venue_tiers_from_profile(config, query_plan: dict | None) -> dict[str, float]:
     tiers = {venue: 0.1 for venue in config.venue_prior}
     if query_plan:

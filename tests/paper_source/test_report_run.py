@@ -13,7 +13,12 @@ def _ranked_candidate(
     abstract="Original provider abstract with method, task, evidence, and caveat.",
     pdf_url="https://example.org/paper.pdf",
     score=0.9,
+    citation_count=17,
+    citation_count_source="openalex",
+    verified_metrics=None,
 ):
+    if verified_metrics is None:
+        verified_metrics = {"easyscholar": {"status": "matched", "source": "easyscholar"}}
     candidate = {
         "slug": title.lower().replace(" ", "-"),
         "title": title,
@@ -22,6 +27,13 @@ def _ranked_candidate(
         "year": 2025,
         "abstract": abstract,
         "pdf_url": pdf_url,
+        "citation_count": citation_count,
+        "citation_count_source": citation_count_source,
+        "citation_count_status": "verified" if citation_count_source else "unverified",
+        "citation_count_sources": [{"source": citation_count_source, "count": citation_count}]
+        if citation_count_source
+        else [],
+        "verified_metrics": verified_metrics,
         "paper_type": "benchmark",
         "classification_confidence": 0.88,
         "quality_tier": quality_tier,
@@ -90,7 +102,13 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     run_dir.mkdir(parents=True)
     ranked = [
         _ranked_candidate("Primary Paper 01", doi="10.1000/p1", score=0.99),
-        _ranked_candidate("Primary Paper 02", include_doi=False, score=0.98),
+        _ranked_candidate(
+            "Primary Paper 02",
+            include_doi=False,
+            score=0.98,
+            citation_count=None,
+            citation_count_source=None,
+        ),
         _ranked_candidate("Primary Paper 03", doi="", score=0.97),
         _ranked_candidate(
             "Needs PDF Paper",
@@ -165,6 +183,14 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     ]
     assert session["primary_recommendations"][0]["doi"] == "10.1000/p1"
     assert session["primary_recommendations"][0]["doi_status"] == "present"
+    assert session["primary_recommendations"][0]["doi_url"] == "https://doi.org/10.1000/p1"
+    assert session["primary_recommendations"][0]["primary_url"] == "https://example.org/paper.pdf"
+    assert session["primary_recommendations"][0]["citation_count"] == 17
+    assert session["primary_recommendations"][0]["citation_count_status"] == "verified"
+    assert session["primary_recommendations"][0]["citation_count_source"] == "openalex"
+    assert session["primary_recommendations"][0]["citation_count_sources"] == [{"source": "openalex", "count": 17}]
+    assert session["primary_recommendations"][0]["verified_metrics"]["easyscholar"]["source"] == "easyscholar"
+    assert session["primary_recommendations"][0]["verification_warnings"] == []
     assert session["primary_recommendations"][0]["original_abstract"].startswith("Original provider abstract")
     assert session["primary_recommendations"][0]["chinese_summary"]["status"] == "agent_generated_required"
     assert session["primary_recommendations"][0]["quality_reason"]["ranking_reasons"] == [
@@ -175,6 +201,11 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     assert session["primary_recommendations"][0]["auto_staging_status"] == "not_run"
     assert session["primary_recommendations"][1]["doi"] == "未核实"
     assert session["primary_recommendations"][1]["doi_status"] == "unverified"
+    assert session["primary_recommendations"][1]["citation_count_status"] == "unverified"
+    assert session["primary_recommendations"][1]["verification_warnings"] == [
+        "doi_unverified",
+        "citation_count_unverified",
+    ]
     assert session["primary_recommendations"][2]["doi"] == "缺失"
     assert session["primary_recommendations"][2]["doi_status"] == "missing"
     assert session["primary_recommendations"][3]["pdf_status"] == "needs_pdf"
@@ -188,6 +219,20 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     assert "Tier C Appendix Paper" not in [item["title"] for item in session["primary_recommendations"]]
     assert session["review_appendix"][0]["appendix_reason"].startswith("Review Candidate Paper has enough evidence")
     assert session["review_appendix"][1]["appendix_reason"] == "Tier C"
+    assert session["verification_summary"]["citation_count"] == {"verified": 9, "unverified": 1}
+    assert session["verification_summary"]["venue_metrics"] == {"verified": 10, "unverified": 0}
+    assert session["verification_summary"]["items_requiring_verification"] == [
+        {
+            "slug": "primary-paper-02",
+            "title": "Primary Paper 02",
+            "warnings": ["doi_unverified", "citation_count_unverified"],
+        },
+        {
+            "slug": "primary-paper-03",
+            "title": "Primary Paper 03",
+            "warnings": ["doi_missing"],
+        },
+    ]
     assert session["rejected_summary"] == {
         "total": 3,
         "reason_counts": [
@@ -197,6 +242,62 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     }
     assert "## Session Recommendations" in report_md
     assert "Chinese summaries: generated by the calling agent from original_abstract." in report_md
+    assert "primary_url: https://example.org/paper.pdf" in report_md
+    assert "citations: 17 (status=verified, source=openalex)" in report_md
+    assert "verification_warnings: doi_unverified, citation_count_unverified" in report_md
+    assert "### Verification Summary" in report_md
+    assert "citation_count: verified=9, unverified=1" in report_md
+
+
+def test_session_recommendations_separate_existing_library_hits_from_new_recommendations(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+
+    write_report(
+        run_dir,
+        ranked=[_ranked_candidate("New AUV Attitude Paper", doi="10.1000/new-auv")],
+        errors=[],
+        workflow_type="paper-discovery-dry-run",
+        run_id="dry-run-existing",
+        rejected=[
+            {
+                "slug": "existing-auv",
+                "title": "Existing Strong AUV Paper",
+                "year": 2024,
+                "doi": "10.1000/existing",
+                "filter_reasons": ["already_in_wiki:references/existing-auv.md"],
+                "existing_library_match": {
+                    "source_type": "wiki_reference_index",
+                    "page": "references/existing-auv.md",
+                    "source_id": "doi:10.1000/existing",
+                },
+            },
+            {
+                "slug": "existing-raw",
+                "title": "Existing Raw AUV Paper",
+                "year": 2023,
+                "filter_reasons": ["already_in_library:existing-raw"],
+                "existing_library_match": {
+                    "source_type": "raw_library",
+                    "slug": "existing-raw",
+                },
+            },
+        ],
+    )
+
+    report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    report_md = (run_dir / "report.md").read_text(encoding="utf-8")
+    session = report_json["session_recommendations"]
+
+    assert [item["title"] for item in session["primary_recommendations"]] == ["New AUV Attitude Paper"]
+    assert [item["title"] for item in session["existing_library_appendix"]] == [
+        "Existing Strong AUV Paper",
+        "Existing Raw AUV Paper",
+    ]
+    assert session["existing_library_appendix"][0]["existing_page"] == "references/existing-auv.md"
+    assert session["existing_library_appendix"][1]["existing_slug"] == "existing-raw"
+    assert "### Already In Library Or Wiki" in report_md
+    assert "Existing Strong AUV Paper - already_in_wiki:references/existing-auv.md" in report_md
 
 
 def test_write_report_groups_dry_run_candidates_by_research_queue(tmp_path):

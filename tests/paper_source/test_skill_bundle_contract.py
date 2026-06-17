@@ -452,9 +452,21 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     assert "Default natural-language discovery uses `discover-papers`" in workflow
     assert "session_recommendations.primary_recommendations" in output_format
     assert "session_recommendations.review_appendix" in output_format
+    assert "session_recommendations.existing_library_appendix" in output_format
+    assert "session_recommendations.verification_summary" in output_format
     assert "session_recommendations.overflow.hidden_count" in output_format
+    assert "already-in-library papers into the primary list" in output_format
+    assert "never call those items recommendations" in output_format
+    assert "doi_url" in output_format
+    assert "primary_url" in output_format
+    assert "citation_count_source" in output_format
+    assert "missing provider citation field is not the same as a verified `0`" in output_format
     assert "Paper Source scripts do not generate semantic Chinese summaries" in output_format
     assert "do not list every kept paper in `推荐优先看`" in output_format
+
+    search_protocol = (SKILLS / "paper-discovery" / "references" / "search-protocol.md").read_text(encoding="utf-8")
+    assert "must not be recommended again" in search_protocol
+    assert "priority topic-fit weight" in search_protocol
 
 
 def test_paper_source_paper_deposition_is_thin_handoff_cleanup_entry():

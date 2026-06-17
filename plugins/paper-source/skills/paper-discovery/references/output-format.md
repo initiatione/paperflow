@@ -2,7 +2,7 @@
 
 When the user asks to "find papers", "找最新/高质量论文", "不要综述", or similar, use `discover-papers` as the natural-language Paper Source default. Do not stop at a raw dry-run report. Run the Paper Source discovery evidence first, then curate the chat answer for reading decisions from `report.json.session_recommendations`.
 
-In the chat, present the curated result in a scan-friendly format before technical logs. The section title can be `推荐优先看`. Use `session_recommendations.primary_recommendations` as the primary list: it is capped at 10 papers by default and includes only non-`review-candidate` Tier A/B or `advance-candidate` papers. Do not mix Tier C or `review-candidate` papers into the primary list. Use `session_recommendations.review_appendix` for a compact lower-priority appendix, and mention `session_recommendations.overflow.hidden_count` when more primary candidates exist in the artifact. Do not output an unsorted title-only list.
+In the chat, present the curated result in a scan-friendly format before technical logs. The section title can be `推荐优先看`. Use `session_recommendations.primary_recommendations` as the primary list: it is capped at 10 papers by default and includes only new papers that were not rejected by `already_in_wiki:*` or `already_in_library:*`, and only non-`review-candidate` Tier A/B or `advance-candidate` papers. Do not mix Tier C, `review-candidate`, already-in-wiki, or already-in-library papers into the primary list. Use `session_recommendations.review_appendix` for a compact lower-priority appendix, and mention `session_recommendations.overflow.hidden_count` when more primary candidates exist in the artifact. Use `session_recommendations.existing_library_appendix` only for a separate `库中已有，可回看` reminder section; never call those items recommendations and never include them in auto-staging. Do not output an unsorted title-only list.
 
 For each primary item, report:
 
@@ -10,8 +10,9 @@ For each primary item, report:
 - venue/year
 - paper type and classification confidence
 - quality tier and the strongest `quality_reason` / `quality_gate` evidence
-- DOI, using `未核实` or `缺失` from the contract when unavailable
-- citation count or `未核实`
+- DOI plus `doi_url`, using `未核实` or `缺失` from the contract when unavailable
+- primary link from `primary_url` when present
+- citation count plus `citation_count_source` and `citation_count_status`; show `未核实` only when status/source are absent
 - impact factor/quartile, CiteScore, or `未核实`
 - EasyScholar metrics from `verified_metrics.easyscholar` when present; otherwise `未核实`
 - venue prior, if it affected ordering
@@ -33,6 +34,8 @@ Then add `Paper Source 实测证据` with:
 - EasyScholar evidence: `easyscholar-record.json`, `easyscholar_score`, and matched/no-match/missing-key counts when checked
 - accepted/rejected counts
 - `session_recommendations.rejected_summary` count/reason summary
+- `session_recommendations.existing_library_appendix` as a separate already-in-library/wiki reminder, not a recommendation list
+- `session_recommendations.verification_summary`; when it reports unverified citation counts or venue metrics, say which recommendations still need targeted verification instead of silently filling numbers
 - `auto_staging_plan` summary when automatic source-staging ran: selected count, skipped reasons, and `auto_staging_status` values
 - review exclusion evidence, wiki backlog exclusions such as `already_in_wiki:<page>`, and raw-library exclusions such as `already_in_library:<slug>`
 - query variants and whether a sharper rerun was needed
@@ -41,7 +44,7 @@ Then add `Paper Source 实测证据` with:
 - recall gaps if any
 - `MINERU_TOKEN` set/missing only if setup was checked
 
-Quality metrics must be current evidence, not memory or guesses. Verify citation counts, impact factor/quartile, CiteScore, publisher/venue metadata, EasyScholar venue metrics, or code availability when available; otherwise write `未核实` for that field.
+Quality metrics must be current evidence, not memory or guesses. Verify citation counts, impact factor/quartile, CiteScore, publisher/venue metadata, EasyScholar venue metrics, or code availability when available; otherwise write `未核实` for that field. A numeric citation value is verified only when `citation_count_status=verified` and `citation_count_source` is present; a missing provider citation field is not the same as a verified `0`.
 
 For each recommendation, avoid raw JSON and long abstracts. Use links when verified. If the full kept list is long, do not list every kept paper in `推荐优先看`; use the capped primary list, appendix, and overflow count. Rejected review/survey papers should not appear in `推荐优先看` when the user asked to exclude them.
 

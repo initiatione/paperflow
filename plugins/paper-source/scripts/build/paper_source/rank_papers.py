@@ -508,9 +508,11 @@ def rank_candidates(
     year_min: int | None = None,
     code_policy: str | None = None,
     selection_policy: str = "balanced_high_quality",
+    priority_keywords: list[str] | None = None,
 ) -> list[dict]:
     ranked: list[dict] = []
     keywords = [keyword.lower() for keyword in positive_keywords]
+    priority_terms = [keyword.lower() for keyword in (priority_keywords or [])]
     negative_terms = [keyword.lower() for keyword in (negative_keywords or [])]
     normalized_code_policy = str(code_policy or "ignore").strip().lower()
     if normalized_code_policy not in {"ignore", "prefer", "require"}:
@@ -523,9 +525,17 @@ def rank_candidates(
         easyscholar_signal = (candidate.get("quality_signals") or {}).get("easyscholar") or {}
         easyscholar_score = max(0.0, min(1.0, float(easyscholar_signal.get("score") or 0.0)))
         matched_keywords = _matched_keywords(text, keywords)
+        matched_priority_keywords = _matched_keywords(text, priority_terms)
+        for keyword in matched_priority_keywords:
+            if keyword not in matched_keywords:
+                matched_keywords.append(keyword)
         matched_negative_keywords = _matched_keywords(text, negative_terms)
         keyword_hits = len(matched_keywords)
         topic_score = min(1.0, keyword_hits / max(1, len(keywords)))
+        priority_topic_score = (
+            min(1.0, len(matched_priority_keywords) / max(1, len(priority_terms))) if priority_terms else 0.0
+        )
+        topic_score = max(topic_score, priority_topic_score)
         negative_keyword_penalty = min(1.0, len(matched_negative_keywords) / max(1, len(negative_terms)))
         profile_fit_score = max(0.0, topic_score - negative_keyword_penalty)
         venue_score = max(
@@ -565,6 +575,7 @@ def rank_candidates(
         ranked_candidate["score"] = score
         ranked_candidate["ranking_signals"] = {
             "topic_score": round(topic_score, 4),
+            "priority_topic_score": round(priority_topic_score, 4),
             "venue_score": round(venue_score, 4),
             "citation_score": round(citation_score, 4),
             "freshness_score": freshness_score,

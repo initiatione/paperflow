@@ -804,16 +804,16 @@ def _extract_arxiv_id(record: dict) -> str | None:
     return None
 
 
-def _citation_count(record: dict) -> int:
+def _citation_count(record: dict) -> int | None:
     for key in ("citation_count", "citations"):
         if record.get(key) is not None:
             return int(record.get(key) or 0)
-    return 0
+    return None
 
 
 def _normalize_paper_search_record(record: dict) -> dict:
     extra = _parse_extra(record.get("extra"))
-    return {
+    normalized = {
         "source": record.get("source") or "paper-search",
         "title": record.get("title") or "",
         "authors": _split_authors(record.get("authors")),
@@ -825,9 +825,12 @@ def _normalize_paper_search_record(record: dict) -> dict:
         "pdf_url": record.get("pdf_url") or None,
         "url": record.get("url") or None,
         "code_url": record.get("code_url") or extra.get("code_url") or extra.get("code") or None,
-        "citation_count": _citation_count(record),
         "raw_record": record,
     }
+    citation_count = _citation_count(record)
+    if citation_count is not None:
+        normalized["citation_count"] = citation_count
+    return normalized
 
 
 def _write_raw_response(raw_response_path: Path | None, payload: dict) -> str | None:
