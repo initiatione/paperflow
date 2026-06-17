@@ -35,6 +35,7 @@ Then add `Paper Source 实测证据` with:
 - query plan summary: domain, concept blocks, query variants
 - candidate pool size before/after dedup/filter when available
 - ranking evidence: `paper_type`, `quality_tier`, `quality_gate`, `ranking_confidence`, and key rubric dimensions
+- quality gate dimensions: summarize `quality_gate.dimensions.identity`, `relevance`, `inspectability`, `validation`, `source_confidence`, `reproducibility`, and `request_risk` when they explain why a paper was kept, held for review, or rejected
 - EasyScholar evidence: `easyscholar-record.json`, `easyscholar_score`, and matched/no-match/missing-key counts when checked
 - accepted/rejected counts
 - `session_recommendations.rejected_summary` count/reason summary

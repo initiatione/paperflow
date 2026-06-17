@@ -458,6 +458,7 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     assert "session_recommendations.doi_filtered_summary" in output_format
     assert "session_recommendations.verification_summary" in output_format
     assert "session_recommendations.overflow.hidden_count" in output_format
+    assert "quality_gate.dimensions.identity" in output_format
     assert "already-in-library" in output_format
     assert "DOI-missing papers into the primary list" in output_format
     assert "never call those items recommendations" in output_format
@@ -478,6 +479,9 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
 
     search_protocol = (SKILLS / "paper-discovery" / "references" / "search-protocol.md").read_text(encoding="utf-8")
     assert "must not be recommended again" in search_protocol
+    assert "not provide a strong semantic reranker" in search_protocol
+    assert "cross-discipline quality gate" in search_protocol
+    assert "saturated positive keyword matches" in search_protocol
     assert "priority topic-fit weight" in search_protocol
     assert "10.48550/arXiv.<base_id>" in search_protocol
     assert "targeted DOI recovery" in search_protocol
@@ -485,6 +489,19 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     assert "canonical lightweight backlog" in search_protocol
     assert "do not rescan formal pages or raw metadata" in search_protocol
     assert "missing/unreadable reference-index fallback" in search_protocol
+
+    quality_gate = (SKILLS / "paper-discovery" / "references" / "quality-gate.md").read_text(encoding="utf-8")
+    assert "The gate is cross-discipline" in quality_gate
+    assert "`priority_keywords`" in quality_gate
+    assert "`positive_keywords_saturated`" in quality_gate
+    assert "`keyword_coverage_score`" in quality_gate
+    assert "`quality_gate.dimensions`" in quality_gate
+
+    ranking_rubric = (SKILLS / "paper-discovery" / "references" / "ranking-rubric.md").read_text(encoding="utf-8")
+    assert "`topic_fit_basis`" in ranking_rubric
+    assert "`keyword_topic_score`" in ranking_rubric
+    assert "`keyword_coverage_score`" in ranking_rubric
+    assert "`quality_gate.dimensions`" in ranking_rubric
 
 
 def test_paper_source_paper_deposition_is_thin_handoff_cleanup_entry():

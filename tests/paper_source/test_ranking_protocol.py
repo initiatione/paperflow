@@ -48,6 +48,16 @@ def test_rank_candidates_emits_explainable_research_quality_protocol():
     assert top["quality_gate"]["tier"] == "Tier A"
     assert "stable_identifier" in top["quality_gate"]["evidence"]
     assert "high_topic_fit" in top["quality_gate"]["evidence"]
+    assert set(top["quality_gate"]["dimensions"]) == {
+        "identity",
+        "relevance",
+        "inspectability",
+        "validation",
+        "source_confidence",
+        "reproducibility",
+        "request_risk",
+    }
+    assert top["quality_gate"]["dimensions"]["relevance"]["basis"] == "positive_keywords_saturated"
     assert top["ranking_protocol"]["quality_tier"] == "Tier A"
     assert top["ranking_protocol"]["quality_gate"] == top["quality_gate"]
     assert top["ranking_protocol"]["ranking_confidence"] == top["ranking_confidence"]
@@ -267,3 +277,48 @@ def test_rank_candidates_does_not_let_easyscholar_override_weak_topic_fit():
     assert top["ranking_signals"]["easyscholar_score"] == 1.0
     assert top["quality_tier"] == "Reject"
     assert "weak_topic_fit" in top["quality_gate"]["blocking_reasons"]
+
+
+def test_rank_candidates_does_not_dilute_cross_discipline_profile_without_hard_anchors():
+    candidates = [
+        {
+            "slug": "drug-discovery-gnn",
+            "title": "Graph Neural Network Benchmark for Drug Discovery",
+            "abstract": (
+                "We evaluate graph neural networks for molecular property prediction in drug discovery "
+                "with benchmark comparisons and ablation studies."
+            ),
+            "year": 2025,
+            "venue": "Bioinformatics",
+            "doi": "10.1234/drug-gnn",
+            "citation_count": 5,
+            "pdf_url": "https://example.org/drug-gnn.pdf",
+        }
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=[
+            "robotics",
+            "humanoid",
+            "control",
+            "drug discovery",
+            "molecular property prediction",
+            "graph neural network",
+            "clinical trial",
+            "ecology",
+            "econometrics",
+            "materials science",
+            "benchmark",
+            "reproducible code",
+        ],
+        venue_tiers={"bioinformatics": 0.75},
+    )
+
+    candidate = ranked[0]
+    assert candidate["ranking_signals"]["topic_fit_basis"] == "positive_keywords_saturated"
+    assert candidate["ranking_signals"]["keyword_coverage_score"] < 0.5
+    assert candidate["ranking_signals"]["domain_fit_score"] >= 0.67
+    assert "weak_topic_fit" not in candidate["quality_gate"]["blocking_reasons"]
+    assert candidate["quality_tier"] in {"Tier A", "Tier B", "Tier C"}
+    assert candidate["quality_gate"]["dimensions"]["relevance"]["status"] == "pass"

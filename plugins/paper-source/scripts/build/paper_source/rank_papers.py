@@ -23,6 +23,8 @@ BENCHMARK_TERMS = (
     "experiment",
     "metric",
 )
+TOPIC_FIT_SATURATION_HITS = 3
+TOPIC_FIT_REVIEW_THRESHOLD = 0.30
 
 SELECTION_POLICIES = {
     "balanced_high_quality",
@@ -148,6 +150,13 @@ def _term_score(text: str, terms: tuple[str, ...]) -> float:
 
 def _matched_keywords(text: str, keywords: list[str]) -> list[str]:
     return [keyword for keyword in keywords if keyword in text]
+
+
+def _saturating_topic_score(hit_count: int, term_count: int) -> float:
+    if term_count <= 0:
+        return 0.0
+    denominator = min(TOPIC_FIT_SATURATION_HITS, term_count)
+    return min(1.0, hit_count / max(1, denominator))
 
 
 def _classify_paper_type(candidate: dict) -> dict:
@@ -372,7 +381,7 @@ def _quality_gate(
         cautions.append("missing_pdf")
     if signals["domain_fit_score"] >= 0.67:
         evidence.append("high_topic_fit")
-    elif signals["domain_fit_score"] >= 0.34:
+    elif signals["domain_fit_score"] >= TOPIC_FIT_REVIEW_THRESHOLD:
         evidence.append("topic_fit")
     else:
         blockers.append("weak_topic_fit")
@@ -397,6 +406,56 @@ def _quality_gate(
     if signals["negative_keyword_penalty"] >= 0.5:
         blockers.append("negative_keyword_overlap")
 
+    source_confidence_score = round(
+        signals["venue_score"] * 0.35
+        + signals["citation_score"] * 0.25
+        + signals["pdf_score"] * 0.30
+        + signals["easyscholar_score"] * 0.10,
+        4,
+    )
+    validation_score = round(
+        max(signals["benchmark_score"], signals["citation_score"], signals["reproducibility_score"]),
+        4,
+    )
+    dimensions = {
+        "identity": {
+            "score": 1.0 if has_stable_identifier else 0.0,
+            "status": "stable" if has_stable_identifier else "unverified",
+            "signals": ["doi_or_arxiv"] if has_stable_identifier else ["missing_doi_or_arxiv"],
+        },
+        "relevance": {
+            "score": round(signals["domain_fit_score"], 4),
+            "status": "pass" if signals["domain_fit_score"] >= TOPIC_FIT_REVIEW_THRESHOLD else "weak",
+            "basis": signals.get("topic_fit_basis"),
+            "signals": ["priority_keyword_overlap" if signals.get("topic_fit_basis") == "priority_keywords" else "positive_keyword_overlap"],
+        },
+        "inspectability": {
+            "score": round(signals["pdf_score"], 4),
+            "status": "pdf_available" if signals["pdf_score"] > 0 else "needs_pdf",
+            "signals": ["pdf_available"] if signals["pdf_score"] > 0 else ["missing_pdf"],
+        },
+        "validation": {
+            "score": validation_score,
+            "status": "supported" if validation_score >= 0.34 else "thin",
+            "signals": ["benchmark", "citation", "reproducibility_terms"],
+        },
+        "source_confidence": {
+            "score": source_confidence_score,
+            "status": "strong" if source_confidence_score >= 0.67 else "limited",
+            "signals": ["venue", "citation", "pdf", "easyscholar"],
+        },
+        "reproducibility": {
+            "score": round(signals["reproducibility_score"], 4),
+            "status": "present" if signals["reproducibility_score"] >= 0.35 else "weak",
+            "signals": ["code_or_reproducibility_terms"],
+        },
+        "request_risk": {
+            "score": round(max(0.0, 1.0 - signals["negative_keyword_penalty"]), 4),
+            "status": "blocked" if signals["negative_keyword_penalty"] >= 0.5 else "clear",
+            "signals": ["negative_keyword_overlap"] if signals["negative_keyword_penalty"] > 0 else [],
+        },
+    }
+
     if blockers:
         tier = "Reject"
     elif (
@@ -410,7 +469,7 @@ def _quality_gate(
         tier = "Tier A"
     elif (
         score >= 0.60
-        and signals["domain_fit_score"] >= 0.34
+        and signals["domain_fit_score"] >= TOPIC_FIT_REVIEW_THRESHOLD
         and signals["pdf_score"] > 0
         and (
             signals["venue_score"] >= 0.45
@@ -429,6 +488,7 @@ def _quality_gate(
         "evidence": evidence,
         "cautions": cautions,
         "blocking_reasons": blockers,
+        "dimensions": dimensions,
     }
 
 
@@ -531,11 +591,17 @@ def rank_candidates(
                 matched_keywords.append(keyword)
         matched_negative_keywords = _matched_keywords(text, negative_terms)
         keyword_hits = len(matched_keywords)
-        topic_score = min(1.0, keyword_hits / max(1, len(keywords)))
+        keyword_topic_score = _saturating_topic_score(keyword_hits, len(keywords))
+        keyword_coverage_score = min(1.0, keyword_hits / max(1, len(keywords))) if keywords else 0.0
         priority_topic_score = (
             min(1.0, len(matched_priority_keywords) / max(1, len(priority_terms))) if priority_terms else 0.0
         )
-        topic_score = max(topic_score, priority_topic_score)
+        if priority_terms:
+            topic_score = priority_topic_score
+            topic_fit_basis = "priority_keywords"
+        else:
+            topic_score = keyword_topic_score
+            topic_fit_basis = "positive_keywords_saturated"
         negative_keyword_penalty = min(1.0, len(matched_negative_keywords) / max(1, len(negative_terms)))
         profile_fit_score = max(0.0, topic_score - negative_keyword_penalty)
         venue_score = max(
@@ -575,7 +641,14 @@ def rank_candidates(
         ranked_candidate["score"] = score
         ranked_candidate["ranking_signals"] = {
             "topic_score": round(topic_score, 4),
+            "keyword_topic_score": round(keyword_topic_score, 4),
+            "keyword_coverage_score": round(keyword_coverage_score, 4),
             "priority_topic_score": round(priority_topic_score, 4),
+            "topic_fit_basis": topic_fit_basis,
+            "matched_positive_keywords_count": len(matched_keywords),
+            "positive_keyword_count": len(keywords),
+            "matched_priority_keywords_count": len(matched_priority_keywords),
+            "priority_keyword_count": len(priority_terms),
             "venue_score": round(venue_score, 4),
             "citation_score": round(citation_score, 4),
             "freshness_score": freshness_score,

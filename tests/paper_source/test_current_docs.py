@@ -30,11 +30,13 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.3.7"
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.7 | Paper Source:")
+    assert manifest["version"] == "2.3.8"
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.8 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
-    assert "calibrated quality gates" in manifest["interface"]["shortDescription"]
+    assert "cross-discipline quality gates" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
+    assert "identity/relevance/inspectability/validation/source-confidence/reproducibility/request-risk dimensions" in manifest["interface"]["longDescription"]
+    assert "retrieval and metadata coverage rather than a semantic quality ranker" in manifest["interface"]["longDescription"]
     assert "non-Reject session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
     assert "grok-search-rs MCP" in manifest["interface"]["longDescription"]
@@ -43,8 +45,13 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
         docs,
         [
             "Paper Source 2.3.7",
+            "Paper Source 2.3.8",
             "Paper Source 2.3.6",
             "Paper Source 2.3.5",
+            "quality_gate.dimensions",
+            "positive_keywords_saturated",
+            "semantic quality gate",
+            "keyword_coverage_score",
             "quality_reject_debug",
             "no_primary_recommendations_summary",
             "hard domain anchors",
