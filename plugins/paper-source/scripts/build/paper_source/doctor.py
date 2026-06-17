@@ -292,6 +292,26 @@ def _check_paper_search_provider_readiness() -> dict:
     }
 
 
+def _check_runtime_path_policy(runtime_status: dict) -> dict:
+    policy = runtime_status.get("path_policy") if isinstance(runtime_status, dict) else {}
+    policy = policy if isinstance(policy, dict) else {}
+    issues = policy.get("issues") if isinstance(policy.get("issues"), list) else []
+    return {
+        "name": "runtime_path_policy",
+        "status": "warning" if issues else "ok",
+        "message": (
+            "runtime.json contains paths outside the installed user plugin runtime boundary"
+            if issues
+            else "runtime paths stay within the installed user plugin runtime boundary or installed executables"
+        ),
+        "active": policy.get("active"),
+        "runtime_root": policy.get("runtime_root"),
+        "standard_runtime_root": policy.get("standard_runtime_root"),
+        "allowed_env_file_root": policy.get("allowed_env_file_root"),
+        "issues": issues,
+    }
+
+
 def _codex_home() -> Path:
     configured = os.environ.get("CODEX_HOME")
     return Path(configured).expanduser() if configured else Path.home() / ".codex"
@@ -622,6 +642,7 @@ def collect_doctor_report(
     checks.extend(_check_path(plugin_root, relative_path) for relative_path in REQUIRED_PATHS if relative_path != ".codex-plugin/plugin.json")
     checks.append(_check_skill_bundle_contract(plugin_root))
     checks.append(_check_paper_source_config(vault_path))
+    checks.append(_check_runtime_path_policy(runtime_status))
     checks.append(_check_mcp_outer_launcher(plugin_root))
     checks.append(_check_paper_search_mcp_server())
     checks.append(_check_codex_mcp_registration())

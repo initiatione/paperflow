@@ -303,7 +303,11 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
     runtime_path = tmp_path / "runtime.json"
     grok_env = tmp_path / "grok.env"
     grok_env.write_text(
+        "OPENAI_COMPATIBLE_API_URL=https://api.example.org\n"
         "OPENAI_COMPATIBLE_API_KEY=grok-compatible-key\n"
+        "OPENAI_COMPATIBLE_MODEL=grok-model\n"
+        "GROK_SEARCH_WEB_SEARCH=true\n"
+        "GROK_SEARCH_TIMEOUT_SECONDS=120\n"
         "TAVILY_API_KEY=tavily-key\n",
         encoding="utf-8",
     )
@@ -322,7 +326,11 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
     for key in [
         "PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND",
         "PAPER_SOURCE_GROK_SEARCH_MCP_ARGS",
+        "OPENAI_COMPATIBLE_API_URL",
         "OPENAI_COMPATIBLE_API_KEY",
+        "OPENAI_COMPATIBLE_MODEL",
+        "GROK_SEARCH_WEB_SEARCH",
+        "GROK_SEARCH_TIMEOUT_SECONDS",
         "TAVILY_API_KEY",
     ]:
         monkeypatch.delenv(key, raising=False)
@@ -331,12 +339,76 @@ def test_apply_runtime_config_loads_grok_search_mcp_command_and_env_file(tmp_pat
 
     assert os.environ["PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND"] == "grok-search-rs"
     assert os.environ["PAPER_SOURCE_GROK_SEARCH_MCP_ARGS"] == "--stdio"
+    assert os.environ["OPENAI_COMPATIBLE_API_URL"] == "https://api.example.org"
     assert os.environ["OPENAI_COMPATIBLE_API_KEY"] == "grok-compatible-key"
+    assert os.environ["OPENAI_COMPATIBLE_MODEL"] == "grok-model"
+    assert os.environ["GROK_SEARCH_WEB_SEARCH"] == "true"
+    assert os.environ["GROK_SEARCH_TIMEOUT_SECONDS"] == "120"
     assert os.environ["TAVILY_API_KEY"] == "tavily-key"
+    assert "OPENAI_COMPATIBLE_API_URL" in status["applied_env"]
     assert "OPENAI_COMPATIBLE_API_KEY" in status["applied_env"]
+    assert "OPENAI_COMPATIBLE_MODEL" in status["applied_env"]
+    assert "GROK_SEARCH_WEB_SEARCH" in status["applied_env"]
+    assert "GROK_SEARCH_TIMEOUT_SECONDS" in status["applied_env"]
     assert "TAVILY_API_KEY" in status["applied_env"]
+    assert "https://api.example.org" not in json.dumps(status)
     assert "grok-compatible-key" not in json.dumps(status)
+    assert "grok-model" not in json.dumps(status)
     assert "tavily-key" not in json.dumps(status)
+
+
+def test_runtime_path_policy_warns_for_standard_runtime_paths_outside_user_plugin_dir(tmp_path, monkeypatch):
+    codex_home = tmp_path / "codex-home"
+    runtime_root = codex_home / "plugins" / "paperflow" / "paper-source"
+    runtime_path = runtime_root / "runtime.json"
+    dev_checkout = tmp_path / "paper-search"
+    dev_env_dir = dev_checkout / ".env"
+    dev_env_dir.mkdir(parents=True)
+    (dev_checkout / ".git").mkdir()
+    outside_env = dev_env_dir / "paper-search-providers.env"
+    outside_env.write_text("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=researcher@example.org\n", encoding="utf-8")
+    helper_script = dev_env_dir / "paper-search-live.ps1"
+    helper_script.write_text("paper-search @args\n", encoding="utf-8")
+    _write_json(
+        runtime_path,
+        {
+            "schema_version": "paper-source-runtime-config-v1",
+            "paper_search_mcp": {"env_file": str(outside_env)},
+            "paper_search_cli": {"command": str(helper_script)},
+        },
+    )
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+    monkeypatch.setenv("PAPER_SOURCE_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.delenv("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL", raising=False)
+    monkeypatch.delenv("PAPER_SOURCE_PAPER_SEARCH_COMMAND", raising=False)
+
+    status = apply_runtime_config()
+
+    policy = status["path_policy"]
+    codes = {issue["code"] for issue in policy["issues"]}
+    assert policy["active"] is True
+    assert "runtime_env_file_outside_user_plugin_runtime" in codes
+    assert "runtime_env_file_points_to_development_checkout" in codes
+    assert "runtime_command_points_to_env_helper" in codes
+    assert "runtime_command_points_to_development_checkout" in codes
+    assert any("paper_search_mcp.env_file" in warning for warning in status["warnings"])
+    assert any("paper_search_cli.command" in warning for warning in status["warnings"])
+
+
+def test_runtime_path_policy_allows_custom_test_runtime_env_files(tmp_path, monkeypatch):
+    runtime_path = tmp_path / "runtime.json"
+    env_file = tmp_path / "paper-search-providers.env"
+    env_file.write_text("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=researcher@example.org\n", encoding="utf-8")
+    _write_json(runtime_path, {"paper_search_mcp": {"env_file": str(env_file)}})
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
+    monkeypatch.setenv("PAPER_SOURCE_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.delenv("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL", raising=False)
+
+    status = apply_runtime_config()
+
+    assert status["path_policy"]["active"] is False
+    assert status["path_policy"]["issues"] == []
+    assert os.environ["PAPER_SEARCH_MCP_UNPAYWALL_EMAIL"] == "researcher@example.org"
 
 
 def test_apply_runtime_config_rejects_grok_provider_secret_in_runtime_env(tmp_path, monkeypatch):
@@ -461,6 +533,34 @@ def test_doctor_applies_runtime_config_before_dependency_checks(tmp_path, monkey
     assert report["runtime_config"]["loaded"] is True
     assert "dummy-token" not in json.dumps(report)
     assert "easyscholar-secret" not in json.dumps(report)
+
+
+def test_doctor_reports_runtime_path_policy_check(tmp_path, monkeypatch):
+    codex_home = tmp_path / "codex-home"
+    runtime_root = codex_home / "plugins" / "paperflow" / "paper-source"
+    runtime_path = runtime_root / "runtime.json"
+    dev_checkout = tmp_path / "paper-search"
+    dev_env_dir = dev_checkout / ".env"
+    dev_env_dir.mkdir(parents=True)
+    (dev_checkout / ".git").mkdir()
+    provider_env = dev_env_dir / "paper-search-providers.env"
+    provider_env.write_text("PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=researcher@example.org\n", encoding="utf-8")
+    _write_json(runtime_path, {"paper_search_mcp": {"env_file": str(provider_env)}})
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+    monkeypatch.setenv("PAPER_SOURCE_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.setattr("paper_source.doctor.probe_paper_search_mcp_server", lambda timeout_seconds: {"available": False})
+    monkeypatch.setattr("paper_source.doctor.probe_paper_search_mcp", lambda command: {"available": False})
+
+    report = collect_doctor_report(
+        plugin_root=tmp_path / "plugin",
+        vault_path=tmp_path / "vault",
+        paper_search_command=None,
+    )
+
+    checks = {check["name"]: check for check in report["checks"]}
+    assert checks["runtime_path_policy"]["status"] == "warning"
+    assert checks["runtime_path_policy"]["active"] is True
+    assert checks["runtime_path_policy"]["issues"][0]["code"] == "runtime_env_file_outside_user_plugin_runtime"
 
 
 def test_doctor_warns_when_easyscholar_secret_is_missing(tmp_path, monkeypatch):
