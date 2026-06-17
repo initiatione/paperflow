@@ -39,6 +39,7 @@ from paper_source.grok_search_adapter import SEARCH_TIMEOUT_SECONDS as GROK_SEAR
 from paper_source.grok_search_adapter import discover_grok
 from paper_source.grok_search_policy import (
     PARALLEL_FAN_IN_GRACE_SECONDS,
+    EffectiveGrokMode,
     build_parallel_grok_queries,
     build_targeted_grok_queries,
     paper_search_good_enough,
@@ -72,6 +73,9 @@ from paper_source.query_plan_build import (
     request_constraints_payload as _request_constraints_payload,
     unique_nonempty_strings as _unique_nonempty_strings,
 )
+
+DOI_RECOVERY_MAX_CANDIDATES = 5
+DOI_RECOVERY_DOMAINS = ["doi.org", "openalex.org", "crossref.org", "arxiv.org"]
 from paper_source.query_planner import build_query_plan_from_research_brief, infer_research_mode
 from paper_source.raw_cleanup import cleanup_failed_raw_paper
 from paper_source.rank_papers import SELECTION_POLICIES, rank_candidates
@@ -359,6 +363,178 @@ def _run_grok_queries(
         evidence_path=run_dir / "grok-search-evidence.json",
         timeout_seconds=timeout_seconds,
     )
+
+
+def _has_doi(candidate: dict) -> bool:
+    return bool(str(candidate.get("doi") or "").strip())
+
+
+def _doi_recovery_candidates(candidates: list[dict], *, limit: int = DOI_RECOVERY_MAX_CANDIDATES) -> list[dict]:
+    selected: list[dict] = []
+    for candidate in candidates:
+        title = str(candidate.get("title") or "").strip()
+        if not title or _has_doi(candidate):
+            continue
+        selected.append(candidate)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _doi_recovery_query(candidate: dict) -> str:
+    title = str(candidate.get("title") or "").strip()
+    arxiv_id = str(candidate.get("arxiv_id") or "").strip()
+    if arxiv_id:
+        return f'"{title}" "{arxiv_id}" DOI arXiv OpenAlex Crossref'
+    return f'"{title}" DOI OpenAlex Crossref publisher'
+
+
+def _title_key(value: object) -> str:
+    return " ".join(str(value or "").lower().split())
+
+
+def _apply_recovered_doi_to_original_records(search_record: dict, recovery_records: list[dict]) -> int:
+    recovered_by_title = {
+        _title_key(record.get("title")): record
+        for record in recovery_records
+        if _title_key(record.get("title")) and _has_doi(record)
+    }
+    applied = 0
+    for record in search_record.get("records") or []:
+        if not isinstance(record, dict) or _has_doi(record):
+            continue
+        recovered = recovered_by_title.get(_title_key(record.get("title")))
+        if not recovered:
+            continue
+        record["doi"] = recovered.get("doi")
+        record["doi_source"] = "grok_doi_recovery"
+        if not record.get("landing_page_url") and recovered.get("landing_page_url"):
+            record["landing_page_url"] = recovered.get("landing_page_url")
+        if not record.get("url") and recovered.get("url"):
+            record["url"] = recovered.get("url")
+        applied += 1
+    return applied
+
+
+def _valid_grok_doi_recovery_record(grok_record: dict, recovery_records: list[dict]) -> tuple[bool, str | None]:
+    if grok_record.get("status") != "ok":
+        return False, "grok_status_not_ok"
+    if not recovery_records:
+        return False, "grok_no_records"
+    warnings = [str(warning) for warning in grok_record.get("warnings") or [] if str(warning).strip()]
+    if warnings:
+        return False, "grok_warnings_present"
+    return True, None
+
+
+def _normalize_with_doi_recovery(
+    search_record: dict,
+    *,
+    effective_grok: EffectiveGrokMode,
+    run_dir: Path,
+) -> tuple[list[dict], dict | None]:
+    normalized = normalize_candidates(search_record.get("records", []))
+    recovery_candidates = _doi_recovery_candidates(normalized)
+    if not recovery_candidates:
+        return normalized, {
+            "status": "skipped",
+            "reason": "no_missing_doi_candidates",
+            "candidate_count": 0,
+            "recovered_count": 0,
+            "failed_count": 0,
+        }
+
+    before_missing = {str(candidate.get("slug") or candidate.get("title")) for candidate in recovery_candidates}
+    queries = [_doi_recovery_query(candidate) for candidate in recovery_candidates]
+    recovery_summary = {
+        "status": "skipped",
+        "reason": None,
+        "candidate_count": len(recovery_candidates),
+        "queries": queries,
+        "recovered_count": 0,
+        "failed_count": len(recovery_candidates),
+        "candidates": [
+            {
+                "slug": candidate.get("slug"),
+                "title": candidate.get("title"),
+                "year": candidate.get("year"),
+                "venue": candidate.get("venue"),
+                "arxiv_id": candidate.get("arxiv_id"),
+                "primary_url": candidate.get("pdf_url")
+                or candidate.get("landing_page_url")
+                or candidate.get("publisher_url")
+                or candidate.get("url"),
+            }
+            for candidate in recovery_candidates
+        ],
+    }
+    if not effective_grok.configured:
+        recovery_summary["reason"] = "grok_not_configured"
+        return normalized, recovery_summary
+
+    grok_record = discover_grok(
+        queries=queries,
+        include_domains=DOI_RECOVERY_DOMAINS,
+        raw_response_path=run_dir / "doi-recovery-grok-raw.json",
+        evidence_path=run_dir / "doi-recovery-grok-evidence.json",
+        timeout_seconds=GROK_SEARCH_TIMEOUT_SECONDS,
+    )
+    write_json_atomic(run_dir / "doi-recovery-grok-record.json", grok_record)
+    recovery_records = [dict(record) for record in grok_record.get("records") or [] if isinstance(record, dict)]
+    provider_records = search_record.setdefault("provider_records", {})
+    provider_records["grok_doi_recovery"] = {
+        "mode": "targeted_doi_recovery",
+        "status": grok_record.get("status"),
+        "record_count": len(recovery_records),
+        "raw_response_path": grok_record.get("raw_response_path"),
+        "evidence_path": grok_record.get("evidence_path"),
+        "warnings": grok_record.get("warnings", []),
+    }
+    valid_recovery, invalid_reason = _valid_grok_doi_recovery_record(grok_record, recovery_records)
+    if not valid_recovery:
+        recovery_summary.update(
+            {
+                "status": grok_record.get("status") or "unknown",
+                "reason": invalid_reason,
+                "record_count": len(recovery_records),
+                "applied_count": 0,
+                "recovered_count": 0,
+                "failed_count": len(before_missing),
+                "failed_slugs": sorted(before_missing),
+                "record_path": str(run_dir / "doi-recovery-grok-record.json"),
+                "raw_response_path": grok_record.get("raw_response_path"),
+                "evidence_path": grok_record.get("evidence_path"),
+                "warnings": grok_record.get("warnings", []),
+            }
+        )
+        return normalized, recovery_summary
+
+    applied_count = _apply_recovered_doi_to_original_records(search_record, recovery_records)
+    search_record.setdefault("records", []).extend(recovery_records)
+    normalized_after = normalize_candidates(search_record.get("records", []))
+    after_missing = {
+        str(candidate.get("slug") or candidate.get("title"))
+        for candidate in normalized_after
+        if str(candidate.get("slug") or candidate.get("title")) in before_missing and not _has_doi(candidate)
+    }
+    recovered = sorted(before_missing - after_missing)
+    recovery_summary.update(
+        {
+            "status": grok_record.get("status") or "unknown",
+            "reason": "targeted_grok_doi_recovery",
+            "record_count": len(recovery_records),
+            "applied_count": applied_count,
+            "recovered_count": len(recovered),
+            "failed_count": len(after_missing),
+            "recovered_slugs": recovered,
+            "failed_slugs": sorted(after_missing),
+            "record_path": str(run_dir / "doi-recovery-grok-record.json"),
+            "raw_response_path": grok_record.get("raw_response_path"),
+            "evidence_path": grok_record.get("evidence_path"),
+            "warnings": grok_record.get("warnings", []),
+        }
+    )
+    return normalized_after, recovery_summary
 
 
 
@@ -708,7 +884,15 @@ def run_dry_run(
     state["state"] = "discovered"
     write_json_atomic(run_dir / "run-state.json", state)
 
-    normalized = normalize_candidates(search_record.get("records", []))
+    normalized, doi_recovery = _normalize_with_doi_recovery(
+        search_record,
+        effective_grok=effective_grok,
+        run_dir=run_dir,
+    )
+    if doi_recovery:
+        search_record["doi_recovery"] = doi_recovery
+        state["doi_recovery"] = doi_recovery
+        write_json_atomic(run_dir / "search-record.json", search_record)
     write_json_atomic(run_dir / "normalized.json", normalized)
     state["state"] = "normalized"
     write_json_atomic(run_dir / "run-state.json", state)
@@ -862,6 +1046,7 @@ def run_dry_run(
         "source_coverage": source_coverage,
         "provider_records": search_record.get("provider_records", {}),
         "grok_search": search_record.get("grok_search", state.get("grok_search", {})),
+        "doi_recovery": search_record.get("doi_recovery", {}),
         "request_constraints": request_constraints,
         "warnings": search_record.get("warnings", []),
         "easyscholar": {
@@ -899,6 +1084,7 @@ def run_dry_run(
             for candidate in needs_pdf
         ],
         "source_coverage": source_coverage,
+        "doi_recovery": search_record.get("doi_recovery", {}),
         "provider_records": search_record.get("provider_records", {}),
         "grok_search": search_record.get("grok_search", state.get("grok_search", {})),
     }

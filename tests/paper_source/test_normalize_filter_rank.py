@@ -77,6 +77,50 @@ def test_normalize_candidates_prefers_direct_pdf_over_doi_landing_url():
     ]
 
 
+def test_normalize_candidates_enriches_arxiv_doi_and_code_url_from_metadata():
+    normalized = normalize_candidates(
+        [
+            {
+                "source": "arxiv",
+                "title": "EROAS: 3D Efficient Reactive Obstacle Avoidance System",
+                "authors": ["A. Researcher"],
+                "year": 2024,
+                "arxiv_id": "2411.05516v3",
+                "pdf_url": "https://arxiv.org/pdf/2411.05516v3",
+                "abstract": (
+                    "AUV obstacle avoidance with hardware-in-the-loop experiments. "
+                    "Code: https://github.com/AIRLabIISc/EROAS"
+                ),
+            }
+        ]
+    )
+
+    assert normalized[0]["doi"] == "10.48550/arXiv.2411.05516"
+    assert normalized[0]["doi_source"] == "arxiv_id:arxiv_id"
+    assert normalized[0]["code_url"] == "https://github.com/AIRLabIISc/EROAS"
+    assert normalized[0]["code_url_source"] == "abstract"
+
+
+def test_normalize_candidates_enriches_doi_from_raw_url_metadata():
+    normalized = normalize_candidates(
+        [
+            {
+                "source": "openalex",
+                "title": "Exact DOI From Raw URL",
+                "authors": ["A. Researcher"],
+                "year": 2025,
+                "raw_record": {
+                    "ids": {"doi": "https://doi.org/10.48550/arxiv.2501.12345"},
+                    "primary_location": {"landing_page_url": "https://arxiv.org/abs/2501.12345"},
+                },
+            }
+        ]
+    )
+
+    assert normalized[0]["doi"] == "10.48550/arxiv.2501.12345"
+    assert normalized[0]["doi_source"] == "raw_record.ids.doi"
+
+
 def test_normalize_candidates_preserves_alternate_sources_and_pdf_urls_for_deduped_records():
     raw_records = [
         {

@@ -142,6 +142,13 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
                 decision="advance-candidate",
                 score=0.4,
             ),
+            _ranked_candidate(
+                "Review Candidate Missing DOI",
+                include_doi=False,
+                quality_tier="Tier B",
+                decision="review-candidate",
+                score=0.3,
+            ),
         ]
     )
 
@@ -169,18 +176,31 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
         "producer": "calling_agent",
         "source": "original_abstract",
     }
+    assert session["doi_required_policy"] == {
+        "required_for": ["primary_recommendations", "review_appendix"],
+        "missing_reason": "missing_required_doi",
+    }
     assert len(session["primary_recommendations"]) == 10
     assert session["overflow"] == {
-        "primary_total": 12,
-        "hidden_count": 2,
+        "primary_total": 10,
+        "hidden_count": 0,
         "full_artifact": "report.json",
     }
-    assert [item["title"] for item in session["primary_recommendations"][:4]] == [
+    assert [item["title"] for item in session["primary_recommendations"][:3]] == [
         "Primary Paper 01",
-        "Primary Paper 02",
-        "Primary Paper 03",
         "Needs PDF Paper",
+        "Primary Paper 04",
     ]
+    assert all(item["doi_status"] == "present" for item in session["primary_recommendations"])
+    assert session["doi_filtered_summary"]["total"] == 3
+    filtered_by_slug = {item["slug"]: item for item in session["doi_filtered_summary"]["items"]}
+    assert filtered_by_slug["primary-paper-02"]["surface"] == "primary_recommendations"
+    assert filtered_by_slug["primary-paper-02"]["reason"] == "missing_required_doi"
+    assert filtered_by_slug["primary-paper-02"]["doi_status"] == "unverified"
+    assert filtered_by_slug["primary-paper-02"]["quality_tier"] == "Tier A"
+    assert filtered_by_slug["primary-paper-02"]["primary_url"] == "https://example.org/paper.pdf"
+    assert filtered_by_slug["primary-paper-03"]["doi_status"] == "missing"
+    assert filtered_by_slug["review-candidate-missing-doi"]["surface"] == "review_appendix"
     assert session["primary_recommendations"][0]["doi"] == "10.1000/p1"
     assert session["primary_recommendations"][0]["doi_status"] == "present"
     assert session["primary_recommendations"][0]["doi_url"] == "https://doi.org/10.1000/p1"
@@ -199,40 +219,21 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     ]
     assert session["primary_recommendations"][0]["pdf_status"] == "available"
     assert session["primary_recommendations"][0]["auto_staging_status"] == "not_run"
-    assert session["primary_recommendations"][1]["doi"] == "未核实"
-    assert session["primary_recommendations"][1]["doi_status"] == "unverified"
-    assert session["primary_recommendations"][1]["citation_count_status"] == "unverified"
-    assert session["primary_recommendations"][1]["verification_warnings"] == [
-        "doi_unverified",
-        "citation_count_unverified",
-    ]
-    assert session["primary_recommendations"][2]["doi"] == "缺失"
-    assert session["primary_recommendations"][2]["doi_status"] == "missing"
-    assert session["primary_recommendations"][3]["pdf_status"] == "needs_pdf"
+    assert session["primary_recommendations"][1]["pdf_status"] == "needs_pdf"
     assert {"kind": "publisher", "url": "https://publisher.example/needs-pdf"} in session[
         "primary_recommendations"
-    ][3]["manual_download"]["links"]
+    ][1]["manual_download"]["links"]
 
     appendix_titles = [item["title"] for item in session["review_appendix"]]
     assert appendix_titles == ["Review Candidate Paper", "Tier C Appendix Paper"]
+    assert all(item["doi_status"] == "present" for item in session["review_appendix"])
     assert "Review Candidate Paper" not in [item["title"] for item in session["primary_recommendations"]]
     assert "Tier C Appendix Paper" not in [item["title"] for item in session["primary_recommendations"]]
     assert session["review_appendix"][0]["appendix_reason"].startswith("Review Candidate Paper has enough evidence")
     assert session["review_appendix"][1]["appendix_reason"] == "Tier C"
-    assert session["verification_summary"]["citation_count"] == {"verified": 9, "unverified": 1}
+    assert session["verification_summary"]["citation_count"] == {"verified": 10, "unverified": 0}
     assert session["verification_summary"]["venue_metrics"] == {"verified": 10, "unverified": 0}
-    assert session["verification_summary"]["items_requiring_verification"] == [
-        {
-            "slug": "primary-paper-02",
-            "title": "Primary Paper 02",
-            "warnings": ["doi_unverified", "citation_count_unverified"],
-        },
-        {
-            "slug": "primary-paper-03",
-            "title": "Primary Paper 03",
-            "warnings": ["doi_missing"],
-        },
-    ]
+    assert session["verification_summary"]["items_requiring_verification"] == []
     assert session["rejected_summary"] == {
         "total": 3,
         "reason_counts": [
@@ -244,9 +245,9 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     assert "Chinese summaries: generated by the calling agent from original_abstract." in report_md
     assert "primary_url: https://example.org/paper.pdf" in report_md
     assert "citations: 17 (status=verified, source=openalex)" in report_md
-    assert "verification_warnings: doi_unverified, citation_count_unverified" in report_md
+    assert "missing_required_doi: 3" in report_md
     assert "### Verification Summary" in report_md
-    assert "citation_count: verified=9, unverified=1" in report_md
+    assert "citation_count: verified=10, unverified=0" in report_md
 
 
 def test_session_recommendations_separate_existing_library_hits_from_new_recommendations(tmp_path):

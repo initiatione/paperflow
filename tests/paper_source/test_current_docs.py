@@ -30,18 +30,23 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.3.4"
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.4 | Paper Source:")
+    assert manifest["version"] == "2.3.5"
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.5 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
-    assert "Grok supplemental recall" in manifest["interface"]["shortDescription"]
+    assert "DOI-required recommendations" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
+    assert "DOI-required session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
     assert "grok-search-rs MCP" in manifest["interface"]["longDescription"]
     assert "Codex automation approval" in manifest["interface"]["longDescription"]
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.3.5",
             "Paper Source 2.3.4",
+            "missing_required_doi",
+            "doi_recovery_summary",
+            "doi_resolution_summary",
             "PAPER_SOURCE_GROK_MODEL_FALLBACKS",
             "existing_library_appendix",
             "verification_summary",

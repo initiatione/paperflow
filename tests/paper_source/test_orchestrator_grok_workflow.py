@@ -132,3 +132,114 @@ def test_parallel_grok_writes_provider_artifacts_and_merged_search_record(tmp_pa
     assert len(search_record["records"]) == 2
     assert captured["queries"]
     assert captured["include_domains"]
+
+
+def test_targeted_doi_recovery_uses_grok_to_restore_missing_doi_candidate(tmp_path, monkeypatch):
+    plugin_root = tmp_path / "plugin"
+    _write_template(plugin_root, "targeted")
+    monkeypatch.setenv("PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND", "configured-grok")
+    paper_records = [_paper_record(1), _paper_record(2), _paper_record(3)]
+    for record in paper_records:
+        record.pop("doi", None)
+    monkeypatch.setattr(
+        "paper_source.orchestrator._run_query_plan_discovery",
+        lambda **kwargs: _paper_search_record(paper_records),
+    )
+    captured = {}
+
+    def fake_discover_grok(**kwargs):
+        captured.update(kwargs)
+        return {
+            "provider": "grok_search",
+            "source_mode": "grok_search_mcp",
+            "status": "ok",
+            "queries": kwargs["queries"],
+            "records": [
+                {
+                    "source": "grok_search",
+                    "provider": "grok_search",
+                    "title": "Robot Control Paper 1",
+                    "abstract": "Publisher metadata with DOI.",
+                    "doi": "10.1000/recovered-robot-1",
+                    "landing_page_url": "https://doi.org/10.1000/recovered-robot-1",
+                }
+            ],
+            "evidence": [],
+            "raw_response_path": str(kwargs["raw_response_path"]),
+            "evidence_path": str(kwargs["evidence_path"]),
+        }
+
+    monkeypatch.setattr("paper_source.orchestrator.discover_grok", fake_discover_grok)
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="robotics control",
+        max_results=None,
+        sources=["semantic"],
+        use_query_plan=False,
+        resume=False,
+    )
+
+    report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    session = report_json["session_recommendations"]
+    assert (run_dir / "doi-recovery-grok-record.json").exists()
+    assert captured["include_domains"] == ["doi.org", "openalex.org", "crossref.org", "arxiv.org"]
+    assert session["doi_recovery_summary"]["recovered_count"] == 1
+    assert session["doi_recovery_summary"]["failed_count"] == 2
+    assert [item["title"] for item in session["primary_recommendations"]] == ["Robot Control Paper 1"]
+    assert session["primary_recommendations"][0]["doi"] == "10.1000/recovered-robot-1"
+    assert session["doi_filtered_summary"]["total"] == 2
+
+
+def test_targeted_doi_recovery_rejects_grok_warning_records(tmp_path, monkeypatch):
+    plugin_root = tmp_path / "plugin"
+    _write_template(plugin_root, "targeted")
+    monkeypatch.setenv("PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND", "configured-grok")
+    paper_records = [_paper_record(1), _paper_record(2), _paper_record(3)]
+    for record in paper_records:
+        record.pop("doi", None)
+    monkeypatch.setattr(
+        "paper_source.orchestrator._run_query_plan_discovery",
+        lambda **kwargs: _paper_search_record(paper_records),
+    )
+
+    def fake_discover_grok(**kwargs):
+        return {
+            "provider": "grok_search",
+            "source_mode": "grok_search_mcp",
+            "status": "warning",
+            "queries": kwargs["queries"],
+            "records": [
+                {
+                    "source": "grok_search",
+                    "provider": "grok_search",
+                    "title": "Robot Control Paper 1",
+                    "doi": "10.1000/fallback-robot-1",
+                }
+            ],
+            "warnings": ["source_fallback"],
+            "evidence": [],
+            "raw_response_path": str(kwargs["raw_response_path"]),
+            "evidence_path": str(kwargs["evidence_path"]),
+        }
+
+    monkeypatch.setattr("paper_source.orchestrator.discover_grok", fake_discover_grok)
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="robotics control",
+        max_results=None,
+        sources=["semantic"],
+        use_query_plan=False,
+        resume=False,
+    )
+
+    report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    session = report_json["session_recommendations"]
+    assert session["doi_recovery_summary"]["reason"] == "grok_status_not_ok"
+    assert session["doi_recovery_summary"]["recovered_count"] == 0
+    assert session["doi_recovery_summary"]["failed_count"] == 3
+    assert session["primary_recommendations"] == []
+    assert session["doi_filtered_summary"]["total"] == 3

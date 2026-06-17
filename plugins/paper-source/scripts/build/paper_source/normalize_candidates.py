@@ -1,8 +1,142 @@
 from __future__ import annotations
 
+import re
 import urllib.parse
 
 from paper_source.schemas import canonical_key, slugify_title
+
+DOI_PATTERN = re.compile(r"\b10\.\d{4,9}/[^\s\"'<>]+", re.IGNORECASE)
+ARXIV_ID_PATTERN = re.compile(r"(?i)(?:arxiv:\s*|arxiv\.org/(?:abs|pdf)/)?(\d{4}\.\d{4,5}(?:v\d+)?)")
+REPOSITORY_URL_PATTERN = re.compile(
+    r"https?://(?:www\.)?(?:github\.com|gitlab\.com|bitbucket\.org)/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/?",
+    re.IGNORECASE,
+)
+DOI_KEY_ORDER = ["doi", "DOI"]
+URL_KEY_ORDER = [
+    "url",
+    "URL",
+    "link",
+    "landing_page_url",
+    "publisher_url",
+    "pdf_url",
+    "paper_url",
+    "canonical_url",
+    "source_url",
+]
+TEXT_KEY_ORDER = ["abstract", "summary", "snippet", "content", "description"]
+IDENTITY_KEY_ORDER = ["arxiv_id", "paper_id", "id"]
+
+
+def _strip_terminal_punctuation(value: str) -> str:
+    return value.strip().strip(".,;:)]}>")
+
+
+def _clean_doi(value: object) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    text = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^doi:\s*", "", text, flags=re.IGNORECASE)
+    match = DOI_PATTERN.search(text)
+    if match:
+        return _strip_terminal_punctuation(match.group(0))
+    if text.lower().startswith("10."):
+        return _strip_terminal_punctuation(text)
+    return None
+
+
+def _arxiv_base_id(value: object) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = ARXIV_ID_PATTERN.search(text)
+    if not match:
+        return None
+    return re.sub(r"v\d+$", "", match.group(1), flags=re.IGNORECASE)
+
+
+def _arxiv_doi(value: object) -> str | None:
+    base_id = _arxiv_base_id(value)
+    if not base_id:
+        return None
+    return f"10.48550/arXiv.{base_id}"
+
+
+def _iter_known_metadata_values(record: dict) -> list[tuple[str, object]]:
+    values: list[tuple[str, object]] = []
+    for key in DOI_KEY_ORDER + URL_KEY_ORDER + TEXT_KEY_ORDER + IDENTITY_KEY_ORDER:
+        if key in record:
+            values.append((key, record.get(key)))
+    raw_record = record.get("raw_record") if isinstance(record.get("raw_record"), dict) else {}
+    for key in DOI_KEY_ORDER + URL_KEY_ORDER + TEXT_KEY_ORDER + IDENTITY_KEY_ORDER:
+        if key in raw_record:
+            values.append((f"raw_record.{key}", raw_record.get(key)))
+    ids = raw_record.get("ids") if isinstance(raw_record.get("ids"), dict) else {}
+    for key in DOI_KEY_ORDER + URL_KEY_ORDER + ["arxiv"]:
+        if key in ids:
+            values.append((f"raw_record.ids.{key}", ids.get(key)))
+    for location_key in ("primary_location", "best_oa_location"):
+        location = raw_record.get(location_key) if isinstance(raw_record.get(location_key), dict) else {}
+        for key in URL_KEY_ORDER + ["id"]:
+            if key in location:
+                values.append((f"raw_record.{location_key}.{key}", location.get(key)))
+    return values
+
+
+def _doi_from_known_metadata(record: dict) -> tuple[str | None, str | None]:
+    doi = _clean_doi(record.get("doi"))
+    if doi:
+        return doi, "provider_doi"
+    for source, value in _iter_known_metadata_values(record):
+        doi = _clean_doi(value)
+        if doi:
+            return doi, source
+    for source, value in [
+        ("arxiv_id", record.get("arxiv_id")),
+        ("paper_id", record.get("paper_id")),
+        ("id", record.get("id")),
+    ]:
+        doi = _arxiv_doi(value)
+        if doi:
+            return doi, f"arxiv_id:{source}"
+    for source, value in _iter_known_metadata_values(record):
+        doi = _arxiv_doi(value)
+        if doi:
+            return doi, f"arxiv_id:{source}"
+    return None, None
+
+
+def _repository_url_from_known_metadata(record: dict) -> tuple[str | None, str | None]:
+    for key in ("code_url", "repository_url"):
+        value = str(record.get(key) or "").strip()
+        if value:
+            return _strip_terminal_punctuation(value), key
+    for source, value in _iter_known_metadata_values(record):
+        text = str(value or "")
+        match = REPOSITORY_URL_PATTERN.search(text)
+        if match:
+            return _strip_terminal_punctuation(match.group(0)), source
+    return None, None
+
+
+def _enrich_record_metadata(record: dict) -> dict:
+    enriched = dict(record)
+    doi, doi_source = _doi_from_known_metadata(enriched)
+    if doi:
+        enriched["doi"] = doi
+        enriched.setdefault("doi_source", doi_source)
+    code_url, code_source = _repository_url_from_known_metadata(enriched)
+    if code_url and not enriched.get("code_url"):
+        enriched["code_url"] = code_url
+        enriched.setdefault("code_url_source", code_source)
+    if not enriched.get("arxiv_id"):
+        for source, value in _iter_known_metadata_values(enriched):
+            arxiv_id = _arxiv_base_id(value)
+            if arxiv_id:
+                enriched["arxiv_id"] = arxiv_id
+                enriched.setdefault("arxiv_id_source", source)
+                break
+    return enriched
 
 
 def _pdf_url_score(url: str) -> tuple[int, int]:
@@ -178,7 +312,8 @@ def _promote_paper_search_fields(current: dict, record: dict) -> None:
 
 def normalize_candidates(raw_records: list[dict]) -> list[dict]:
     merged: dict[str, dict] = {}
-    for record in raw_records:
+    for raw_record in raw_records:
+        record = _enrich_record_metadata(raw_record)
         key = canonical_key(record)
         record_pdf_urls = _pdf_urls_from_record(record)
         current = merged.setdefault(
@@ -192,10 +327,13 @@ def normalize_candidates(raw_records: list[dict]) -> list[dict]:
                 "venue": record.get("venue") or "",
                 "abstract": record.get("abstract") or "",
                 "doi": record.get("doi"),
+                "doi_source": record.get("doi_source"),
                 "arxiv_id": record.get("arxiv_id"),
+                "arxiv_id_source": record.get("arxiv_id_source"),
                 "pdf_url": record_pdf_urls[0] if record_pdf_urls else record.get("pdf_url"),
                 "pdf_urls": record_pdf_urls,
                 "code_url": record.get("code_url"),
+                "code_url_source": record.get("code_url_source"),
                 "citation_count": _record_citation_count(record),
                 "citation_count_source": _record_citation_source(record),
                 "citation_count_status": _citation_status(_record_citation_source(record)),
@@ -225,6 +363,10 @@ def normalize_candidates(raw_records: list[dict]) -> list[dict]:
         _promote_paper_search_fields(current, record)
         if not current.get("code_url") and record.get("code_url"):
             current["code_url"] = record.get("code_url")
+            current["code_url_source"] = record.get("code_url_source")
+        if not current.get("doi") and record.get("doi"):
+            current["doi"] = record.get("doi")
+            current["doi_source"] = record.get("doi_source")
         record_citations = _record_citation_count(record)
         record_citation_source = _record_citation_source(record)
         if record_citation_source and (

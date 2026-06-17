@@ -71,6 +71,10 @@ def _doi_payload(candidate: dict[str, Any]) -> dict[str, str | None]:
     return {"value": doi, "display": doi, "status": "present"}
 
 
+def _has_present_doi(candidate: dict[str, Any]) -> bool:
+    return _doi_payload(candidate)["status"] == "present"
+
+
 def _doi_url(doi: str | None) -> str | None:
     if not doi:
         return None
@@ -358,6 +362,45 @@ def _existing_library_appendix(rejected: list[dict[str, Any]]) -> list[dict[str,
     return appendix
 
 
+def _doi_filtered_items(candidates: list[dict[str, Any]], *, surface: str) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for candidate in candidates:
+        doi = _doi_payload(candidate)
+        if doi["status"] == "present":
+            continue
+        items.append(
+            {
+                "slug": candidate.get("slug"),
+                "title": candidate.get("title"),
+                "venue": candidate.get("venue"),
+                "year": candidate.get("year"),
+                "score": candidate.get("score"),
+                "quality_tier": _quality_tier(candidate),
+                "ranking_decision": _decision(candidate),
+                "primary_url": _primary_url(candidate, None),
+                "arxiv_id": candidate.get("arxiv_id"),
+                "surface": surface,
+                "reason": "missing_required_doi",
+                "doi_status": doi["status"],
+            }
+        )
+    return items
+
+
+def _doi_resolution_bucket(candidates: list[dict[str, Any]]) -> dict[str, Any]:
+    present = [candidate for candidate in candidates if _has_present_doi(candidate)]
+    sources = Counter(_text(candidate.get("doi_source")) or "unspecified" for candidate in present)
+    return {
+        "considered": len(candidates),
+        "success": len(present),
+        "failed": len(candidates) - len(present),
+        "success_sources": [
+            {"source": source, "count": count}
+            for source, count in sorted(sources.items(), key=lambda item: (-item[1], item[0]))
+        ],
+    }
+
+
 def build_session_recommendations(
     ranked: list[dict[str, Any]],
     rejected: list[dict[str, Any]],
@@ -374,13 +417,28 @@ def build_session_recommendations(
     primary_candidates = _apply_paper_search_anchor_gate(
         [candidate for candidate in ranked if _is_primary_candidate(candidate)]
     )
-    primary_shown = primary_candidates[:primary_limit]
+    primary_doi_filtered = _doi_filtered_items(primary_candidates, surface="primary_recommendations")
+    primary_candidates_with_doi = [candidate for candidate in primary_candidates if _has_present_doi(candidate)]
+    primary_shown = primary_candidates_with_doi[:primary_limit]
     primary_ids = {id(candidate) for candidate in primary_shown}
-    appendix_candidates = [
+    appendix_candidates_before_doi = [
         candidate
         for candidate in ranked
         if id(candidate) not in primary_ids and _is_review_appendix_candidate(candidate)
     ]
+    appendix_doi_filtered = _doi_filtered_items(appendix_candidates_before_doi, surface="review_appendix")
+    appendix_candidates = [candidate for candidate in appendix_candidates_before_doi if _has_present_doi(candidate)]
+    doi_resolution = {
+        "primary_recommendations": _doi_resolution_bucket(primary_candidates),
+        "review_appendix": _doi_resolution_bucket(appendix_candidates_before_doi),
+    }
+    doi_resolution["total"] = {
+        "considered": doi_resolution["primary_recommendations"]["considered"]
+        + doi_resolution["review_appendix"]["considered"],
+        "success": doi_resolution["primary_recommendations"]["success"]
+        + doi_resolution["review_appendix"]["success"],
+        "failed": doi_resolution["primary_recommendations"]["failed"] + doi_resolution["review_appendix"]["failed"],
+    }
 
     primary_recommendations = [
         _recommendation_item(candidate, manual_card=_manual_card_for(candidate, manual_cards))
@@ -402,15 +460,25 @@ def build_session_recommendations(
             "producer": "calling_agent",
             "source": "original_abstract",
         },
+        "doi_required_policy": {
+            "required_for": ["primary_recommendations", "review_appendix"],
+            "missing_reason": "missing_required_doi",
+        },
         "primary_limit": primary_limit,
         "primary_recommendations": primary_recommendations,
         "review_appendix": review_appendix,
         "existing_library_appendix": _existing_library_appendix(rejected),
         "verification_summary": _verification_summary(primary_recommendations),
         "rejected_summary": _rejected_summary(rejected),
+        "doi_recovery_summary": discovery_context.get("doi_recovery") or {},
+        "doi_resolution_summary": doi_resolution,
+        "doi_filtered_summary": {
+            "total": len(primary_doi_filtered) + len(appendix_doi_filtered),
+            "items": [*primary_doi_filtered, *appendix_doi_filtered],
+        },
         "overflow": {
-            "primary_total": len(primary_candidates),
-            "hidden_count": max(0, len(primary_candidates) - len(primary_recommendations)),
+            "primary_total": len(primary_candidates_with_doi),
+            "hidden_count": max(0, len(primary_candidates_with_doi) - len(primary_recommendations)),
             "full_artifact": "report.json",
         },
         "source_artifacts": {

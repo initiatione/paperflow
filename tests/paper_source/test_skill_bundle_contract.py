@@ -453,10 +453,18 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     assert "session_recommendations.primary_recommendations" in output_format
     assert "session_recommendations.review_appendix" in output_format
     assert "session_recommendations.existing_library_appendix" in output_format
+    assert "session_recommendations.doi_recovery_summary" in output_format
+    assert "session_recommendations.doi_resolution_summary" in output_format
+    assert "session_recommendations.doi_filtered_summary" in output_format
     assert "session_recommendations.verification_summary" in output_format
     assert "session_recommendations.overflow.hidden_count" in output_format
-    assert "already-in-library papers into the primary list" in output_format
+    assert "already-in-library" in output_format
+    assert "DOI-missing papers into the primary list" in output_format
     assert "never call those items recommendations" in output_format
+    assert "新增待复核候选" in output_format
+    assert "库中已有，可回看" in output_format
+    assert "missing_required_doi" in output_format
+    assert "DOI待补" in output_format
     assert "doi_url" in output_format
     assert "primary_url" in output_format
     assert "citation_count_source" in output_format
@@ -467,6 +475,9 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     search_protocol = (SKILLS / "paper-discovery" / "references" / "search-protocol.md").read_text(encoding="utf-8")
     assert "must not be recommended again" in search_protocol
     assert "priority topic-fit weight" in search_protocol
+    assert "10.48550/arXiv.<base_id>" in search_protocol
+    assert "targeted DOI recovery" in search_protocol
+    assert "provider_records.grok_search.status=ok" in search_protocol
 
 
 def test_paper_source_paper_deposition_is_thin_handoff_cleanup_entry():
