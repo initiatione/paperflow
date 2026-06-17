@@ -14,6 +14,7 @@ CHINESE_TEXT = re.compile(r"[\u4e00-\u9fff]")
 CATEGORIES = {"primary", "support", "maintenance", "compatibility"}
 MAX_ENTRYPOINT_LINES = 90
 MAX_DESCRIPTION_LINES = 25
+MAX_PLUGIN_SCRIPT_LINES = 2000
 WORKFLOW_SKILLS = {
     "paper-discovery",
     "paper-ingest",
@@ -324,6 +325,16 @@ def test_paper_discovery_query_planner_wrapper_imports_current_runtime_package()
 
 def test_paper_source_runtime_does_not_ship_retired_epi_import_package():
     assert not (BUILD_ROOT / "epi").exists()
+
+
+def test_paper_source_plugin_scripts_stay_below_line_limit():
+    oversized = []
+    for path in sorted((ROOT / "scripts").rglob("*.py")):
+        line_count = len(path.read_text(encoding="utf-8").splitlines())
+        if line_count > MAX_PLUGIN_SCRIPT_LINES:
+            oversized.append(f"{path.relative_to(REPO_ROOT)}: {line_count}")
+
+    assert oversized == []
 
 
 def test_all_skill_entrypoints_stay_thin():
