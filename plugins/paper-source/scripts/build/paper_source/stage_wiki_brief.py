@@ -645,7 +645,7 @@ def _build_wiki_ingest_brief(
             "executor_policy": "Claude, Codex, or any other wiki-capable agent may perform the final write if they respect the same contract.",
             "merge_policy": "Search existing pages first; update or merge before creating duplicates.",
             "staged_writes_policy": "Respect the target vault staged-write convention when present.",
-            "provenance_policy": "Keep extracted, inferred, and ambiguous claims distinguishable; use wiki-provenance and tag-taxonomy together.",
+            "provenance_policy": "Keep extracted, inferred, and ambiguous claims distinguishable; preserve provenance labels and maintain tag/alias taxonomy.",
             "formal_page_policy": (
                 "Use the seven Paper Wiki research page families as appropriate: "
                 + ", ".join(formal_page_family_paths())
