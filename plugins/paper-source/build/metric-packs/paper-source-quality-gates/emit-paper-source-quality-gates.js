@@ -49,7 +49,7 @@ function check(id, message, passed, evidence, remediation) {
 
 const corpus = readCorpus(targetPath);
 const hasRunState = corpus.includes("run-state.json");
-const hasCriticGate = corpus.includes("critic") && (corpus.includes("gate") || corpus.includes("promote-to-wiki"));
+const hasCriticGate = corpus.includes("critic") && corpus.includes("gate");
 const hasNoCriticNoWrite = corpus.includes("no critic pass, no compiled wiki write");
 const hasRawRetention = corpus.includes("paper.pdf") && corpus.includes("metadata.json");
 const hasDevelopmentQualityLoop = (
@@ -81,7 +81,7 @@ const checks = [
     "paper-source-critic-gate-contract",
     "Paper Source must represent a critic gate before compiled wiki promotion.",
     hasCriticGate,
-    hasCriticGate ? ["Found critic gate or promote-to-wiki contract text."] : ["Missing critic gate contract text."],
+    hasCriticGate ? ["Found critic gate contract text."] : ["Missing critic gate contract text."],
     ["Add critic gate routing, state, documentation, and tests before compiled wiki writes exist."]
   ),
   check(

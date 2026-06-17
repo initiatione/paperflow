@@ -259,7 +259,7 @@ def _is_ready_to_promote(entry):
     if isinstance(after, dict) and after.get("warning_count", 0):
         return False
     return any(
-        action in {"promote-to-wiki", "promote-after-approval", "run-wiki-ingest-agent"}
+        action in {"run-wiki-ingest-agent"}
         for action in _next_actions(entry)
     )
 
@@ -567,34 +567,6 @@ def _record_human_approval_action_command(vault_path, slug):
     return " ".join(args)
 
 
-def _promote_action_command(vault_path, slug):
-    args = [
-        "python",
-        r"scripts\orchestrator.py",
-        "promote-to-wiki",
-        "--slug",
-        slug,
-        "--approved-by",
-        "<name>",
-        "--vault",
-        str(Path(vault_path).resolve()),
-    ]
-    return " ".join(args)
-
-
-def _paper_gate_allows_promotion(item):
-    gate_summary = item.get("paper_gate")
-    if not isinstance(gate_summary, dict):
-        return False
-    action_required_checks = set(gate_summary.get("action_required_checks") or [])
-    return (
-        gate_summary.get("conclusion") == "action_required"
-        and gate_summary.get("next_action") == "promote-to-wiki"
-        and not gate_summary.get("failure_checks")
-        and action_required_checks == {"human-approval"}
-    )
-
-
 def _paper_gate_allows_wiki_ingest(item):
     gate_summary = item.get("paper_gate")
     if not isinstance(gate_summary, dict):
@@ -657,14 +629,6 @@ def _recommended_actions(bucket, item, vault_path):
                 "human_gate_required": True,
             }
         ]
-        if _paper_gate_allows_promotion(item):
-            actions.append(
-                {
-                    "action": "promote-to-wiki",
-                    "command": _promote_action_command(vault_path, slug),
-                    "human_gate_required": True,
-                }
-            )
         if _paper_gate_allows_wiki_ingest(item):
             actions.append(
                 {

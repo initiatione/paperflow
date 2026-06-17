@@ -153,7 +153,7 @@ def test_refresh_run_index_enriches_ready_queue_with_paper_gate(tmp_path):
             "finished_at": "2026-05-29T10:05:00Z",
         },
         report={
-            "next_actions": ["promote-to-wiki"],
+            "next_actions": ["run-wiki-ingest-agent"],
             "human_gate": {"status": "required"},
         },
     )
@@ -189,7 +189,7 @@ def test_refresh_run_index_marks_ready_queue_reason_blocked_when_current_paper_g
             "finished_at": "2026-05-29T10:15:00Z",
         },
         report={
-            "next_actions": ["promote-to-wiki"],
+            "next_actions": ["run-wiki-ingest-agent"],
             "human_gate": {"status": "required"},
         },
     )
@@ -229,7 +229,7 @@ def test_refresh_run_index_writes_sorted_index_entries(tmp_path):
         "20260528T100000Z-promote",
         run_state={
             "run_id": "20260528T100000Z-promote",
-            "workflow_type": "promote-to-wiki",
+            "workflow_type": "run-wiki-ingest-agent",
             "state": "promoted",
             "status": "succeeded",
             "paper_slug": "paper-a",
@@ -289,7 +289,7 @@ def test_refresh_run_index_writes_sorted_index_entries(tmp_path):
         "workflow_counts": {
             "advance-batch": 1,
             "advance-ranked": 1,
-            "promote-to-wiki": 1,
+            "run-wiki-ingest-agent": 1,
             "redo-read": 1,
         },
         "status_counts": {
@@ -317,9 +317,9 @@ def test_refresh_run_index_writes_sorted_index_entries(tmp_path):
             "next_actions": ["await-human-approval"],
             "human_gate": {"status": "pending"},
         },
-        "promote-to-wiki": {
+        "run-wiki-ingest-agent": {
             "run_id": "20260528T100000Z-promote",
-            "workflow_type": "promote-to-wiki",
+            "workflow_type": "run-wiki-ingest-agent",
             "state": "promoted",
             "status": "succeeded",
             "paper_slug": "paper-a",
@@ -349,7 +349,7 @@ def test_refresh_run_index_writes_sorted_index_entries(tmp_path):
 
     assert entries[1] == {
         "run_id": "20260528T100000Z-promote",
-        "workflow_type": "promote-to-wiki",
+        "workflow_type": "run-wiki-ingest-agent",
         "state": "promoted",
         "status": "succeeded",
         "paper_slug": "paper-a",
@@ -380,7 +380,7 @@ def test_refresh_run_index_writes_dashboard_and_skips_broken_runs(tmp_path):
             "finished_at": "2026-05-28T12:08:00Z",
         },
         report={
-            "next_actions": ["promote-after-approval"],
+            "next_actions": ["run-wiki-ingest-agent"],
             "human_gate": {"status": "required"},
         },
     )
@@ -406,7 +406,7 @@ def test_refresh_run_index_writes_dashboard_and_skips_broken_runs(tmp_path):
         "20260528T113000Z-promote",
         run_state={
             "run_id": "20260528T113000Z-promote",
-            "workflow_type": "promote-to-wiki",
+            "workflow_type": "run-wiki-ingest-agent",
             "state": "promoted",
             "status": "succeeded",
             "paper_slug": "paper-a",
@@ -438,7 +438,7 @@ def test_refresh_run_index_writes_dashboard_and_skips_broken_runs(tmp_path):
     assert "## Recent Runs" in dashboard_text
     assert "- total runs: 3" in dashboard_text
     assert "- advance-ranked: 1" in dashboard_text
-    assert "- promote-to-wiki: 1" in dashboard_text
+    assert "- run-wiki-ingest-agent: 1" in dashboard_text
     assert "- recritic: 1" in dashboard_text
 
     needs_attention = dashboard_text.split("## Needs Attention", 1)[1].split("## Runs By Workflow", 1)[0]
@@ -456,7 +456,7 @@ def test_refresh_run_index_writes_dashboard_and_skips_broken_runs(tmp_path):
 
     latest_success_by_workflow = dashboard_text.split("## Latest Success By Workflow", 1)[1].split("## Runs By Workflow", 1)[0]
     assert "advance-ranked" in latest_success_by_workflow
-    assert "promote-to-wiki" in latest_success_by_workflow
+    assert "run-wiki-ingest-agent" in latest_success_by_workflow
     assert latest_success_by_workflow.index("20260528T120000Z-ranked") < latest_success_by_workflow.index("20260528T113000Z-promote")
 
     recent_runs = dashboard_text.split("## Recent Runs", 1)[1]
@@ -556,7 +556,7 @@ def test_refresh_run_index_surfaces_zotero_results_in_index_and_dashboard(tmp_pa
         "20260528T121000Z-promote",
         run_state={
             "run_id": "20260528T121000Z-promote",
-            "workflow_type": "promote-to-wiki",
+            "workflow_type": "run-wiki-ingest-agent",
             "state": "promoted",
             "status": "success",
             "paper_slug": "paper-b",
@@ -601,7 +601,7 @@ def test_refresh_run_index_writes_research_queue_from_decisions_revision_plans_a
             "finished_at": "2026-05-28T14:05:00Z",
         },
         report={
-            "next_actions": ["promote-to-wiki"],
+            "next_actions": ["run-wiki-ingest-agent"],
             "human_gate": {"status": "required"},
         },
     )
@@ -714,7 +714,7 @@ def test_refresh_run_index_treats_waiting_human_gate_as_ready_not_failed(tmp_pat
             "finished_at": "2026-05-28T14:45:00Z",
         },
         report={
-            "next_actions": ["promote-to-wiki"],
+            "next_actions": ["run-wiki-ingest-agent"],
             "human_gate": {"status": "required"},
         },
     )
@@ -786,7 +786,7 @@ def test_refresh_run_index_does_not_write_research_agenda_outputs(tmp_path):
             "finished_at": "2026-05-28T15:05:00Z",
         },
         report={
-            "next_actions": ["promote-to-wiki"],
+            "next_actions": ["run-wiki-ingest-agent"],
             "human_gate": {"status": "required"},
             "research_decisions": [
                 {
@@ -892,7 +892,7 @@ def test_refresh_run_index_writes_empty_filtered_views_when_no_matches(tmp_path)
         "20260528T130000Z-promote",
         run_state={
             "run_id": "20260528T130000Z-promote",
-            "workflow_type": "promote-to-wiki",
+            "workflow_type": "run-wiki-ingest-agent",
             "state": "promoted",
             "status": "succeeded",
             "paper_slug": "paper-z",

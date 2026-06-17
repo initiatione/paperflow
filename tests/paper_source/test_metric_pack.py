@@ -12,7 +12,7 @@ def test_paper_source_metric_pack_checks_core_workflow_contracts(tmp_path):
     (docs / "workflow.md").write_text(
         "The orchestrator writes run-state.json. "
         "No critic pass, no compiled wiki write. "
-        "The critic gate must pass before promote-to-wiki. "
+        "The critic gate must pass before wiki ingest. "
         "Raw artifacts include paper.pdf and metadata.json. "
         "Plugin Eval runs with the paper-source-quality-gates metric pack, then evaluation-brief creates "
         "the improvement brief for propose-evolution. "

@@ -1522,7 +1522,7 @@ def advance_paper_batch(
     failed = any(result["state"].endswith("_failed") for result in results)
     awaiting_promotion = any(
         result.get("human_gate_required")
-        and result.get("next_action") in {"promote-to-wiki", "run-wiki-ingest-agent"}
+        and result.get("next_action") in {"run-wiki-ingest-agent"}
         for result in results
     )
     if failed:

@@ -5,7 +5,7 @@ import pytest
 
 from paper_source.orchestrator import main, record_human_approval
 from paper_source.report_run import load_run_report
-from paper_source.run_index import _paper_gate_allows_promotion, refresh_run_index
+from paper_source.run_index import _paper_gate_allows_wiki_ingest, refresh_run_index
 from paper_source.stage_wiki import _build_wiki_ingest_brief
 from paper_source.wiki_contracts import required_wiki_skills
 
@@ -235,12 +235,12 @@ def test_report_cli_json_returns_paths_and_report_payload(tmp_path, monkeypatch,
     run_dir = _seed_run(
         runs_root,
         "20260528T121000Z-report",
-        workflow_type="promote-to-wiki",
+        workflow_type="run-wiki-ingest-agent",
         state="promoted",
         status="success",
         paper_slug="paper-b",
         report_extra={
-            "workflow_type": "promote-to-wiki",
+            "workflow_type": "run-wiki-ingest-agent",
             "run_id": "20260528T121000Z-report",
             "zotero_results": {"status": "recorded", "collection": "Paper Source"},
         },
@@ -264,9 +264,9 @@ def test_report_cli_json_returns_paths_and_report_payload(tmp_path, monkeypatch,
     assert payload["artifacts"]["report"] == str(run_dir / "report.md")
     assert payload["artifacts"]["report_json"] == str(run_dir / "report.json")
     assert payload["artifacts"]["run_state"] == str(run_dir / "run-state.json")
-    assert payload["run_state"]["workflow_type"] == "promote-to-wiki"
+    assert payload["run_state"]["workflow_type"] == "run-wiki-ingest-agent"
     assert payload["run_state"]["state"] == "promoted"
-    assert payload["report"]["workflow_type"] == "promote-to-wiki"
+    assert payload["report"]["workflow_type"] == "run-wiki-ingest-agent"
     assert payload["report"]["zotero_results"]["status"] == "recorded"
     assert payload["markdown"] == "# Promotion Report\n"
 
@@ -476,7 +476,7 @@ def test_research_queue_cli_actions_blocks_promotion_when_gate_requires_non_huma
         state="staging_ready",
         status="waiting_for_human_gate",
         paper_slug=slug,
-        next_actions=["promote-to-wiki"],
+        next_actions=["run-wiki-ingest-agent"],
         human_gate={"status": "required"},
     )
     refresh_run_index(vault)
@@ -632,12 +632,12 @@ def test_research_queue_cli_actions_can_resume_from_human_approval_run(tmp_path,
 
 
 def test_research_queue_does_not_promote_when_gate_action_required_checks_are_missing():
-    assert not _paper_gate_allows_promotion(
+    assert not _paper_gate_allows_wiki_ingest(
         {
             "paper_slug": "malformed-gate-paper",
             "paper_gate": {
                 "conclusion": "action_required",
-                "next_action": "promote-to-wiki",
+                "next_action": "run-wiki-ingest-agent",
                 "failure_checks": [],
                 "action_required_checks": [],
             },
@@ -651,7 +651,7 @@ def test_runs_query_failed_filters_failed_runs_only(tmp_path, monkeypatch, capsy
     _seed_run(
         runs_root,
         "20260528T100000Z-promote",
-        workflow_type="promote-to-wiki",
+        workflow_type="run-wiki-ingest-agent",
         state="promoted",
         status="succeeded",
         paper_slug="paper-a",
@@ -728,7 +728,7 @@ def test_runs_query_human_gate_filters_pending_runs(tmp_path, monkeypatch, capsy
         state="staging_ready",
         status="succeeded",
         paper_slug="paper-c",
-        next_actions=["promote-after-approval"],
+        next_actions=["run-wiki-ingest-agent"],
         human_gate={"status": "required"},
     )
     _seed_run(
@@ -755,7 +755,7 @@ def test_runs_query_latest_success_returns_only_latest_successful_workflow_run(t
     _seed_run(
         runs_root,
         "20260528T090000Z-promote-old",
-        workflow_type="promote-to-wiki",
+        workflow_type="run-wiki-ingest-agent",
         state="promoted",
         status="succeeded",
         paper_slug="paper-old",
@@ -763,7 +763,7 @@ def test_runs_query_latest_success_returns_only_latest_successful_workflow_run(t
     _seed_run(
         runs_root,
         "20260528T110000Z-promote-new",
-        workflow_type="promote-to-wiki",
+        workflow_type="run-wiki-ingest-agent",
         state="promoted",
         status="succeeded",
         paper_slug="paper-new",
@@ -777,7 +777,7 @@ def test_runs_query_latest_success_returns_only_latest_successful_workflow_run(t
         "--vault",
         str(vault),
         "--latest-success",
-        "promote-to-wiki",
+        "run-wiki-ingest-agent",
     )
 
     assert exit_code == 0
@@ -831,7 +831,7 @@ def test_research_queue_cli_filters_bucket_and_shows_checks(tmp_path, monkeypatc
         state="staged",
         status="succeeded",
         paper_slug="ready-paper",
-        next_actions=["promote-to-wiki"],
+        next_actions=["run-wiki-ingest-agent"],
         human_gate={"status": "required"},
     )
     _seed_run(

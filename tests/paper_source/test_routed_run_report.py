@@ -20,7 +20,7 @@ def test_write_report_emits_routed_run_fields_and_markdown_shape(tmp_path):
             "title": "Embodied Control for Mobile Robots",
             "state": "staging_ready",
             "last_action": "critic",
-            "next_action": "promote-to-wiki",
+            "next_action": "run-wiki-ingest-agent",
             "human_gate_required": True,
         },
         {

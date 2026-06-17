@@ -650,3 +650,15 @@ def test_paper_source_formal_deposition_route_is_handoff_cleanup():
     assert deposition["skill"] == "paper-source-paper-deposition/SKILL.md"
     assert "$paper-research-wiki" in "\n".join(deposition.get("notes", []))
     assert "epi-wiki-deposition" not in "\n".join(map(str, deposition.get("triggers", [])))
+
+
+def test_discover_to_handoff_has_single_route_owner():
+    routing = _load_routing()
+    routes = routing["routes"]
+
+    owners = [
+        name
+        for name, route in routes.items()
+        if "discover-to-handoff" in route.get("triggers", [])
+    ]
+    assert owners == ["paper_ingest"], owners

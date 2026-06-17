@@ -169,12 +169,12 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.3.8"
+    assert manifest["version"] == "2.3.9"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.8 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.9 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "cross-discipline quality gates" in manifest["interface"]["shortDescription"]
     assert "record" in manifest["interface"]["shortDescription"]
