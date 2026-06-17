@@ -1,107 +1,204 @@
 # PaperFlow
 
-本仓库是 PaperFlow 的 Codex 插件市场源。PaperFlow 是一个捆绑发布的论文知识流产品，当前包含两个可协作、也可单独安装的插件：Paper Source 和 Paper Wiki。
+中文 README 是默认入口；英文版见 [README.en.md](README.en.md)。
 
-命名说明：bundle marketplace 机器名是 `paperflow`，两个插件机器名是 `paper-source` / `paper-wiki`。`paper-search` 只保留为仓库 URL、外部 `paper-search-mcp` / `paper-search` CLI 名称和历史安装缓存线索；旧别名不再作为用户入口、路由触发条件或新 artifact 合同。PS/PW 仍允许作为自然语言别名和触发短语，不属于旧别名禁用范围。
+PaperFlow 是一个 Codex 插件市场 bundle，用于 evidence-first 的学术论文工作流。它帮助 agent 从论文发现进入 source bundle、人工确认的 handoff artifact，再进入正式 Obsidian/LLM wiki 页面，同时保持“来源准备”和“正式写入”的职责边界清晰。
 
-## Paper Source 是什么
+当前 bundle 包含两个协作插件：
 
-Paper Source 是通用论文智能工作流插件，不默认绑定某个学科方向。它围绕用户画像、当前研究问题、领域关键词、排除词、venue prior 和质量门控来运行，目标是把高质量论文从检索候选推进到可沉淀的证据包。
+| 插件 | Machine name | 当前源码版本 | 职责 |
+| --- | --- | ---: | --- |
+| Paper Source | `paper-source` | `2.3.11` | 发现、排序、获取、解析、审计、staging、approval 和 record 论文证据。 |
+| Paper Wiki | `paper-wiki` | `1.0.3` | 面向正式论文 wiki 的问答、沉淀、检测、更新、重 link、重做和维护。 |
 
-复杂自然语言论文主题先由 agent 形成透明 query plan，再通过 Paper Source `dry-run --query-variant` 或 `--agent-query-plan-json` 传给 paper-search MCP；`hard_domain_anchors` / `--domain-focus-term`、`soft_recall_terms`、`--year-min`、`--code-policy` 和 `--selection-policy` 分别表达硬锚点、软召回、近期范围、公开代码偏好/要求和推荐推进策略。脚本验证、记录和执行这些显式字段，不把 AUV、医学、材料等具体学科语义写死成全局规则。
+`paperflow` 是 marketplace bundle 名。`paper-search` 只保留为仓库/历史名称，以及外部 `paper-search-mcp` 或 `paper-search` CLI 集成名。`PS` 和 `PW` 只是自然语言短称，不是独立插件或 skill 名称。
 
-用户口语别名：PS。PS 只是自然语言别名，不是 `$PS` 入口，也不是独立插件名。Paper Source 当前 machine-facing name 是 `paper-source`。
+## 为什么是 PaperFlow？
 
-A general academic paper intelligence workflow: it searches, ranks, preserves, parses, reads, critic-checks, stages, reports, and hands papers to an agent-mediated Obsidian/LLM Wiki ingest flow.
+PaperFlow 面向“找到论文还不够”的研究流程。它保留 source evidence，让 query、ranking、quality gate 和 handoff 决策可审计；它要求 human approval 显式存在；它也避免让论文检索、PDF 解析、正式 wiki 写页和 record 混在一个不可追踪的脚本里。
 
-MinerU parsing is an internal Paper Source helper capability, not as a separate marketplace plugin; in other words, it is not a separate marketplace plugin.
+推荐主链路：
 
-## Paper Wiki 是什么
+```text
+Paper Source discovery
+  -> source bundle and reader/critic evidence
+  -> source-staging and human approval
+  -> wiki-ingest-brief.json
+  -> Paper Wiki formal pages and post-task checks
+  -> Paper Source record-wiki-ingest
+```
 
-Paper Wiki 不是论文检索器，而是 Paper Source 之后的正式论文 wiki 写入、问答和维护层：读取 Paper Source source bundle、handoff、source review 和正式 wiki 图谱，按目标 vault contract 回答研究问题、写入或修复正式页面，并处理检测、更新、重做、重link、语言 gate、tracking 文件和 QMD 兼容检查。
+## 能力概览
 
-用户口语别名：PW。PW 只是自然语言别名，不是 `$PW` 入口，也不是独立插件名。Paper Wiki 当前 machine-facing name 是 `paper-wiki`。
+Paper Source 负责 source/evidence 层：
 
-Paper Wiki exposes one user-facing paper wiki assistant for read-only wiki Q&A, source-map-grounded deposition, wiki checks, updates, relinking, and redo/deep extraction. Paper Source remains responsible for discovery, acquisition, MinerU parsing, paper gate, human approval, and record-only completion.
+- 通过 `discover-papers` 处理 profile-driven 和自然语言论文发现。
+- 生成透明 query plan、hard/soft constraints、source coverage report、DOI-required chat recommendations 和跨学科 quality gates。
+- 使用 Paper Wiki `_meta/reference-index.json` 做已沉淀/已收集论文去重。
+- 支持 PDF 获取、manual-download card、MinerU 解析、asset normalization、evidence index、reader output、critic checks 和 source bundle audit。
+- 对主推荐论文做安全 auto-staging，默认停在 source-staging，不自动写 approval 或正式 wiki 页面。
+- 生成 `paper-gate`、`record-human-approval`、`wiki-ingest-trigger` 和 `record-wiki-ingest` 相关 artifact，用于可审计 handoff 和完成记录。
+- 通过 `wiki-setup` 初始化或修复目标 vault contract。
+- 可选接入 Grok supplemental discovery、EasyScholar 指标、Zotero sidecar 和各类 paper-search provider credentials。
 
-## 工作链路
+MinerU 解析是 Paper Source 的内部辅助能力，不是独立 marketplace 插件。
 
-Paper Source 的核心链路是 profile-driven high-quality paper collection -> source-first paper bundle -> reader/critic review -> staging -> human approval -> wiki handoff -> provenance record。
-Paper Wiki 的核心链路是 Paper Source handoff -> wiki state check 或 read-only wiki ask -> formal page write/update/redo/relink -> provenance/language/QMD check -> Paper Source record readiness report。
+Paper Wiki 负责 formal wiki 层：
 
-链路含义如下：
+- 公开 conversational assistant 是 `paper-research-wiki`，用于问论文 wiki、沉淀 Paper Source handoff、检测库状态、更新页面、重 link、redo/deep extraction 和图/公式证据维护。
+- `paper-wiki-language` 是正式页语言质量 gate，是支持能力，不是另一个公开主助手。
+- 按 source map 写入和维护正式页面族：`references/`、`concepts/`、`derivations/`、`experiments/`、`synthesis/`、`reports/` 和 `opportunities/`。
+- 完成后检查 provenance、语言、links、tags、aliases、`_meta/reference-index.json`、配置了 QMD 时的 freshness，以及 Paper Source record readiness。
 
-- 画像驱动检索：根据研究画像、当前问题和领域配置生成透明 query plan；复杂主题由 agent 提供 `query variants`、hard/soft constraints 和 provenance，避免把插件固定成单一学科工具。
-- 论文候选排序：按主题相关性、来源质量、论文类型、指标证据和可复现性线索筛选候选。
-- source-first 保存：优先保留 PDF、metadata、MinerU Markdown、TeX、图片和 manifest，缺关键来源时不进入正式 wiki。
-- 解析与阅读：用 MinerU 解析论文，再生成结构化阅读、证据地址和 claim-support 信息。
-- critic 复核：对论文身份、方法证据、公式/图表支撑、实验指标、SOTA/性能声明和局限性进行可靠性检查。
-- staging 与人工确认：先进入 Paper Source staging 和 gate 记录，由人工确认是否继续沉淀。
-- wiki handoff：把通过 gate 的论文交给 Paper Wiki / Obsidian / LLM Wiki 写作链路，正式正文默认中文，英文仅保留题名、术语、缩写、证据字段和路径。
-- provenance record：记录 final-source-review、页面 hash、artifact hash、source bundle 状态和写入生命周期，确保后续可审计。
+Paper Source 的 `wiki-ask` 和 `wiki-query` 是程序化 fallback 或 diagnostics 入口。普通对话式论文 wiki 问答优先走 Paper Wiki `paper-research-wiki`。
 
-## 功能范围
+## 职责边界
 
-- 学术论文发现、候选排序和研究队列维护。
-- PDF 获取、metadata 固化、MinerU 解析和 source bundle 完整性审计。
-- reader 输出、claim-support、evidence map 和 critic quorum。
-- paper gate、human approval、wiki-ingest handoff、wiki-ingest trigger 和最终 record。
-- Obsidian/LLM Wiki 目录初始化、graph 可见性修复、formal 页面语言策略和 provenance 约束。
-- run lifecycle、dashboard、研究队列、Zotero 同步和质量演化建议。
-- Paper Source `wiki-ask` 只读查询：从正式论文 wiki graph 检索，标记 wiki 证据、综合判断、推断、不确定性和纠错候选。
-- Paper Source `discover-to-handoff`：一条命令串联 discovery 和 source-staging，写 summary run，但不记录 human approval、不调用 Paper Wiki、不写正式页面。
-- 基于 skill-based architecture 的轻量路由：插件根入口保持 thin shell，具体任务交给 skill 与模块化脚本，独立子任务可在用户授权后交由 Codex subagents 完成。
-- Paper Wiki 正式 wiki 侧闭环：根据 wiki 提问、提取 Paper Source 论文、检测 wiki 库、更新正式页、重做/更详细提取、重link、修复 tracking/QMD surface，并把剩余 Paper Source `record-wiki-ingest` 动作报告清楚。
+这些边界属于项目 contract：
 
-## 依赖
+- Paper Source 不写正式 wiki 页面。
+- Paper Wiki 不负责论文 discovery、PDF acquisition、MinerU parsing、Paper Source approval record 或替换 `wiki-ingest-record.json`。
+- `wiki-ingest-brief.json` 是当前 Paper Source -> Paper Wiki 的 canonical handoff。历史 `wiki_deposition_task.json` 只用于 cleanup，不是新的用户路径。
+- `paper-wiki-language` 是 supporting language gate，不是和 `paper-research-wiki` 竞争的公开助手。
+- 外部 wiki helper skills 是 optional helpers / policy references，不是 runtime-required dependencies。
+- 源码 checkout 验证不等于 installed runtime 验证。Marketplace refresh、reinstall 和 installed-cache verification 必须分开报告。
 
-Paper Source 依赖以下能力，但安装插件本身不要求一次性全部配置完成：
+## 安装
 
-- Codex 插件市场：用于发现、安装和更新 Paper Source。
-- paper-search：用于学术论文搜索、候选返回和可选下载能力。
-- MinerU：用于 PDF 到 Markdown、TeX、图片和 manifest 的解析。
-- Paper Source vault config：保存研究画像、领域、正负关键词、venue prior、预算和人工确认策略。
-- Obsidian 或 LLM Wiki vault：承载 source-first deposition、Paper Wiki formal wiki 页面和 provenance record。
-- Zotero：可选，用于文献库同步和后续引用管理。
+在 Codex Desktop 中把本仓库添加为 plugin marketplace source：
 
-外部依赖缺失时，Paper Source 应以 warning 方式提示可补配置项；插件结构损坏才属于安装级错误。
+1. 打开 Plugin Marketplaces。
+2. 添加 marketplace source：
 
-## 结构
+   ```text
+   https://github.com/initiatione/paperflow
+   ```
 
-仓库根目录承担插件市场源和发布说明职责。Paper Source 插件主体位于 `plugins/paper-source/`，Paper Wiki 插件主体位于 `plugins/paper-wiki/`。
+3. Git ref 使用 `main`，Sparse path 留空。
+4. 从 PaperFlow marketplace 安装 `Paper Source` 和 `Paper Wiki`。
 
-- `plugins/paper-source/.codex-plugin/plugin.json`：Paper Source marketplace 元数据、版本号、展示文案和 skill 声明。Paper Source 机器名是 `paper-source`。
-- `plugins/paper-wiki/.codex-plugin/plugin.json`：Paper Wiki marketplace 元数据、版本号、展示文案和 skill 声明。Paper Wiki 机器名是 `paper-wiki`。
-- `AGENTS.md`：插件级 thin shell 路由入口，说明如何按任务类型匹配 skill。
-- `plugins/paper-source/skills/`：用户可触发的 Paper Source skills，包括配置、发现、ingest、MinerU 解析、wiki setup、provenance、run lifecycle、topic tracking 和 Zotero。
-- `plugins/paper-wiki/skills/`：Paper Wiki 的 `paper-research-wiki` 用户入口和 `paper-wiki-language` 支持 gate。
-- `skills/routing.yaml`：任务路由、闭环检查和本地约束。
-- `scripts/build/paper_source/`：插件内部 Python 模块，承载 CLI 路由、source bundle audit、paper gate、wiki handoff、record workflow、graph visibility 和 language gate。旧 import shim 不作为用户入口。
-- `docs/paper-source-linkage.md`：Paper Source 总链路契约。
-- `docs/structure.md`：模块、skill、artifact 和边界说明。
-- `docs/workflow.md`：运行闭环、handoff 和 skill-based routing 约定。
-- `docs/progress.md`：当前版本状态、验证结果、风险和下一步。
+安装后新开 Codex thread，提及 Paper Source、PS 或 `@paper-source` 进入论文发现/source-preparation；提及 Paper Wiki、PW、`@paper-wiki` 或 Paper Research Wiki 进入正式论文 wiki 写入和维护。
 
-## 安装方式
+开发时如果把源码 checkout 当作本地 marketplace，根目录 `marketplace.json` 指向：
 
-在 Codex 的 Plugin Marketplaces 页面添加本仓库作为 marketplace source。Source 使用 `https://github.com/initiatione/paperflow`，Git ref 使用 `main`，Sparse path 留空。
+```text
+./plugins/paper-source
+./plugins/paper-wiki
+```
 
-添加 marketplace 后，在插件列表中选择 PaperFlow，再安装 `Paper Source` 和 `Paper Wiki`。当前机器名是 `paper-source` / `paper-wiki`。安装后在新线程中提及 Paper Source、PS 或 `@paper-source` 可进入论文发现/采集/解析链路；提及 Paper Wiki、PW、`@paper-wiki` 或 Paper Research Wiki 可进入正式论文 wiki 写入和维护链路。
+## 首次运行
 
-首次使用 Paper Source 时按 config-setup 的中文引导补齐研究画像、vault、paper-search、MinerU 和可选 Zotero 配置。
+完整流程需要先配置 Paper Source runtime：
 
-插件更新以 marketplace 版本为准。源码仓库中的修改需要发布到 marketplace 后，安装缓存中的 Paper Source/Paper Wiki 才会更新；`codex plugin list`、安装缓存目录和当前会话已加载技能是三个不同信号，检查运行态时必须分开报告。
+- 目标 Obsidian/LLM wiki vault。
+- `paper-search-mcp` 或兼容的 paper-search CLI。
+- 构建 source bundle 时所需的 MinerU 凭据。
+- 可选 provider credentials：Unpaywall、Semantic Scholar、CORE、DOAJ、Zenodo、EasyScholar、Grok-compatible search 和 Zotero。
 
-## 开发规范
+从这里开始：
 
-插件开发必须遵守 [Plugin Development Rules](docs/plugin-development.md)。每次改动插件源码、skill、workflow、生成物 contract 或 marketplace 可见行为时，都要同步插件版本信息和相关文档；源码验证通过不等于安装缓存已经更新。
+```powershell
+python plugins\paper-source\scripts\orchestrator.py doctor --json
+python plugins\paper-source\scripts\orchestrator.py init-config --vault <vault>
+```
 
-## 使用原则
+源码 checkout 中常用命令：
 
-- 不把不完整 raw bundle 写入正式 wiki。
-- 不绕过 human approval 和 provenance record。
-- 不把 MinerU 当作独立 marketplace 插件发布。
-- 不把安装缓存当作开发源。
-- 不把 formal wiki 正文默认写成英文。
-- 不用 generic summary 替代 source-first、claim-support 和 evidence-addressed deposition。
-- 不让 Paper Wiki 接管 Paper Source 的 discovery、MinerU、human approval 或 `record-wiki-ingest`；Paper Wiki 只负责正式页面写入、维护、检查和 record readiness 报告。
+```powershell
+python plugins\paper-source\scripts\orchestrator.py discover-papers --query "<topic>" --max-results 20 --vault <vault> --json
+python plugins\paper-source\scripts\orchestrator.py report --run-id <run-id> --vault <vault>
+python plugins\paper-source\scripts\orchestrator.py prepare-ranked --run-id <run-id> --max-papers 10 --skip-existing --vault <vault> --json
+python plugins\paper-source\scripts\orchestrator.py record-human-approval --slug <paper-slug> --approved-by <name> --scope run-wiki-ingest-agent --vault <vault>
+python plugins\paper-source\scripts\orchestrator.py record-wiki-ingest --from-paper-wiki-request <request.json> --vault <vault>
+```
+
+Paper Wiki 主要是 Codex skill surface，不是 orchestrator-style CLI。它仍包含少量 narrow helper wrapper，用于 reference index refresh、figure/formula support 等维护任务。
+
+## 仓库结构
+
+```text
+.
+|-- marketplace.json
+|-- docs/
+|   `-- plugin-development.md
+|-- plugins/
+|   |-- paper-source/
+|   |   |-- .codex-plugin/plugin.json
+|   |   |-- docs/
+|   |   |-- scripts/
+|   |   `-- skills/
+|   `-- paper-wiki/
+|       |-- .codex-plugin/plugin.json
+|       |-- docs/
+|       |-- scripts/
+|       |-- rules/
+|       `-- skills/
+|-- scripts/
+|   |-- paperflow_audit.py
+|   |-- release_check_paper_source.ps1
+|   `-- release_check_paper_wiki.ps1
+`-- tests/
+```
+
+重要 source of truth：
+
+- `plugins/<plugin>/.codex-plugin/plugin.json` 是 plugin manifest。
+- `plugins/<plugin>/skills/routing.yaml` 是 route manifest。
+- `plugins/<plugin>/skills/*/SKILL.md` 是 thin skill entrypoint。
+- `plugins/<plugin>/skills/*/agents/openai.yaml` 是 skill UI metadata。
+- `docs/plugin-development.md` 是修改 plugin、skill、workflow、test、manifest、marketplace 和 contract 前必须读取的开发门禁。
+
+## 开发
+
+安装测试依赖：
+
+```powershell
+python -m pip install -r requirements-dev.txt
+```
+
+在修改插件代码、skills、workflows、docs、tests、generated contracts、release scripts 或 marketplace-visible behavior 前，先读：
+
+- `docs/plugin-development.md`
+- `plugins/paper-source/AGENTS.md`
+- `plugins/paper-source/skills/routing.yaml`
+- `plugins/paper-wiki/AGENTS.md`
+- `plugins/paper-wiki/skills/routing.yaml`
+
+开发改动只写 `plugins/...`，不要把 installed Codex cache 当作开发源。若改动影响 plugin-visible behavior 或 metadata，需要按 `docs/plugin-development.md` bump 对应插件版本并同步 marketplace mirrors。
+
+## 验证
+
+基础源码 checkout 验证：
+
+```powershell
+python -m pytest tests\paper_research_wiki\test_plugin_contract.py tests\paper_source\test_skill_bundle_contract.py tests\test_marketplace_manifest.py -q
+python -m json.tool plugins\paper-source\.codex-plugin\plugin.json > $null
+python -m json.tool plugins\paper-wiki\.codex-plugin\plugin.json > $null
+git diff --check
+```
+
+路由和包卫生检查：
+
+```powershell
+python scripts\paperflow_audit.py route-health plugins\paper-source --json
+python scripts\paperflow_audit.py route-health plugins\paper-wiki --json
+python scripts\paperflow_audit.py package-hygiene plugins\paper-source --json
+python scripts\paperflow_audit.py package-hygiene plugins\paper-wiki --json
+```
+
+发布前检查：
+
+```powershell
+scripts\release_check_paper_source.ps1
+scripts\release_check_paper_wiki.ps1
+```
+
+这些命令只证明源码 checkout 通过。要声称用户运行态已更新，还需要 refresh/reinstall marketplace plugin，并在新的 Codex session 中验证 installed cache。
+
+## 安全与隐私
+
+不要提交 runtime secrets、provider tokens、vault-private papers、installed cache 内容或用户 vault 生成物。Runtime credentials 应来自用户环境变量或获准的本地 env files。插件日志和报告可以说明 secret 是否已配置，但不能打印 secret value。
+
+## License
+
+两个插件 manifest 当前声明项目 license 为 MIT。

@@ -52,14 +52,17 @@ def test_plugin_manifest_keywords_do_not_expose_legacy_plugin_names():
 
 
 def test_readme_frames_mineru_as_internal_helper():
-    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme_zh = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme_en = (ROOT / "README.en.md").read_text(encoding="utf-8")
 
-    assert "not as a separate marketplace plugin" in text
+    assert "不是独立 marketplace 插件" in readme_zh
+    assert "not as a separate marketplace plugin" in readme_en
 
 
 def test_current_docs_do_not_use_pre_stage2_plugin_paths_as_live_paths():
     roots = [
         ROOT / "README.md",
+        ROOT / "README.en.md",
         ROOT / "docs",
         ROOT / "plugins",
         ROOT / "tests",
