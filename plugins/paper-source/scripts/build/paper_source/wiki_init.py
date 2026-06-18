@@ -7,7 +7,7 @@ from pathlib import Path
 
 from paper_source.artifacts import read_json_dict
 from paper_source.paper_source_repository import ensure_paper_source_repository
-from paper_source.graph_visibility import graph_search_filter, sync_graph_json
+from paper_source.graph_visibility import graph_search_filter, sync_app_json, sync_graph_json
 from paper_source.wiki_contracts import formal_page_family_names, formal_page_family_paths, qmd_collection_policy
 
 
@@ -168,6 +168,22 @@ GRAPH_VISIBILITY_MD = """# Graph Visibility Policy
 
 This vault treats the main Obsidian graph as a knowledge-layer view, not a workflow dump.
 
+## Display contract
+
+Keep `.obsidian/graph.json` global `search` empty. Do not encode the formal page scope as a complex graph search query; Obsidian graph search parsing can drift across versions and may collapse the graph to only `index`.
+
+Use `.obsidian/app.json` `userIgnoreFilters` to hide internal and maintenance paths:
+
+- `_paper_source/`
+- legacy `_epi/` when present
+- `_meta/`
+- `.claude/`
+- `AGENTS.md`
+- `log.md`
+- `hot.md`
+
+If the graph still shows only `index` after these files are corrected, close and reopen the Graph tab or reload Obsidian so it rereads the graph state. Live UI keys such as `close` are session state, not graph health evidence.
+
 ## Show in the main graph
 
 - `index.md`
@@ -285,6 +301,10 @@ def _sync_graph_json(path: Path, created: list[str]) -> None:
     sync_graph_json(path, KNOWLEDGE_GRAPH_DIRS, created)
 
 
+def _sync_app_json(path: Path, created: list[str]) -> None:
+    sync_app_json(path, created)
+
+
 def initialize_paper_wiki(vault_path: Path) -> list[str]:
     vault_path = vault_path.resolve()
     created: list[str] = []
@@ -305,7 +325,7 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
         "_meta/schema.md": (SCHEMA_MD, "Formula Rendering Contract"),
         "_meta/taxonomy.md": (TAXONOMY_MD, "Paper Source must not create formal pages"),
         "_meta/directory-structure.md": (DIRECTORY_STRUCTURE_MD, "_paper_source/raw/<slug>/"),
-        "_meta/graph-visibility.md": (GRAPH_VISIBILITY_MD, "Source paper Markdown under `_paper_source/raw`"),
+        "_meta/graph-visibility.md": (GRAPH_VISIBILITY_MD, "Keep `.obsidian/graph.json` global `search` empty"),
     }
     for relative_file, (content, marker) in contract_files.items():
         _write_text_if_missing_or_legacy(vault_path / relative_file, content, created, relative_file, current_marker=marker)
@@ -322,6 +342,7 @@ def initialize_paper_wiki(vault_path: Path) -> list[str]:
             created.append(relative_file)
     _sync_manifest(vault_path / ".manifest.json", created)
     _sync_graph_json(vault_path / ".obsidian" / "graph.json", created)
+    _sync_app_json(vault_path / ".obsidian" / "app.json", created)
     return created
 
 

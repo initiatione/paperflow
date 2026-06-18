@@ -2,8 +2,8 @@
 name: paper-research-wiki
 description: >
   Use when Paper Wiki / PW should ask/deposit/check/update/relink, redo extraction, rewrite formal
-  pages, or repair figure evidence. Triggers: "问论文 wiki", "直接沉淀 Paper Source 抓下来的论文",
-  "检测 wiki 库", "更新 wiki 库", "重link", "重做", "公式推理链", "图文证据卡",
+  pages, repair Obsidian graph visibility, or repair figure evidence. Triggers: "问论文 wiki", "直接沉淀 Paper Source 抓下来的论文",
+  "检测 wiki 库", "关系图谱出错", "图谱只剩 index", "更新 wiki 库", "重link", "重做", "公式推理链", "图文证据卡",
   "证据图维护", "修复图片路径", ask wiki, extract papers, update wiki, redo,
   evidence figure cards, repair image paths.
 ---
@@ -14,7 +14,7 @@ You are the single user-facing Paper Wiki / PW assistant. Re-match every request
 
 Paper Wiki is closed-loop: `Check -> Diagnose -> Plan -> Act -> Verify -> Refresh -> Record -> Next`. A Paper Wiki task is not complete until formal pages, tracking files, graph links, taxonomy, provenance, language gate, QMD freshness, and Paper Source record readiness have been checked or explicitly reported as skipped with reason.
 
-Keep layers separate: `kepano/obsidian-skills` owns Obsidian syntax; Paper Wiki owns paper-evidence semantics, formal page relationships, and graph maintenance; target vault `AGENTS.md` and `_meta/*` own local taxonomy and migration policy.
+Keep layers separate: `kepano/obsidian-skills` owns Obsidian syntax; Paper Wiki owns paper-evidence semantics, formal page relationships, graph content health, and existing-vault graph visibility repair; target vault `AGENTS.md` and `_meta/*` own local taxonomy and migration policy.
 
 ## Boundary
 
@@ -37,10 +37,10 @@ For formal drafts, rewrites, repairs, or material updates, also read `../paper-w
 | User intent | Load |
 | --- | --- |
 | 直接沉淀 Paper Source 抓下来的论文 / 提取这些论文 / 沉淀论文进 wiki / extract Paper Source papers | `workflows/extract-papers.md` |
-| 检测 wiki 库 / 检查论文 wiki / wiki 状态 / check wiki | `workflows/check-wiki.md` |
+| 检测 wiki 库 / 检查论文 wiki / wiki 状态 / 检查关系图谱 / check wiki / graph health check | `workflows/check-wiki.md` |
 | 提问 / 问 wiki / 问论文 wiki / 根据 wiki 回答 / 查询论文 wiki / ask wiki / ask paper wiki / what does the wiki say | `workflows/ask-wiki.md` |
 | 重做 / 重新提取 / 更详细提取 / 批量重提取 / 公式推理链 / 图片证据 / 图文证据卡 / source map / source-map-first / redo / deep extraction | `workflows/redo-extraction.md` |
-| 更新 wiki 库 / 继续上次的论文沉淀 / 重link / 重写某页 / 重写页面 / relink / rewrite formal page / rewrite page / update wiki | `workflows/update-wiki.md` |
+| 更新 wiki 库 / 继续上次的论文沉淀 / 重link / 关系图谱出错 / 图谱只剩 index / 修复关系图谱 / 重写某页 / 重写页面 / relink / repair Obsidian graph visibility / rewrite formal page / rewrite page / update wiki | `workflows/update-wiki.md` |
 | 证据图维护 / 图谱命名 / 修复图片路径 / 修复证据图 / 公式截图 / repair figure evidence / repair image paths / formula screenshot cleanup | `workflows/maintain-figures.md` |
 
 ## Default Paper Source Flow
@@ -54,6 +54,7 @@ For vague Paper Source plus wiki requests, default to 沉淀: run `workflows/che
 - Paper Source owns `paper-gate`, human approval records, raw MinerU normalization (`figure-index.json`, `formula-index.json`, `asset-normalization-record.json`), raw image renaming, formula screenshot filtering, and `record-wiki-ingest`.
 - Source-first reading lives in `references/paper-source-artifact-contract.md`: MinerU Markdown is primary; Missing native TeX is normal; use PDF/index/image fallback only when Markdown is missing, wrong, ambiguous, or insufficient.
 - Formal pages land only in allowed page families; relink/tag cleanup preserves provenance and never hides unsupported claims.
+- Graph display repair is separate from graph content repair: `.obsidian/graph.json` global `search` should be empty, `.obsidian/app.json` should ignore internal/maintenance paths, and formal-page wikilinks/backlinks still require the content health check.
 - Material rewrites are graph-aware: inspect dependents and update tracking/provenance/QMD when claims, formulas, evidence tiers, relationships, or reusable knowledge affect downstream pages.
 - Ar9av/obsidian-wiki patterns are internalized locally; do not fetch upstream repositories during normal runs.
 - QMD is optional; Markdown, manifest, index, log, hot pages, and direct file search are source of truth.

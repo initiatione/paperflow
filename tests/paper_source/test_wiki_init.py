@@ -119,11 +119,13 @@ def test_initialize_paper_wiki_creates_required_layout(tmp_path):
     graph_visibility = (vault / "_meta" / "graph-visibility.md").read_text(encoding="utf-8")
     assert "_paper_source/" in graph_visibility
     assert "legacy `_epi/` when present" in graph_visibility
+    assert "global `search` empty" in graph_visibility
     graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
-    assert "_paper_source" not in graph["search"]
-    assert "_raw" not in graph["search"]
-    for wiki_dir in EXPECTED_RESEARCH_WIKI_DIRS:
-        assert f"path:/^{wiki_dir}\\\\//" in graph["search"]
+    assert graph["search"] == ""
+    assert graph["collapse-filter"] is True
+    app = json.loads((vault / ".obsidian" / "app.json").read_text(encoding="utf-8"))
+    for ignored in ["_epi/", "_paper_source/", "_meta/", ".claude/", "AGENTS.md", "hot.md", "log.md"]:
+        assert ignored in app["userIgnoreFilters"]
     assert (vault / ".git").is_dir()
     assert ".git" in created
     assert (
@@ -189,6 +191,7 @@ def test_initialize_paper_wiki_repairs_legacy_contract_files_without_losing_mani
     assert "_meta/graph-visibility.md" in created
     assert ".manifest.json" in created
     assert ".obsidian/graph.json" in created
+    assert ".obsidian/app.json" in created
     assert "_paper_source/staging/papers/<slug>/wiki-ingest-brief.json" in (vault / "AGENTS.md").read_text(encoding="utf-8")
     assert "_raw" not in (vault / "_meta" / "directory-structure.md").read_text(encoding="utf-8")
     assert "_paper_source/" in (vault / "_meta" / "graph-visibility.md").read_text(encoding="utf-8")
@@ -199,15 +202,12 @@ def test_initialize_paper_wiki_repairs_legacy_contract_files_without_losing_mani
     assert manifest["wiki_dirs"][:7] == EXPECTED_RESEARCH_WIKI_DIRS
     assert manifest["papers"] == [{"paper_slug": "kept-paper", "status": "wiki_ingest_recorded"}]
     graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
-    assert "_raw" not in graph["search"]
-    assert "_paper_source" not in graph["search"]
+    assert graph["search"] == ""
     assert graph["showTags"] is True
     assert graph["showAttachments"] is True
 
 
-def test_graph_visibility_filter_repairs_overescaped_formal_paths(tmp_path):
-    from paper_source.graph_visibility import graph_search_filter
-
+def test_graph_visibility_filter_clears_legacy_formal_path_search(tmp_path):
     vault = tmp_path / "paper-research-wiki"
     (vault / ".obsidian").mkdir(parents=True)
     overescaped = "path:/^index\\.md$/ OR path:/^references\\\\\\\\//"
@@ -220,9 +220,7 @@ def test_graph_visibility_filter_repairs_overescaped_formal_paths(tmp_path):
 
     graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
     assert ".obsidian/graph.json" in created
-    assert graph["search"] == graph_search_filter(EXPECTED_RESEARCH_WIKI_DIRS)
-    assert "references\\\\//" in graph["search"]
-    assert "references\\\\\\\\//" not in graph["search"]
+    assert graph["search"] == ""
     assert graph["showTags"] is True
 
 
@@ -241,9 +239,27 @@ def test_graph_visibility_filter_repairs_collapse_filter_when_search_is_current(
 
     graph = json.loads((vault / ".obsidian" / "graph.json").read_text(encoding="utf-8"))
     assert ".obsidian/graph.json" in created
-    assert graph["search"] == current_search
+    assert graph["search"] == ""
     assert graph["collapse-filter"] is True
     assert graph["showTags"] is True
+
+
+def test_graph_visibility_app_json_merges_required_ignore_filters(tmp_path):
+    vault = tmp_path / "paper-research-wiki"
+    (vault / ".obsidian").mkdir(parents=True)
+    (vault / ".obsidian" / "app.json").write_text(
+        json.dumps({"userIgnoreFilters": ["private-notes/"], "spellcheck": False}),
+        encoding="utf-8",
+    )
+
+    created = initialize_paper_wiki(vault)
+
+    app = json.loads((vault / ".obsidian" / "app.json").read_text(encoding="utf-8"))
+    assert ".obsidian/app.json" in created
+    assert app["spellcheck"] is False
+    assert app["userIgnoreFilters"][0] == "private-notes/"
+    for ignored in ["_epi/", "_paper_source/", "_meta/", ".claude/", "AGENTS.md", "hot.md", "log.md"]:
+        assert ignored in app["userIgnoreFilters"]
 
 
 def test_initialize_paper_wiki_preserves_existing_git_repo(tmp_path):

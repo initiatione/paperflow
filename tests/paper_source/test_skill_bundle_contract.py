@@ -276,6 +276,11 @@ def test_wiki_setup_documents_lean_paper_source_bootstrap_contract():
     assert "raw/staging/meta/policies" in wiki_setup
     assert "on-demand" in wiki_setup
     assert "quarantine/evolution" in wiki_setup
+    assert ".obsidian\\graph.json" in wiki_setup
+    assert "global `search` empty" in wiki_setup
+    assert ".obsidian\\app.json" in wiki_setup
+    assert "userIgnoreFilters" in wiki_setup
+    assert "collapse the graph to only `index`" in wiki_setup
     assert "raw/staging/runs/quarantine/evolution/meta roots" not in wiki_setup
 
 

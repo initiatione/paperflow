@@ -1,4 +1,4 @@
 interface:
   display_name: "Paper Wiki"
-  short_description: "提问、提取、检测、更新、重做、重link Paper Wiki。"
-  default_prompt: "Use $paper-research-wiki for Paper Wiki / PW to 提取并沉淀 Paper Source 论文、问论文 wiki、检测/更新/重link、重做提取。"
+  short_description: "提问、提取、检测、修复关系图谱、更新、重做、重link Paper Wiki。"
+  default_prompt: "Use $paper-research-wiki for Paper Wiki / PW to 提取并沉淀 Paper Source 论文、问论文 wiki、检测/修复关系图谱/更新/重link、重做提取。"

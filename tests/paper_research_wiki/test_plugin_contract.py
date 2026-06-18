@@ -168,7 +168,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "1.0.4"
+    assert manifest["version"] == "1.0.5"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -176,29 +176,31 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "source-map-grounded" in manifest["description"]
     assert "formula reasoning chains" in manifest["interface"]["longDescription"]
     assert "evidence figure cards" in manifest["interface"]["longDescription"]
+    assert "graph visibility" in manifest["interface"]["longDescription"]
     assert "link repair" in manifest["interface"]["longDescription"]
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
     assert "_meta/reference-index.json" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v1.0.4 | Paper Wiki:")
-    for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "relink", "redo"]:
+    assert manifest["interface"]["shortDescription"].startswith("v1.0.5 | Paper Wiki:")
+    for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "graph visibility", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
-    for phrase in ["Paper Wiki", "PW", "Paper Source", "提取", "提问", "检测", "更新", "沉淀", "link", "QMD"]:
+    for phrase in ["Paper Wiki", "PW", "Paper Source", "提取", "提问", "检测", "关系图谱", "更新", "沉淀", "link", "QMD"]:
         assert phrase in prompt_text
 
 
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.8.0"
+    assert manifest["version"] == "2.8.1"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.8.0 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.8.1 | Paper Source:")
     assert "health doctor" in manifest["interface"]["shortDescription"]
     assert "MCP/runtime diagnostics" in manifest["interface"]["shortDescription"]
+    assert "graph visibility" in manifest["interface"]["shortDescription"]
     assert "config diagnostics" in manifest["interface"]["shortDescription"]
     assert "CJK query planning" in manifest["interface"]["shortDescription"]
     assert "progress telemetry" in manifest["interface"]["shortDescription"]
@@ -210,6 +212,7 @@ def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     assert "record" in manifest["interface"]["shortDescription"]
     assert "Paper Source" in manifest["interface"]["longDescription"]
     assert "Paper Wiki" in manifest["interface"]["longDescription"]
+    assert "empty graph.json search plus app.json userIgnoreFilters" in manifest["interface"]["longDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
     assert "progress-events.jsonl" in manifest["interface"]["longDescription"]
     assert "report.json.discovery_context.discovery_progress" in manifest["interface"]["longDescription"]
@@ -410,6 +413,14 @@ def test_paper_wiki_skill_routing_manifest_matches_public_workflows():
         "evidence figure cards",
     ]:
         assert phrase in redo_triggers
+
+    check_triggers = set(routes["check_wiki"]["triggers"])
+    for phrase in ["检查关系图谱", "图谱健康检查", "graph health check"]:
+        assert phrase in check_triggers
+
+    update_triggers = set(routes["update_wiki"]["triggers"])
+    for phrase in ["关系图谱出错", "图谱只剩 index", "修复关系图谱", "graph only index", "repair Obsidian graph visibility"]:
+        assert phrase in update_triggers
 
     skill = _read(PUBLIC_SKILL / "SKILL.md")
     assert "../routing.yaml" in skill
@@ -766,10 +777,20 @@ def test_check_wiki_supports_layered_checks_and_completion_reports():
             "Full check",
             "Quick + Targeted",
             "systemic link/tag chaos",
+            "graph.json",
+            "app.json",
+            "userIgnoreFilters",
+            "visible formal",
+            "broken wikilinks",
         ]:
             assert phrase in text
 
     for phrase in [
+        "Fast Graph Triage",
+        "graph.json.search",
+        "Markdown scan",
+        "close/reopen Graph tab",
+        "graph.json.search == \"\"",
         "Completion Report",
         "pages created or updated",
         "links/tags/aliases repaired",
@@ -785,6 +806,13 @@ def test_update_wiki_has_controlled_link_repair_mechanism():
     update = _read(PUBLIC_SKILL / "workflows" / "update-wiki.md")
 
     for phrase in [
+        "Obsidian Graph Visibility Repair",
+        "关系图谱出错",
+        "graph only index",
+        "set the global `search` value to `\"\"`",
+        "merge `userIgnoreFilters`",
+        "Markdown formal graph scan",
+        "Do not use link repair to compensate for a bad Obsidian graph search filter",
         "Scan formal pages",
         "canonical page map",
         "alias map",

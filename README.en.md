@@ -12,8 +12,8 @@ The bundle currently ships two cooperating plugins:
 
 | Plugin | Machine name | Current source version | Role |
 | --- | --- | ---: | --- |
-| Paper Source | `paper-source` | `2.5.3` | Discover, rank, acquire, parse, audit, stage, approve, and record paper evidence. |
-| Paper Wiki | `paper-wiki` | `1.0.4` | Ask, deposit, check, update, relink, redo, and maintain formal paper wiki knowledge. |
+| Paper Source | `paper-source` | `2.8.1` | Discover, rank, acquire, parse, audit, stage, approve, initialize vault graph visibility, and record paper evidence. |
+| Paper Wiki | `paper-wiki` | `1.0.5` | Ask, deposit, check, repair graph visibility, update, relink, redo, and maintain formal paper wiki knowledge. |
 
 `paperflow` is the marketplace bundle name. `paper-search` is retained only as
 the repository/history name and for external `paper-search-mcp` or

@@ -1,4 +1,4 @@
 interface:
   display_name: "Paper Source Wiki Setup"
-  short_description: "Initialize and repair a paper wiki vault for Paper Source"
-  default_prompt: "Use $wiki-setup to initialize, inspect, or repair a paper wiki vault for Paper Source."
+  short_description: "Repair paper wiki vault graph visibility"
+  default_prompt: "Use $wiki-setup to initialize, inspect, or repair a paper wiki vault and Obsidian graph visibility for Paper Source."

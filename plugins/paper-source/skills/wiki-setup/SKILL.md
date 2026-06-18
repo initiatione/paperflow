@@ -34,7 +34,19 @@ core `_paper_source` bootstrap: `_paper_source\README.md`, `_paper_source\manife
 
 The retention policy must cap lifecycle artifacts: run dirs, `_paper_source\meta\run-lifecycle`, `_paper_source\meta\raw-cleanup`, `_paper_source\meta\repository-maintenance`, `_paper_source\meta\migrations`, `_paper_source\meta\wiki-reset`, `_paper_source\meta\formal-page-snapshots`, and `_paper_source\tmp-manual-pdfs`.
 
-Seed `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, and `_meta\directory-structure.md`.
+Seed `AGENTS.md`, `_meta\agent-operating-contract.md`, `_meta\schema.md`, `_meta\taxonomy.md`, `_meta\directory-structure.md`, and `_meta\graph-visibility.md`.
+
+## Graph Visibility
+
+Paper Source owns bootstrap-level Obsidian graph visibility config. Initialization and repair must keep `.obsidian\graph.json` global `search` empty and use `.obsidian\app.json` `userIgnoreFilters` to hide `_paper_source/`, legacy `_epi/`, `_meta/`, `.claude/`, `AGENTS.md`, `hot.md`, and `log.md`. Do not write formal-root regex filters into `graph.json.search`; they can drift across Obsidian versions and collapse the graph to only `index`.
+
+For an existing vault with a broken graph view, run the same idempotent initializer/repair path:
+
+```powershell
+python scripts\init_paper_wiki.py --vault <vault>
+```
+
+Then ask Paper Wiki `$paper-research-wiki` to run a graph health check if formal wikilinks, orphan pages, or relationship drift may be involved. If the Markdown scan is healthy but Obsidian still shows only `index`, close/reopen the Graph tab or reload Obsidian.
 
 Defaults remain source-first for paper research. Load `../paper-ingest/references/source-first-reading.md` for reader outputs, claim support, final source review, or formal page writes; it covers `mineru\<slug>.md`, `mineru\images\*`, and fallback evidence.
 

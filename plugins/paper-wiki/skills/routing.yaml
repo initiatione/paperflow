@@ -22,7 +22,7 @@ routes:
     notes: [formal writes use paper-wiki-language, missing structure routes to Paper Source wiki-setup]
   check_wiki:
     category: primary
-    triggers: [用 PW 检测 wiki, Paper Wiki check, PW check wiki, 检测 wiki 库, 检查论文 wiki, wiki 状态, check wiki, post-task check]
+    triggers: [用 PW 检测 wiki, Paper Wiki check, PW check wiki, 检测 wiki 库, 检查论文 wiki, wiki 状态, 检查关系图谱, 图谱健康检查, graph health check, check wiki, post-task check]
     skill: paper-research-wiki/SKILL.md
     workflows: [paper-research-wiki/workflows/check-wiki.md]
   ask_wiki:
@@ -39,7 +39,7 @@ routes:
     references: [paper-research-wiki/references/page-provenance.md]
   update_wiki:
     category: primary
-    triggers: [用 PW 更新 wiki, Paper Wiki update, PW update wiki, 更新 wiki 库, 继续上次的论文沉淀, 重link, 重写某页, 重写页面, relink, update wiki, rewrite formal page, rewrite page, repair paper wiki links]
+    triggers: [用 PW 更新 wiki, Paper Wiki update, PW update wiki, 更新 wiki 库, 继续上次的论文沉淀, 重link, 重写某页, 重写页面, 关系图谱出错, 图谱只剩 index, 修复关系图谱, graph only index, repair Obsidian graph visibility, relink, update wiki, rewrite formal page, rewrite page, repair paper wiki links]
     skill: paper-research-wiki/SKILL.md
     workflows: [paper-research-wiki/workflows/update-wiki.md]
     references: [paper-research-wiki/references/upstream-obsidian-wiki-map.md]
