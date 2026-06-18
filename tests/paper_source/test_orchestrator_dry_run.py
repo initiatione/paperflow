@@ -1,8 +1,10 @@
 import json
+import time
 from datetime import datetime, timezone
 
 import pytest
 
+from paper_source import orchestrator_discovery as discovery_workflows
 from paper_source import orchestrator as orchestrator_module
 from paper_source.artifacts import file_sha256
 from paper_source.orchestrator import run_dry_run
@@ -156,6 +158,25 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     )
     assert state["output_artifact_hashes"]["rank.json"] == file_sha256(run_dir / "rank.json")
     assert state["output_artifact_hashes"]["report.md"] == file_sha256(run_dir / "report.md")
+    assert state["output_artifact_hashes"]["progress-events.jsonl"] == file_sha256(run_dir / "progress-events.jsonl")
+    assert state["output_artifact_hashes"]["progress-summary.json"] == file_sha256(run_dir / "progress-summary.json")
+    progress_events = [
+        json.loads(line)
+        for line in (run_dir / "progress-events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    progress_summary = json.loads((run_dir / "progress-summary.json").read_text(encoding="utf-8"))
+    event_pairs = {(event["phase"], event["event"]) for event in progress_events}
+    assert ("config_runtime", "start") in event_pairs
+    assert ("query_plan", "end") in event_pairs
+    assert ("paper_search", "end") in event_pairs
+    assert ("filtering", "end") in event_pairs
+    assert ("reporting", "end") in event_pairs
+    assert progress_summary["schema_version"] == "paper-source-progress-events-v1"
+    assert progress_summary["event_count"] == len(progress_events)
+    assert progress_summary["last_event"]["phase"] == "reporting"
+    assert state["discovery_progress"]["artifacts"]["progress_events"] == str(run_dir / "progress-events.jsonl")
+    assert report["discovery_context"]["discovery_progress"]["last_event"]["phase"] == "reporting"
     assert report["workflow_type"] == "paper-discovery-dry-run"
     assert report["run_id"] == run_dir.name
     assert report["accepted"][0]["title"] == "Embodied Navigation Control for Mobile Robots"
@@ -216,6 +237,55 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert index_payload["runs"][0]["workflow_type"] == "paper-discovery-dry-run"
     assert run_dir.name in dashboard_text
     assert sorted(path.name for path in (tmp_path / "vault").iterdir()) == ["_paper_source"]
+
+
+def test_dry_run_progress_heartbeats_for_slow_paper_search(tmp_path, monkeypatch):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    monkeypatch.setenv("PAPER_SOURCE_PROGRESS_HEARTBEAT_SECONDS", "0.01")
+
+    def fake_discover(**kwargs):
+        time.sleep(0.035)
+        return {
+            "query": kwargs["query"],
+            "max_results": kwargs["max_results"],
+            "source_mode": "fake",
+            "records": [
+                {
+                    "source": "fake",
+                    "title": "Robotics Navigation Control With Slow Provider",
+                    "authors": ["A. Researcher"],
+                    "year": 2024,
+                    "venue": "ICRA",
+                    "abstract": "Robotics navigation and control with inspectable code.",
+                    "pdf_url": "https://example.org/slow.pdf",
+                    "citation_count": 4,
+                    "code_url": "https://github.com/example/slow",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(discovery_workflows, "discover", fake_discover)
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="robotics navigation control",
+        max_results=5,
+        use_query_plan=False,
+        enable_easyscholar=False,
+    )
+
+    progress_events = [
+        json.loads(line)
+        for line in (run_dir / "progress-events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    heartbeats = [
+        event for event in progress_events if event["phase"] == "paper_search" and event["event"] == "heartbeat"
+    ]
+    assert heartbeats
+    assert heartbeats[0]["message"] == "paper-search query still running"
 
 
 def test_dry_run_writes_recall_gap_and_quality_risk_artifacts(tmp_path):

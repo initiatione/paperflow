@@ -346,6 +346,7 @@ def run_query_plan_discovery(
     sources: list[str],
     run_dir: Path,
     source_routing: dict | None = None,
+    progress=None,
 ) -> dict:
     effective_sources = (
         source_routing.get("selected_sources")
@@ -355,14 +356,27 @@ def run_query_plan_discovery(
     exact_lookup = source_routing.get("exact_lookup") if isinstance(source_routing, dict) else None
     if fixture_path is not None or not query_plan or isinstance(exact_lookup, dict):
         discovery_query = exact_lookup_query(source_routing, query) if isinstance(exact_lookup, dict) else query
-        search_record = discover(
-            query=discovery_query,
-            max_results=max_results,
-            fixture_path=fixture_path,
-            command=command,
-            sources=effective_sources,
-            raw_response_path=run_dir / "paper-search-raw.json",
-        )
+        discover_kwargs = {
+            "query": discovery_query,
+            "max_results": max_results,
+            "fixture_path": fixture_path,
+            "command": command,
+            "sources": effective_sources,
+            "raw_response_path": run_dir / "paper-search-raw.json",
+        }
+        if progress is not None:
+            search_record = progress.run_with_heartbeat(
+                "paper_search",
+                "paper-search query started",
+                discover,
+                heartbeat_message="paper-search query still running",
+                details={"query_variant": discovery_query, "query_variant_index": 1, "sources": effective_sources},
+                artifacts={"raw_response_path": str(run_dir / "paper-search-raw.json")},
+                result_counts=lambda result: {"records": len((result or {}).get("records") or [])},
+                **discover_kwargs,
+            )
+        else:
+            search_record = discover(**discover_kwargs)
         if query_plan:
             search_record["query_plan"] = query_plan
             search_record["query_strategy"] = (
@@ -384,14 +398,27 @@ def run_query_plan_discovery(
     query_errors: list[str] = []
     for index, query_variant in enumerate(query_variants, start=1):
         raw_path = run_dir / f"paper-search-raw-{index:02d}.json"
-        search_record = discover(
-            query=query_variant,
-            max_results=max_results,
-            fixture_path=None,
-            command=command,
-            sources=effective_sources,
-            raw_response_path=raw_path,
-        )
+        discover_kwargs = {
+            "query": query_variant,
+            "max_results": max_results,
+            "fixture_path": None,
+            "command": command,
+            "sources": effective_sources,
+            "raw_response_path": raw_path,
+        }
+        if progress is not None:
+            search_record = progress.run_with_heartbeat(
+                "paper_search",
+                "paper-search query started",
+                discover,
+                heartbeat_message="paper-search query still running",
+                details={"query_variant": query_variant, "query_variant_index": index, "sources": effective_sources},
+                artifacts={"raw_response_path": str(raw_path)},
+                result_counts=lambda result: {"records": len((result or {}).get("records") or [])},
+                **discover_kwargs,
+            )
+        else:
+            search_record = discover(**discover_kwargs)
         if search_record.get("error"):
             query_errors.append(f"{query_variant}: {search_record['error']}")
         query_records.append(

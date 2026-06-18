@@ -55,6 +55,7 @@ Then add `Paper Source 实测证据` with:
 - whether the answer came from a fresh Paper Source run, a resumed review session, or an existing run artifact; if live web search was used, label it as targeted verification and name the candidate identity it verified
 - query strategy: `query_plan_multi_query`, `single_query`, or fixture mode
 - query plan summary: domain, concept blocks, query variants, and `required_concept_groups` when present
+- runtime progress: use `report.json.discovery_context.discovery_progress`, `run-state.json.discovery_progress`, `progress-events.jsonl`, and `progress-summary.json` to explain phase timings, heartbeats, last-known phase, and artifact paths for slow or interrupted discovery runs; these progress lines are diagnostics, not recommendations
 - required concept group diagnostics: use `report.json.discovery_context.required_concept_groups`, `discovery-diagnostics.json.required_concept_groups`, and `session_recommendations.required_concept_group_rejects` to explain which target/task/problem groups matched or failed; these blocked candidates are diagnostics only, not recommendations
 - candidate pool size before/after dedup/filter when available
 - ranking evidence: `paper_type`, `quality_tier`, `quality_gate`, `ranking_confidence`, and key rubric dimensions

@@ -4,7 +4,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from pathlib import Path
 
-from paper_source.artifacts import file_sha256, json_sha256, utc_now, write_json_atomic
+from paper_source.artifacts import file_sha256, json_sha256, read_json, utc_now, write_json_atomic
 from paper_source.config import load_config
 from paper_source.easyscholar import config_from_environment, enrich_candidates_with_easyscholar
 from paper_source.filter_candidates import (
@@ -44,6 +44,7 @@ from paper_source.orchestrator_discovery import (
 )
 from paper_source.paper_library import load_existing_paper_index
 from paper_source.paper_search_adapter import plan_source_routing
+from paper_source.progress import ProgressReporter
 from paper_source.query_plan_build import (
     agent_plan_constraint as _agent_plan_constraint,
     agent_plan_hard_domain_anchors as _agent_plan_hard_domain_anchors,
@@ -379,6 +380,7 @@ def _normalize_with_doi_recovery(
     *,
     effective_grok: EffectiveGrokMode,
     run_dir: Path,
+    progress: ProgressReporter | None = None,
 ) -> tuple[list[dict], dict | None]:
     normalized = normalize_candidates(search_record.get("records", []))
     recovery_candidates = _doi_recovery_candidates(normalized)
@@ -419,13 +421,29 @@ def _normalize_with_doi_recovery(
         recovery_summary["reason"] = "grok_not_configured"
         return normalized, recovery_summary
 
-    grok_record = discover_grok(
-        queries=queries,
-        include_domains=DOI_RECOVERY_DOMAINS,
-        raw_response_path=run_dir / "doi-recovery-grok-raw.json",
-        evidence_path=run_dir / "doi-recovery-grok-evidence.json",
-        timeout_seconds=GROK_SEARCH_TIMEOUT_SECONDS,
-    )
+    grok_kwargs = {
+        "queries": queries,
+        "include_domains": DOI_RECOVERY_DOMAINS,
+        "raw_response_path": run_dir / "doi-recovery-grok-raw.json",
+        "evidence_path": run_dir / "doi-recovery-grok-evidence.json",
+        "timeout_seconds": GROK_SEARCH_TIMEOUT_SECONDS,
+    }
+    if progress is not None:
+        grok_record = progress.run_with_heartbeat(
+            "doi_recovery",
+            "Grok DOI recovery started",
+            discover_grok,
+            heartbeat_message="Grok DOI recovery still running",
+            artifacts={
+                "raw_response_path": str(run_dir / "doi-recovery-grok-raw.json"),
+                "evidence_path": str(run_dir / "doi-recovery-grok-evidence.json"),
+            },
+            details={"candidate_count": len(recovery_candidates), "query_count": len(queries)},
+            result_counts=lambda result: {"records": len((result or {}).get("records") or [])},
+            **grok_kwargs,
+        )
+    else:
+        grok_record = discover_grok(**grok_kwargs)
     write_json_atomic(run_dir / "doi-recovery-grok-record.json", grok_record)
     recovery_records = [dict(record) for record in grok_record.get("records") or [] if isinstance(record, dict)]
     provider_records = search_record.setdefault("provider_records", {})
@@ -541,6 +559,20 @@ def run_dry_run(
     effective_sources = source_routing.get("selected_sources") or requested_sources
     run_id, run_dir = _new_run_dir(config.vault_path)
     started_at = utc_now()
+    progress = ProgressReporter(run_dir, run_id=run_id, workflow_type="paper-discovery-dry-run")
+    progress.start_phase(
+        "config_runtime",
+        "Discovery runtime configured",
+        artifacts=progress.artifacts(),
+        details={"query": query, "sources": effective_sources},
+    )
+    progress.end_phase(
+        "config_runtime",
+        "Discovery runtime ready",
+        counts={"source_count": len(effective_sources)},
+        artifacts=progress.artifacts(),
+    )
+    progress.start_phase("query_plan", "Query plan compilation started", artifacts=progress.artifacts())
     agent_query_plan_payload = _load_agent_query_plan_json(agent_query_plan_json)
     supplied_query_variants = _unique_nonempty_strings(
         _agent_plan_strings(agent_query_plan_payload, "query_variants") + _unique_nonempty_strings(query_variants)
@@ -596,6 +628,15 @@ def run_dry_run(
         )
     if query_plan:
         _apply_exact_lookup_query_plan(query_plan, source_routing)
+    progress.end_phase(
+        "query_plan",
+        "Query plan compilation completed",
+        counts={"query_variant_count": len((query_plan or {}).get("query_variants") or [])},
+        artifacts={
+            **progress.artifacts(),
+            "query_plan": str(run_dir / "query-plan.json") if query_plan else None,
+        },
+    )
     research_mode = (query_plan or {}).get("research_mode") or infer_research_mode(query)
     query_strategy = _query_strategy_for_dry_run(query_plan, fixture_path, source_routing)
     review_signature = build_review_signature(
@@ -686,12 +727,20 @@ def run_dry_run(
             "query_variant_count": len(query_plan.get("query_variants") or []),
             "path": str(run_dir / "query-plan.json"),
         }
+    state["discovery_progress"] = progress.summary()
     write_json_atomic(run_dir / "run-state.json", state)
 
     if resumed_session:
+        progress.start_phase("review_resume", "Review-session cache resume started", artifacts=progress.artifacts())
         search_record = rehydrate_search_record_from_review(resumed_session)
         paper_search_record = search_record
         grok_record = None
+        progress.end_phase(
+            "review_resume",
+            "Review-session cache resume completed",
+            counts={"records": len(search_record.get("records") or [])},
+            artifacts=progress.artifacts(),
+        )
     else:
         grok_record = None
         if effective_grok.mode == "parallel":
@@ -713,12 +762,24 @@ def run_dry_run(
                     sources=effective_sources,
                     run_dir=run_dir,
                     source_routing=source_routing,
+                    progress=progress,
                 )
                 grok_future = executor.submit(
-                    _run_grok_queries,
-                    queries=grok_queries,
-                    include_domains=config.grok_search.academic_domains.effective_domains,
-                    run_dir=run_dir,
+                    lambda: progress.run_with_heartbeat(
+                        "grok_supplemental",
+                        "Parallel Grok supplemental search started",
+                        _run_grok_queries,
+                        heartbeat_message="Parallel Grok supplemental search still running",
+                        details={"query_count": len(grok_queries)},
+                        artifacts={
+                            "raw_response_path": str(run_dir / "grok-search-raw.json"),
+                            "evidence_path": str(run_dir / "grok-search-evidence.json"),
+                        },
+                        result_counts=lambda result: {"records": len((result or {}).get("records") or [])},
+                        queries=grok_queries,
+                        include_domains=config.grok_search.academic_domains.effective_domains,
+                        run_dir=run_dir,
+                    )
                 )
                 paper_search_record = paper_future.result()
                 paper_records = paper_search_record.get("records") or []
@@ -729,6 +790,13 @@ def run_dry_run(
                         else grok_future.result(timeout=PARALLEL_FAN_IN_GRACE_SECONDS)
                     )
                 except TimeoutError:
+                    progress.event(
+                        "grok_supplemental",
+                        "timeout",
+                        "Parallel Grok supplemental search timed out after paper-search completed",
+                        details={"query_count": len(grok_queries)},
+                        artifacts=progress.artifacts(),
+                    )
                     grok_record = {
                         "provider": "grok_search",
                         "source_mode": "grok_search_mcp",
@@ -756,6 +824,7 @@ def run_dry_run(
                 sources=effective_sources,
                 run_dir=run_dir,
                 source_routing=source_routing,
+                progress=progress,
             )
             if effective_grok.mode == "targeted":
                 good_enough, targeted_ranked_pool, targeted_evaluation = _evaluate_paper_search_good_enough(
@@ -783,7 +852,17 @@ def run_dry_run(
                         ranked=targeted_ranked_pool,
                         budget=config.grok_search.targeted_query_budget,
                     )
-                    grok_record = _run_grok_queries(
+                    grok_record = progress.run_with_heartbeat(
+                        "grok_supplemental",
+                        "Targeted Grok supplemental search started",
+                        _run_grok_queries,
+                        heartbeat_message="Targeted Grok supplemental search still running",
+                        details={"query_count": len(grok_queries), "reason": "paper_search_shortfall"},
+                        artifacts={
+                            "raw_response_path": str(run_dir / "grok-search-raw.json"),
+                            "evidence_path": str(run_dir / "grok-search-evidence.json"),
+                        },
+                        result_counts=lambda result: {"records": len((result or {}).get("records") or [])},
                         queries=grok_queries,
                         include_domains=config.grok_search.academic_domains.effective_domains,
                         run_dir=run_dir,
@@ -793,9 +872,23 @@ def run_dry_run(
                 else:
                     grok_status = "skipped_good_enough"
                     grok_reason = "paper_search_good_enough"
+                    progress.event(
+                        "grok_supplemental",
+                        "skipped",
+                        "Targeted Grok supplemental search skipped because paper-search was good enough",
+                        counts=targeted_evaluation,
+                        artifacts=progress.artifacts(),
+                    )
             else:
                 grok_status = "off"
                 grok_reason = effective_grok.reason
+                progress.event(
+                    "grok_supplemental",
+                    "skipped",
+                    "Grok supplemental search disabled or not configured",
+                    details={"reason": effective_grok.reason, "mode": effective_grok.mode},
+                    artifacts=progress.artifacts(),
+                )
             search_record = _merge_provider_search_records(
                 paper_search_record,
                 grok_record,
@@ -808,12 +901,20 @@ def run_dry_run(
         search_record["research_brief"] = brief_metadata
     write_json_atomic(run_dir / "search-record.json", search_record)
     state["state"] = "discovered"
+    state["discovery_progress"] = progress.summary()
     write_json_atomic(run_dir / "run-state.json", state)
 
-    normalized, doi_recovery = _normalize_with_doi_recovery(
-        search_record,
+    normalized, doi_recovery = progress.run_with_heartbeat(
+        "normalization",
+        "Candidate normalization started",
+        _normalize_with_doi_recovery,
+        heartbeat_message="Candidate normalization still running",
+        artifacts=progress.artifacts(),
+        result_counts=lambda result: {"records": len(result[0]) if result else 0},
+        search_record=search_record,
         effective_grok=effective_grok,
         run_dir=run_dir,
+        progress=progress,
     )
     if doi_recovery:
         search_record["doi_recovery"] = doi_recovery
@@ -821,6 +922,7 @@ def run_dry_run(
         write_json_atomic(run_dir / "search-record.json", search_record)
     write_json_atomic(run_dir / "normalized.json", normalized)
     state["state"] = "normalized"
+    state["discovery_progress"] = progress.summary()
     write_json_atomic(run_dir / "run-state.json", state)
 
     query_exclude_terms = (
@@ -828,6 +930,7 @@ def run_dry_run(
         if review_survey_policy == "legacy_default" or explicit_document_type_exclusions
         else []
     )
+    progress.start_phase("filtering", "Candidate filtering started", artifacts=progress.artifacts())
     existing_library_index = load_existing_paper_index(config.vault_path)
     filter_report = filter_candidates_with_report(
         normalized,
@@ -914,9 +1017,27 @@ def run_dry_run(
     write_json_atomic(recall_record_path, recall_record)
     write_json_atomic(quality_risk_record_path, quality_risk_record)
     write_json_atomic(run_dir / "filter-report.json", filter_report)
+    progress.end_phase(
+        "filtering",
+        "Candidate filtering completed",
+        counts={
+            "recommendable": len(filtered),
+            "staging_ready": len(staging_ready),
+            "needs_pdf": len(needs_pdf),
+            "rejected": len(rejected),
+            "recall_recovered": (recall_record.get("summary") or {}).get("recovered", 0),
+        },
+        artifacts={
+            **progress.artifacts(),
+            "filter_report": str(run_dir / "filter-report.json"),
+            "recall_gap_record": str(recall_record_path),
+            "quality_risk_record": str(quality_risk_record_path),
+        },
+    )
     state["state"] = "filtered"
     state["recall_gap"] = filter_report["recall_gap"]
     state["quality_risk"] = filter_report["quality_risk"]
+    state["discovery_progress"] = progress.summary()
     write_json_atomic(run_dir / "run-state.json", state)
 
     easyscholar_config = config_from_environment(
@@ -926,7 +1047,16 @@ def run_dry_run(
         cache_ttl_days=config.easyscholar_cache_ttl_days,
         max_candidates_per_run=config.easyscholar_max_candidates_per_run,
     )
-    enriched_filtered, easyscholar_record = enrich_candidates_with_easyscholar(filtered, easyscholar_config)
+    enriched_filtered, easyscholar_record = progress.run_with_heartbeat(
+        "quality_enrichment",
+        "Quality metadata enrichment started",
+        enrich_candidates_with_easyscholar,
+        filtered,
+        easyscholar_config,
+        heartbeat_message="Quality metadata enrichment still running",
+        artifacts=progress.artifacts(),
+        result_counts=lambda result: {"records": len(result[0]) if result else 0},
+    )
     easyscholar_record_path = run_dir / "easyscholar-record.json"
     write_json_atomic(easyscholar_record_path, easyscholar_record)
     state["state"] = "quality_enriched"
@@ -935,10 +1065,17 @@ def run_dry_run(
         "summary": easyscholar_record.get("summary", {}),
         "record_path": str(easyscholar_record_path),
     }
+    state["discovery_progress"] = progress.summary()
     write_json_atomic(run_dir / "run-state.json", state)
 
-    ranked_pool = rank_candidates(
+    ranked_pool = progress.run_with_heartbeat(
+        "ranking",
+        "Candidate ranking started",
+        rank_candidates,
         enriched_filtered,
+        heartbeat_message="Candidate ranking still running",
+        artifacts=progress.artifacts(),
+        result_counts=lambda result: {"ranked": len(result or [])},
         positive_keywords=_ranking_keywords_from_profile(config, query, query_plan),
         priority_keywords=_ranking_priority_keywords_from_query_plan(query_plan),
         negative_keywords=config.negative_keywords,
@@ -961,6 +1098,7 @@ def run_dry_run(
     if search_record.get("provider_records"):
         write_json_atomic(run_dir / "provider-records.json", search_record["provider_records"])
     state["state"] = "ranked"
+    state["discovery_progress"] = progress.summary()
     write_json_atomic(run_dir / "run-state.json", state)
 
     errors = [search_record["error"]] if search_record.get("error") else []
@@ -1117,9 +1255,11 @@ def run_dry_run(
         "provider_records": search_record.get("provider_records", {}),
         "grok_search": search_record.get("grok_search", state.get("grok_search", {})),
     }
+    progress.start_phase("reporting", "Discovery report generation started", artifacts=progress.artifacts())
     diagnostics_path = run_dir / "discovery-diagnostics.json"
     write_json_atomic(diagnostics_path, discovery_diagnostics)
     discovery_context["diagnostics_path"] = str(diagnostics_path)
+    discovery_context["discovery_progress"] = progress.summary()
     if brief_metadata:
         discovery_context["research_brief"] = brief_metadata
     next_actions = ["Review accepted dry-run candidates before advancing ranked papers."]
@@ -1142,11 +1282,30 @@ def run_dry_run(
         next_actions=next_actions,
         discovery_context=discovery_context,
     )
+    progress.end_phase(
+        "reporting",
+        "Discovery report generation completed",
+        artifacts={
+            **progress.artifacts(),
+            "report": str(run_dir / "report.md"),
+            "report_json": str(run_dir / "report.json"),
+            "discovery_diagnostics": str(diagnostics_path),
+        },
+    )
+    report_json_path = run_dir / "report.json"
+    report_payload = read_json(report_json_path, default={})
+    if isinstance(report_payload, dict):
+        report_context = report_payload.get("discovery_context")
+        if isinstance(report_context, dict):
+            report_context["discovery_progress"] = progress.summary()
+            report_payload["discovery_context"] = report_context
+            write_json_atomic(report_json_path, report_payload)
     state["state"] = "reported"
     state["status"] = "failed" if errors else "success"
     state["finished_at"] = utc_now()
     state["exit_status"] = 1 if errors else 0
     state["review_session"] = review_session_payload
+    state["discovery_progress"] = progress.summary()
     input_hashes = {
         "request": json_sha256(
             {
@@ -1184,6 +1343,8 @@ def run_dry_run(
             "discovery-diagnostics.json": run_dir / "discovery-diagnostics.json",
             "rank.json": run_dir / "rank.json",
             "report.md": run_dir / "report.md",
+            "progress-events.jsonl": run_dir / "progress-events.jsonl",
+            "progress-summary.json": run_dir / "progress-summary.json",
             "paper-search-raw.json": run_dir / "paper-search-raw.json",
             "query-plan.json": run_dir / "query-plan.json",
         }

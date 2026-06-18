@@ -26,6 +26,8 @@ def _empty_artifacts() -> dict[str, Any]:
         "report": None,
         "report_json": None,
         "run_state": None,
+        "progress_events": None,
+        "progress_summary": None,
     }
 
 

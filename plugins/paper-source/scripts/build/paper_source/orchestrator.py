@@ -1240,6 +1240,12 @@ def _run_artifacts(run_dir: Path) -> dict:
         "report": str(run_dir / "report.md") if (run_dir / "report.md").exists() else None,
         "report_json": str(run_dir / "report.json") if (run_dir / "report.json").exists() else None,
         "run_state": str(run_dir / "run-state.json") if (run_dir / "run-state.json").exists() else None,
+        "progress_events": str(run_dir / "progress-events.jsonl")
+        if (run_dir / "progress-events.jsonl").exists()
+        else None,
+        "progress_summary": str(run_dir / "progress-summary.json")
+        if (run_dir / "progress-summary.json").exists()
+        else None,
     }
 
 

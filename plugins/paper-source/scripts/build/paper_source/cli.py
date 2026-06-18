@@ -312,6 +312,12 @@ def _handle_dry_run(args: argparse.Namespace) -> int:
                 "report": str(run_dir / "report.md"),
                 "report_json": str(run_dir / "report.json"),
                 "run_state": str(run_dir / "run-state.json"),
+                "progress_events": str(run_dir / "progress-events.jsonl")
+                if (run_dir / "progress-events.jsonl").exists()
+                else None,
+                "progress_summary": str(run_dir / "progress-summary.json")
+                if (run_dir / "progress-summary.json").exists()
+                else None,
             },
         }
         review_payload = _run_review_payload(run_dir)
