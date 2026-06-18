@@ -371,6 +371,11 @@ def build_parser() -> argparse.ArgumentParser:
     evaluation_brief.add_argument("--out-dir", type=Path, default=Path(".plugin-eval") / "improvement-briefs")
     evaluation_brief.add_argument("--json", action="store_true")
 
+    discovery_benchmark = subparsers.add_parser("discovery-benchmark")
+    discovery_benchmark.add_argument("--case-json", type=Path, required=True)
+    discovery_benchmark.add_argument("--out", type=Path, default=None)
+    discovery_benchmark.add_argument("--json", action="store_true")
+
     propose = subparsers.add_parser("propose-evolution")
     _add_common_vault(propose)
     propose.add_argument("--reflection-type", required=True)

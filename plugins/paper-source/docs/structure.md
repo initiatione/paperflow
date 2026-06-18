@@ -48,7 +48,7 @@ python scripts\orchestrator.py <command>
 - Report：`report` 是公开读取入口；`report --run-id <run-id> [--json]` 读取已有 run report artifact；内部生成模块是 `report_run.py`，不是额外的 `run-report` CLI。
 - Staging 与 Wiki handoff：`stage_wiki.py` 生成 `wiki-ingest-brief.json` canonical Paper Source-to-Paper Wiki handoff 和 `promotion-plan.json`，新链路不生成 `wiki_deposition_task.json`；`wiki-ingest-handoff` 渲染 agent-mediated handoff；`record-human-approval` 记录外部 agent 写入前的人类批准；`wiki-ingest-trigger` 写继续任务；Paper Wiki `$paper-research-wiki` 是用户级正式论文 wiki 写入和维护入口；`paper-source-paper-deposition` 仅用于历史 handoff 清理；`record-wiki-ingest` 记录外部 agent 已完成的最终页路径、hash 和 formal page gate。
 - 索引与查询：`runs-query`、`research-queue`、`wiki-query`、`wiki-ask`。
-- 反馈、评估与进化：`record-feedback`、`evaluation-brief`、`propose-evolution`、`activate-evolution`、`evolution-query`。`evaluation-brief` 把 Plugin Eval、`paper-source-quality-gates`、benchmark 和 before/after metrics 合并成本地 improvement brief，再交给 `propose-evolution`。
+- 反馈、评估与进化：`record-feedback`、`discovery-benchmark`、`evaluation-brief`、`propose-evolution`、`activate-evolution`、`evolution-query`。`discovery-benchmark` 把本地 fixture discovery case 转成 `paper-source-benchmark-v1`；`evaluation-brief` 把 Plugin Eval、`paper-source-quality-gates`、benchmark 和 before/after metrics 合并成本地 improvement brief，再交给 `propose-evolution`。
 - 外部集成：`zotero-sync`，以及 MinerU 解析相关命令。
 
 ## Python 模块职责
@@ -60,6 +60,7 @@ scripts/build/paper_source/
   cli_routes.py
   orchestrator.py
   discover_papers.py
+  discovery_benchmark.py
   artifacts.py
   config.py
   doctor.py
@@ -116,6 +117,7 @@ scripts/build/paper_source/
 - `cli.py` 保留公开 CLI 入口；`cli_parser.py` 和 `cli_routes.py` 拆出参数定义、JSON/Markdown 输出和命令分发，避免入口继续膨胀。`dry-run` 支持 repeated `--query-variant`、`--domain-focus-term`、`--agent-query-plan-json`、`--year-min`、`--code-policy` 和 `--selection-policy`，用于记录 agent 计划后的检索式、显式硬过滤锚点和请求级约束。
 - `orchestrator.py` 是低层流程编排层，负责 dry-run、discover-to-handoff、one-paper ingest、batch advance、redo/recritic 等阶段串联；repair、query-plan assembly 和 discovery/source coverage 已分别拆到 `orchestrator_repair.py`、`query_plan_build.py`、`orchestrator_discovery.py`，record/promote 相关 helper 已拆到 `wiki_record_workflows.py`。dry-run 把原始自然语言 `--query` 当作意图标签，把 agent-supplied query variants 当作实际 MCP 搜索输入，并在 `query-plan.json` 中审计来源、`hard_domain_anchors`、`soft_recall_terms`、`term_provenance`、`term_provenance_detail`、`paper-source-query-plan-diagnostics-v1`、`year_min`、`code_policy` 和 `selection_policy`；`discover-to-handoff` 只串联 dry-run 与 prepare-ranked，停在 source-staging。
 - `discover_papers.py` 是自然语言发现的高层编排模块：调用 `run_dry_run(...)` 生成 evidence/report，再调用 `auto_stage_recommendations_from_run(...)` 按 `session_recommendations.primary_recommendations` 自动准备 source-staging，写 `discover-papers-record.json`、`report.json` 和 `run-state.json`。它默认保留 review/survey/meta-analysis 候选，除非用户显式要求 non-review；它不写 approval、wiki-ingest trigger/record 或 Paper Wiki 正式页。
+- `discovery_benchmark.py` 负责本地 fixture discovery gates：读取 `paper-source-discovery-benchmark-cases-v1` case，复用 query-plan、normalize/filter、recall/risk、rank 和 session recommendation helper，输出 `paper-source-benchmark-v1`，用于 `evaluation-brief` / Plugin Eval 证据链。
 - `artifacts.py` 负责 Paper Source 路径约定、sha256、时间戳和原子写入；`write_json_atomic` / `write_text_atomic` 用临时文件加 `os.replace` 写 JSON/Markdown，避免 `_paper_source/runs/index.json`、record 和 report 在异常中写坏；`read_json` / `read_json_dict` 是 JSON artifact 读取入口。
 - `frontmatter.py` 是宽松 YAML/frontmatter 解析、strip 和 scalar/list 处理 helper，供 record、query、language gate 和 Stage Wiki brief 复用。
 - `config.py` 负责 `_paper_source/meta/paper-source-config.yaml` 的读取、初始化、提案和更新历史；配置缺失时必须走聊天式 `config-setup`。旧配置文件只作为迁移读取来源，不作为新配置入口。
@@ -327,6 +329,7 @@ python -m pytest tests\paper_source -q
 python -m pytest tests\paper_source tests\paper_source\test_wrapper_entrypoints.py -q
 python <plugin-creator-validate-script> <plugin-root>
 node <plugin-eval.js> analyze <plugin-root> --format markdown
+python scripts\orchestrator.py discovery-benchmark --case-json <cases.json> --out .plugin-eval\benchmark.json --json
 python scripts\orchestrator.py evaluation-brief --target-asset <asset> --rationale "<text>" --proposed-change-json "<json>" --before-metrics-json "<json>" --after-metrics-json "<json>"
 ```
 

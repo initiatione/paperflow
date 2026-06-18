@@ -23,9 +23,21 @@ Use this file to keep Paper Source paper discovery honest as the skill evolves. 
 | `robot-foundation-model-manipulation` | Find robot foundation model manipulation papers with real robot evidence | Include VLA/foundation model terms, prefer real manipulation benchmarks and code/data |
 | `marine-path-following-current` | Find marine robot path following papers under ocean currents | Include AUV/marine robot synonyms, current disturbance, tracking/path-following, marine engineering venues |
 
+## Local Benchmark Contract
+
+Use `discovery-benchmark` for deterministic fixture checks before accepting discovery-ranking changes:
+
+```powershell
+python scripts\orchestrator.py discovery-benchmark --case-json <cases.json> --out .plugin-eval\benchmark.json --json
+```
+
+Case files use `paper-source-discovery-benchmark-cases-v1`. Output uses `paper-source-benchmark-v1` so `evaluation-brief --benchmark-json .plugin-eval\benchmark.json` can treat it as comparable evidence.
+
+Each case should include a query, profile/config terms, raw fixture records, and expectations. The runner records query plan, raw candidate count, deduped count, accepted/rejected count, top kept papers, review leakage, recall gaps, normalized citation checks, absolute citation display checks, and config-term query-plan checks. Core benchmark execution must not require secrets or live MCP availability.
+
 ## Regression Rule
 
-When a future change claims to improve precision, run at least one seed prompt manually or with a fixture and record:
+When a future change claims to improve precision, run at least one seed prompt manually or with a `discovery-benchmark` fixture and record:
 
 - query plan
 - raw candidate count

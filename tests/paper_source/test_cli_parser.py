@@ -1444,6 +1444,24 @@ def test_evaluation_brief_parser_accepts_quality_loop_inputs():
     assert args.json is True
 
 
+def test_discovery_benchmark_parser_accepts_local_fixture_contract():
+    args = build_parser().parse_args(
+        [
+            "discovery-benchmark",
+            "--case-json",
+            "tests/fixtures/discovery-benchmark.json",
+            "--out",
+            ".plugin-eval/benchmark.json",
+            "--json",
+        ]
+    )
+
+    assert args.command == "discovery-benchmark"
+    assert args.case_json.name == "discovery-benchmark.json"
+    assert args.out.name == "benchmark.json"
+    assert args.json is True
+
+
 def test_activate_evolution_parser_accepts_validation_result_json():
     args = build_parser().parse_args(
         [

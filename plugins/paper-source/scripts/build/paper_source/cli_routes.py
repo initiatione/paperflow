@@ -38,6 +38,7 @@ HANDLER_NAMES: dict[str, str] = {
     "zotero-sync": "_handle_table_driven",
     "record-feedback": "_handle_table_driven",
     "evaluation-brief": "_handle_evaluation_brief",
+    "discovery-benchmark": "_handle_discovery_benchmark",
     "propose-evolution": "_handle_table_driven",
     "activate-evolution": "_handle_table_driven",
     "evolution-query": "_handle_table_driven",

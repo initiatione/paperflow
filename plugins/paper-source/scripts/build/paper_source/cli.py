@@ -22,6 +22,7 @@ from paper_source.config import (
     restore_config_from_file,
 )
 from paper_source.doctor import collect_doctor_report, open_setup_links, render_doctor_report
+from paper_source.discovery_benchmark import run_discovery_benchmark
 from paper_source.paper_source_repository import cleanup_paper_source_repository, migrate_legacy_paper_source_roots
 from paper_source.report_run import load_run_report
 from paper_source.runtime_config import apply_runtime_config
@@ -478,6 +479,21 @@ def _handle_discover_papers(args: argparse.Namespace) -> int:
     print(f"compiled_wiki_write={str(record['compiled_wiki_write']).lower()}")
     print(f"processed_count={record['processed_count']}")
     return int(record.get("exit_status", 0))
+
+
+def _handle_discovery_benchmark(args: argparse.Namespace) -> int:
+    result = run_discovery_benchmark(args.case_json, output_path=args.out)
+    if args.json:
+        _print_json(result)
+    else:
+        metrics = result.get("metrics") or {}
+        print(f"benchmark_id={result.get('benchmark_id')}")
+        print(f"status={result.get('status')}")
+        print(f"case_count={metrics.get('case_count', 0)}")
+        print(f"benchmark_pass_rate={metrics.get('benchmark_pass_rate', 0)}")
+        if result.get("output_path"):
+            print(f"output_path={result['output_path']}")
+    return 0 if result.get("status") == "pass" else 1
 
 
 def _handle_prepare_ranked(args: argparse.Namespace) -> int:

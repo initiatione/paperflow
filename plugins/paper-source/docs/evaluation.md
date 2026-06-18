@@ -43,6 +43,14 @@ node $env:PLUGIN_EVAL_SCRIPT analyze plugins\paper-source --metric-pack plugins\
 
 `scripts\release_check_paper_source.ps1` generates a transient `plugins\paper-source\.plugin-eval\coverage.xml` before Plugin Eval when `$env:PLUGIN_EVAL_SCRIPT` is set, then removes `.plugin-eval` through package hygiene after the evaluator finishes. Do not commit that coverage file.
 
+Use the local fixture benchmark command when you need deterministic discovery-quality evidence without secrets or live MCP access:
+
+```powershell
+python scripts\orchestrator.py discovery-benchmark --case-json <cases.json> --out .plugin-eval\benchmark.json --json
+```
+
+The case file schema is `paper-source-discovery-benchmark-cases-v1`. Each case supplies a query, profile/config terms, raw fixture records, and expectations. The runner reuses query-plan, normalize/filter, provider-compatible recall/risk enrichment, ranking, and session recommendation helpers; it can fail on precision, recall, review leakage, duplicate rate, verified metric coverage, normalized citation ordering, absolute citation display, or config-driven query-plan regressions. Output uses `paper-source-benchmark-v1` and includes query plan, raw/deduped/accepted/rejected counts, top kept papers, review leakage, recall gaps, checks, and aggregate metrics.
+
 Use the local `evaluation-brief` command to generate the brief:
 
 ```powershell
