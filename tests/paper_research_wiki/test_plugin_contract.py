@@ -142,11 +142,33 @@ def _load_paper_wiki_routing():
     return data
 
 
+def _required_fields_from_canonical_standard(text: str) -> list[str]:
+    match = re.search(
+        r"Required frontmatter fields:\n\n(?P<body>(?:- `[^`]+:`[^\n]*\n)+)",
+        text,
+    )
+    assert match
+    fields = []
+    for line in match.group("body").splitlines():
+        field_match = re.match(r"- `([^`:]+):`(?P<tail>.*)$", line)
+        assert field_match
+        field, tail = field_match.groups()
+        if " when " not in tail:
+            fields.append(field)
+    return fields
+
+
+def _required_fields_from_focused_frontmatter_rule(text: str) -> list[str]:
+    match = re.search(r"Required frontmatter fields: (?P<fields>[^.]+)\.", text)
+    assert match
+    return re.findall(r"`([^`]+)`", match.group("fields"))
+
+
 def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "1.0.3"
+    assert manifest["version"] == "1.0.4"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -158,7 +180,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
     assert "_meta/reference-index.json" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v1.0.3 | Paper Wiki:")
+    assert manifest["interface"]["shortDescription"].startswith("v1.0.4 | Paper Wiki:")
     for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
@@ -169,12 +191,12 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.3.11"
+    assert manifest["version"] == "2.3.12"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.11 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.12 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "cross-discipline quality gates" in manifest["interface"]["shortDescription"]
     assert "record" in manifest["interface"]["shortDescription"]
@@ -1068,6 +1090,32 @@ def test_paper_wiki_scopes_reference_single_source_separately_from_synthesis_pag
             assert family in text
         assert "one or more title-display source PDF links" in text
     assert "same frontmatter contract" not in standard
+
+
+def test_formal_frontmatter_required_fields_match_validation_mirrors():
+    from paper_source.wiki_contracts import FORMAL_FRONTMATTER_REQUIRED_FIELDS
+
+    standard = _read(PLUGIN / "rules" / "wiki-writing-standard.md")
+    frontmatter = _read(PLUGIN / "rules" / "formal-page-frontmatter.md")
+    source_contracts = _read(PAPER_SOURCE_PLUGIN / "scripts" / "build" / "paper_source" / "wiki_contracts.py")
+    source_linkage = _read(PAPER_SOURCE_PLUGIN / "docs" / "paper-source-linkage.md")
+    source_workflow = _read(PAPER_SOURCE_PLUGIN / "docs" / "workflow.md")
+    source_structure = _read(PAPER_SOURCE_PLUGIN / "docs" / "structure.md")
+    source_wiki_setup = _read(PAPER_SOURCE_PLUGIN / "skills" / "wiki-setup" / "SKILL.md")
+
+    assert _required_fields_from_canonical_standard(standard) == list(FORMAL_FRONTMATTER_REQUIRED_FIELDS)
+    assert _required_fields_from_focused_frontmatter_rule(frontmatter) == list(FORMAL_FRONTMATTER_REQUIRED_FIELDS)
+
+    for text in [
+        frontmatter,
+        source_contracts,
+        source_linkage,
+        source_workflow,
+        source_structure,
+        source_wiki_setup,
+    ]:
+        assert "validation mirror" in text
+    assert "canonical human-readable contract" in standard
 
 
 def test_paper_wiki_supports_frontmatter_only_github_metadata_repair():

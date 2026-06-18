@@ -117,9 +117,9 @@ It retrieves from `references/`, `concepts/`, `derivations/`, `experiments/`, `s
 
 Paper Source formal deposition targets seven wiki page families: `references/`, `concepts/`, `derivations/`, `experiments/`, `synthesis/`, `reports/`, and `opportunities/`.
 
-Page-family/frontmatter human-readable canonical source is Paper Wiki `plugins/paper-wiki/rules/wiki-writing-standard.md` (canonical). This file only keeps an entry summary; full field rules live there.
+Page-family/frontmatter human-readable canonical source is Paper Wiki `plugins/paper-wiki/rules/wiki-writing-standard.md` (canonical). This file only keeps an entry summary and Paper Source validation mirror for generated handoff/record checks; full field rules live there.
 
-Every formal page must include frontmatter fields `title`, `category`, `page_family`, `tags`, `aliases`, `sources`, `summary`, `provenance`, `base_confidence`, `lifecycle`, `lifecycle_changed`, `tier`, `created`, and `updated`. Initial lifecycle is `draft`; old `review-needed` pages are legacy repair inputs, not accepted steady state. Do not use `source-reviewed` or `verified` as formal page lifecycle states; source reread, formula/figure review, wiki-lint, and human stage review belong in `final-source-review.json`, provenance, or target-vault maintenance records.
+As a Paper Source validation mirror, every formal page must include frontmatter fields `title`, `category`, `page_family`, `tags`, `aliases`, `sources`, `summary`, `provenance`, `base_confidence`, `lifecycle`, `lifecycle_changed`, `tier`, `created`, and `updated`. Initial lifecycle is `draft`; old `review-needed` pages are legacy repair inputs, not accepted steady state. Do not use `source-reviewed` or `verified` as formal page lifecycle states; source reread, formula/figure review, wiki-lint, and human stage review belong in `final-source-review.json`, provenance, or target-vault maintenance records.
 
 Quality gates require Obsidian wikilinks, source bundle paths, `provenance.extracted/inferred/ambiguous`, no `_paper_source/` pages in the formal graph, no forbidden formula blocks such as fenced `math`/`tex`/`latex`, derivation pages with variable definitions and derivation chains, reference pages with model/formula/experiment/limit content, and synthesis pages with a cross-paper comparison matrix.
 

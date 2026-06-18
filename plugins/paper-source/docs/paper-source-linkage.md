@@ -49,7 +49,7 @@ Paper Wiki `$paper-research-wiki` 是 canonical 执行层。external wiki skills
 
 因此 `wiki-ingest-brief.json` 必须包含 `wiki_rule_source_model`，记录 `resolution_order`、`must_read_before_final_write`、`write_contract_requirements` 和 `execution_agent_policy`。`execution_agent_policy` 必须明确 Claude、Codex 或其他 wiki-capable agent 都可以作为最终执行器，只要遵守同一套 target vault contract、source-first review、人类批准和 final-source-review gate。`paper-gate` 要把这些字段纳入 `wiki-ingest-brief` 检查，避免 Paper Source 退化成固定脚本、单一 skill 默认规则或单一 agent 默认规则。
 
-page-family/frontmatter 的人读 canonical 是 Paper Wiki `plugins/paper-wiki/rules/wiki-writing-standard.md`；Paper Source 文档只保留执行入口和最小索引，执行层常量仍在 `wiki_contracts.py` 中用于 gate 校验。
+page-family/frontmatter 的人读 canonical 是 Paper Wiki `plugins/paper-wiki/rules/wiki-writing-standard.md`；Paper Source 文档只保留执行入口、最小索引和 validation mirror summary，执行层常量仍在 `wiki_contracts.py` 中作为 validation mirror 用于 gate 校验。
 
 ## 主链路
 

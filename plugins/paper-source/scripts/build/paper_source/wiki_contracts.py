@@ -100,7 +100,7 @@ VERIFIED_PAGE_REQUIREMENTS: tuple[str, ...] = (
     "final_source_review_complete",
 )
 
-# Code-enforcement copy of the page-family / frontmatter contract.
+# Paper Source validation mirror of the page-family / frontmatter contract.
 # Human-canonical prose lives in plugins/paper-wiki/rules/wiki-writing-standard.md (A5).
 FORMAL_FRONTMATTER_REQUIRED_FIELDS: tuple[str, ...] = (
     "title",
