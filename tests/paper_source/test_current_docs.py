@@ -30,8 +30,9 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.7.0"
-    assert manifest["interface"]["shortDescription"].startswith("v2.7.0 | Paper Source:")
+    assert manifest["version"] == "2.7.1"
+    assert manifest["interface"]["shortDescription"].startswith("v2.7.1 | Paper Source:")
+    assert "CJK query planning" in manifest["interface"]["shortDescription"]
     assert "progress telemetry" in manifest["interface"]["shortDescription"]
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "benchmark gates" in manifest["interface"]["shortDescription"]
@@ -43,6 +44,9 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     assert "progress-summary.json" in manifest["interface"]["longDescription"]
     assert "report.json.discovery_context.discovery_progress" in manifest["interface"]["longDescription"]
     assert "required concept groups" in manifest["interface"]["longDescription"]
+    assert "CJK topic terms" in manifest["interface"]["longDescription"]
+    assert "strict year parsing" in manifest["interface"]["longDescription"]
+    assert "shared timeout budgets" in manifest["interface"]["longDescription"]
     assert "required-concept-group" in manifest["interface"]["longDescription"]
     assert "discovery-benchmark gates" in manifest["interface"]["longDescription"]
     assert "precision/recall/review-leakage/duplicate/citation/config regressions" in manifest["interface"]["longDescription"]
@@ -67,6 +71,10 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.7.1",
+            "timeout_budget_exhausted",
+            "CJK runs",
+            "strict leading 19xx/20xx year",
             "Paper Source 2.7.0",
             "paper-source-progress-events-v1",
             "progress-events.jsonl",

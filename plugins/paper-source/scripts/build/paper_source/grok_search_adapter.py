@@ -290,6 +290,7 @@ def _call_mcp_tool(
                 process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 process.kill()
+                process.wait(timeout=5)
 
 
 def _first_match(pattern: re.Pattern[str], *values: object) -> str | None:
@@ -460,6 +461,7 @@ def _new_grok_diagnostics() -> dict[str, Any]:
         "retryable": False,
         "failure_stage": None,
         "retry_outcome": "not_needed",
+        "timeout_budget_exhausted": False,
         "elapsed_ms": 0,
     }
 
@@ -520,19 +522,33 @@ def _grok_provider_retryable(payload: dict[str, Any]) -> bool:
     return (bool(payload.get("fallback_used")) and fallback_reason == "grok_provider_error") or search_provider == "source_fallback"
 
 
+def _remaining_timeout_seconds(deadline: float) -> float:
+    return max(0.0, deadline - time.monotonic())
+
+
+def _model_attempts_budget_exhausted(attempts: list[dict[str, Any]]) -> bool:
+    return any(attempt.get("status") == "timeout_budget_exhausted" for attempt in attempts if isinstance(attempt, dict))
+
+
 def _call_web_search_with_model_fallbacks(
     *,
     arguments: dict[str, Any],
     timeout_seconds: int,
+    deadline: float | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     attempts: list[dict[str, Any]] = []
     last_result: dict[str, Any] | None = None
+    budget_deadline = deadline if deadline is not None else time.monotonic() + timeout_seconds
     for model in _configured_model_fallbacks():
+        remaining = _remaining_timeout_seconds(budget_deadline)
+        if remaining <= 0:
+            attempts.append({"model": model, "status": "timeout_budget_exhausted"})
+            break
         try:
             result = _call_mcp_tool(
                 "web_search",
                 arguments,
-                timeout_seconds=timeout_seconds,
+                timeout_seconds=remaining,
                 env_overrides={"OPENAI_COMPATIBLE_MODEL": model},
             )
         except GrokSearchMCPError as exc:
@@ -558,7 +574,10 @@ def _call_web_search_with_model_fallbacks(
         return last_result, attempts
     raise GrokSearchMCPError(
         "grok-search MCP web_search failed for all configured model fallbacks",
-        raw_response={"model_attempts": attempts},
+        raw_response={
+            "model_attempts": attempts,
+            "failure_stage": "timeout_or_budget_cutoff" if _model_attempts_budget_exhausted(attempts) else None,
+        },
     )
 
 
@@ -571,6 +590,7 @@ def discover_grok(
     timeout_seconds: int = SEARCH_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     started = time.monotonic()
+    deadline = started + timeout_seconds
     diagnostics = _new_grok_diagnostics()
     diagnostics["query_count"] = len(queries)
     command_args, probe = _mcp_command_args()
@@ -602,6 +622,11 @@ def discover_grok(
     evidence: list[dict[str, Any]] = []
     warnings: list[str] = []
     for index, query in enumerate(queries, start=1):
+        if _remaining_timeout_seconds(deadline) <= 0:
+            diagnostics["failure_stage"] = diagnostics.get("failure_stage") or "timeout_or_budget_cutoff"
+            diagnostics["timeout_budget_exhausted"] = True
+            diagnostics["retryable"] = False
+            break
         query_started = time.monotonic()
         try:
             result, model_attempts = _call_web_search_with_model_fallbacks(
@@ -612,17 +637,26 @@ def discover_grok(
                     "response_format": GROK_SEARCH_RESPONSE_FORMAT,
                 },
                 timeout_seconds=timeout_seconds,
+                deadline=deadline,
             )
         except GrokSearchMCPError as exc:
             warnings.append(str(exc))
-            diagnostics["failure_stage"] = diagnostics.get("failure_stage") or "provider_runtime_failure"
-            diagnostics["retryable"] = True
+            stage = exc.raw_response.get("failure_stage") or "provider_runtime_failure"
+            diagnostics["failure_stage"] = diagnostics.get("failure_stage") or stage
+            diagnostics["timeout_budget_exhausted"] = diagnostics["timeout_budget_exhausted"] or stage == "timeout_or_budget_cutoff"
+            diagnostics["retryable"] = _retryable_failure_stage(stage) and not diagnostics["timeout_budget_exhausted"]
             raw_responses.append({"query": query, "error": str(exc), "probe": exc.probe, "raw_response": exc.raw_response})
             continue
         payload = result["payload"]
         accepted, rejected = normalize_grok_payload(payload, query=query, index=index)
         diagnostics["returned_count"] += len(payload.get("sources") or []) if isinstance(payload.get("sources"), list) else 0
-        stage = _failure_stage_from_payload(payload, accepted_count=len(accepted), evidence=rejected)
+        budget_exhausted = _model_attempts_budget_exhausted(model_attempts)
+        diagnostics["timeout_budget_exhausted"] = diagnostics["timeout_budget_exhausted"] or budget_exhausted
+        stage = (
+            "timeout_or_budget_cutoff"
+            if budget_exhausted
+            else _failure_stage_from_payload(payload, accepted_count=len(accepted), evidence=rejected)
+        )
         if stage == "source_fallback_or_low_confidence_provider_output" and accepted:
             for record in accepted:
                 rejected.append(
@@ -638,7 +672,7 @@ def discover_grok(
                 )
             accepted = []
         retry_attempt: dict[str, Any] | None = None
-        if stage and _retryable_failure_stage(stage):
+        if stage and _retryable_failure_stage(stage) and _remaining_timeout_seconds(deadline) > 0:
             retry_query = _retry_query(query)
             retry_started = time.monotonic()
             retry_attempt = {
@@ -657,6 +691,7 @@ def discover_grok(
                         "response_format": GROK_SEARCH_RESPONSE_FORMAT,
                     },
                     timeout_seconds=timeout_seconds,
+                    deadline=deadline,
                 )
             except GrokSearchMCPError as exc:
                 retry_attempt.update(
@@ -707,7 +742,7 @@ def discover_grok(
             diagnostics["retry_attempts"].append(retry_attempt)
         if stage and not accepted and not diagnostics.get("failure_stage"):
             diagnostics["failure_stage"] = stage
-            diagnostics["retryable"] = _retryable_failure_stage(stage)
+            diagnostics["retryable"] = _retryable_failure_stage(stage) and not diagnostics["timeout_budget_exhausted"]
         raw_responses.append(
             {
                 "query": query,
@@ -726,7 +761,10 @@ def discover_grok(
         diagnostics["failure_stage"] = None
         diagnostics["retryable"] = False
     else:
-        diagnostics["retryable"] = _retryable_failure_stage(str(diagnostics.get("failure_stage") or ""))
+        diagnostics["retryable"] = (
+            _retryable_failure_stage(str(diagnostics.get("failure_stage") or ""))
+            and not diagnostics["timeout_budget_exhausted"]
+        )
     if diagnostics["retry_attempts"]:
         if records:
             diagnostics["retry_outcome"] = "recovered"

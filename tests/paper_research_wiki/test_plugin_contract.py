@@ -191,12 +191,13 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.7.0"
+    assert manifest["version"] == "2.7.1"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.7.0 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.7.1 | Paper Source:")
+    assert "CJK query planning" in manifest["interface"]["shortDescription"]
     assert "progress telemetry" in manifest["interface"]["shortDescription"]
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "benchmark gates" in manifest["interface"]["shortDescription"]
@@ -210,6 +211,8 @@ def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     assert "progress-events.jsonl" in manifest["interface"]["longDescription"]
     assert "report.json.discovery_context.discovery_progress" in manifest["interface"]["longDescription"]
     assert "required concept groups" in manifest["interface"]["longDescription"]
+    assert "CJK topic terms" in manifest["interface"]["longDescription"]
+    assert "shared timeout budgets" in manifest["interface"]["longDescription"]
     assert "discovery-benchmark gates" in manifest["interface"]["longDescription"]
     assert "provider-supplied official versions or related papers" in manifest["interface"]["longDescription"]
     assert "high-quality supplemental recall" in manifest["interface"]["longDescription"]

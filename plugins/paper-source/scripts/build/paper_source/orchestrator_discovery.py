@@ -139,7 +139,7 @@ def _merged_source_mode(query_records: list[dict]) -> str:
 
 def _int_or_none(value: object) -> int | None:
     if isinstance(value, bool):
-        return int(value)
+        return None
     if isinstance(value, int):
         return value
     if isinstance(value, float):

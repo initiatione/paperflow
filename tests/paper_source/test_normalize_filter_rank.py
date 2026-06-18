@@ -7,11 +7,19 @@ from paper_source.filter_candidates import (
     filter_candidates_with_report,
 )
 from paper_source.normalize_candidates import normalize_candidates
+from paper_source import orchestrator_discovery, paper_search_adapter, rank_papers
 from paper_source.orchestrator_discovery import (
     ranking_priority_keywords_from_query_plan,
     ranking_quality_evidence_terms_from_inputs,
 )
 from paper_source.rank_papers import rank_candidates
+
+
+def test_bool_values_are_absent_for_tolerant_int_helpers():
+    for value in (True, False):
+        assert rank_papers._int_or_none(value) is None
+        assert orchestrator_discovery._int_or_none(value) is None
+        assert paper_search_adapter._int_or_zero(value) == 0
 
 
 def test_normalize_filter_rank_keeps_relevant_pdf_candidate():

@@ -124,6 +124,7 @@ def derive_required_concept_groups(
     *,
     hard_domain_anchors: list[str],
     task_terms: list[str],
+    trusted_task_terms: list[str] | None = None,
     topic: str,
     source: str,
 ) -> list[dict[str, Any]]:
@@ -132,8 +133,14 @@ def derive_required_concept_groups(
         return []
     topic_text = str(topic or "")
     task_candidates: list[str] = []
+    for term in unique_nonempty_strings(trusted_task_terms):
+        if _term_overlaps_any(term, anchors):
+            continue
+        task_candidates.append(term)
     for term in unique_nonempty_strings(task_terms):
         if _term_overlaps_any(term, anchors):
+            continue
+        if _term_overlaps_any(term, task_candidates):
             continue
         if not term_matches_text(term, topic_text):
             continue
@@ -215,4 +222,3 @@ def evaluate_required_concept_groups(groups: list[dict[str, Any]], haystack: obj
         "passed": not missing,
         "missing_required_groups": missing,
     }
-

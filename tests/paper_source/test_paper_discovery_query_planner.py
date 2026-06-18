@@ -3,7 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from paper_source.query_planner import build_query_plan
+from paper_source.concept_groups import derive_required_concept_groups
+from paper_source.query_planner import build_query_plan, build_query_plan_from_research_brief, topic_focus_terms
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -285,6 +286,52 @@ def test_query_planner_derives_required_concept_groups_from_confirmed_anchor_and
     assert plan["hard_constraints"]["required_concept_groups"] == groups
 
 
+def test_research_brief_required_groups_preserve_user_terms_absent_from_topic():
+    plan = build_query_plan_from_research_brief(
+        {
+            "task": "AUV research",
+            "domain_scope": "AUV",
+            "keywords": ["attitude control"],
+            "specific_questions": ["trajectory tracking"],
+            "review_policy": {"type": "include"},
+        },
+        max_queries=4,
+        domains=[],
+        positive_keywords=[],
+    )
+
+    groups = plan["required_concept_groups"]["groups"]
+    assert [group["id"] for group in groups] == ["target_object", "task_problem"]
+    assert groups[0]["terms"] == ["AUV"]
+    assert groups[1]["terms"] == ["attitude control", "trajectory tracking"]
+
+
+def test_required_group_derivation_only_trusts_explicit_task_terms():
+    assert derive_required_concept_groups(
+        hard_domain_anchors=["AUV"],
+        task_terms=["attitude control"],
+        topic="AUV research",
+        source="test",
+    ) == []
+
+    trusted = derive_required_concept_groups(
+        hard_domain_anchors=["AUV"],
+        task_terms=[],
+        trusted_task_terms=["attitude control"],
+        topic="AUV research",
+        source="test",
+    )
+
+    assert trusted[1]["terms"] == ["attitude control"]
+    assert derive_required_concept_groups(
+        hard_domain_anchors=[],
+        task_terms=[],
+        trusted_task_terms=["attitude control"],
+        topic="AUV research",
+        source="test",
+    ) == []
+
+
 def test_query_planner_does_not_create_required_groups_without_confirmed_anchor():
     plan = build_query_plan(
         "molecular property prediction graph neural network",
@@ -315,6 +362,26 @@ def test_query_planner_derives_generic_topic_anchors_from_narrow_request():
     assert "molecular property prediction" in plan["concept_blocks"]["soft_recall_terms"]
     assert "graph neural network" not in plan["concept_blocks"]["soft_recall_terms"]
     assert plan["concept_blocks"]["domain_terms"][0] == "molecular property prediction"
+
+
+def test_query_planner_preserves_cjk_topic_terms():
+    assert topic_focus_terms("强化学习") == ["强化学习"]
+
+    mixed_terms = topic_focus_terms("强化学习 deep reinforcement learning")
+    assert "强化学习" in mixed_terms
+    assert "deep reinforcement learning" in mixed_terms
+
+    plan = build_query_plan(
+        "强化学习 deep reinforcement learning",
+        domain="auto",
+        non_review=True,
+        max_queries=4,
+        domains=["强化学习"],
+        positive_keywords=[],
+    )
+
+    assert "强化学习" in plan["concept_blocks"]["hard_domain_anchors"]
+    assert any("强化学习" in query for query in plan["query_variants"])
 
 
 def test_query_planner_keeps_non_robotics_profile_free_of_robotics_defaults():

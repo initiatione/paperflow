@@ -98,6 +98,49 @@ def test_discover_grok_uses_supported_detailed_response_format(tmp_path, monkeyp
     assert captured["env_overrides"]["OPENAI_COMPATIBLE_MODEL"] == "grok-4.20-multi-agent-xhigh"
 
 
+def test_call_mcp_tool_waits_after_kill_on_terminate_timeout(monkeypatch):
+    events = []
+
+    class _FakeStdin:
+        def close(self):
+            events.append("stdin.close")
+
+    class _FakeProcess:
+        def __init__(self):
+            self.stdin = _FakeStdin()
+            self.stdout = object()
+            self.stderr = object()
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            events.append("terminate")
+
+        def wait(self, timeout=None):
+            events.append(f"wait:{timeout}")
+            if timeout == 2:
+                raise adapter.subprocess.TimeoutExpired(cmd="configured-grok", timeout=timeout)
+            return 0
+
+        def kill(self):
+            events.append("kill")
+
+    monkeypatch.setattr(adapter, "_mcp_command_args", lambda: (["configured-grok"], {"available": True}))
+    monkeypatch.setattr(adapter.subprocess, "Popen", lambda *args, **kwargs: _FakeProcess())
+    monkeypatch.setattr(adapter.threading, "Thread", lambda *args, **kwargs: type("T", (), {"start": lambda self: None})())
+    monkeypatch.setattr(adapter, "_write_jsonrpc", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        adapter,
+        "_read_jsonrpc_response",
+        lambda **kwargs: {"result": {"structuredContent": {"ok": True}}},
+    )
+
+    adapter._call_mcp_tool("web_search", {"query": "AUV"}, timeout_seconds=5)
+
+    assert events == ["stdin.close", "terminate", "wait:2", "kill", "wait:5"]
+
+
 def test_configured_model_fallbacks_preserve_primary_before_defaults(monkeypatch):
     monkeypatch.setenv("OPENAI_COMPATIBLE_MODEL", "custom-primary")
     monkeypatch.setenv(
@@ -300,7 +343,7 @@ def test_discover_grok_retries_source_fallback_and_records_recovery(tmp_path, mo
 
     monkeypatch.setattr(adapter, "_mcp_command_args", lambda: (["configured-grok"], {"available": True}))
 
-    def fake_call(*, arguments, timeout_seconds):
+    def fake_call(*, arguments, timeout_seconds, **kwargs):
         calls.append(arguments["query"])
         if len(calls) == 1:
             return (
@@ -355,3 +398,40 @@ def test_discover_grok_retries_source_fallback_and_records_recovery(tmp_path, mo
     assert record["diagnostics"]["retry_attempts"][0]["reason"] == "source_fallback_or_low_confidence_provider_output"
     assert record["diagnostics"]["retry_attempts"][0]["status"] == "recovered"
     assert record["diagnostics"]["evidence_only_count"] == 1
+
+
+def test_discover_grok_bounds_model_fallbacks_by_shared_timeout_budget(tmp_path, monkeypatch):
+    now = {"value": 100.0}
+    calls = []
+
+    monkeypatch.setattr(adapter, "_mcp_command_args", lambda: (["configured-grok"], {"available": True}))
+    monkeypatch.setattr(adapter, "_configured_model_fallbacks", lambda: ["m1", "m2", "m3"])
+    monkeypatch.setattr(adapter.time, "monotonic", lambda: now["value"])
+
+    def fake_call(tool_name, arguments, timeout_seconds, **kwargs):
+        calls.append(timeout_seconds)
+        now["value"] += 4.0
+        return {
+            "payload": {
+                "search_provider": "source_fallback",
+                "fallback_used": True,
+                "fallback_reason": "grok_provider_error",
+                "sources": [],
+                "sources_count": 0,
+            },
+            "raw_response": {"ok": True},
+        }
+
+    monkeypatch.setattr(adapter, "_call_mcp_tool", fake_call)
+
+    record = adapter.discover_grok(
+        queries=["AUV control"],
+        include_domains=[],
+        raw_response_path=tmp_path / "raw.json",
+        evidence_path=tmp_path / "evidence.json",
+        timeout_seconds=5,
+    )
+
+    assert calls == [5, 1]
+    assert record["diagnostics"]["failure_stage"] == "timeout_or_budget_cutoff"
+    assert record["diagnostics"]["retry_outcome"] == "not_retryable"

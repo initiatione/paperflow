@@ -1,6 +1,8 @@
 import json
 import subprocess
 
+import pytest
+
 from paper_source.paper_search_adapter import COMMAND_UNAVAILABLE
 from paper_source.paper_search_adapter import MCPToolError
 from paper_source.paper_search_adapter import SEARCH_TIMEOUT_SECONDS
@@ -82,6 +84,24 @@ def test_normalized_paper_search_record_does_not_invent_zero_citations():
 
     assert "citation_count" not in without_citations
     assert with_zero_citations["citation_count"] == 0
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2023-05", 2023),
+        ("2023a", 2023),
+        ("forthcoming", None),
+        ("20230501", 2023),
+        ("2023", 2023),
+        (2023, 2023),
+        (None, None),
+    ],
+)
+def test_extract_year_handles_strict_four_digit_prefix(value, expected):
+    record = {} if value is None else {"year": value}
+
+    assert paper_search_adapter._extract_year(record, {}) == expected
 
 
 def test_mcp_probe_client_info_uses_paper_source_doctor_name(monkeypatch):

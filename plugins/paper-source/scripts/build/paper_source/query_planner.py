@@ -63,6 +63,9 @@ TOPIC_ANCHOR_STOPWORDS = STOPWORDS | {
     "surveys",
 }
 
+CJK_RANGES = "\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
+SEGMENT_TERM_RE = re.compile(rf"[A-Za-z0-9+\-]+|[{CJK_RANGES}]+")
+
 METHOD_FAMILY_PHRASES = [
     "deep reinforcement learning",
     "offline reinforcement learning",
@@ -181,12 +184,31 @@ def unique(items: list[str]) -> list[str]:
     return kept
 
 
+def _has_cjk(text: str) -> bool:
+    return any("\u3400" <= char <= "\u9fff" or "\uf900" <= char <= "\ufaff" for char in text)
+
+
+def _segment_terms(
+    text: str,
+    *,
+    ascii_min_len: int = 1,
+    cjk_min_len: int = 2,
+    stopwords: set[str] | None = None,
+) -> list[str]:
+    terms: list[str] = []
+    for match in SEGMENT_TERM_RE.finditer(str(text or "").lower()):
+        token = match.group(0)
+        if _has_cjk(token):
+            if len(token) >= cjk_min_len:
+                terms.append(token)
+            continue
+        if len(token) >= ascii_min_len and token not in (stopwords or set()):
+            terms.append(token)
+    return terms
+
+
 def _topic_terms(topic: str, *, limit: int = 8) -> list[str]:
-    words = [
-        word
-        for word in re.split(r"[^A-Za-z0-9+\-]+", topic.lower())
-        if len(word) > 2 and word not in STOPWORDS
-    ]
+    words = _segment_terms(topic, ascii_min_len=3, cjk_min_len=2, stopwords=STOPWORDS)
     terms: list[str] = []
     for width in (3, 2):
         for index in range(0, max(0, len(words) - width + 1)):
@@ -240,31 +262,24 @@ def _is_method_family_phrase(term: str) -> bool:
 
 
 def _configured_domain_terms_in_topic(configured_domains: list[str], topic: str) -> list[str]:
-    topic_words = set(
-        word
-        for word in re.split(r"[^a-z0-9+\-]+", topic.lower())
-        if word
-    )
+    topic_text = topic.lower()
+    topic_words = set(_segment_terms(topic, ascii_min_len=1, cjk_min_len=1))
     matched: list[str] = []
     for term in configured_domains:
         if _is_method_family_phrase(term):
             continue
         normalized = term.lower()
-        tokens = [token for token in re.split(r"[^a-z0-9+\-]+", normalized) if token]
+        tokens = _segment_terms(normalized, ascii_min_len=1, cjk_min_len=1)
         if not tokens:
             continue
-        if normalized in topic.lower() or all(token in topic_words for token in tokens):
+        if normalized in topic_text or all(token in topic_words for token in tokens):
             matched.append(term)
     return matched
 
 
 def _topic_domain_anchor_terms(topic: str, *, limit: int = 4) -> list[str]:
     residual = _remove_method_family_phrases(topic)
-    words = [
-        word
-        for word in re.split(r"[^a-z0-9+\-]+", residual)
-        if len(word) > 2 and word not in TOPIC_ANCHOR_STOPWORDS
-    ]
+    words = _segment_terms(residual, ascii_min_len=3, cjk_min_len=2, stopwords=TOPIC_ANCHOR_STOPWORDS)
     if not words:
         return []
     terms: list[str] = []
@@ -720,6 +735,7 @@ def build_query_plan_from_research_brief(
     required_concept_groups = derive_required_concept_groups(
         hard_domain_anchors=blocks["hard_domain_anchors"],
         task_terms=keywords + questions,
+        trusted_task_terms=keywords + questions,
         topic=topic,
         source="research_brief",
     )

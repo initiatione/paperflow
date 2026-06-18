@@ -1,12 +1,12 @@
 # Paper Source 插件进度说明
 
-更新时间：2026-06-18。文档权威分工（doc map）见 `docs/paper-source-linkage.md` 顶部；本文档只记录当前源码树的状态快照、已知风险和下一步计划。逐轮变更历史见 `docs/CHANGELOG.md`。
+更新时间：2026-06-19。文档权威分工（doc map）见 `docs/paper-source-linkage.md` 顶部；本文档只记录当前源码树的状态快照、已知风险和下一步计划。逐轮变更历史见 `docs/CHANGELOG.md`。
 
 ## 当前定位
 
 Paper Source 当前聚焦“按用户画像/config 衍生的高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉淀 -> 轻阅读负担报告”。它是通用学术论文插件，不默认任何学科方向；AUV、机器人、AI、医学等词只能来自用户配置、当前请求、Research Brief 或 agent 显式传入的 query variants / domain focus terms / required concept groups。
 
-当前 `plugin.json` 中的版本：Paper Source `2.7.0`，Paper Wiki `1.0.4`。本轮是 discovery runtime progress telemetry minor bump（详见 CHANGELOG 2.7.0）：`dry-run` 会写 `paper-source-progress-events-v1` 的 `progress-events.jsonl` / `progress-summary.json`，向 stderr 输出阶段 start/end/heartbeat，并把 `run-state.json.discovery_progress` 与 `report.json.discovery_context.discovery_progress` 作为长运行诊断入口；`dry-run --json` 继续只在 stdout 输出 JSON，同时 artifact map 暴露 progress paths。上一轮是 required concept groups discovery relevance minor bump（详见 CHANGELOG 2.6.0）：query plan 可记录 `paper-source-required-concept-groups-v1`，filter/report/diagnostics 会显示每个候选命中或缺失了哪些 required groups，并用 `required_concept_group_mismatch:<group_id>` 阻断缺少必要任务/问题概念的 primary eligibility；没有明确 required groups 的 one-concept/soft-recall 请求保持旧召回行为。历史条目和完整变更链见 `docs/CHANGELOG.md`；runtime claims 必须继续区分 source checkout、installed cache 和当前 Codex session。
+当前 `plugin.json` 中的版本：Paper Source `2.7.1`，Paper Wiki `1.0.4`。本轮是 discovery correctness patch（详见 CHANGELOG 2.7.1）：修复 Research Brief required task/problem terms 被 topic filter 静默丢弃、CJK topic terms 被 ASCII 分词丢弃、paper-search 年份字段解析抛错或产出垃圾年份、Grok fallback/retry timeout budget 放大、Grok kill 后未 reap 子进程，以及 bool 被 tolerant int helpers 当作 1/0 的问题。上一轮是 discovery runtime progress telemetry minor bump（详见 CHANGELOG 2.7.0）：`dry-run` 会写 `paper-source-progress-events-v1` 的 `progress-events.jsonl` / `progress-summary.json`，向 stderr 输出阶段 start/end/heartbeat，并把 `run-state.json.discovery_progress` 与 `report.json.discovery_context.discovery_progress` 作为长运行诊断入口；`dry-run --json` 继续只在 stdout 输出 JSON，同时 artifact map 暴露 progress paths。历史条目和完整变更链见 `docs/CHANGELOG.md`；runtime claims 必须继续区分 source checkout、installed cache 和当前 Codex session。
 
 2026-06-17 follow-up：Unpaywall 现在从 broad no-DOI 第一轮关键词检索默认源中移除。`plan_source_routing` 对 `search=doi-lookup` source 给出 `doi_lookup_source` demotion，只在 DOI 精确查询和采集阶段 OA fallback 中使用 Unpaywall；当前 live vault 配置也已移除首轮 `google_scholar` / `unpaywall`，保留 runtime env file 中的 Unpaywall email 供 DOI-backed OA fallback 使用。同日确认 `grok-search-rs 0.1.17` 在仅加载 OpenAI-compatible URL/model/key、未设置 `GROK_SEARCH_API_KEY` 时可完成 MCP initialize；源码只把 `GROK_SEARCH_API_KEY` 作为可选 alias 加入 whitelist，不要求用户配置 Grok 专用密钥。
 

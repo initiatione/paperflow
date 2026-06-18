@@ -25,6 +25,7 @@ PROBE_TIMEOUT_SECONDS = 60
 SEARCH_TIMEOUT_SECONDS = 180
 MCP_PROTOCOL_VERSION = "2025-11-25"
 DEFAULT_MCP_COMMAND_ARGS = ["python", "-m", "paper_search_mcp.server"]
+YEAR_PREFIX_RE = re.compile(r"^(19|20)\d{2}")
 OA_FALLBACK_CHAIN = ["source-native", "openaire", "core", "europepmc", "pmc", "unpaywall"]
 SOURCE_CAPABILITIES = {
     "arxiv": {"search": "supported", "download": "supported", "read": "supported"},
@@ -781,16 +782,34 @@ def _parse_extra(extra: object) -> dict:
     return {}
 
 
+def _parse_year_prefix(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if 1900 <= value <= 2099 else None
+    text = str(value).strip()
+    match = YEAR_PREFIX_RE.match(text)
+    if not match:
+        return None
+    try:
+        return int(match.group(0))
+    except (TypeError, ValueError):
+        return None
+
+
 def _extract_year(record: dict, extra: dict) -> int | None:
     for key in ("year", "published_year"):
-        if record.get(key):
-            return int(record[key])
+        if record.get(key) is not None:
+            year = _parse_year_prefix(record.get(key))
+            if year is not None:
+                return year
     for key in ("published_date", "updated_date", "publication_date", "date"):
         value = record.get(key) or extra.get(key)
-        if value:
-            text = str(value)
-            if len(text) >= 4 and text[:4].isdigit():
-                return int(text[:4])
+        year = _parse_year_prefix(value)
+        if year is not None:
+            return year
     return None
 
 
@@ -873,7 +892,7 @@ def _elapsed_ms(start: float) -> int:
 
 def _int_or_zero(value: object) -> int:
     if isinstance(value, bool):
-        return int(value)
+        return 0
     if isinstance(value, int):
         return value
     if isinstance(value, float):
