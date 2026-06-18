@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from paper_source.lexical_match import term_matches_text
 from paper_source.paper_library import existing_library_match
 
 
@@ -51,16 +52,7 @@ def exclusion_terms_from_query(query: str) -> list[str]:
 
 
 def _term_matches_haystack(term: str, haystack: str) -> bool:
-    term = " ".join(term.lower().split())
-    if not term:
-        return False
-    if term in haystack:
-        return True
-    tokens = [token for token in re.split(r"\s+", term) if token]
-    if len(tokens) < 2:
-        return False
-    pattern = r"\b" + r".*".join(re.escape(token) for token in tokens) + r"\b"
-    return re.search(pattern, haystack) is not None
+    return term_matches_text(term, haystack)
 
 
 def _excluded_term_matches_haystack(term: str, haystack: str) -> bool:

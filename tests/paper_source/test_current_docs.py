@@ -30,12 +30,18 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.3.13"
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.13 | Paper Source:")
+    assert manifest["version"] == "2.3.14"
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.14 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
+    assert "query-plan diagnostics" in manifest["interface"]["shortDescription"]
+    assert "lexical relevance" in manifest["interface"]["shortDescription"]
     assert "normalized ranking" in manifest["interface"]["shortDescription"]
     assert "cross-discipline quality gates" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
+    assert "term_provenance_detail" in manifest["interface"]["longDescription"]
+    assert "query-plan diagnostics" in manifest["interface"]["longDescription"]
+    assert "acronym or synonym expansions" in manifest["interface"]["longDescription"]
+    assert "lexical relevance checks" in manifest["interface"]["longDescription"]
     assert "normalized citation ranking" in manifest["interface"]["longDescription"]
     assert "config/agent-plan quality-evidence lexicons" in manifest["interface"]["longDescription"]
     assert "identity/relevance/inspectability/validation/source-confidence/reproducibility/request-risk dimensions" in manifest["interface"]["longDescription"]
@@ -47,9 +53,14 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.3.14",
             "Paper Source 2.3.13",
             "Paper Source 2.3.12",
             "Paper Source 2.3.10",
+            "term_provenance_detail",
+            "paper-source-query-plan-diagnostics-v1",
+            "acronym_expansions",
+            "token-boundary lexical matching",
             "publication-age-normalized citation quality",
             "Quality-evidence lexicons",
             "Missing citation/venue evidence",

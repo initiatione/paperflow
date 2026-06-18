@@ -153,6 +153,8 @@ NON_REVIEW_MODE_BLOCKERS = (
     "exclude survey",
 )
 
+QUERY_PLAN_DIAGNOSTICS_SCHEMA_VERSION = "paper-source-query-plan-diagnostics-v1"
+
 
 def _as_terms(values: list[str] | tuple[str, ...] | None) -> list[str]:
     if not values:
@@ -317,6 +319,122 @@ def _quality_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return {key: payload[key] for key in keys if payload.get(key)}
 
 
+def _term_key(term: object) -> str:
+    return " ".join(str(term or "").strip().split())
+
+
+def _add_provenance_detail(
+    detail: dict[str, list[dict[str, str]]],
+    terms: list[str],
+    *,
+    source: str,
+    field: str,
+    role: str,
+) -> None:
+    for raw_term in terms:
+        term = _term_key(raw_term)
+        if not term:
+            continue
+        entries = detail.setdefault(term, [])
+        entry = {"source": source, "field": field, "role": role}
+        if entry not in entries:
+            entries.append(entry)
+
+
+def add_term_provenance_detail(
+    plan: dict[str, Any],
+    terms: list[str],
+    *,
+    source: str,
+    field: str,
+    role: str,
+) -> None:
+    detail = plan.get("term_provenance_detail") if isinstance(plan.get("term_provenance_detail"), dict) else {}
+    _add_provenance_detail(detail, terms, source=source, field=field, role=role)
+    plan["term_provenance_detail"] = detail
+
+
+def _term_provenance_sources(detail: dict[str, list[dict[str, str]]]) -> list[str]:
+    sources = {
+        str(entry.get("source"))
+        for entries in detail.values()
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("source")
+    }
+    return sorted(sources)
+
+
+def _query_text_fingerprint(value: object) -> str:
+    text = str(value or "").lower()
+    text = re.sub(r"(?<![a-z0-9])-(review|survey)(?![a-z0-9])", " ", text)
+    return " ".join(re.findall(r"[a-z0-9]+", text))
+
+
+def _looks_complex_natural_language_request(topic: str) -> bool:
+    lowered = topic.lower()
+    token_count = len(re.findall(r"[a-z0-9]+", lowered))
+    has_cjk = any("\u4e00" <= char <= "\u9fff" for char in topic)
+    signals = [
+        "latest",
+        "recent",
+        "high quality",
+        "public code",
+        "code preferred",
+        "last five",
+        "past five",
+        " or ",
+        " and ",
+        "not review",
+        "non-review",
+        "综述",
+        "公开代码",
+        "近",
+    ]
+    return has_cjk or token_count >= 8 or sum(1 for signal in signals if signal in lowered) >= 2
+
+
+def build_query_plan_diagnostics(plan: dict[str, Any], topic: str) -> dict[str, Any]:
+    variants = [str(query).strip() for query in plan.get("query_variants") or [] if str(query).strip()]
+    topic_fingerprint = _query_text_fingerprint(topic)
+    raw_query_variant = bool(topic_fingerprint) and any(
+        _query_text_fingerprint(variant) == topic_fingerprint for variant in variants
+    )
+    blocks = plan.get("concept_blocks") if isinstance(plan.get("concept_blocks"), dict) else {}
+    hard_anchors = [str(term) for term in blocks.get("hard_domain_anchors") or [] if str(term).strip()]
+    soft_recall = [
+        str(term)
+        for term in (plan.get("soft_recall_terms") or blocks.get("soft_recall_terms") or [])
+        if str(term).strip()
+    ]
+    detail = plan.get("term_provenance_detail") if isinstance(plan.get("term_provenance_detail"), dict) else {}
+    complex_request = _looks_complex_natural_language_request(topic)
+    warnings: list[str] = []
+    if complex_request and len(variants) < 2:
+        warnings.append("complex_request_has_too_few_query_variants")
+    if complex_request and raw_query_variant and len(variants) <= 1:
+        warnings.append("raw_query_used_as_primary_variant")
+    if complex_request and not hard_anchors and not soft_recall:
+        warnings.append("complex_request_missing_query_anchors")
+    if not detail:
+        warnings.append("missing_term_provenance_detail")
+    return {
+        "schema_version": QUERY_PLAN_DIAGNOSTICS_SCHEMA_VERSION,
+        "status": "warning" if warnings else "ok",
+        "warnings": warnings,
+        "complex_natural_language_request": complex_request,
+        "query_variant_count": len(variants),
+        "raw_query_variant": raw_query_variant,
+        "hard_domain_anchor_count": len(hard_anchors),
+        "soft_recall_term_count": len(soft_recall),
+        "term_provenance_sources": _term_provenance_sources(detail),
+        "policy": "Raw natural-language queries should be intent labels; complex requests should use explicit academic query variants and recorded hard/soft terms.",
+    }
+
+
+def refresh_query_plan_diagnostics(plan: dict[str, Any], topic: str | None = None) -> None:
+    plan["diagnostics"] = build_query_plan_diagnostics(plan, topic or str(plan.get("topic") or ""))
+
+
 def choose_domain(
     topic: str,
     requested: str,
@@ -452,7 +570,58 @@ def build_query_plan(
     if not venue_families:
         venue_families = ["profile-configured venue_prior", "field-specific top venues"]
 
-    return {
+    provenance_detail: dict[str, list[dict[str, str]]] = {}
+    _add_provenance_detail(
+        provenance_detail,
+        _as_terms(domains),
+        source="config",
+        field="domains",
+        role="profile_domain",
+    )
+    _add_provenance_detail(
+        provenance_detail,
+        _as_terms(positive_keywords),
+        source="config",
+        field="positive_keywords",
+        role="profile_positive_keyword",
+    )
+    _add_provenance_detail(
+        provenance_detail,
+        _as_terms(negative_keywords),
+        source="config",
+        field="negative_keywords",
+        role="exclusion",
+    )
+    _add_provenance_detail(
+        provenance_detail,
+        configured_venues,
+        source="config",
+        field="venue_prior",
+        role="venue_prior",
+    )
+    _add_provenance_detail(
+        provenance_detail,
+        blocks["hard_domain_anchors"],
+        source="user_request",
+        field="topic",
+        role="hard_anchor",
+    )
+    _add_provenance_detail(
+        provenance_detail,
+        blocks["soft_recall_terms"],
+        source="user_request",
+        field="topic",
+        role="soft_recall",
+    )
+    _add_provenance_detail(
+        provenance_detail,
+        _topic_terms(topic),
+        source="user_request",
+        field="topic",
+        role="topic_term",
+    )
+
+    plan = {
         "workflow": "paper-source-query-plan",
         "topic": topic,
         "research_mode": infer_research_mode(topic),
@@ -487,8 +656,14 @@ def build_query_plan(
         "term_provenance": {
             **{term: "config_domain_matched_in_topic" for term in blocks["hard_domain_anchors"]},
             **{term: "topic_inferred_soft_recall" for term in blocks["soft_recall_terms"]},
+            **{term: "config_positive_keyword" for term in _as_terms(positive_keywords)},
+            **{term: "config_negative_keyword" for term in _as_terms(negative_keywords)},
+            **{term: "config_venue_prior" for term in configured_venues},
         },
+        "term_provenance_detail": provenance_detail,
     }
+    refresh_query_plan_diagnostics(plan, topic)
+    return plan
 
 
 def build_query_plan_from_research_brief(
@@ -545,6 +720,34 @@ def build_query_plan_from_research_brief(
     for term in blocks.get("soft_recall_terms", []):
         provenance.setdefault(term, "topic_inferred_soft_recall")
     plan["term_provenance"] = provenance
+    add_term_provenance_detail(
+        plan,
+        [domain_scope] if domain_scope else [],
+        source="research_brief",
+        field="domain_scope",
+        role="hard_anchor",
+    )
+    add_term_provenance_detail(
+        plan,
+        keywords,
+        source="research_brief",
+        field="keywords",
+        role="method_or_topic",
+    )
+    add_term_provenance_detail(
+        plan,
+        questions,
+        source="research_brief",
+        field="specific_questions",
+        role="problem",
+    )
+    add_term_provenance_detail(
+        plan,
+        exclusions,
+        source="research_brief",
+        field="exclusions",
+        role="exclusion",
+    )
     quality_evidence = _quality_evidence_payload(brief)
     if quality_evidence:
         plan["quality_evidence_terms"] = quality_evidence
@@ -557,6 +760,7 @@ def build_query_plan_from_research_brief(
         "output_goal": output_goal.get("type"),
         "precedence": "brief_overrides_profile",
     }
+    refresh_query_plan_diagnostics(plan, topic)
     return plan
 
 

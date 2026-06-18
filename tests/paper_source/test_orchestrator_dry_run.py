@@ -731,6 +731,78 @@ def test_dry_run_records_structured_agent_query_plan_and_request_constraints(tmp
     assert state["input_artifact_hashes"]["agent-query-plan.json"] == file_sha256(agent_plan)
 
 
+def test_dry_run_records_agent_acronym_and_synonym_expansions(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    agent_plan = tmp_path / "agent-query-plan-expansions.json"
+    agent_plan.write_text(
+        json.dumps(
+            {
+                "schema_version": "paper-source-agent-query-plan-v1",
+                "query_variants": [
+                    '"AUV" "attitude control" "MPC" -review -survey',
+                    '"autonomous underwater vehicle" "model predictive control" "attitude control" -review -survey',
+                ],
+                "hard_domain_anchors": ["AUV", "autonomous underwater vehicle"],
+                "synonyms": {"AUV": ["autonomous underwater vehicle", "underwater robot"]},
+                "acronym_expansions": {"MPC": "model predictive control", "RL": "reinforcement learning"},
+                "term_provenance": {
+                    "AUV": "agent_explicit_hard_anchor",
+                    "model predictive control": "agent_acronym_expansion",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "semantic",
+                    "title": "Model Predictive Attitude Control for Autonomous Underwater Vehicles",
+                    "authors": ["A. Researcher"],
+                    "year": 2025,
+                    "venue": "Ocean Engineering",
+                    "abstract": "Autonomous underwater vehicle attitude control with benchmark experiments.",
+                    "doi": "10.1000/auv-mpc",
+                    "pdf_url": "https://example.org/auv-mpc.pdf",
+                    "citation_count": 6,
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="AUV attitude control with MPC or RL and public code preferred",
+        max_results=5,
+        fixture_path=fixture,
+        agent_query_plan_json=agent_plan,
+        sources=["semantic"],
+    )
+
+    query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
+    ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
+    diagnostics = json.loads((run_dir / "discovery-diagnostics.json").read_text(encoding="utf-8"))
+
+    assert query_plan["query_variants_source"] == "agent_supplied"
+    assert query_plan["concept_blocks"]["hard_domain_anchors"] == ["AUV", "autonomous underwater vehicle"]
+    assert "underwater robot" in query_plan["soft_recall_terms"]
+    assert "model predictive control" in query_plan["soft_recall_terms"]
+    assert "reinforcement learning" in query_plan["soft_recall_terms"]
+    provenance = query_plan["term_provenance_detail"]
+    assert any(entry["source"] == "agent" and entry["field"] == "synonyms" for entry in provenance["underwater robot"])
+    assert any(
+        entry["source"] == "agent" and entry["field"] == "acronym_expansions"
+        for entry in provenance["model predictive control"]
+    )
+    assert ranked[0]["title"] == "Model Predictive Attitude Control for Autonomous Underwater Vehicles"
+    assert diagnostics["query_plan_contract"]["diagnostics"]["status"] == "ok"
+
+
 def test_dry_run_source_coverage_reports_normalized_dedupe_total_for_query_plan(tmp_path):
     plugin_root = tmp_path / "plugin"
     _write_minimal_plugin_template(plugin_root)

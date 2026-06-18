@@ -116,6 +116,16 @@ def test_query_planner_maps_research_brief_as_current_intent_over_profile():
     assert all("-review -survey" not in query for query in plan["query_variants"])
     assert plan["research_brief"]["output_goal"] == "literature_review_seed"
     assert plan["research_brief"]["precedence"] == "brief_overrides_profile"
+    provenance = plan["term_provenance_detail"]
+    assert any(
+        entry["source"] == "research_brief" and entry["field"] == "domain_scope"
+        for entry in provenance["fixed-wing aircraft fault-tolerant control"]
+    )
+    assert any(
+        entry["source"] == "research_brief" and entry["field"] == "keywords"
+        for entry in provenance["fault-tolerant control"]
+    )
+    assert any(entry["source"] == "config" and entry["field"] == "domains" for entry in provenance["AUV"])
 
 
 def test_dry_run_from_confirmed_brief_records_metadata_and_hash(tmp_path, monkeypatch):

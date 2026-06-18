@@ -875,6 +875,8 @@ def run_dry_run(
             "soft_recall_terms": (query_plan or {}).get("soft_recall_terms")
             or (query_plan or {}).get("concept_blocks", {}).get("soft_recall_terms", []),
             "term_provenance": (query_plan or {}).get("term_provenance", {}),
+            "term_provenance_detail": (query_plan or {}).get("term_provenance_detail", {}),
+            "diagnostics": (query_plan or {}).get("diagnostics", {}),
             "policy": "hard filters come only from explicit/config/Research Brief anchors; inferred terms are recall evidence",
         },
         "candidate_pool": discovery_context["candidate_pool"],

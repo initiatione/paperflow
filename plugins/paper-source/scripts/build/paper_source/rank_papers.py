@@ -4,6 +4,8 @@ from datetime import date
 from math import log10
 from typing import NamedTuple
 
+from paper_source.lexical_match import matched_terms, term_matches_text
+
 
 REPRODUCIBILITY_TERMS = (
     "reproducible",
@@ -155,7 +157,7 @@ def _text(candidate: dict) -> str:
 
 
 def _term_score(text: str, terms: tuple[str, ...]) -> float:
-    hits = sum(1 for term in terms if term in text)
+    hits = sum(1 for term in terms if term_matches_text(term, text))
     return min(1.0, hits / 3)
 
 
@@ -299,7 +301,7 @@ def _quality_lexicon(quality_evidence_terms: object | None) -> QualityLexicon:
 
 
 def _matched_keywords(text: str, keywords: list[str]) -> list[str]:
-    return [keyword for keyword in keywords if keyword in text]
+    return matched_terms(text, keywords)
 
 
 def _saturating_topic_score(hit_count: int, term_count: int) -> float:
@@ -459,7 +461,7 @@ def _classify_paper_type(
     text = _text(candidate)
     matches: list[tuple[str, list[str], int]] = []
     for priority, (paper_type, terms) in enumerate(paper_type_rules):
-        hits = [term for term in terms if term in text]
+        hits = matched_terms(text, list(terms))
         if hits:
             matches.append((paper_type, hits, priority))
 

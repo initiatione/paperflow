@@ -5,7 +5,13 @@ from pathlib import Path
 
 from paper_source.artifacts import read_json
 from paper_source.filter_candidates import default_discovery_exclusion_terms
-from paper_source.query_planner import build_query_plan, infer_research_mode, topic_focus_terms
+from paper_source.query_planner import (
+    add_term_provenance_detail,
+    build_query_plan,
+    infer_research_mode,
+    refresh_query_plan_diagnostics,
+    topic_focus_terms,
+)
 
 CODE_POLICIES = {"ignore", "prefer", "require"}
 
@@ -102,6 +108,10 @@ def load_agent_query_plan_json(path: Path | None) -> dict | None:
         value = payload.get(key)
         if value is not None and not isinstance(value, dict):
             raise ValueError(f"agent query plan field must be an object: {key}")
+    for key in ("synonyms", "acronym_expansions", "acronyms"):
+        value = payload.get(key)
+        if value is not None and not isinstance(value, (dict, list)):
+            raise ValueError(f"agent query plan field must be an object or list: {key}")
     return payload
 
 
@@ -116,6 +126,34 @@ def agent_plan_strings(payload: dict | None, *keys: str, split_commas: bool = Fa
         elif isinstance(raw_value, list):
             values.extend(str(item) for item in raw_value)
     return unique_nonempty_strings(values, split_commas=split_commas)
+
+
+def _expansion_terms(value: object) -> list[str]:
+    terms: list[str] = []
+    if isinstance(value, str):
+        terms.append(value)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            normalized_key = str(key).strip().lower()
+            if normalized_key in {"term", "terms", "value", "values", "synonym", "synonyms", "expansion", "expanded"}:
+                terms.extend(_expansion_terms(item))
+            elif isinstance(item, str):
+                terms.append(item)
+            elif isinstance(item, (dict, list, tuple, set)):
+                terms.extend(_expansion_terms(item))
+    elif isinstance(value, (list, tuple, set)):
+        for item in value:
+            terms.extend(_expansion_terms(item))
+    return unique_nonempty_strings(terms, split_commas=True)
+
+
+def agent_plan_expansion_terms(payload: dict | None, *keys: str) -> list[str]:
+    if not payload:
+        return []
+    terms: list[str] = []
+    for key in keys:
+        terms.extend(_expansion_terms(payload.get(key)))
+    return unique_nonempty_strings(terms, split_commas=True)
 
 
 def agent_plan_constraint(payload: dict | None, key: str) -> object:
@@ -172,7 +210,16 @@ def agent_plan_soft_recall_terms(payload: dict | None) -> list[str]:
     if not payload:
         return []
     return unique_nonempty_strings(
-        agent_plan_strings(payload, "soft_recall_terms", "recall_terms", "expanded_terms", split_commas=True)
+        agent_plan_strings(
+            payload,
+            "soft_recall_terms",
+            "recall_terms",
+            "expanded_terms",
+            "related_terms",
+            "synonym_terms",
+            split_commas=True,
+        )
+        + agent_plan_expansion_terms(payload, "synonyms", "acronym_expansions", "acronyms")
         + agent_plan_strings(payload, "domain_focus_terms", split_commas=True),
         split_commas=True,
     )
@@ -285,6 +332,8 @@ def apply_agent_supplied_query_inputs(
         split_commas=True,
     )
     soft_recall_terms = agent_plan_soft_recall_terms(agent_query_plan)
+    agent_synonym_terms = agent_plan_expansion_terms(agent_query_plan, "synonyms", "synonym_terms")
+    agent_acronym_terms = agent_plan_expansion_terms(agent_query_plan, "acronym_expansions", "acronyms")
     if hard_domain_anchors:
         blocks["hard_domain_anchors"] = hard_domain_anchors
         blocks["domain_focus_terms"] = unique_nonempty_strings(
@@ -300,6 +349,56 @@ def apply_agent_supplied_query_inputs(
     _merge_term_provenance(plan, domain_focus_terms, "cli_explicit_hard_anchor")
     _merge_term_provenance(plan, agent_plan_hard_domain_anchors(agent_query_plan), "agent_explicit_hard_anchor")
     _merge_term_provenance(plan, list(blocks.get("soft_recall_terms") or []), "agent_or_topic_soft_recall")
+    add_term_provenance_detail(
+        plan,
+        domain_focus_terms,
+        source="cli",
+        field="domain_focus_terms",
+        role="hard_anchor",
+    )
+    add_term_provenance_detail(
+        plan,
+        agent_plan_hard_domain_anchors(agent_query_plan),
+        source="agent",
+        field="hard_domain_anchors",
+        role="hard_anchor",
+    )
+    add_term_provenance_detail(
+        plan,
+        agent_plan_strings(agent_query_plan, "domain_focus_terms", split_commas=True),
+        source="agent",
+        field="domain_focus_terms",
+        role="soft_recall",
+    )
+    add_term_provenance_detail(
+        plan,
+        agent_plan_strings(
+            agent_query_plan,
+            "soft_recall_terms",
+            "recall_terms",
+            "expanded_terms",
+            "related_terms",
+            "synonym_terms",
+            split_commas=True,
+        ),
+        source="agent",
+        field="soft_recall_terms",
+        role="soft_recall",
+    )
+    add_term_provenance_detail(
+        plan,
+        agent_synonym_terms,
+        source="agent",
+        field="synonyms",
+        role="soft_recall",
+    )
+    add_term_provenance_detail(
+        plan,
+        agent_acronym_terms,
+        source="agent",
+        field="acronym_expansions",
+        role="soft_recall",
+    )
     if query_variants:
         plan["query_variants"] = query_variants
         plan["query_variants_source"] = "agent_supplied"
@@ -334,11 +433,14 @@ def apply_agent_supplied_query_inputs(
         "hard_domain_anchors": hard_domain_anchors,
         "agent_hard_domain_anchors": agent_plan_hard_domain_anchors(agent_query_plan),
         "soft_recall_terms": list(blocks.get("soft_recall_terms") or []),
+        "synonym_terms": agent_synonym_terms,
+        "acronym_expansion_terms": agent_acronym_terms,
         "agent_query_plan_path": str(agent_query_plan_path) if agent_query_plan_path else None,
         "agent_query_plan": agent_query_plan or {},
         "request_constraints": request_constraints,
         "contract": "agent_plans_natural_language; script_validates_records_executes; inferred_terms_do_not_become_hard_filters",
     }
+    refresh_query_plan_diagnostics(plan, query)
     return plan
 
 
@@ -362,6 +464,7 @@ def apply_exact_lookup_query_plan(query_plan: dict, source_routing: dict | None)
         "reason": "The user supplied a DOI, arXiv ID, or explicit title lookup; preserve the identifier instead of expanding the query.",
     }
     query_plan["query_variants"] = [exact_lookup_query(source_routing, str(query_plan.get("topic") or ""))]
+    refresh_query_plan_diagnostics(query_plan, str(query_plan.get("topic") or ""))
 
 
 def query_strategy_for_dry_run(query_plan: dict | None, fixture_path: Path | None, source_routing: dict | None) -> str:

@@ -17,6 +17,8 @@ Use the query planner before the first search whenever the user asks for high-qu
 | `request_constraints` | Agent-supplied executable constraints such as `year_min` and `code_policy` (`ignore`, `prefer`, or `require`) |
 | `selection_policy` | Ranking-to-staging policy such as `balanced_high_quality`, `strict_advance`, or `code_required` |
 | `term_provenance` | Per-term origin: user/config/Research Brief hard anchor or agent/topic soft recall |
+| `term_provenance_detail` | Structured per-term entries with `source`, `field`, and `role` for config, user request, Research Brief, and agent inputs |
+| `diagnostics` | `paper-source-query-plan-diagnostics-v1` warnings for raw or underspecified complex natural-language plans |
 
 ## Helper
 
@@ -37,7 +39,7 @@ python scripts\orchestrator.py dry-run --query "<natural language topic>" --quer
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --vault <vault> --json
 ```
 
-`--query` remains the intent label and resume signature input. `--query-variant` is what gets sent to `paper_search_mcp`. `--domain-focus-term` is a hard filter anchor when the requested object/domain must be present. In agent plan JSON, legacy `domain_focus_terms` are soft recall; use `hard_domain_anchors` or `hard_constraints` for hard filters. `--year-min` rejects older or undated candidates when a recent window is explicit. `--code-policy prefer` ranks public-code candidates higher without dropping otherwise strong papers; `--code-policy require` rejects candidates without a metadata `code_url` / repository identity.
+`--query` remains the intent label and resume signature input. `--query-variant` is what gets sent to `paper_search_mcp`. `--domain-focus-term` is a hard filter anchor when the requested object/domain must be present. In agent plan JSON, legacy `domain_focus_terms` are soft recall; use `hard_domain_anchors` or `hard_constraints` for hard filters. Field-specific synonyms, acronym expansions, and related recall terms belong in `synonyms`, `synonym_terms`, `acronym_expansions`, `acronyms`, `related_terms`, or `expanded_terms`; scripts record those as soft recall unless the same terms are also explicit hard anchors. `--year-min` rejects older or undated candidates when a recent window is explicit. `--code-policy prefer` ranks public-code candidates higher without dropping otherwise strong papers; `--code-policy require` rejects candidates without a metadata `code_url` / repository identity.
 
 Structured agent plan files should be small, discipline-neutral JSON objects:
 
@@ -50,6 +52,13 @@ Structured agent plan files should be small, discipline-neutral JSON objects:
   ],
   "hard_domain_anchors": ["<domain object>", "<domain synonym>"],
   "soft_recall_terms": ["<agent inferred expansion>"],
+  "synonyms": {
+    "<domain object>": ["<domain synonym>"]
+  },
+  "acronym_expansions": {
+    "<acronym>": "<expanded phrase>"
+  },
+  "related_terms": ["<non-hard recall term>"],
   "term_provenance": {
     "<domain object>": "user_explicit_hard_anchor",
     "<agent inferred expansion>": "agent_inferred_soft_recall"
@@ -64,7 +73,7 @@ Structured agent plan files should be small, discipline-neutral JSON objects:
 }
 ```
 
-The script validates, records, filters, and ranks from these fields; it does not infer field-specific vocabulary from the raw natural-language topic.
+The script validates, records, filters, and ranks from these fields; it does not infer field-specific vocabulary from the raw natural-language topic. Check `query-plan.json.diagnostics.status` and `discovery-diagnostics.json.query_plan_contract.diagnostics` before reporting a run as well-planned.
 
 ## Planning Rules
 
@@ -78,3 +87,4 @@ The script validates, records, filters, and ranks from these fields; it does not
 8. Treat query-plan expansion terms as recall aids, not ranking requirements. Ranking/profile fit should use configured interests plus the current topic focus terms, so broad recall terms do not demote a precise, high-quality paper.
 9. For narrow requests, compute `hard_domain_anchors` before filtering only when the object, task, disease, material, platform, organism, venue family, or application domain is explicit in the user request, config, or Research Brief. Broad method family phrases such as reinforcement learning, graph neural network, deep learning, or generic AI are recall/method terms, not hard anchors by themselves.
 10. Do not promote broad n-grams sliced from a long query into hard filters. Put inferred expansions in `soft_recall_terms`; the script records them in `discovery-diagnostics.json` for recall analysis.
+11. Treat deterministic lexical checks as validation, not semantic reranking: Paper Source matches query-plan terms with token boundaries and simple singular/plural handling, while the agent supplies the semantic synonyms and acronym expansions.

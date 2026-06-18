@@ -349,6 +349,27 @@ def test_filter_candidates_applies_request_year_and_code_requirements():
     assert rejected["Recent AUV Attitude Control without Code"] == ["missing_code"]
 
 
+def test_filter_candidates_does_not_match_short_anchor_inside_words():
+    candidates = [
+        {
+            "title": "Explainable Clinical Trial Workflow",
+            "abstract": "A statistical trial workflow with careful reporting but no artificial intelligence method.",
+            "pdf_url": "https://example.org/trial.pdf",
+            "doi": "10.1000/trial",
+        }
+    ]
+
+    report = filter_candidates_with_report(
+        candidates,
+        domains=["AI"],
+        require_pdf=True,
+        exclude_terms=[],
+    )
+
+    assert report["kept"] == []
+    assert report["rejected"][0]["filter_reasons"] == ["outside_domain"]
+
+
 def test_rank_candidates_records_request_constraints_and_prefers_code_when_requested():
     candidates = [
         {
@@ -381,6 +402,41 @@ def test_rank_candidates_records_request_constraints_and_prefers_code_when_reque
     assert ranked[0]["title"] == "AUV Attitude Control with Public Code"
     assert ranked[0]["ranking_signals"]["year_min"] == 2021
     assert ranked[0]["ranking_signals"]["code_policy"] == "prefer"
+
+
+def test_rank_candidates_uses_lexical_boundaries_for_short_acronyms():
+    ranked = rank_candidates(
+        [
+            {
+                "slug": "actual-ai",
+                "title": "AI Control with Benchmark Experiments",
+                "abstract": "AI control for a robotic system with benchmark evaluation.",
+                "year": 2025,
+                "venue": "Control Letters",
+                "doi": "10.1000/actual-ai",
+                "pdf_url": "https://example.org/actual-ai.pdf",
+            },
+            {
+                "slug": "substring-false-positive",
+                "title": "Explainable Control with Benchmark Experiments",
+                "abstract": "Explainable controller analysis with benchmark evaluation.",
+                "year": 2025,
+                "venue": "Control Letters",
+                "doi": "10.1000/explainable-control",
+                "pdf_url": "https://example.org/explainable-control.pdf",
+            },
+        ],
+        positive_keywords=["AI", "control", "benchmark"],
+        priority_keywords=["AI"],
+        venue_tiers={"control letters": 0.75},
+    )
+
+    by_slug = {candidate["slug"]: candidate for candidate in ranked}
+    assert by_slug["actual-ai"]["ranking_signals"]["priority_topic_score"] == 1.0
+    assert "weak_topic_fit" not in by_slug["actual-ai"]["quality_gate"]["blocking_reasons"]
+    assert by_slug["substring-false-positive"]["ranking_signals"]["priority_topic_score"] == 0.0
+    assert "AI" not in by_slug["substring-false-positive"]["ranking_protocol"]["matched_positive_keywords"]
+    assert "weak_topic_fit" in by_slug["substring-false-positive"]["quality_gate"]["blocking_reasons"]
 
 
 def test_rank_candidates_uses_priority_keywords_to_avoid_profile_dilution_for_narrow_topic():

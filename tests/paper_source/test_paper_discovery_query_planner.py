@@ -230,6 +230,42 @@ def test_query_planner_keeps_generated_queries_academic_without_domain_specific_
     assert any("energy storage" in query.lower() for query in queries)
 
 
+def test_query_planner_records_provenance_and_diagnostics_for_complex_request():
+    topic = (
+        "latest high quality AUV attitude control papers with reinforcement learning "
+        "or model predictive control, public code preferred, not review"
+    )
+
+    plan = build_query_plan(
+        topic,
+        domain="auto",
+        non_review=True,
+        max_queries=6,
+        profile="marine_robotics",
+        domains=["AUV", "autonomous underwater vehicle"],
+        positive_keywords=["attitude control", "reinforcement learning", "model predictive control"],
+        negative_keywords=["acoustic communication"],
+        venue_prior=["Ocean Engineering"],
+    )
+
+    assert len(plan["query_variants"]) >= 5
+    assert topic not in plan["query_variants"]
+    diagnostics = plan["diagnostics"]
+    assert diagnostics["schema_version"] == "paper-source-query-plan-diagnostics-v1"
+    assert diagnostics["status"] == "ok"
+    assert diagnostics["complex_natural_language_request"] is True
+    assert diagnostics["raw_query_variant"] is False
+    assert {"config", "user_request"}.issubset(set(diagnostics["term_provenance_sources"]))
+    detail = plan["term_provenance_detail"]
+    assert any(entry["source"] == "config" and entry["field"] == "domains" for entry in detail["AUV"])
+    assert any(entry["source"] == "user_request" and entry["role"] == "hard_anchor" for entry in detail["AUV"])
+    assert any(
+        entry["source"] == "config" and entry["field"] == "negative_keywords"
+        for entry in detail["acoustic communication"]
+    )
+    assert any(entry["source"] == "config" and entry["field"] == "venue_prior" for entry in detail["Ocean Engineering"])
+
+
 def test_query_planner_derives_generic_topic_anchors_from_narrow_request():
     plan = build_query_plan(
         "latest high quality graph neural network molecular property prediction papers not review",
