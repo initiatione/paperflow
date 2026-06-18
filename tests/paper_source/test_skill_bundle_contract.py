@@ -464,11 +464,20 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     assert "session_recommendations.primary_recommendations" in output_format
     assert "session_recommendations.review_appendix" in output_format
     assert "session_recommendations.existing_library_appendix" in output_format
+    assert "session_recommendations.no_primary_recommendations_summary" in output_format
     assert "session_recommendations.doi_recovery_summary" in output_format
     assert "session_recommendations.doi_resolution_summary" in output_format
     assert "session_recommendations.doi_filtered_summary" in output_format
     assert "session_recommendations.verification_summary" in output_format
     assert "session_recommendations.overflow.hidden_count" in output_format
+    assert "Run status and artifact path" in output_format
+    assert "主推荐：无" in output_format
+    assert "Render primary recommendations as a numbered list" in output_format
+    assert "Journal or conference, year; DOI:" in output_format
+    assert "summary：说明这篇论文用了什么方法，解决什么问题，效果、验证或证据如何" in output_format
+    assert "The `summary：` line is required for each primary item" in output_format
+    assert "method/system, target problem/task, and reported effect/result/validation evidence" in output_format
+    assert "does not clearly state the effect or validation result" in output_format
     assert "quality_gate.dimensions.identity" in output_format
     assert "already-in-library" in output_format
     assert "DOI-missing papers into the primary list" in output_format

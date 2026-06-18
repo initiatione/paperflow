@@ -30,8 +30,8 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.5.0"
-    assert manifest["interface"]["shortDescription"].startswith("v2.5.0 | Paper Source:")
+    assert manifest["version"] == "2.5.1"
+    assert manifest["interface"]["shortDescription"].startswith("v2.5.1 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "benchmark gates" in manifest["interface"]["shortDescription"]
     assert "recall-gap recovery" in manifest["interface"]["shortDescription"]
