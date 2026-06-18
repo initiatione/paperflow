@@ -338,9 +338,123 @@ def test_zero_primary_report_explains_quality_rejects_without_appendix_leak(tmp_
     assert "existing_library_saturation" in summary["reasons"]
     assert summary["quality_reject_count"] == 1
     assert summary["existing_library_saturation_count"] == 1
+    assert summary["counts"]["quality_reject"] == 1
+    assert summary["counts"]["existing_library"] == 1
+    assert summary["dominant_blocking_reason"] == "existing_library_saturation"
+    assert summary["secondary_candidate_status"] == "blocked_candidates_available"
+    assert summary["top_blocked_candidates"][0]["surface"] == "quality_reject_debug"
     assert "no_primary_reasons: quality_gate_rejected_candidates, existing_library_saturation" in report_md
+    assert "dominant_blocking_reason: existing_library_saturation" in report_md
+    assert "top_blocked_candidates:" in report_md
     assert "Inspect quality_reject_debug" in report_md
     assert "AUV Paper Blocked By Gate" in report_md
+
+
+def test_zero_primary_report_explains_doi_policy_without_promoting_missing_doi(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+
+    write_report(
+        run_dir,
+        ranked=[
+            _ranked_candidate("Strong Paper Missing DOI", include_doi=False, quality_tier="Tier A", score=0.91),
+            _ranked_candidate("Second Missing DOI", doi="", quality_tier="Tier B", score=0.82),
+        ],
+        errors=[],
+        workflow_type="paper-discovery-dry-run",
+        run_id="dry-run-zero-doi",
+        rejected=[],
+    )
+
+    report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    report_md = (run_dir / "report.md").read_text(encoding="utf-8")
+    session = report_json["session_recommendations"]
+    summary = session["no_primary_recommendations_summary"]
+
+    assert session["primary_recommendations"] == []
+    assert summary["dominant_blocking_reason"] == "primary_candidates_missing_required_doi"
+    assert summary["counts"]["missing_doi"] == 2
+    assert "primary_candidates_missing_required_doi" in summary["reasons"]
+    assert "all_primary_candidates_failed_doi_policy" in summary["reasons"]
+    assert summary["top_blocked_candidates"][0]["surface"] == "primary_recommendations"
+    assert summary["top_blocked_candidates"][0]["blocking_reasons"] == ["missing_required_doi"]
+    assert "Run targeted DOI recovery" in " ".join(summary["recommended_next_actions"])
+    assert "dominant_blocking_reason: primary_candidates_missing_required_doi" in report_md
+    assert "Strong Paper Missing DOI" in report_md
+
+
+def test_zero_primary_report_distinguishes_review_appendix_from_primary(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+
+    write_report(
+        run_dir,
+        ranked=[
+            _ranked_candidate(
+                "Useful Review Candidate",
+                doi="10.1000/review-only",
+                quality_tier="Tier B",
+                decision="review-candidate",
+                score=0.77,
+            )
+        ],
+        errors=[],
+        workflow_type="paper-discovery-dry-run",
+        run_id="dry-run-review-only",
+        rejected=[],
+    )
+
+    report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    report_md = (run_dir / "report.md").read_text(encoding="utf-8")
+    session = report_json["session_recommendations"]
+    summary = session["no_primary_recommendations_summary"]
+
+    assert session["primary_recommendations"] == []
+    assert [item["title"] for item in session["review_appendix"]] == ["Useful Review Candidate"]
+    assert summary["secondary_candidate_status"] == "review_appendix_available_not_primary"
+    assert summary["dominant_blocking_reason"] == "only_review_appendix_candidates"
+    assert summary["top_blocked_candidates"][0]["surface"] == "review_appendix"
+    assert "secondary_candidate_status: review_appendix_available_not_primary" in report_md
+    assert "Useful Review Candidate" in report_md
+
+
+def test_zero_primary_report_identifies_required_concept_group_failure(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+
+    write_report(
+        run_dir,
+        ranked=[
+            _ranked_candidate(
+                "Concept Mismatch Paper",
+                doi="10.1000/concept-mismatch",
+                quality_tier="Reject",
+                decision="advance-candidate",
+                score=0.61,
+            )
+            | {
+                "quality_gate": {
+                    "tier": "Reject",
+                    "blocking_reasons": ["required_concept_group_mismatch: AUV navigation"],
+                }
+            }
+        ],
+        errors=[],
+        workflow_type="paper-discovery-dry-run",
+        run_id="dry-run-concept-mismatch",
+        rejected=[],
+    )
+
+    report_json = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    report_md = (run_dir / "report.md").read_text(encoding="utf-8")
+    summary = report_json["session_recommendations"]["no_primary_recommendations_summary"]
+
+    assert "required_concept_group_failure" in summary["reasons"]
+    assert summary["counts"]["required_concept_group_failure"] == 1
+    assert summary["dominant_blocking_reason"] == "quality_gate_rejected_candidates"
+    assert any("required concept groups" in action for action in summary["recommended_next_actions"])
+    assert "required_concept_group_failure=1" in report_md
+    assert "Concept Mismatch Paper" in report_md
 
 
 def test_session_recommendations_separate_existing_library_hits_from_new_recommendations(tmp_path):

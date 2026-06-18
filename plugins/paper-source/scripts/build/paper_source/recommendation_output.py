@@ -514,6 +514,85 @@ def _doi_resolution_bucket(candidates: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _blocking_reason_category(reason: object) -> str | None:
+    text = _text(reason).lower()
+    if not text:
+        return None
+    if "concept" in text and ("required" in text or "group" in text or "mismatch" in text):
+        return "required_concept_group_failure"
+    return None
+
+
+def _top_blocked_card(
+    item: dict[str, Any],
+    *,
+    surface: str,
+    blocking_reasons: list[str],
+) -> dict[str, Any]:
+    doi = item.get("doi_value") or item.get("doi")
+    doi_status = item.get("doi_status")
+    if doi in {"未核实", "缺失", "missing", "unverified"}:
+        doi = None
+    return {
+        "surface": surface,
+        "slug": item.get("slug"),
+        "title": item.get("title"),
+        "year": item.get("year"),
+        "doi": doi,
+        "doi_status": doi_status,
+        "doi_url": item.get("doi_url") or _doi_url(_text(doi)),
+        "arxiv_id": item.get("arxiv_id"),
+        "score": item.get("score"),
+        "quality_tier": item.get("quality_tier"),
+        "ranking_decision": item.get("ranking_decision"),
+        "blocking_reasons": blocking_reasons,
+    }
+
+
+def _blocked_sort_score(item: dict[str, Any]) -> float:
+    try:
+        return float(item.get("score"))
+    except (TypeError, ValueError):
+        return float("-inf")
+
+
+def _top_blocked_candidates(
+    *,
+    review_appendix: list[dict[str, Any]],
+    quality_reject_debug: dict[str, Any],
+    existing_library_appendix: list[dict[str, Any]],
+    doi_filtered_items: list[dict[str, Any]],
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    blocked: list[dict[str, Any]] = []
+    for item in doi_filtered_items:
+        blocked.append(
+            _top_blocked_card(
+                item,
+                surface=str(item.get("surface") or "doi_filtered"),
+                blocking_reasons=[str(item.get("reason") or "missing_required_doi")],
+            )
+        )
+    for item in quality_reject_debug.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        reasons = [str(reason) for reason in item.get("blocking_reasons") or ["quality_gate_rejected"]]
+        blocked.append(_top_blocked_card(item, surface="quality_reject_debug", blocking_reasons=reasons))
+    for item in review_appendix:
+        reason = _text(item.get("appendix_reason")) or _text(item.get("quality_tier")) or "review_appendix"
+        blocked.append(_top_blocked_card(item, surface="review_appendix", blocking_reasons=[reason]))
+    for item in existing_library_appendix:
+        reasons = [str(reason) for reason in item.get("reasons") or [item.get("reason") or "existing_library"]]
+        blocked.append(_top_blocked_card(item, surface="existing_library", blocking_reasons=reasons))
+    return sorted(blocked, key=_blocked_sort_score, reverse=True)[:limit]
+
+
+def _dominant_reason(reason_counts: dict[str, int]) -> str | None:
+    if not reason_counts:
+        return None
+    return sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+
+
 def _no_primary_recommendations_summary(
     *,
     primary_candidates: list[dict[str, Any]],
@@ -530,12 +609,20 @@ def _no_primary_recommendations_summary(
     quality_reject_count = int(quality_reject_debug.get("total") or 0)
     existing_count = len(existing_library_appendix)
     review_count = len(review_appendix)
+    concept_group_count = 0
+    for item in quality_reject_debug.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        if any(_blocking_reason_category(reason) == "required_concept_group_failure" for reason in item.get("blocking_reasons") or []):
+            concept_group_count += 1
 
     if not primary_recommendations:
         if not ranked_count:
             reasons.append("no_ranked_candidates")
         if missing_doi_count:
             reasons.append("primary_candidates_missing_required_doi")
+        if concept_group_count:
+            reasons.append("required_concept_group_failure")
         if quality_reject_count:
             reasons.append("quality_gate_rejected_candidates")
         if review_count:
@@ -550,12 +637,51 @@ def _no_primary_recommendations_summary(
     next_actions: list[str] = []
     if missing_doi_count:
         next_actions.append("Run targeted DOI recovery or inspect DOI-filtered candidates.")
+    if concept_group_count:
+        next_actions.append("Refine query variants or required concept groups, then rerun discovery.")
     if quality_reject_count:
         next_actions.append("Inspect quality_reject_debug before tightening or relaxing query/ranking gates.")
     if existing_count:
         next_actions.append("Review existing_library_appendix before rerunning duplicate discovery.")
     if not next_actions and not primary_recommendations:
         next_actions.append("Tighten query variants or broaden source routing based on discovery diagnostics.")
+
+    counts = {
+        "ranked": ranked_count,
+        "primary_candidates_before_doi": len(primary_candidates),
+        "primary_candidates_with_doi": len(primary_candidates_with_doi),
+        "primary_shown": len(primary_recommendations),
+        "review_appendix": review_count,
+        "existing_library": existing_count,
+        "quality_reject": quality_reject_count,
+        "missing_doi": missing_doi_count,
+        "required_concept_group_failure": concept_group_count,
+    }
+    reason_counts = {
+        "no_ranked_candidates": 1 if not primary_recommendations and not ranked_count else 0,
+        "primary_candidates_missing_required_doi": missing_doi_count,
+        "required_concept_group_failure": concept_group_count,
+        "quality_gate_rejected_candidates": quality_reject_count,
+        "only_review_appendix_candidates": review_count,
+        "existing_library_saturation": existing_count,
+        "all_primary_candidates_failed_doi_policy": 1 if primary_candidates and not primary_candidates_with_doi else 0,
+        "no_primary_candidate_met_selection_policy": 1 if reasons == ["no_primary_candidate_met_selection_policy"] else 0,
+    }
+    reason_counts = {reason: count for reason, count in reason_counts.items() if count}
+    top_blocked = _top_blocked_candidates(
+        review_appendix=review_appendix,
+        quality_reject_debug=quality_reject_debug,
+        existing_library_appendix=existing_library_appendix,
+        doi_filtered_items=doi_filtered_items,
+    )
+    if primary_recommendations:
+        secondary_status = "primary_recommendations_available"
+    elif review_count:
+        secondary_status = "review_appendix_available_not_primary"
+    elif top_blocked:
+        secondary_status = "blocked_candidates_available"
+    else:
+        secondary_status = "no_useful_candidates"
 
     return {
         "status": "primary_recommendations_available" if primary_recommendations else "no_primary_recommendations",
@@ -568,6 +694,14 @@ def _no_primary_recommendations_summary(
         "missing_doi_count": missing_doi_count,
         "ranked_count": ranked_count,
         "reasons": reasons,
+        "counts": counts,
+        "reason_counts": [
+            {"reason": reason, "count": count}
+            for reason, count in sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))
+        ],
+        "dominant_blocking_reason": _dominant_reason(reason_counts),
+        "secondary_candidate_status": secondary_status,
+        "top_blocked_candidates": top_blocked if not primary_recommendations else [],
         "recommended_next_actions": next_actions,
     }
 

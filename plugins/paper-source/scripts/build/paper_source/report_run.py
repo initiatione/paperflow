@@ -446,13 +446,19 @@ def _append_session_recommendations_section(report: list[str], session_recommend
         if no_primary.get("status") == "no_primary_recommendations":
             reasons = ", ".join(str(reason) for reason in no_primary.get("reasons") or [])
             report.append(f"- no_primary_reasons: {reasons or 'unknown'}")
+            if no_primary.get("dominant_blocking_reason"):
+                report.append(f"- dominant_blocking_reason: {no_primary.get('dominant_blocking_reason')}")
+            if no_primary.get("secondary_candidate_status"):
+                report.append(f"- secondary_candidate_status: {no_primary.get('secondary_candidate_status')}")
+            counts = no_primary.get("counts") if isinstance(no_primary.get("counts"), dict) else {}
             report.append(
                 "- no_primary_counts: "
-                f"ranked={no_primary.get('ranked_count', 0)}, "
-                f"quality_reject={no_primary.get('quality_reject_count', 0)}, "
-                f"missing_doi={no_primary.get('missing_doi_count', 0)}, "
-                f"review_appendix={no_primary.get('review_appendix_count', 0)}, "
-                f"existing_library={no_primary.get('existing_library_saturation_count', 0)}"
+                f"ranked={counts.get('ranked', no_primary.get('ranked_count', 0))}, "
+                f"quality_reject={counts.get('quality_reject', no_primary.get('quality_reject_count', 0))}, "
+                f"missing_doi={counts.get('missing_doi', no_primary.get('missing_doi_count', 0))}, "
+                f"review_appendix={counts.get('review_appendix', no_primary.get('review_appendix_count', 0))}, "
+                f"existing_library={counts.get('existing_library', no_primary.get('existing_library_saturation_count', 0))}, "
+                f"required_concept_group_failure={counts.get('required_concept_group_failure', 0)}"
             )
 
     primary = session_recommendations.get("primary_recommendations") or []
@@ -463,6 +469,19 @@ def _append_session_recommendations_section(report: list[str], session_recommend
             report.append("- why empty:")
             for action in no_primary.get("recommended_next_actions") or []:
                 report.append(f"  - {action}")
+        blocked = no_primary.get("top_blocked_candidates")
+        if isinstance(blocked, list) and blocked:
+            report.append("- top_blocked_candidates:")
+            for item in blocked[:5]:
+                if not isinstance(item, dict):
+                    continue
+                title = item.get("title") or item.get("slug") or "Untitled paper"
+                blockers = ", ".join(str(reason) for reason in item.get("blocking_reasons") or []) or "unknown"
+                identity = item.get("doi") or item.get("arxiv_id") or "no DOI/arXiv"
+                report.append(
+                    f"  - {title} ({item.get('surface')}, tier={item.get('quality_tier') or 'unknown'}, "
+                    f"score={item.get('score')}, identity={identity}, blockers={blockers})"
+                )
     for index, item in enumerate(primary, start=1):
         report.append(f"{index}. {item.get('title')}")
         doi_line = item.get("doi")
