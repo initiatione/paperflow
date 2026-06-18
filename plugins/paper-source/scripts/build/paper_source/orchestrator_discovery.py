@@ -77,12 +77,22 @@ def ranking_priority_keywords_from_query_plan(query_plan: dict | None) -> list[s
 
 
 def venue_tiers_from_profile(config, query_plan: dict | None) -> dict[str, float]:
-    tiers = {venue: 0.1 for venue in config.venue_prior}
+    tiers = {str(venue).lower(): 0.75 for venue in config.venue_prior}
     if query_plan:
         recall = query_plan.get("recall_gap_checks") or {}
         for venue in recall.get("venue_families") or []:
-            tiers.setdefault(str(venue), 0.1)
+            tiers.setdefault(str(venue).lower(), 0.75)
     return tiers
+
+
+def ranking_quality_evidence_terms_from_inputs(config, query_plan: dict | None) -> list[object]:
+    payloads: list[object] = []
+    config_terms = getattr(config, "quality_evidence_terms", None)
+    if isinstance(config_terms, (dict, list)) and config_terms:
+        payloads.append(config_terms)
+    if isinstance(query_plan, dict) and query_plan:
+        payloads.append(query_plan)
+    return payloads
 
 
 def filter_domains_from_profile(config, query_plan: dict | None) -> list[str]:

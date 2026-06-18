@@ -64,6 +64,7 @@ class PipelineConfig:
     easyscholar_cache_ttl_days: int
     easyscholar_max_candidates_per_run: int
     grok_search: GrokSearchConfig
+    quality_evidence_terms: object
 
 
 @dataclass(frozen=True)
@@ -98,6 +99,7 @@ DEFAULT_PAPER_SOURCE_CONFIG: dict[str, Any] = {
             "max_candidates_per_run": 50,
         }
     },
+    "ranking": {"quality_evidence_terms": {}},
     "mineru": {
         "token_source": "MINERU_TOKEN env",
         "command": "python skills/mineru-paper-parser/scripts/mineru_batch_to_md.py",
@@ -136,6 +138,8 @@ _TOP_LEVEL_CONFIG_KEYS = {
     "paper_search",
     "grok_search",
     "quality_enrichment",
+    "ranking",
+    "quality_evidence_terms",
     "mineru",
     "zotero",
     "human_gate",
@@ -725,6 +729,10 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
     if not isinstance(easyscholar, dict):
         easyscholar = {}
     grok_search = _parse_grok_search_config(interests)
+    ranking = interests.get("ranking") if isinstance(interests.get("ranking"), dict) else {}
+    quality_evidence_terms = ranking.get("quality_evidence_terms")
+    if quality_evidence_terms is None:
+        quality_evidence_terms = interests.get("quality_evidence_terms", {})
     return PipelineConfig(
         plugin_root=plugin_root,
         vault_path=vault_path,
@@ -742,4 +750,5 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
         easyscholar_cache_ttl_days=int(easyscholar.get("cache_ttl_days", 30)),
         easyscholar_max_candidates_per_run=int(easyscholar.get("max_candidates_per_run", 50)),
         grok_search=grok_search,
+        quality_evidence_terms=quality_evidence_terms if isinstance(quality_evidence_terms, (dict, list)) else {},
     )

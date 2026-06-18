@@ -35,6 +35,7 @@ from paper_source.orchestrator_discovery import (
     filter_domains_from_profile as _filter_domains_from_profile,
     ranking_keywords_from_profile as _ranking_keywords_from_profile,
     ranking_priority_keywords_from_query_plan as _ranking_priority_keywords_from_query_plan,
+    ranking_quality_evidence_terms_from_inputs as _ranking_quality_evidence_terms_from_inputs,
     reason_counts as _reason_counts,
     run_query_plan_discovery as _run_query_plan_discovery,
     source_coverage_from_search_record as _source_coverage_from_search_record,
@@ -120,6 +121,7 @@ def _evaluate_paper_search_good_enough(
         year_min=request_year_min,
         code_policy=request_code_policy,
         selection_policy=selection_policy,
+        quality_evidence_terms=_ranking_quality_evidence_terms_from_inputs(config, query_plan),
     )
     evaluation = {
         "normalized_count": len(normalized),
@@ -766,6 +768,7 @@ def run_dry_run(
         year_min=request_year_min,
         code_policy=request_code_policy,
         selection_policy=selection_policy,
+        quality_evidence_terms=_ranking_quality_evidence_terms_from_inputs(config, query_plan),
     )
     ranked = ranked_pool[: config.max_results]
     write_json_atomic(run_dir / "rank.json", ranked)

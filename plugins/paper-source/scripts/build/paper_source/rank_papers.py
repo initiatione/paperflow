@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from datetime import date
 from math import log10
+from typing import NamedTuple
 
 
 REPRODUCIBILITY_TERMS = (
@@ -25,6 +27,15 @@ BENCHMARK_TERMS = (
 )
 TOPIC_FIT_SATURATION_HITS = 3
 TOPIC_FIT_REVIEW_THRESHOLD = 0.30
+GENERIC_VENUE_METADATA_SCORE = 0.35
+CONFIGURED_VENUE_SENTINEL_MAX = 0.20
+DEFAULT_CONFIGURED_VENUE_SCORE = 0.75
+
+
+class QualityLexicon(NamedTuple):
+    benchmark_terms: tuple[str, ...]
+    reproducibility_terms: tuple[str, ...]
+    paper_type_rules: tuple[tuple[str, tuple[str, ...]], ...]
 
 SELECTION_POLICIES = {
     "balanced_high_quality",
@@ -148,6 +159,145 @@ def _term_score(text: str, terms: tuple[str, ...]) -> float:
     return min(1.0, hits / 3)
 
 
+def _normalize_term(value: object) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _strings_from_nested(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        terms = [" ".join(item.strip().split()) for item in value.split(",")]
+        return [term for term in terms if term]
+    if isinstance(value, dict):
+        terms: list[str] = []
+        for item in value.values():
+            terms.extend(_strings_from_nested(item))
+        return terms
+    if isinstance(value, (list, tuple, set)):
+        terms: list[str] = []
+        for item in value:
+            terms.extend(_strings_from_nested(item))
+        return terms
+    text = " ".join(str(value).strip().split())
+    return [text] if text else []
+
+
+def _unique_terms(values: list[str] | tuple[str, ...]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    terms: list[str] = []
+    for value in values:
+        normalized = _normalize_term(value)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        terms.append(normalized)
+    return tuple(terms)
+
+
+def _collect_keyed_terms(payload: object, keys: set[str]) -> list[str]:
+    if not payload:
+        return []
+    terms: list[str] = []
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            normalized_key = str(key).strip().lower().replace("-", "_")
+            if normalized_key in keys:
+                terms.extend(_strings_from_nested(value))
+                continue
+            if isinstance(value, (dict, list, tuple, set)):
+                terms.extend(_collect_keyed_terms(value, keys))
+    elif isinstance(payload, (list, tuple, set)):
+        for item in payload:
+            if isinstance(item, dict):
+                terms.extend(_collect_keyed_terms(item, keys))
+    return terms
+
+
+def _collect_paper_type_rules(payload: object) -> list[tuple[str, tuple[str, ...]]]:
+    if not payload:
+        return []
+    rules: list[tuple[str, tuple[str, ...]]] = []
+
+    def parse_rule_value(value: object) -> None:
+        if isinstance(value, dict):
+            if any(key in value for key in ("type", "paper_type", "name")) and any(
+                key in value for key in ("terms", "signals", "keywords")
+            ):
+                paper_type = str(value.get("type") or value.get("paper_type") or value.get("name") or "").strip()
+                terms = _strings_from_nested(value.get("terms") or value.get("signals") or value.get("keywords"))
+                if paper_type and terms:
+                    rules.append((paper_type, _unique_terms(terms)))
+                return
+            for paper_type, terms_value in value.items():
+                if isinstance(terms_value, (dict, list, tuple, set, str)):
+                    terms = _strings_from_nested(terms_value)
+                    if str(paper_type).strip() and terms:
+                        rules.append((str(paper_type).strip(), _unique_terms(terms)))
+            return
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                parse_rule_value(item)
+
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            normalized_key = str(key).strip().lower().replace("-", "_")
+            if normalized_key in {"paper_type_rules", "paper_types", "classification_terms"}:
+                parse_rule_value(value)
+            elif isinstance(value, (dict, list, tuple, set)):
+                rules.extend(_collect_paper_type_rules(value))
+    elif isinstance(payload, (list, tuple, set)):
+        for item in payload:
+            rules.extend(_collect_paper_type_rules(item))
+    return rules
+
+
+def _merge_paper_type_rules(extra_rules: list[tuple[str, tuple[str, ...]]]) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    merged: dict[str, list[str]] = {paper_type: list(terms) for paper_type, terms in PAPER_TYPE_RULES}
+    order = [paper_type for paper_type, _ in PAPER_TYPE_RULES]
+    for paper_type, terms in extra_rules:
+        normalized_type = str(paper_type).strip()
+        if not normalized_type:
+            continue
+        if normalized_type not in merged:
+            merged[normalized_type] = []
+            order.append(normalized_type)
+        merged[normalized_type].extend(terms)
+    return tuple((paper_type, _unique_terms(merged[paper_type])) for paper_type in order)
+
+
+def _quality_lexicon(quality_evidence_terms: object | None) -> QualityLexicon:
+    benchmark_keys = {
+        "benchmark_terms",
+        "benchmarks",
+        "benchmark_evidence_terms",
+        "validation_terms",
+        "validation_evidence_terms",
+        "evidence_terms",
+        "quality_signals",
+    }
+    reproducibility_keys = {
+        "reproducibility_terms",
+        "reproducibility_evidence_terms",
+        "code_data_terms",
+        "code_terms",
+        "data_terms",
+        "open_science_terms",
+    }
+    benchmark_terms = _unique_terms(
+        [*BENCHMARK_TERMS, *_collect_keyed_terms(quality_evidence_terms, benchmark_keys)]
+    )
+    reproducibility_terms = _unique_terms(
+        [*REPRODUCIBILITY_TERMS, *_collect_keyed_terms(quality_evidence_terms, reproducibility_keys)]
+    )
+    paper_type_rules = _merge_paper_type_rules(_collect_paper_type_rules(quality_evidence_terms))
+    return QualityLexicon(
+        benchmark_terms=benchmark_terms,
+        reproducibility_terms=reproducibility_terms,
+        paper_type_rules=paper_type_rules,
+    )
+
+
 def _matched_keywords(text: str, keywords: list[str]) -> list[str]:
     return [keyword for keyword in keywords if keyword in text]
 
@@ -159,10 +309,156 @@ def _saturating_topic_score(hit_count: int, term_count: int) -> float:
     return min(1.0, hit_count / max(1, denominator))
 
 
-def _classify_paper_type(candidate: dict) -> dict:
+def _int_or_none(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _venue_signal(candidate: dict, venue_tiers: dict[str, float], easyscholar_score: float) -> dict[str, object]:
+    venue = _normalize_term(candidate.get("venue"))
+    configured_raw = venue_tiers.get(venue) if venue else None
+    configured = configured_raw is not None
+    if configured:
+        try:
+            raw_score = float(configured_raw)
+        except (TypeError, ValueError):
+            raw_score = DEFAULT_CONFIGURED_VENUE_SCORE
+        if 0 < raw_score <= CONFIGURED_VENUE_SENTINEL_MAX:
+            score = DEFAULT_CONFIGURED_VENUE_SCORE
+        else:
+            score = max(0.0, min(1.0, raw_score))
+        status = "configured_prior"
+    elif venue:
+        score = GENERIC_VENUE_METADATA_SCORE
+        status = "metadata_only"
+    else:
+        score = 0.0
+        status = "missing"
+
+    if easyscholar_score > 0:
+        metrics_score = min(1.0, 0.45 + easyscholar_score * 0.40)
+        if metrics_score > score:
+            score = metrics_score
+            status = "configured_prior_and_verified_metrics" if configured else "verified_metrics"
+    return {
+        "score": round(score, 4),
+        "status": status,
+        "configured": configured,
+        "configured_raw": configured_raw,
+    }
+
+
+def _citation_signal(candidate: dict, *, candidate_year: int, reference_year: int) -> dict[str, object]:
+    raw_available = "citation_count" in candidate and candidate.get("citation_count") not in {None, ""}
+    raw_count = _int_or_none(candidate.get("citation_count")) if raw_available else None
+    source = candidate.get("citation_count_source")
+    status = str(candidate.get("citation_count_status") or ("verified" if source else "unverified"))
+    if raw_count is None:
+        basis = {
+            "status": status if status else "unverified",
+            "source": source,
+            "raw_count": None,
+            "reference_year": reference_year,
+            "publication_age_years": None,
+            "citations_per_year": None,
+            "normalizer": "missing citation_count -> ranking score 0",
+        }
+        return {
+            "score": 0.0,
+            "absolute_score": 0.0,
+            "normalized_score": 0.0,
+            "age_adjusted_score": 0.0,
+            "raw_count": None,
+            "available": False,
+            "status": basis["status"],
+            "source": source,
+            "basis": basis,
+        }
+
+    raw_count = max(0, raw_count)
+    publication_age_years = max(0, reference_year - candidate_year) if candidate_year else None
+    age_denominator = max(1, (publication_age_years if publication_age_years is not None else 0) + 1)
+    citations_per_year = raw_count / age_denominator
+    absolute_score = min(1.0, log10(raw_count + 1) / 3)
+    normalized_score = min(1.0, log10(citations_per_year + 1) / 2)
+    basis = {
+        "status": status,
+        "source": source,
+        "raw_count": raw_count,
+        "reference_year": reference_year,
+        "publication_age_years": publication_age_years,
+        "citations_per_year": round(citations_per_year, 4),
+        "normalizer": "log10(citations_per_year + 1) / 2",
+        "absolute_log_score": round(absolute_score, 4),
+    }
+    return {
+        "score": round(normalized_score, 4),
+        "absolute_score": round(absolute_score, 4),
+        "normalized_score": round(normalized_score, 4),
+        "age_adjusted_score": round(normalized_score, 4),
+        "raw_count": raw_count,
+        "available": True,
+        "status": status,
+        "source": source,
+        "basis": basis,
+    }
+
+
+def _freshness_signal(candidate_year: int, *, year_min: int | None, reference_year: int) -> dict[str, object]:
+    if year_min is not None:
+        score = 1.0 if candidate_year >= int(year_min) else 0.0
+        return {
+            "score": score,
+            "basis": {
+                "mode": "request_year_min",
+                "year_min": int(year_min),
+                "reference_year": reference_year,
+                "candidate_year": candidate_year or None,
+            },
+        }
+    if not candidate_year:
+        return {
+            "score": 0.0,
+            "basis": {
+                "mode": "current_year_relative",
+                "reference_year": reference_year,
+                "candidate_year": None,
+                "status": "missing_year",
+            },
+        }
+    age = max(0, reference_year - candidate_year)
+    if age <= 1:
+        score = 1.0
+    elif age <= 2:
+        score = 0.9
+    elif age <= 5:
+        score = 0.75
+    else:
+        score = 0.55
+    return {
+        "score": score,
+        "basis": {
+            "mode": "current_year_relative",
+            "reference_year": reference_year,
+            "candidate_year": candidate_year,
+            "publication_age_years": age,
+        },
+    }
+
+
+def _classify_paper_type(
+    candidate: dict,
+    paper_type_rules: tuple[tuple[str, tuple[str, ...]], ...] = PAPER_TYPE_RULES,
+) -> dict:
     text = _text(candidate)
     matches: list[tuple[str, list[str], int]] = []
-    for priority, (paper_type, terms) in enumerate(PAPER_TYPE_RULES):
+    for priority, (paper_type, terms) in enumerate(paper_type_rules):
         hits = [term for term in terms if term in text]
         if hits:
             matches.append((paper_type, hits, priority))
@@ -207,12 +503,15 @@ def _ranking_rubric(
         + signals["easyscholar_score"] * 0.10,
         4,
     )
-    method_rigor = round(signals["benchmark_score"] * 0.55 + signals["peer_review_score"] * 0.45, 4)
+    method_rigor = round(
+        signals.get("method_rigor_score", 0.0) * 0.65 + signals["peer_review_score"] * 0.35,
+        4,
+    )
     evidence_sufficiency = round(
         signals["pdf_score"] * 0.30
-        + signals["benchmark_score"] * 0.35
-        + signals["citation_score"] * 0.20
-        + signals["reproducibility_score"] * 0.15,
+        + signals.get("validation_strength_score", signals["benchmark_score"]) * 0.35
+        + signals["citation_score"] * 0.15
+        + signals["reproducibility_score"] * 0.20,
         4,
     )
     keyword_confidence = min(1.0, len(matched_keywords) / 3)
@@ -234,11 +533,11 @@ def _ranking_rubric(
         ),
         "method_rigor": _rubric_dimension(
             method_rigor,
-            ["benchmark_signal", "citation_signal", "pdf_available"],
+            ["benchmark_signal", "validation_strength", "reproducibility_signal", "citation_signal"],
         ),
         "evidence_sufficiency": _rubric_dimension(
             evidence_sufficiency,
-            ["pdf_available", "benchmark_signal", "citation_signal", "reproducibility_signal"],
+            ["pdf_available", "validation_strength", "citation_signal", "reproducibility_signal"],
         ),
         "reproducibility": _rubric_dimension(
             signals["reproducibility_score"],
@@ -260,7 +559,7 @@ def _ranking_rubric(
         "dimensions": dimensions,
         "ranking_confidence": ranking_confidence,
         "score_explanation": [
-            "Score combines profile/topic relevance, venue prior, citations, recency, PDF/code availability, and reproducibility evidence.",
+            "Score combines profile/topic relevance, venue prior, normalized citations, recency, PDF/code/data availability, validation strength, and reproducibility evidence.",
             f"Classified as {classification['primary_type']} from title/abstract evidence.",
         ],
     }
@@ -285,6 +584,10 @@ def _ranking_protocol(
         reasons.append("code availability signal present")
     else:
         cautions.append("weak_reproducibility_signal")
+    if signals.get("data_score", 0.0) > 0:
+        reasons.append("data availability signal present")
+    if signals.get("validation_strength_score", 0.0) >= 0.34:
+        reasons.append("validation evidence signal present")
     if easyscholar_signal and float(easyscholar_signal.get("score") or 0) > 0:
         evidence = ", ".join(str(item) for item in easyscholar_signal.get("evidence") or [])
         reasons.append("EasyScholar verified metrics: " + evidence)
@@ -292,6 +595,8 @@ def _ranking_protocol(
         cautions.extend(str(item) for item in easyscholar_signal.get("cautions") or [])
     if signals["benchmark_score"] < 0.34:
         cautions.append("weak_benchmark_signal")
+    if signals.get("validation_strength_score", signals["benchmark_score"]) < 0.34:
+        cautions.append("weak_validation_signal")
     if signals["venue_score"] < 0.5:
         cautions.append("weak_venue_signal")
 
@@ -345,7 +650,7 @@ def _ranking_protocol(
             },
             "peer_review": {
                 "score": signals["peer_review_score"],
-                "signals": ["citation_signal", "benchmark_signal", "pdf_available"],
+                "signals": ["normalized_citation_signal", "benchmark_signal", "validation_strength", "pdf_available"],
             },
             "domain_fit": {
                 "score": signals["domain_fit_score"],
@@ -353,7 +658,7 @@ def _ranking_protocol(
             },
             "reproducibility": {
                 "score": signals["reproducibility_score"],
-                "signals": ["code_available", "reproducibility_terms"],
+                "signals": ["code_available", "data_available", "reproducibility_terms"],
             },
         },
     }
@@ -385,16 +690,16 @@ def _quality_gate(
         evidence.append("topic_fit")
     else:
         blockers.append("weak_topic_fit")
-    if signals["venue_score"] >= 0.75:
+    if signals.get("venue_score_status") in {"configured_prior", "configured_prior_and_verified_metrics"}:
         evidence.append("configured_venue_prior")
-    elif signals["venue_score"] >= 0.45:
+    elif signals["venue_score"] >= GENERIC_VENUE_METADATA_SCORE:
         evidence.append("generic_venue_metadata")
     else:
-        cautions.append("weak_venue_signal")
+        cautions.append("venue_metadata_unverified")
     if signals["citation_score"] >= 0.5:
-        evidence.append("strong_citation_signal")
+        evidence.append("strong_normalized_citation_signal")
     elif signals["citation_score"] > 0:
-        evidence.append("citation_signal")
+        evidence.append("normalized_citation_signal")
     if signals["benchmark_score"] >= 0.34:
         evidence.append("benchmark_signal")
     else:
@@ -403,6 +708,10 @@ def _quality_gate(
         evidence.append("reproducibility_signal")
     else:
         cautions.append("weak_reproducibility_signal")
+    if signals.get("data_score", 0.0) > 0:
+        evidence.append("data_available")
+    if signals.get("validation_strength_score", 0.0) >= 0.34:
+        evidence.append("validation_signal")
     if signals["negative_keyword_penalty"] >= 0.5:
         blockers.append("negative_keyword_overlap")
 
@@ -413,10 +722,7 @@ def _quality_gate(
         + signals["easyscholar_score"] * 0.10,
         4,
     )
-    validation_score = round(
-        max(signals["benchmark_score"], signals["citation_score"], signals["reproducibility_score"]),
-        4,
-    )
+    validation_score = round(signals.get("validation_strength_score", 0.0), 4)
     dimensions = {
         "identity": {
             "score": 1.0 if has_stable_identifier else 0.0,
@@ -437,7 +743,7 @@ def _quality_gate(
         "validation": {
             "score": validation_score,
             "status": "supported" if validation_score >= 0.34 else "thin",
-            "signals": ["benchmark", "citation", "reproducibility_terms"],
+            "signals": ["benchmark", "normalized_citation", "reproducibility_terms", "code_or_data"],
         },
         "source_confidence": {
             "score": source_confidence_score,
@@ -447,7 +753,7 @@ def _quality_gate(
         "reproducibility": {
             "score": round(signals["reproducibility_score"], 4),
             "status": "present" if signals["reproducibility_score"] >= 0.35 else "weak",
-            "signals": ["code_or_reproducibility_terms"],
+            "signals": ["code_or_data_or_reproducibility_terms"],
         },
         "request_risk": {
             "score": round(max(0.0, 1.0 - signals["negative_keyword_penalty"]), 4),
@@ -456,6 +762,15 @@ def _quality_gate(
         },
     }
 
+    has_tier_a_validation = (
+        signals.get("validation_strength_score", 0.0) >= 0.34
+        and (
+            signals["benchmark_score"] >= 0.34
+            or signals["reproducibility_score"] >= 0.35
+            or signals["citation_score"] >= 0.5
+        )
+    )
+
     if blockers:
         tier = "Reject"
     elif (
@@ -463,8 +778,7 @@ def _quality_gate(
         and has_stable_identifier
         and signals["domain_fit_score"] >= 0.67
         and signals["pdf_score"] > 0
-        and (signals["venue_score"] >= 0.75 or signals["citation_score"] >= 0.5)
-        and (signals["benchmark_score"] >= 0.34 or signals["reproducibility_score"] >= 0.35)
+        and has_tier_a_validation
     ):
         tier = "Tier A"
     elif (
@@ -472,9 +786,10 @@ def _quality_gate(
         and signals["domain_fit_score"] >= TOPIC_FIT_REVIEW_THRESHOLD
         and signals["pdf_score"] > 0
         and (
-            signals["venue_score"] >= 0.45
+            signals["venue_score"] >= DEFAULT_CONFIGURED_VENUE_SCORE
             or signals["citation_score"] > 0
             or signals["benchmark_score"] >= 0.34
+            or signals.get("validation_strength_score", 0.0) >= 0.34
         )
     ):
         tier = "Tier B"
@@ -569,11 +884,14 @@ def rank_candidates(
     code_policy: str | None = None,
     selection_policy: str = "balanced_high_quality",
     priority_keywords: list[str] | None = None,
+    quality_evidence_terms: object | None = None,
 ) -> list[dict]:
     ranked: list[dict] = []
     keywords = [keyword.lower() for keyword in positive_keywords]
     priority_terms = [keyword.lower() for keyword in (priority_keywords or [])]
     negative_terms = [keyword.lower() for keyword in (negative_keywords or [])]
+    reference_year = date.today().year
+    lexicon = _quality_lexicon(quality_evidence_terms)
     normalized_code_policy = str(code_policy or "ignore").strip().lower()
     if normalized_code_policy not in {"ignore", "prefer", "require"}:
         raise ValueError(f"unknown code_policy: {code_policy}")
@@ -604,39 +922,67 @@ def rank_candidates(
             topic_fit_basis = "positive_keywords_saturated"
         negative_keyword_penalty = min(1.0, len(matched_negative_keywords) / max(1, len(negative_terms)))
         profile_fit_score = max(0.0, topic_score - negative_keyword_penalty)
-        venue_score = max(
-            venue_tiers.get(str(candidate.get("venue") or "").lower(), 0.45),
-            0.45 + easyscholar_score * 0.40,
-        )
-        citation_score = min(1.0, log10(int(candidate.get("citation_count") or 0) + 1) / 3)
-        candidate_year = int(candidate.get("year") or 0)
-        if year_min is not None:
-            freshness_score = 1.0 if candidate_year >= int(year_min) else 0.0
-        else:
-            freshness_score = 1.0 if candidate_year >= 2024 else 0.7
+        candidate_year = _int_or_none(candidate.get("year")) or 0
+        venue_signal = _venue_signal(candidate, venue_tiers, easyscholar_score)
+        venue_score = float(venue_signal["score"])
+        citation_signal = _citation_signal(candidate, candidate_year=candidate_year, reference_year=reference_year)
+        citation_score = float(citation_signal["score"])
+        freshness_signal = _freshness_signal(candidate_year, year_min=year_min, reference_year=reference_year)
+        freshness_score = float(freshness_signal["score"])
         pdf_score = 1.0 if candidate.get("pdf_url") else 0.0
         code_score = 1.0 if candidate.get("code_url") else 0.0
+        data_score = 1.0 if candidate.get("data_url") or candidate.get("dataset_url") else 0.0
+        availability_score = max(code_score, data_score)
         code_weight = 0.08
         if normalized_code_policy == "prefer":
             code_weight = 0.12
         elif normalized_code_policy == "require":
             code_weight = 0.14
-        reproducibility_terms_score = _term_score(text, REPRODUCIBILITY_TERMS)
-        benchmark_score = _term_score(text, BENCHMARK_TERMS)
+        reproducibility_terms_score = _term_score(text, lexicon.reproducibility_terms)
+        benchmark_score = _term_score(text, lexicon.benchmark_terms)
+        classification = _classify_paper_type(candidate, lexicon.paper_type_rules)
+        paper_type_signal = 0.0 if classification["primary_type"] == "unknown" else float(classification["confidence"])
         editorial_score = round(topic_score * 0.5 + venue_score * 0.3 + freshness_score * 0.2, 4)
-        peer_review_score = round(citation_score * 0.35 + benchmark_score * 0.4 + pdf_score * 0.25, 4)
         domain_fit_score = round(profile_fit_score, 4)
-        reproducibility_score = round(code_score * 0.6 + reproducibility_terms_score * 0.4, 4)
+        reproducibility_score = round(availability_score * 0.55 + reproducibility_terms_score * 0.45, 4)
+        validation_strength_score = round(
+            max(
+                benchmark_score,
+                reproducibility_terms_score * 0.85,
+                citation_score * 0.65,
+                code_score * 0.45,
+                data_score * 0.50,
+            ),
+            4,
+        )
+        method_rigor_score = round(
+            benchmark_score * 0.40
+            + reproducibility_score * 0.25
+            + validation_strength_score * 0.20
+            + paper_type_signal * 0.10
+            + pdf_score * 0.05,
+            4,
+        )
+        peer_review_score = round(
+            citation_score * 0.25
+            + benchmark_score * 0.30
+            + validation_strength_score * 0.25
+            + pdf_score * 0.20,
+            4,
+        )
         base_score = (
-            topic_score * 0.35
-            + venue_score * 0.18
-            + citation_score * 0.15
+            topic_score * 0.34
+            + venue_score * 0.16
+            + citation_score * 0.10
             + freshness_score * 0.10
             + pdf_score * 0.08
             + code_score * code_weight
-            + 0.06
+            + benchmark_score * 0.08
+            + reproducibility_score * 0.06
+            + validation_strength_score * 0.06
+            + 0.05
         )
-        score = round(max(0.0, base_score - negative_keyword_penalty * 0.25), 4)
+        score = round(min(1.0, max(0.0, base_score - negative_keyword_penalty * 0.25)), 4)
         ranked_candidate = dict(candidate)
         ranked_candidate["score"] = score
         ranked_candidate["ranking_signals"] = {
@@ -650,12 +996,28 @@ def rank_candidates(
             "matched_priority_keywords_count": len(matched_priority_keywords),
             "priority_keyword_count": len(priority_terms),
             "venue_score": round(venue_score, 4),
+            "venue_score_status": venue_signal["status"],
+            "venue_configured_prior": bool(venue_signal["configured"]),
+            "venue_configured_raw": venue_signal["configured_raw"],
             "citation_score": round(citation_score, 4),
+            "citation_count_raw": citation_signal["raw_count"],
+            "citation_count_available": citation_signal["available"],
+            "citation_count_status": citation_signal["status"],
+            "citation_count_source": citation_signal["source"],
+            "citation_absolute_score": citation_signal["absolute_score"],
+            "citation_normalized_score": citation_signal["normalized_score"],
+            "citation_age_adjusted_score": citation_signal["age_adjusted_score"],
+            "citation_score_basis": citation_signal["basis"],
             "freshness_score": freshness_score,
+            "freshness_basis": freshness_signal["basis"],
             "pdf_score": pdf_score,
             "code_score": code_score,
+            "data_score": data_score,
+            "availability_score": availability_score,
             "benchmark_score": round(benchmark_score, 4),
             "reproducibility_terms_score": round(reproducibility_terms_score, 4),
+            "validation_strength_score": validation_strength_score,
+            "method_rigor_score": method_rigor_score,
             "easyscholar_score": round(easyscholar_score, 4),
             "year_min": year_min,
             "code_policy": normalized_code_policy,
@@ -665,7 +1027,6 @@ def rank_candidates(
             "domain_fit_score": domain_fit_score,
             "reproducibility_score": reproducibility_score,
         }
-        classification = _classify_paper_type(candidate)
         quality_gate = _quality_gate(
             candidate=candidate,
             signals=ranked_candidate["ranking_signals"],
@@ -688,6 +1049,9 @@ def rank_candidates(
             easyscholar_signal=easyscholar_signal,
             selection_policy=normalized_selection_policy,
         )
+        if quality_gate["tier"] in {"Reject", "Tier C"} and protocol["decision"] == "advance-candidate":
+            protocol["decision"] = "review-candidate"
+            protocol.setdefault("cautions", []).append(f"quality_tier_{quality_gate['tier'].lower().replace(' ', '_')}")
         protocol["paper_type"] = classification["primary_type"]
         protocol["classification_confidence"] = classification["confidence"]
         protocol["quality_tier"] = quality_gate["tier"]

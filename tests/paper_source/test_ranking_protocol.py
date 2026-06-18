@@ -1,3 +1,5 @@
+from datetime import date
+
 from paper_source.rank_papers import rank_candidates
 
 
@@ -69,7 +71,7 @@ def test_rank_candidates_emits_explainable_research_quality_protocol():
         },
         "peer_review": {
             "score": top["ranking_signals"]["peer_review_score"],
-            "signals": ["citation_signal", "benchmark_signal", "pdf_available"],
+            "signals": ["normalized_citation_signal", "benchmark_signal", "validation_strength", "pdf_available"],
         },
         "domain_fit": {
             "score": top["ranking_signals"]["domain_fit_score"],
@@ -77,7 +79,7 @@ def test_rank_candidates_emits_explainable_research_quality_protocol():
         },
         "reproducibility": {
             "score": top["ranking_signals"]["reproducibility_score"],
-            "signals": ["code_available", "reproducibility_terms"],
+            "signals": ["code_available", "data_available", "reproducibility_terms"],
         },
     }
     assert top["ranking_protocol"]["decision"] == "advance-candidate"
@@ -322,3 +324,223 @@ def test_rank_candidates_does_not_dilute_cross_discipline_profile_without_hard_a
     assert "weak_topic_fit" not in candidate["quality_gate"]["blocking_reasons"]
     assert candidate["quality_tier"] in {"Tier A", "Tier B", "Tier C"}
     assert candidate["quality_gate"]["dimensions"]["relevance"]["status"] == "pass"
+
+
+def test_configured_venue_prior_affects_order_but_does_not_create_tier_a_alone():
+    current_year = date.today().year
+    candidates = [
+        {
+            "slug": "configured-venue-only",
+            "title": "AUV Control Method from Preferred Venue",
+            "abstract": "Autonomous underwater vehicle control method for tracking.",
+            "year": current_year,
+            "venue": "Preferred Journal",
+            "doi": "10.1234/preferred",
+            "pdf_url": "https://example.org/preferred.pdf",
+        },
+        {
+            "slug": "unconfigured-venue",
+            "title": "AUV Control Method from Other Venue",
+            "abstract": "Autonomous underwater vehicle control method for tracking.",
+            "year": current_year,
+            "venue": "Other Journal",
+            "doi": "10.1234/other",
+            "pdf_url": "https://example.org/other.pdf",
+        },
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=["AUV", "control", "tracking"],
+        venue_tiers={"preferred journal": 0.1},
+    )
+
+    assert [candidate["slug"] for candidate in ranked] == ["configured-venue-only", "unconfigured-venue"]
+    assert ranked[0]["ranking_signals"]["venue_score"] > ranked[1]["ranking_signals"]["venue_score"]
+    assert ranked[0]["ranking_signals"]["venue_score_status"] == "configured_prior"
+    assert ranked[0]["quality_tier"] != "Tier A"
+    assert ranked[0]["ranking_protocol"]["quality_tier"] == ranked[0]["quality_tier"]
+
+
+def test_normalized_citation_scoring_favors_recent_strong_evidence_over_old_absolute_count():
+    current_year = date.today().year
+    candidates = [
+        {
+            "slug": "recent-strong",
+            "title": "AUV Control with Reproducible Field Benchmarks",
+            "abstract": (
+                "Autonomous underwater vehicle control with benchmark baselines, "
+                "ablation studies, open code, and reproducible experiments."
+            ),
+            "year": current_year,
+            "venue": "Ocean Engineering",
+            "doi": "10.1234/recent",
+            "citation_count": 25,
+            "citation_count_status": "verified",
+            "citation_count_source": "openalex",
+            "pdf_url": "https://example.org/recent.pdf",
+            "code_url": "https://github.com/example/recent",
+        },
+        {
+            "slug": "old-high-citation",
+            "title": "AUV Control Method with Historical Citations",
+            "abstract": "Autonomous underwater vehicle control method for trajectory tracking.",
+            "year": current_year - 12,
+            "venue": "Ocean Engineering",
+            "doi": "10.1234/old",
+            "citation_count": 600,
+            "citation_count_status": "verified",
+            "citation_count_source": "semantic_scholar",
+            "pdf_url": "https://example.org/old.pdf",
+        },
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=["AUV", "control", "trajectory tracking"],
+        venue_tiers={"ocean engineering": 0.75},
+    )
+
+    assert [candidate["slug"] for candidate in ranked] == ["recent-strong", "old-high-citation"]
+    recent_signals = ranked[0]["ranking_signals"]
+    old_signals = ranked[1]["ranking_signals"]
+    assert ranked[0]["citation_count"] == 25
+    assert ranked[1]["citation_count"] == 600
+    assert recent_signals["citation_count_raw"] == 25
+    assert recent_signals["citation_count_status"] == "verified"
+    assert recent_signals["citation_count_source"] == "openalex"
+    assert recent_signals["citation_normalized_score"] == recent_signals["citation_score"]
+    assert recent_signals["citation_score_basis"]["reference_year"] == current_year
+    assert old_signals["citation_score_basis"]["publication_age_years"] >= 12
+    assert recent_signals["freshness_basis"]["reference_year"] == current_year
+
+
+def test_method_rigor_and_validation_evidence_change_ordering():
+    current_year = date.today().year
+    candidates = [
+        {
+            "slug": "thin-method",
+            "title": "AUV Control Method",
+            "abstract": "Autonomous underwater vehicle control method for trajectory tracking.",
+            "year": current_year,
+            "venue": "Ocean Engineering",
+            "doi": "10.1234/thin",
+            "citation_count": 8,
+            "citation_count_status": "verified",
+            "citation_count_source": "openalex",
+            "pdf_url": "https://example.org/thin.pdf",
+        },
+        {
+            "slug": "rigorous-method",
+            "title": "AUV Control Method with Validation Evidence",
+            "abstract": (
+                "Autonomous underwater vehicle control method for trajectory tracking "
+                "with baseline comparison, ablation experiment, metric reporting, and open data."
+            ),
+            "year": current_year,
+            "venue": "Ocean Engineering",
+            "doi": "10.1234/rigorous",
+            "citation_count": 8,
+            "citation_count_status": "verified",
+            "citation_count_source": "openalex",
+            "pdf_url": "https://example.org/rigorous.pdf",
+        },
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=["AUV", "control", "trajectory tracking"],
+        venue_tiers={"ocean engineering": 0.75},
+    )
+
+    assert [candidate["slug"] for candidate in ranked] == ["rigorous-method", "thin-method"]
+    assert ranked[0]["ranking_signals"]["method_rigor_score"] > ranked[1]["ranking_signals"]["method_rigor_score"]
+    assert ranked[0]["quality_gate"]["dimensions"]["validation"]["score"] > ranked[1]["quality_gate"]["dimensions"]["validation"]["score"]
+
+
+def test_quality_evidence_terms_can_be_injected_for_cross_discipline_validation():
+    current_year = date.today().year
+    candidates = [
+        {
+            "slug": "clinical-rigorous",
+            "title": "Randomized Cohort Therapy Study with Clinical Endpoints",
+            "abstract": (
+                "A randomized cohort therapy study reports clinical endpoint results, "
+                "hazard ratio confidence intervals, preregistered protocol, and data availability."
+            ),
+            "year": current_year,
+            "venue": "Clinical Science",
+            "doi": "10.1234/clinical",
+            "citation_count": 6,
+            "citation_count_status": "verified",
+            "citation_count_source": "openalex",
+            "pdf_url": "https://example.org/clinical.pdf",
+        }
+    ]
+
+    ranked = rank_candidates(
+        candidates,
+        positive_keywords=["therapy", "clinical endpoint", "cohort"],
+        venue_tiers={"clinical science": 0.75},
+        quality_evidence_terms={
+            "benchmark_terms": ["clinical endpoint", "hazard ratio", "confidence interval"],
+            "reproducibility_terms": ["preregistered protocol", "data availability"],
+            "paper_type_rules": {
+                "clinical-trial": ["randomized", "cohort", "clinical endpoint"],
+            },
+        },
+    )
+
+    candidate = ranked[0]
+    assert candidate["paper_type"] == "clinical-trial"
+    assert candidate["ranking_signals"]["benchmark_score"] >= 0.67
+    assert candidate["ranking_signals"]["reproducibility_terms_score"] >= 0.66
+    assert candidate["quality_gate"]["dimensions"]["validation"]["status"] == "supported"
+    assert "weak_benchmark_signal" not in candidate["quality_gate"]["cautions"]
+    assert candidate["quality_tier"] in {"Tier A", "Tier B"}
+
+
+def test_ranking_signals_distinguish_missing_citations_from_verified_zero():
+    current_year = date.today().year
+    ranked = rank_candidates(
+        [
+            {
+                "slug": "missing-citations",
+                "title": "AUV Control with Missing Citation Metadata",
+                "abstract": "Autonomous underwater vehicle control benchmark with open code.",
+                "year": current_year,
+                "venue": "Ocean Engineering",
+                "doi": "10.1234/missing",
+                "pdf_url": "https://example.org/missing.pdf",
+                "code_url": "https://github.com/example/missing",
+            },
+            {
+                "slug": "zero-citations",
+                "title": "AUV Control with Verified Zero Citations",
+                "abstract": "Autonomous underwater vehicle control benchmark with open code.",
+                "year": current_year,
+                "venue": "Ocean Engineering",
+                "doi": "10.1234/zero",
+                "citation_count": 0,
+                "citation_count_status": "verified",
+                "citation_count_source": "openalex",
+                "pdf_url": "https://example.org/zero.pdf",
+                "code_url": "https://github.com/example/zero",
+            },
+        ],
+        positive_keywords=["AUV", "control", "benchmark"],
+        venue_tiers={"ocean engineering": 0.75},
+    )
+
+    by_slug = {candidate["slug"]: candidate for candidate in ranked}
+    missing = by_slug["missing-citations"]["ranking_signals"]
+    zero = by_slug["zero-citations"]["ranking_signals"]
+
+    assert missing["citation_count_raw"] is None
+    assert missing["citation_count_available"] is False
+    assert missing["citation_count_status"] == "unverified"
+    assert missing["citation_score_basis"]["status"] == "unverified"
+    assert zero["citation_count_raw"] == 0
+    assert zero["citation_count_available"] is True
+    assert zero["citation_count_status"] == "verified"
+    assert zero["citation_score_basis"]["status"] == "verified"

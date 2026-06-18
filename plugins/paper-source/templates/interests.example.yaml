@@ -5,6 +5,8 @@ negative_keywords: []
 venue_prior: []
 budget:
   max_results: 20
+ranking:
+  quality_evidence_terms: {}
 paper_search:
   command: paper-search
   sources:

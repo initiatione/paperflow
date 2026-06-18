@@ -178,6 +178,28 @@ def agent_plan_soft_recall_terms(payload: dict | None) -> list[str]:
     )
 
 
+def quality_evidence_payload(payload: dict | None) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    keys = (
+        "quality_evidence_terms",
+        "benchmark_terms",
+        "validation_terms",
+        "evidence_terms",
+        "quality_signals",
+        "reproducibility_terms",
+        "code_data_terms",
+        "paper_type_rules",
+        "paper_types",
+    )
+    result: dict[str, object] = {}
+    for key in keys:
+        value = payload.get(key)
+        if value:
+            result[key] = value
+    return result
+
+
 def _merge_term_provenance(plan: dict, terms: list[str], source: str) -> None:
     if not terms:
         return
@@ -289,6 +311,9 @@ def apply_agent_supplied_query_inputs(
             **request_constraints,
             "source": "agent_supplied" if agent_query_plan or query_variants or domain_focus_terms else "cli",
         }
+    agent_quality_evidence = quality_evidence_payload(agent_query_plan)
+    if agent_quality_evidence:
+        plan["quality_evidence_terms"] = agent_quality_evidence
     plan["hard_constraints"] = {
         "domain_anchors": hard_domain_anchors,
         "policy": "Only user/config/Research Brief/confirmed anchors should be passed here; inferred terms stay soft.",

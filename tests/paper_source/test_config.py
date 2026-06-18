@@ -28,7 +28,16 @@ def test_load_config_uses_relative_defaults(tmp_path):
         "  sources:\n"
         "    - arxiv\n"
         "    - semantic\n"
-        "    - openalex\n",
+        "    - openalex\n"
+        "ranking:\n"
+        "  quality_evidence_terms:\n"
+        "    benchmark_terms:\n"
+        "      - field endpoint\n"
+        "    reproducibility_terms:\n"
+        "      - shared protocol\n"
+        "    paper_type_rules:\n"
+        "      field-study:\n"
+        "        - field endpoint\n",
         encoding="utf-8",
     )
 
@@ -44,6 +53,11 @@ def test_load_config_uses_relative_defaults(tmp_path):
     assert config.venue_prior == ["ICRA", "Science Robotics"]
     assert config.paper_search_command == "paper-search"
     assert config.paper_search_sources == ["arxiv", "semantic", "openalex"]
+    assert config.quality_evidence_terms == {
+        "benchmark_terms": ["field endpoint"],
+        "reproducibility_terms": ["shared protocol"],
+        "paper_type_rules": {"field-study": ["field endpoint"]},
+    }
 
 
 def test_load_config_defaults_keep_doi_lookup_out_of_broad_sources(tmp_path):

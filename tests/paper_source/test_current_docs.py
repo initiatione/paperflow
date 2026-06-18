@@ -30,11 +30,14 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.3.12"
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.12 | Paper Source:")
+    assert manifest["version"] == "2.3.13"
+    assert manifest["interface"]["shortDescription"].startswith("v2.3.13 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
+    assert "normalized ranking" in manifest["interface"]["shortDescription"]
     assert "cross-discipline quality gates" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
+    assert "normalized citation ranking" in manifest["interface"]["longDescription"]
+    assert "config/agent-plan quality-evidence lexicons" in manifest["interface"]["longDescription"]
     assert "identity/relevance/inspectability/validation/source-confidence/reproducibility/request-risk dimensions" in manifest["interface"]["longDescription"]
     assert "retrieval and metadata coverage rather than a semantic quality ranker" in manifest["interface"]["longDescription"]
     assert "non-Reject session_recommendations" in manifest["interface"]["longDescription"]
@@ -44,8 +47,12 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.3.13",
             "Paper Source 2.3.12",
             "Paper Source 2.3.10",
+            "publication-age-normalized citation quality",
+            "Quality-evidence lexicons",
+            "Missing citation/venue evidence",
             "Paper Source 2.3.7",
             "Paper Source 2.3.8",
             "Paper Source 2.3.6",

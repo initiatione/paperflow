@@ -218,6 +218,77 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert sorted(path.name for path in (tmp_path / "vault").iterdir()) == ["_paper_source"]
 
 
+def test_dry_run_passes_config_quality_evidence_terms_into_ranking(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    templates = plugin_root / "templates"
+    templates.mkdir(parents=True)
+    (templates / "interests.example.yaml").write_text(
+        "profile: clinical_research\n"
+        "domains:\n"
+        "  - therapy\n"
+        "positive_keywords:\n"
+        "  - clinical endpoint\n"
+        "  - cohort\n"
+        "venue_prior:\n"
+        "  - Clinical Science\n"
+        "budget:\n"
+        "  max_results: 3\n"
+        "ranking:\n"
+        "  quality_evidence_terms:\n"
+        "    benchmark_terms:\n"
+        "      - clinical endpoint\n"
+        "      - hazard ratio\n"
+        "      - confidence interval\n"
+        "    reproducibility_terms:\n"
+        "      - preregistered protocol\n"
+        "      - data availability\n"
+        "    paper_type_rules:\n"
+        "      clinical-trial:\n"
+        "        - randomized\n"
+        "        - cohort\n"
+        "        - clinical endpoint\n",
+        encoding="utf-8",
+    )
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Randomized Cohort Therapy Study with Clinical Endpoints",
+                    "authors": ["A. Clinician"],
+                    "year": datetime.now(timezone.utc).year,
+                    "venue": "Clinical Science",
+                    "abstract": (
+                        "A randomized cohort therapy study reports clinical endpoint results, "
+                        "hazard ratio confidence intervals, preregistered protocol, and data availability."
+                    ),
+                    "doi": "10.1234/clinical",
+                    "citation_count": 6,
+                    "pdf_url": "https://example.org/clinical.pdf",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="therapy clinical endpoint cohort",
+        max_results=3,
+        fixture_path=fixture,
+    )
+
+    ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
+    candidate = ranked[0]
+    assert candidate["paper_type"] == "clinical-trial"
+    assert candidate["ranking_signals"]["venue_score_status"] == "configured_prior"
+    assert candidate["ranking_signals"]["benchmark_score"] >= 0.67
+    assert candidate["quality_gate"]["dimensions"]["validation"]["status"] == "supported"
+    assert "weak_benchmark_signal" not in candidate["quality_gate"]["cautions"]
+
+
 def test_dry_run_can_disable_easyscholar_for_single_run(tmp_path):
     plugin_root = tmp_path / "plugin"
     _write_minimal_plugin_template(plugin_root)

@@ -302,6 +302,21 @@ def _profile_terms(profile: str, domains: list[str] | None, positive_keywords: l
     return unique(profile_items + _as_terms(domains) + _as_terms(positive_keywords))
 
 
+def _quality_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "quality_evidence_terms",
+        "benchmark_terms",
+        "validation_terms",
+        "evidence_terms",
+        "quality_signals",
+        "reproducibility_terms",
+        "code_data_terms",
+        "paper_type_rules",
+        "paper_types",
+    )
+    return {key: payload[key] for key in keys if payload.get(key)}
+
+
 def choose_domain(
     topic: str,
     requested: str,
@@ -530,6 +545,9 @@ def build_query_plan_from_research_brief(
     for term in blocks.get("soft_recall_terms", []):
         provenance.setdefault(term, "topic_inferred_soft_recall")
     plan["term_provenance"] = provenance
+    quality_evidence = _quality_evidence_payload(brief)
+    if quality_evidence:
+        plan["quality_evidence_terms"] = quality_evidence
     plan["research_brief"] = {
         "slug": brief.get("slug"),
         "status": brief.get("status"),

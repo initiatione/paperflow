@@ -1,6 +1,6 @@
 {
   "name": "paper-source",
-  "version": "2.3.12",
+  "version": "2.3.13",
   "description": "Paper Source finds, deduplicates against Paper Wiki backlogs, ranks, parses, stages, and hands off paper evidence for Paper Wiki-compatible vaults.",
   "author": {
     "name": "liuchf"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Source",
-    "shortDescription": "v2.3.12 | Paper Source: discover, dedupe, cross-discipline quality gates, DOI-required recommendations, diagnostics, record.",
-    "longDescription": "Paper Source is the source/evidence layer for PaperFlow: configure profile-driven discovery, run discover-papers for natural-language paper search, deduplicate against wiki _meta/reference-index.json before raw source bundles, record transparent query plans with hard/soft constraints, optionally use configured grok-search-rs MCP as targeted or parallel supplemental recall without replacing paper-search MCP, enrich DOI/code metadata, apply cross-discipline quality gates with explicit identity/relevance/inspectability/validation/source-confidence/reproducibility/request-risk dimensions, treat paper-search-mcp as retrieval and metadata coverage rather than a semantic quality ranker, emit DOI-required non-Reject session_recommendations for chat-facing reading decisions with zero-primary and quality-reject diagnostics, auto-stage selected primary PDF-available recommendations, acquire PDFs or manual-download records, parse with MinerU, recover configured MinerU CDN ZIP downloads in fake-IP environments, preserve source bundles, produce Chinese approval reports, record explicit human or Codex automation approval metadata, hand off via wiki-ingest-brief.json and wiki-agent-trigger.json, and record final wiki ingest. Paper Wiki or another wiki-capable agent owns formal page writing.",
+    "shortDescription": "v2.3.13 | Paper Source: discover, dedupe, normalized ranking, cross-discipline quality gates, DOI-required recommendations, diagnostics, record.",
+    "longDescription": "Paper Source is the source/evidence layer for PaperFlow: configure profile-driven discovery, run discover-papers for natural-language paper search, deduplicate against wiki _meta/reference-index.json before raw source bundles, record transparent query plans with hard/soft constraints, optionally use configured grok-search-rs MCP as targeted or parallel supplemental recall without replacing paper-search MCP, enrich DOI/code metadata, apply normalized citation ranking and config/agent-plan quality-evidence lexicons, apply cross-discipline quality gates with explicit identity/relevance/inspectability/validation/source-confidence/reproducibility/request-risk dimensions, treat paper-search-mcp as retrieval and metadata coverage rather than a semantic quality ranker, emit DOI-required non-Reject session_recommendations for chat-facing reading decisions with zero-primary and quality-reject diagnostics, auto-stage selected primary PDF-available recommendations, acquire PDFs or manual-download records, parse with MinerU, recover configured MinerU CDN ZIP downloads in fake-IP environments, preserve source bundles, produce Chinese approval reports, record explicit human or Codex automation approval metadata, hand off via wiki-ingest-brief.json and wiki-agent-trigger.json, and record final wiki ingest. Paper Wiki or another wiki-capable agent owns formal page writing.",
     "developerName": "liuchf",
     "category": "Productivity",
     "capabilities": [

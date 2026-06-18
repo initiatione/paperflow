@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from paper_source.filter_candidates import (
     default_discovery_exclusion_terms,
     exclusion_terms_from_query,
@@ -5,7 +7,10 @@ from paper_source.filter_candidates import (
     filter_candidates_with_report,
 )
 from paper_source.normalize_candidates import normalize_candidates
-from paper_source.orchestrator_discovery import ranking_priority_keywords_from_query_plan
+from paper_source.orchestrator_discovery import (
+    ranking_priority_keywords_from_query_plan,
+    ranking_quality_evidence_terms_from_inputs,
+)
 from paper_source.rank_papers import rank_candidates
 
 
@@ -423,6 +428,44 @@ def test_rank_candidates_uses_priority_keywords_to_avoid_profile_dilution_for_na
     assert "weak_topic_fit" not in candidate["quality_gate"]["blocking_reasons"]
     assert candidate["quality_tier"] in {"Tier A", "Tier B"}
     assert candidate["ranking_protocol"]["decision"] == "advance-candidate"
+
+
+def test_rank_candidates_uses_config_and_agent_plan_quality_evidence_terms():
+    config = SimpleNamespace(
+        quality_evidence_terms={
+            "benchmark_terms": ["clinical endpoint", "evidence"],
+            "paper_type_rules": {"clinical-trial": ["randomized", "clinical endpoint"]},
+        }
+    )
+    query_plan = {
+        "agent_supplied": {
+            "agent_query_plan": {
+                "reproducibility_terms": ["preregistered protocol"],
+            }
+        }
+    }
+
+    ranked = rank_candidates(
+        [
+            {
+                "title": "Randomized Therapy Study with Clinical Endpoints",
+                "abstract": "Clinical endpoint evidence with a preregistered protocol.",
+                "year": 2025,
+                "venue": "Clinical Science",
+                "doi": "10.1234/clinical-agent",
+                "pdf_url": "https://example.org/clinical-agent.pdf",
+            }
+        ],
+        positive_keywords=["therapy", "clinical endpoint"],
+        venue_tiers={"clinical science": 0.75},
+        quality_evidence_terms=ranking_quality_evidence_terms_from_inputs(config, query_plan),
+    )
+
+    candidate = ranked[0]
+    assert candidate["paper_type"] == "clinical-trial"
+    assert candidate["ranking_signals"]["benchmark_score"] > 0
+    assert candidate["ranking_signals"]["reproducibility_terms_score"] > 0
+    assert candidate["quality_gate"]["dimensions"]["validation"]["status"] == "supported"
 
 
 def test_query_plan_hard_anchors_prevent_quality_gate_false_reject_from_long_keyword_plan():
