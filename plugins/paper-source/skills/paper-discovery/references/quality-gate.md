@@ -26,14 +26,15 @@ Every ranked candidate should expose `quality_gate.dimensions` so the reason for
 - `source_confidence`: venue, citation, PDF, and verified metric confidence.
 - `reproducibility`: code/data/reproducibility evidence.
 - `request_risk`: negative keyword or explicit request-conflict risk.
+- `quality_risk`: provider evidence for retraction, withdrawal, expression-of-concern, paper-mill, or predatory-venue risk; missing data is `unverified`, not safe.
 
 Separate quality tiers:
 
 - Tier A: configured top venue or strong field venue, DOI, PDF, high topic fit, and strong validation such as field study, replication, safety proof, clinical/engineering/data evidence where appropriate, or convincing benchmark.
 - Tier B: good journal/conference or arXiv with strong method fit and credible experiments, but missing one important signal such as code, citations, or field validation.
 - Tier C: relevant but weaker evidence, generic method work not tied to the user's profile, low metadata confidence, old work, or preprint-only. Include only if it meaningfully broadens the map.
-- Reject: reviews/surveys when excluded, generic papers not tied to the configured domain/task, no PDF, unclear bibliographic identity, or papers whose claims cannot be verified.
+- Reject: reviews/surveys when excluded, generic papers not tied to the configured domain/task, no PDF, unclear bibliographic identity, papers whose claims cannot be verified, or verified severe quality-risk evidence such as retraction/withdrawal. Weak or missing risk evidence should create cautions, not silent rejection.
 
 For narrow domains, field-specific validation from the user's config can outweigh a generic top venue paper that only touches the topic superficially.
 
-If the Paper Source `rank.json` misses obviously high-quality papers found by live verification, report that as a recall gap under `Paper Source 实测证据` and run a sharper query before finalizing when time allows.
+If the Paper Source `rank.json` misses obviously high-quality papers found by provider official-version, related-paper, cited-by, or reference metadata, report that through `recall-gap-record.json` and summarize it under `Paper Source 实测证据`. Do not use generic web search as the primary recall path.

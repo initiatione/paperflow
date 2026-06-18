@@ -20,6 +20,7 @@ For each primary item, report:
 - impact factor/quartile, CiteScore, or `未核实`
 - EasyScholar metrics from `verified_metrics.easyscholar` when present; otherwise `未核实`
 - venue prior, if it affected ordering
+- quality risk status from `quality_risk`: show verified/suspected/unverified and list cautions; missing provider risk data is `unverified`, not safe
 - PDF/manual-download status and auto-staging status
 - a short Chinese abstract / summary, 2-3 compact sentences explaining method, task, evidence, and caveat
 
@@ -35,12 +36,14 @@ Then add `Paper Source 实测证据` with:
 - query plan summary: domain, concept blocks, query variants
 - candidate pool size before/after dedup/filter when available
 - ranking evidence: `paper_type`, `quality_tier`, `quality_gate`, `ranking_confidence`, and key rubric dimensions
-- quality gate dimensions: summarize `quality_gate.dimensions.identity`, `relevance`, `inspectability`, `validation`, `source_confidence`, `reproducibility`, and `request_risk` when they explain why a paper was kept, held for review, or rejected
+- quality gate dimensions: summarize `quality_gate.dimensions.identity`, `relevance`, `inspectability`, `validation`, `source_confidence`, `reproducibility`, `request_risk`, and `quality_risk` when they explain why a paper was kept, held for review, or rejected
+- `recall-gap-record.json`: recovered official versions, related papers, cited-by papers, or references plus filter summary when provider metadata supplied them
+- `quality-risk-record.json`: verified/suspected/unverified risk counts and any verified severe risk evidence
 - EasyScholar evidence: `easyscholar-record.json`, `easyscholar_score`, and matched/no-match/missing-key counts when checked
 - accepted/rejected counts
 - `session_recommendations.rejected_summary` count/reason summary
 - `session_recommendations.existing_library_appendix` as a separate already-in-library/wiki reminder, not a recommendation list
-- `session_recommendations.verification_summary`; when it reports unverified citation counts or venue metrics, say which recommendations still need targeted verification instead of silently filling numbers
+- `session_recommendations.verification_summary`; when it reports unverified citation counts, venue metrics, or quality-risk data, say which recommendations still need targeted verification instead of silently filling numbers
 - `session_recommendations.doi_filtered_summary`; when total is non-zero, say DOI-missing candidates were filtered as `missing_required_doi`
 - `session_recommendations.doi_recovery_summary` and `session_recommendations.doi_resolution_summary`; show DOI recovery success/failure counts before explaining any filtered candidates
 - `session_recommendations.no_primary_recommendations_summary` when primary recommendations are empty; explain whether DOI policy, quality gates, existing-library saturation, or recall/search gaps caused the empty primary list

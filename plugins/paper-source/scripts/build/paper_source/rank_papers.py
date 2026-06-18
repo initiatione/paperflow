@@ -567,6 +567,70 @@ def _ranking_rubric(
     }
 
 
+def _quality_risk_payload(candidate: dict) -> dict:
+    risk = candidate.get("quality_risk")
+    if isinstance(risk, dict):
+        return risk
+    return {
+        "schema_version": "paper-source-quality-risk-v1",
+        "status": "unverified",
+        "severity": "unknown",
+        "confidence": "none",
+        "risk_types": [],
+        "cautions": ["quality_risk_unverified"],
+    }
+
+
+def _quality_risk_signal(quality_risk: dict) -> dict[str, object]:
+    status = str(quality_risk.get("status") or "unverified").strip().lower()
+    severity = str(quality_risk.get("severity") or "unknown").strip().lower()
+    confidence = str(quality_risk.get("confidence") or "none").strip().lower()
+    risk_types = [str(item) for item in quality_risk.get("risk_types") or [] if str(item).strip()]
+    verified = status == "verified"
+    suspected = status == "suspected"
+    severe = severity == "severe"
+    penalty = 0.0
+    if verified and severe:
+        penalty = 0.45
+    elif verified:
+        penalty = 0.25
+    elif suspected:
+        penalty = 0.08
+    return {
+        "status": status,
+        "severity": severity,
+        "confidence": confidence,
+        "risk_types": risk_types,
+        "verified": verified,
+        "suspected": suspected,
+        "verified_severe": bool(verified and severe),
+        "penalty": penalty,
+    }
+
+
+def _quality_risk_dimension(quality_risk: dict) -> dict:
+    signal = _quality_risk_signal(quality_risk)
+    if signal["verified_severe"]:
+        status = "verified_severe"
+        score = 0.0
+    elif signal["verified"]:
+        status = "verified"
+        score = 0.25
+    elif signal["suspected"]:
+        status = "suspected"
+        score = 0.5
+    else:
+        status = "unverified"
+        score = 0.5
+    return {
+        "score": score,
+        "status": status,
+        "severity": signal["severity"],
+        "confidence": signal["confidence"],
+        "signals": list(signal["risk_types"]) or ["risk_metadata_unverified"],
+    }
+
+
 def _ranking_protocol(
     *,
     matched_keywords: list[str],
@@ -575,6 +639,7 @@ def _ranking_protocol(
     code_available: bool,
     easyscholar_signal: dict | None = None,
     selection_policy: str = "balanced_high_quality",
+    quality_risk: dict | None = None,
 ) -> dict:
     reasons: list[str] = []
     cautions: list[str] = []
@@ -595,6 +660,14 @@ def _ranking_protocol(
         reasons.append("EasyScholar verified metrics: " + evidence)
     if easyscholar_signal:
         cautions.extend(str(item) for item in easyscholar_signal.get("cautions") or [])
+    quality_risk = quality_risk or {}
+    risk_signal = _quality_risk_signal(quality_risk)
+    if risk_signal["verified_severe"]:
+        cautions.append("verified_quality_risk")
+    for caution in quality_risk.get("cautions") or []:
+        text = str(caution)
+        if text and text not in cautions:
+            cautions.append(text)
     if signals["benchmark_score"] < 0.34:
         cautions.append("weak_benchmark_signal")
     if signals.get("validation_strength_score", signals["benchmark_score"]) < 0.34:
@@ -677,6 +750,8 @@ def _quality_gate(
     cautions: list[str] = []
     blockers: list[str] = []
     has_stable_identifier = bool(candidate.get("doi") or candidate.get("arxiv_id"))
+    quality_risk = _quality_risk_payload(candidate)
+    risk_signal = _quality_risk_signal(quality_risk)
 
     if has_stable_identifier:
         evidence.append("stable_identifier")
@@ -716,6 +791,16 @@ def _quality_gate(
         evidence.append("validation_signal")
     if signals["negative_keyword_penalty"] >= 0.5:
         blockers.append("negative_keyword_overlap")
+    if risk_signal["verified_severe"]:
+        blockers.append("verified_quality_risk")
+        evidence.append("quality_risk_verified")
+    elif risk_signal["verified"]:
+        cautions.append("quality_risk_verified")
+        evidence.append("quality_risk_verified")
+    elif risk_signal["suspected"]:
+        cautions.append("quality_risk_suspected")
+    else:
+        cautions.append("quality_risk_unverified")
 
     source_confidence_score = round(
         signals["venue_score"] * 0.35
@@ -762,6 +847,7 @@ def _quality_gate(
             "status": "blocked" if signals["negative_keyword_penalty"] >= 0.5 else "clear",
             "signals": ["negative_keyword_overlap"] if signals["negative_keyword_penalty"] > 0 else [],
         },
+        "quality_risk": _quality_risk_dimension(quality_risk),
     }
 
     has_tier_a_validation = (
@@ -935,6 +1021,8 @@ def rank_candidates(
         code_score = 1.0 if candidate.get("code_url") else 0.0
         data_score = 1.0 if candidate.get("data_url") or candidate.get("dataset_url") else 0.0
         availability_score = max(code_score, data_score)
+        quality_risk = _quality_risk_payload(candidate)
+        quality_risk_signal = _quality_risk_signal(quality_risk)
         code_weight = 0.08
         if normalized_code_policy == "prefer":
             code_weight = 0.12
@@ -984,7 +1072,10 @@ def rank_candidates(
             + validation_strength_score * 0.06
             + 0.05
         )
-        score = round(min(1.0, max(0.0, base_score - negative_keyword_penalty * 0.25)), 4)
+        score = round(
+            min(1.0, max(0.0, base_score - negative_keyword_penalty * 0.25 - float(quality_risk_signal["penalty"]))),
+            4,
+        )
         ranked_candidate = dict(candidate)
         ranked_candidate["score"] = score
         ranked_candidate["ranking_signals"] = {
@@ -1024,6 +1115,12 @@ def rank_candidates(
             "year_min": year_min,
             "code_policy": normalized_code_policy,
             "negative_keyword_penalty": round(negative_keyword_penalty, 4),
+            "quality_risk_status": quality_risk_signal["status"],
+            "quality_risk_severity": quality_risk_signal["severity"],
+            "quality_risk_confidence": quality_risk_signal["confidence"],
+            "quality_risk_types": quality_risk_signal["risk_types"],
+            "quality_risk_verified_severe": quality_risk_signal["verified_severe"],
+            "quality_risk_penalty": quality_risk_signal["penalty"],
             "editorial_score": editorial_score,
             "peer_review_score": peer_review_score,
             "domain_fit_score": domain_fit_score,
@@ -1050,6 +1147,7 @@ def rank_candidates(
             code_available=bool(candidate.get("code_url")),
             easyscholar_signal=easyscholar_signal,
             selection_policy=normalized_selection_policy,
+            quality_risk=quality_risk,
         )
         if quality_gate["tier"] in {"Reject", "Tier C"} and protocol["decision"] == "advance-candidate":
             protocol["decision"] = "review-candidate"
@@ -1067,6 +1165,7 @@ def rank_candidates(
         ranked_candidate["classification_confidence"] = classification["confidence"]
         ranked_candidate["classification_evidence"] = classification["evidence"]
         ranked_candidate["paper_classification"] = classification
+        ranked_candidate["quality_risk"] = quality_risk
         ranked_candidate["quality_tier"] = quality_gate["tier"]
         ranked_candidate["quality_gate"] = quality_gate
         ranked_candidate["ranking_rubric"] = rubric

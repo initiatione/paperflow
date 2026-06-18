@@ -59,6 +59,11 @@ from paper_source.query_plan_build import (
     unique_nonempty_strings as _unique_nonempty_strings,
 )
 from paper_source.query_planner import build_query_plan_from_research_brief, infer_research_mode
+from paper_source.quality_risk_recall import (
+    annotate_recall_expansion_candidates,
+    build_recall_gap_record,
+    enrich_candidates_with_quality_risk,
+)
 from paper_source.rank_papers import rank_candidates
 from paper_source.research_brief import ResearchBriefValidationError, load_research_brief
 from paper_source.report_run import write_report
@@ -70,6 +75,7 @@ from paper_source.review_sessions import (
     rehydrate_search_record_from_review,
     review_artifact_paths,
 )
+from paper_source.schemas import canonical_key
 
 DOI_RECOVERY_MAX_CANDIDATES = 5
 DOI_RECOVERY_DOMAINS = ["doi.org", "openalex.org", "crossref.org", "arxiv.org"]
@@ -82,6 +88,24 @@ def _with_paper_search_provider(records: list[dict]) -> list[dict]:
         item.setdefault("provider", "paper_search")
         enriched.append(item)
     return enriched
+
+
+def _merge_candidates_by_canonical_key(*groups: list[dict]) -> list[dict]:
+    merged: list[dict] = []
+    seen: set[str] = set()
+    for group in groups:
+        for candidate in group or []:
+            key = canonical_key(candidate)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(candidate)
+    return merged
+
+
+def _replace_candidates_by_canonical_key(candidates: list[dict], replacements: list[dict]) -> list[dict]:
+    by_key = {canonical_key(candidate): candidate for candidate in replacements}
+    return [by_key.get(canonical_key(candidate), candidate) for candidate in candidates]
 
 
 def _evaluate_paper_search_good_enough(
@@ -552,6 +576,7 @@ def run_dry_run(
             "paper_search_adapter",
             "normalize_candidates",
             "filter_candidates",
+            "quality_risk_recall",
             "easyscholar",
             "rank_candidates",
             "report_run",
@@ -737,8 +762,66 @@ def run_dry_run(
     staging_ready = filter_report.get("staging_ready", [])
     needs_pdf = filter_report.get("needs_pdf", [])
     rejected = filter_report["rejected"]
+    recall_record = build_recall_gap_record(filtered, existing_candidates=normalized)
+    recall_filter_report: dict = {
+        "kept": [],
+        "recommendable": [],
+        "staging_ready": [],
+        "needs_pdf": [],
+        "rejected": [],
+    }
+    if recall_record.get("expansion_records"):
+        recall_normalized = normalize_candidates(recall_record.get("expansion_records") or [])
+        recall_normalized = annotate_recall_expansion_candidates(recall_normalized, recall_record)
+        recall_filter_report = filter_candidates_with_report(
+            recall_normalized,
+            domains=_filter_domains_from_profile(config, query_plan),
+            require_pdf=True,
+            exclude_terms=query_exclude_terms,
+            existing_library_index=existing_library_index,
+            year_min=request_year_min,
+            code_policy=request_code_policy,
+        )
+        filtered = _merge_candidates_by_canonical_key(filtered, recall_filter_report.get("kept", []))
+        staging_ready = _merge_candidates_by_canonical_key(
+            staging_ready,
+            recall_filter_report.get("staging_ready", []),
+        )
+        needs_pdf = _merge_candidates_by_canonical_key(needs_pdf, recall_filter_report.get("needs_pdf", []))
+        rejected = [*rejected, *(recall_filter_report.get("rejected") or [])]
+    recall_record["filter_summary"] = {
+        "recommendable": len(recall_filter_report.get("kept") or []),
+        "staging_ready": len(recall_filter_report.get("staging_ready") or []),
+        "needs_pdf": len(recall_filter_report.get("needs_pdf") or []),
+        "rejected": len(recall_filter_report.get("rejected") or []),
+    }
+    filtered, quality_risk_record = enrich_candidates_with_quality_risk(filtered)
+    staging_ready = _replace_candidates_by_canonical_key(staging_ready, filtered)
+    needs_pdf = _replace_candidates_by_canonical_key(needs_pdf, filtered)
+    filter_report["kept"] = filtered
+    filter_report["recommendable"] = filtered
+    filter_report["staging_ready"] = staging_ready
+    filter_report["needs_pdf"] = needs_pdf
+    filter_report["rejected"] = rejected
+    recall_record_path = run_dir / "recall-gap-record.json"
+    quality_risk_record_path = run_dir / "quality-risk-record.json"
+    recall_record["record_path"] = str(recall_record_path)
+    quality_risk_record["record_path"] = str(quality_risk_record_path)
+    filter_report["recall_gap"] = {
+        "summary": recall_record.get("summary", {}),
+        "filter_summary": recall_record.get("filter_summary", {}),
+        "record_path": str(recall_record_path),
+    }
+    filter_report["quality_risk"] = {
+        "summary": quality_risk_record.get("summary", {}),
+        "record_path": str(quality_risk_record_path),
+    }
+    write_json_atomic(recall_record_path, recall_record)
+    write_json_atomic(quality_risk_record_path, quality_risk_record)
     write_json_atomic(run_dir / "filter-report.json", filter_report)
     state["state"] = "filtered"
+    state["recall_gap"] = filter_report["recall_gap"]
+    state["quality_risk"] = filter_report["quality_risk"]
     write_json_atomic(run_dir / "run-state.json", state)
 
     easyscholar_config = config_from_environment(
@@ -787,6 +870,10 @@ def run_dry_run(
         "needs_pdf_count": len(needs_pdf),
         "rejected_count": len(rejected),
         "selection_policy": selection_policy,
+        "recall_expansion_attempted_count": (recall_record.get("summary") or {}).get("attempted", 0),
+        "recall_recovered_count": (recall_record.get("summary") or {}).get("recovered", 0),
+        "quality_risk_verified_count": (quality_risk_record.get("summary") or {}).get("verified", 0),
+        "quality_risk_unverified_count": (quality_risk_record.get("summary") or {}).get("unverified", 0),
     }
     if query_plan:
         budget_usage["query_variant_count"] = len(query_plan.get("query_variants") or [])
@@ -843,6 +930,8 @@ def run_dry_run(
             "staging_ready": len(staging_ready),
             "needs_pdf": len(needs_pdf),
             "rejected": len(rejected),
+            "recall_recovered": (recall_record.get("summary") or {}).get("recovered", 0),
+            "quality_risk_verified": (quality_risk_record.get("summary") or {}).get("verified", 0),
         },
         "recommendation_filter": {
             "hard_filter_count": len(rejected),
@@ -857,6 +946,17 @@ def run_dry_run(
         "provider_records": search_record.get("provider_records", {}),
         "grok_search": search_record.get("grok_search", state.get("grok_search", {})),
         "doi_recovery": search_record.get("doi_recovery", {}),
+        "recall_gap": {
+            "summary": recall_record.get("summary", {}),
+            "filter_summary": recall_record.get("filter_summary", {}),
+            "record_path": str(recall_record_path),
+            "policy": recall_record.get("policy"),
+        },
+        "quality_risk": {
+            "summary": quality_risk_record.get("summary", {}),
+            "record_path": str(quality_risk_record_path),
+            "policy": quality_risk_record.get("policy"),
+        },
         "request_constraints": request_constraints,
         "warnings": search_record.get("warnings", []),
         "easyscholar": {
@@ -897,6 +997,15 @@ def run_dry_run(
         ],
         "source_coverage": source_coverage,
         "doi_recovery": search_record.get("doi_recovery", {}),
+        "recall_gap": {
+            "summary": recall_record.get("summary", {}),
+            "filter_summary": recall_record.get("filter_summary", {}),
+            "record_path": str(recall_record_path),
+        },
+        "quality_risk": {
+            "summary": quality_risk_record.get("summary", {}),
+            "record_path": str(quality_risk_record_path),
+        },
         "provider_records": search_record.get("provider_records", {}),
         "grok_search": search_record.get("grok_search", state.get("grok_search", {})),
     }
@@ -961,6 +1070,8 @@ def run_dry_run(
             "search-record.json": run_dir / "search-record.json",
             "normalized.json": run_dir / "normalized.json",
             "filter-report.json": run_dir / "filter-report.json",
+            "recall-gap-record.json": run_dir / "recall-gap-record.json",
+            "quality-risk-record.json": run_dir / "quality-risk-record.json",
             "easyscholar-record.json": run_dir / "easyscholar-record.json",
             "discovery-diagnostics.json": run_dir / "discovery-diagnostics.json",
             "rank.json": run_dir / "rank.json",

@@ -233,7 +233,8 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     assert session["primary_recommendations"][0]["citation_count_source"] == "openalex"
     assert session["primary_recommendations"][0]["citation_count_sources"] == [{"source": "openalex", "count": 17}]
     assert session["primary_recommendations"][0]["verified_metrics"]["easyscholar"]["source"] == "easyscholar"
-    assert session["primary_recommendations"][0]["verification_warnings"] == []
+    assert session["primary_recommendations"][0]["quality_risk"]["status"] == "unverified"
+    assert session["primary_recommendations"][0]["verification_warnings"] == ["quality_risk_unverified"]
     assert session["primary_recommendations"][0]["original_abstract"].startswith("Original provider abstract")
     assert session["primary_recommendations"][0]["chinese_summary"]["status"] == "agent_generated_required"
     assert session["primary_recommendations"][0]["quality_reason"]["ranking_reasons"] == [
@@ -262,7 +263,11 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     assert session["review_appendix"][1]["appendix_reason"] == "Tier C"
     assert session["verification_summary"]["citation_count"] == {"verified": 10, "unverified": 0}
     assert session["verification_summary"]["venue_metrics"] == {"verified": 10, "unverified": 0}
-    assert session["verification_summary"]["items_requiring_verification"] == []
+    assert session["verification_summary"]["quality_risk"] == {"verified": 0, "suspected": 0, "unverified": 10}
+    assert len(session["verification_summary"]["items_requiring_verification"]) == 10
+    assert session["verification_summary"]["items_requiring_verification"][0]["warnings"] == [
+        "quality_risk_unverified"
+    ]
     assert session["rejected_summary"] == {
         "total": 3,
         "reason_counts": [
@@ -279,6 +284,7 @@ def test_write_report_emits_session_recommendations_contract_for_chat(tmp_path):
     assert "Rejected Review Candidate" in report_md
     assert "### Verification Summary" in report_md
     assert "citation_count: verified=10, unverified=0" in report_md
+    assert "quality_risk: verified=0, suspected=0, unverified=10" in report_md
 
 
 def test_zero_primary_report_explains_quality_rejects_without_appendix_leak(tmp_path):

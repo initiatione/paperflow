@@ -58,8 +58,11 @@ def test_rank_candidates_emits_explainable_research_quality_protocol():
         "source_confidence",
         "reproducibility",
         "request_risk",
+        "quality_risk",
     }
     assert top["quality_gate"]["dimensions"]["relevance"]["basis"] == "positive_keywords_saturated"
+    assert top["quality_gate"]["dimensions"]["quality_risk"]["status"] == "unverified"
+    assert top["quality_risk"]["status"] == "unverified"
     assert top["ranking_protocol"]["quality_tier"] == "Tier A"
     assert top["ranking_protocol"]["quality_gate"] == top["quality_gate"]
     assert top["ranking_protocol"]["ranking_confidence"] == top["ranking_confidence"]

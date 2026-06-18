@@ -438,6 +438,7 @@ def _append_session_recommendations_section(report: list[str], session_recommend
     if verification_summary:
         citation = verification_summary.get("citation_count") or {}
         venue = verification_summary.get("venue_metrics") or {}
+        quality_risk = verification_summary.get("quality_risk") or {}
         report.append("### Verification Summary")
         report.append(
             f"- citation_count: verified={citation.get('verified', 0)}, "
@@ -447,6 +448,12 @@ def _append_session_recommendations_section(report: list[str], session_recommend
             f"- venue_metrics: verified={venue.get('verified', 0)}, "
             f"unverified={venue.get('unverified', 0)}"
         )
+        if quality_risk:
+            report.append(
+                f"- quality_risk: verified={quality_risk.get('verified', 0)}, "
+                f"suspected={quality_risk.get('suspected', 0)}, "
+                f"unverified={quality_risk.get('unverified', 0)}"
+            )
 
     if doi_resolution or doi_filtered:
         report.append("### DOI Resolution Summary")
@@ -633,6 +640,35 @@ def write_report(
                 )
             if discovery_context.get("diagnostics_path"):
                 report.append(f"- diagnostics: {discovery_context['diagnostics_path']}")
+            recall_gap = discovery_context.get("recall_gap") or {}
+            if recall_gap:
+                summary = recall_gap.get("summary") or {}
+                filter_summary = recall_gap.get("filter_summary") or {}
+                report.append(
+                    "- recall_gap: "
+                    + ", ".join(
+                        f"{key}={value}"
+                        for key, value in {
+                            "attempted": summary.get("attempted", 0),
+                            "recovered": summary.get("recovered", 0),
+                            "recommendable": filter_summary.get("recommendable", 0),
+                        }.items()
+                    )
+                )
+            quality_risk = discovery_context.get("quality_risk") or {}
+            if quality_risk:
+                summary = quality_risk.get("summary") or {}
+                report.append(
+                    "- quality_risk: "
+                    + ", ".join(
+                        f"{key}={value}"
+                        for key, value in {
+                            "verified": summary.get("verified", 0),
+                            "suspected": summary.get("suspected", 0),
+                            "unverified": summary.get("unverified", 0),
+                        }.items()
+                    )
+                )
             candidate_pool = discovery_context.get("candidate_pool") or {}
             if candidate_pool:
                 report.append(

@@ -196,6 +196,20 @@ def _quality_reason(candidate: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _quality_risk(candidate: dict[str, Any]) -> dict[str, Any]:
+    risk = candidate.get("quality_risk")
+    if isinstance(risk, dict):
+        return risk
+    return {
+        "schema_version": "paper-source-quality-risk-v1",
+        "status": "unverified",
+        "severity": "unknown",
+        "confidence": "none",
+        "risk_types": [],
+        "cautions": ["quality_risk_unverified"],
+    }
+
+
 def _classification(candidate: dict[str, Any]) -> dict[str, Any]:
     classification = candidate.get("paper_classification")
     classification = classification if isinstance(classification, dict) else {}
@@ -249,6 +263,7 @@ def _recommendation_item(
         "classification": _classification(candidate),
         "quality_tier": _quality_tier(candidate),
         "quality_reason": _quality_reason(candidate),
+        "quality_risk": _quality_risk(candidate),
         "ranking_decision": _decision(candidate),
         "ranking_rationale": candidate.get("ranking_rationale") or {},
         "provenance_label": candidate.get("provenance_label"),
@@ -278,6 +293,15 @@ def _verification_warnings(item: dict[str, Any]) -> list[str]:
     metrics = metrics if isinstance(metrics, dict) else {}
     if not metrics.get("easyscholar"):
         warnings.append("venue_metrics_unverified")
+    risk = item.get("quality_risk")
+    risk = risk if isinstance(risk, dict) else {}
+    risk_status = _text(risk.get("status")) or "unverified"
+    if risk_status == "verified":
+        warnings.append("quality_risk_verified")
+    elif risk_status == "suspected":
+        warnings.append("quality_risk_suspected")
+    elif risk_status != "verified_clear":
+        warnings.append("quality_risk_unverified")
     return warnings
 
 
@@ -292,6 +316,11 @@ def _verification_summary(primary_recommendations: list[dict[str, Any]]) -> dict
         for item in primary_recommendations
         if isinstance(item.get("verified_metrics"), dict) and item.get("verified_metrics", {}).get("easyscholar")
     ]
+    risk_statuses = Counter(
+        _text((item.get("quality_risk") if isinstance(item.get("quality_risk"), dict) else {}).get("status"))
+        or "unverified"
+        for item in primary_recommendations
+    )
     items_requiring_verification = [
         {
             "slug": item.get("slug"),
@@ -310,6 +339,11 @@ def _verification_summary(primary_recommendations: list[dict[str, Any]]) -> dict
         "venue_metrics": {
             "verified": len(venue_metrics_verified),
             "unverified": len(primary_recommendations) - len(venue_metrics_verified),
+        },
+        "quality_risk": {
+            "verified": risk_statuses.get("verified", 0),
+            "suspected": risk_statuses.get("suspected", 0),
+            "unverified": risk_statuses.get("unverified", 0),
         },
         "items_requiring_verification": items_requiring_verification,
     }

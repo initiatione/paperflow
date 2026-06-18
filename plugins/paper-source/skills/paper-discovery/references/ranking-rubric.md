@@ -6,7 +6,7 @@ Use this file when explaining why a candidate was advanced, held for review, or 
 
 Paper Source ranking is intentionally multi-layered:
 
-1. `ranking_signals`: numeric heuristic signals for topic, venue, EasyScholar `easyscholar_score`, citation, freshness, PDF/code, benchmark, reproducibility, and negative keyword overlap. Topic diagnostics include `topic_fit_basis`, `keyword_topic_score`, `keyword_coverage_score`, and priority/positive keyword counts so long profiles are visible without becoming an accidental hard denominator.
+1. `ranking_signals`: numeric heuristic signals for topic, venue, EasyScholar `easyscholar_score`, citation, freshness, PDF/code, benchmark, reproducibility, quality risk, and negative keyword overlap. Topic diagnostics include `topic_fit_basis`, `keyword_topic_score`, `keyword_coverage_score`, and priority/positive keyword counts so long profiles are visible without becoming an accidental hard denominator.
 2. `paper_classification`: title/abstract paper type classification.
 3. `quality_gate`: Tier A/B/C/Reject gate with stable identity, PDF, topic-fit, venue, citation, benchmark, reproducibility, blocking/caution evidence, and cross-discipline `dimensions`.
 4. `ranking_rubric`: human-readable dimensions derived from the signals.
@@ -36,6 +36,7 @@ Paper Source ranking is intentionally multi-layered:
 | `source_confidence` | Venue, citation, PDF, and verified metric confidence |
 | `reproducibility` | Code/data/reproducibility evidence |
 | `request_risk` | Negative keyword or explicit request conflict risk |
+| `quality_risk` | Provider evidence for retraction, withdrawal, expression-of-concern, paper-mill, or predatory-venue risk; missing evidence is `unverified` |
 
 ## Interpretation Rules
 
@@ -48,6 +49,7 @@ Paper Source ranking is intentionally multi-layered:
 7. EasyScholar writes `easyscholar-record.json` and `verified_metrics.easyscholar` when available. If `EASYSCHOLAR_SECRET_KEY` is missing, disabled with `--no-easyscholar`, or the API cannot verify the venue, report the metric as `未核实`.
 8. When `priority_keywords` are present, use them as the relevance gate basis. When they are absent, use the saturated positive-keyword topic score for relevance and keep `keyword_coverage_score` as diagnostics only.
 9. `paper-search-mcp` result ordering is source/provider evidence, not the final ranking rubric. Paper Source owns ranking, quality tiers, DOI policy, and recommendation surfaces.
+10. Verified severe `quality_risk` evidence lowers recommendation eligibility through `verified_quality_risk`; suspected or missing risk data must remain visible as cautions without silently rejecting the paper.
 
 ## Chat Recommendation Shape
 

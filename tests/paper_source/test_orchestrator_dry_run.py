@@ -218,6 +218,88 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert sorted(path.name for path in (tmp_path / "vault").iterdir()) == ["_paper_source"]
 
 
+def test_dry_run_writes_recall_gap_and_quality_risk_artifacts(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "semantic",
+                    "provider": "paper_search",
+                    "title": "Robotics Control Conference Version",
+                    "authors": ["A. Researcher"],
+                    "year": 2024,
+                    "venue": "Workshop",
+                    "abstract": "Robotics control benchmark study with code.",
+                    "doi": "10.1000/seed",
+                    "pdf_url": "https://example.org/seed.pdf",
+                    "citation_count": 4,
+                    "official_version": {
+                        "source": "crossref",
+                        "title": "Robotics Control Journal Version",
+                        "authors": ["A. Researcher"],
+                        "year": 2025,
+                        "venue": "Journal of Robotics",
+                        "abstract": "Robotics control journal version with field experiments, benchmark, and code.",
+                        "doi": "10.1000/journal",
+                        "pdf_url": "https://example.org/journal.pdf",
+                        "citation_count": 40,
+                    },
+                },
+                {
+                    "source": "crossref",
+                    "provider": "paper_search",
+                    "title": "Withdrawn Robotics Control Study",
+                    "authors": ["B. Researcher"],
+                    "year": 2025,
+                    "venue": "ICRA",
+                    "abstract": "Robotics control benchmark with code.",
+                    "doi": "10.1000/withdrawn",
+                    "pdf_url": "https://example.org/withdrawn.pdf",
+                    "citation_count": 50,
+                    "withdrawn": True,
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="robotics control",
+        max_results=5,
+        fixture_path=fixture,
+    )
+
+    recall_record = json.loads((run_dir / "recall-gap-record.json").read_text(encoding="utf-8"))
+    risk_record = json.loads((run_dir / "quality-risk-record.json").read_text(encoding="utf-8"))
+    ranked = json.loads((run_dir / "rank.json").read_text(encoding="utf-8"))
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+    diagnostics = json.loads((run_dir / "discovery-diagnostics.json").read_text(encoding="utf-8"))
+    state = json.loads((run_dir / "run-state.json").read_text(encoding="utf-8"))
+
+    assert recall_record["schema_version"] == "paper-source-recall-gap-record-v1"
+    assert recall_record["summary"]["recovered"] == 1
+    assert risk_record["schema_version"] == "paper-source-quality-risk-record-v1"
+    assert risk_record["summary"]["verified"] == 1
+    by_title = {item["title"]: item for item in ranked}
+    assert "Robotics Control Journal Version" in by_title
+    assert by_title["Robotics Control Journal Version"]["recall_expansion"]["expansion_kind"] == "official_version"
+    assert by_title["Withdrawn Robotics Control Study"]["quality_tier"] == "Reject"
+    assert "verified_quality_risk" in by_title["Withdrawn Robotics Control Study"]["quality_gate"]["blocking_reasons"]
+    assert report["discovery_context"]["recall_gap"]["summary"]["recovered"] == 1
+    assert report["discovery_context"]["quality_risk"]["summary"]["verified"] == 1
+    assert diagnostics["recall_gap"]["summary"]["recovered"] == 1
+    assert diagnostics["quality_risk"]["summary"]["verified"] == 1
+    assert state["output_artifact_hashes"]["recall-gap-record.json"] == file_sha256(run_dir / "recall-gap-record.json")
+    assert state["output_artifact_hashes"]["quality-risk-record.json"] == file_sha256(
+        run_dir / "quality-risk-record.json"
+    )
+
+
 def test_dry_run_passes_config_quality_evidence_terms_into_ranking(tmp_path):
     plugin_root = tmp_path / "plugin"
     templates = plugin_root / "templates"

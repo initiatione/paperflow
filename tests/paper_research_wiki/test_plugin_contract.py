@@ -191,19 +191,23 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.3.14"
+    assert manifest["version"] == "2.4.0"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.14 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.4.0 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
+    assert "recall-gap recovery" in manifest["interface"]["shortDescription"]
+    assert "quality-risk checks" in manifest["interface"]["shortDescription"]
     assert "normalized ranking" in manifest["interface"]["shortDescription"]
     assert "cross-discipline quality gates" in manifest["interface"]["shortDescription"]
     assert "record" in manifest["interface"]["shortDescription"]
     assert "Paper Source" in manifest["interface"]["longDescription"]
     assert "Paper Wiki" in manifest["interface"]["longDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
+    assert "provider-supplied official versions or related papers" in manifest["interface"]["longDescription"]
+    assert "provider quality-risk checks" in manifest["interface"]["longDescription"]
     assert "normalized citation ranking" in manifest["interface"]["longDescription"]
     assert "config/agent-plan quality-evidence lexicons" in manifest["interface"]["longDescription"]
     assert "retrieval and metadata coverage rather than a semantic quality ranker" in manifest["interface"]["longDescription"]

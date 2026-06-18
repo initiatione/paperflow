@@ -30,11 +30,11 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.3.14"
-    assert manifest["interface"]["shortDescription"].startswith("v2.3.14 | Paper Source:")
+    assert manifest["version"] == "2.4.0"
+    assert manifest["interface"]["shortDescription"].startswith("v2.4.0 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
-    assert "query-plan diagnostics" in manifest["interface"]["shortDescription"]
-    assert "lexical relevance" in manifest["interface"]["shortDescription"]
+    assert "recall-gap recovery" in manifest["interface"]["shortDescription"]
+    assert "quality-risk checks" in manifest["interface"]["shortDescription"]
     assert "normalized ranking" in manifest["interface"]["shortDescription"]
     assert "cross-discipline quality gates" in manifest["interface"]["shortDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
@@ -44,7 +44,9 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     assert "lexical relevance checks" in manifest["interface"]["longDescription"]
     assert "normalized citation ranking" in manifest["interface"]["longDescription"]
     assert "config/agent-plan quality-evidence lexicons" in manifest["interface"]["longDescription"]
-    assert "identity/relevance/inspectability/validation/source-confidence/reproducibility/request-risk dimensions" in manifest["interface"]["longDescription"]
+    assert "provider-supplied official versions or related papers" in manifest["interface"]["longDescription"]
+    assert "provider quality-risk checks" in manifest["interface"]["longDescription"]
+    assert "identity/relevance/inspectability/validation/source-confidence/reproducibility/request-risk/quality-risk dimensions" in manifest["interface"]["longDescription"]
     assert "retrieval and metadata coverage rather than a semantic quality ranker" in manifest["interface"]["longDescription"]
     assert "non-Reject session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
@@ -53,6 +55,7 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.4.0",
             "Paper Source 2.3.14",
             "Paper Source 2.3.13",
             "Paper Source 2.3.12",
@@ -61,6 +64,13 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
             "paper-source-query-plan-diagnostics-v1",
             "acronym_expansions",
             "token-boundary lexical matching",
+            "paper-source-recall-gap-record-v1",
+            "paper-source-quality-risk-record-v1",
+            "paper-source-recall-expansion-v1",
+            "quality-risk-record.json",
+            "recall-gap-record.json",
+            "quality_gate.dimensions.quality_risk",
+            "verified_quality_risk",
             "publication-age-normalized citation quality",
             "Quality-evidence lexicons",
             "Missing citation/venue evidence",
@@ -164,6 +174,7 @@ def test_structure_doc_covers_current_slimmed_modules_and_boundaries():
             "recommendation_output.py",
             "auto_staging.py",
             "discover_papers.py",
+            "quality_risk_recall.py",
             "wiki_ingest_record.py",
             "wiki_query.py",
             "runtime_config.py",
@@ -213,6 +224,8 @@ def test_workflow_and_linkage_docs_cover_kept_runtime_pipeline():
             "_paper_source/meta/evidence-index.json",
             "session_recommendations",
             "auto_staging_plan",
+            "recall-gap-record.json",
+            "quality-risk-record.json",
             "discover-papers-record.json",
             "Paper Wiki",
             "final-source-review.json",

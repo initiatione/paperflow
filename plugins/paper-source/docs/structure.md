@@ -69,6 +69,7 @@ scripts/build/paper_source/
   normalize_candidates.py
   filter_candidates.py
   lexical_match.py
+  quality_risk_recall.py
   rank_papers.py
   review_sessions.py
   fetch_plan.py
@@ -131,6 +132,7 @@ scripts/build/paper_source/
 - `raw_cleanup.py` 负责清理失败的 `_paper_source/raw/<slug>` 目录；只有在没有下载到 `paper.pdf`、没有 staging、没有 wiki-ingest/zotero 下游记录且路径仍直属 raw root 时才删除，并把 manifest 写到 `_paper_source/meta/raw-cleanup/`。
 - `filter_candidates.py` 将 recommendation eligibility 与 staging readiness 分开：稳定 DOI/arXiv/publisher identity 的缺 PDF 论文进入 `needs_pdf`，无稳定身份且缺 PDF 才硬拒绝。Hard-domain anchor filtering 复用 `lexical_match.py` 的 token-boundary matcher，避免短缩写在 unrelated word 内部 substring 命中。
 - `lexical_match.py` 是 deterministic relevance helper：按 token 边界和简单单复数归一匹配 positive/priority/negative terms、hard anchors、quality terms 和 paper-type evidence；它不做 embedding、semantic reranking 或学科词典推断。
+- `quality_risk_recall.py` 负责 dry-run 发现后的 provider-compatible 召回补强和质量风险规范化：从 kept candidates 的 provider metadata 中提取 official/journal version、related papers、cited-by papers 和 references，写 `paper-source-recall-gap-record-v1` / `paper-source-recall-expansion-v1` 证据；同时把 retraction、withdrawal、expression-of-concern、paper-mill、predatory-venue 等 provider 风险信号规范成 `quality_risk`，缺失风险数据一律是 `unverified`，写 `paper-source-quality-risk-record-v1`。
 - `rank_papers.py` 负责 paper type classification、ranking signals、ranking rubric、quality gate dimensions、ranking protocol、selection policies 和三角色排序解释。`priority_keywords` 是严格 topic-fit 通道；没有 priority anchors 时，positive keyword topic fit 使用饱和命中规则，`keyword_coverage_score` 仅作为长 profile 诊断。Ranking term matching 复用 `lexical_match.py`，避免 raw substring false positives。
 - `normalize_candidates.py` 在候选合并前补齐轻量元数据：显式 DOI 优先，其次 DOI URL / provider raw metadata，最后用 arXiv base id 派生 `10.48550/arXiv.<base_id>`；同时从 provider abstract/snippet 中提取 GitHub/GitLab/Bitbucket 代码仓库 URL 作为 `code_url`。`orchestrator.py` 在 normalizing 后允许对仍缺 DOI 的候选做有上限的 targeted Grok/web DOI recovery，写 `doi-recovery-grok-record.json`、`doi-recovery-grok-raw.json` 和 `doi-recovery-grok-evidence.json`，再重新 normalize。
 - `run_mineru_parse.py` 负责 MinerU 命令调用、失败记录和 fixture materialization；默认 7200 秒超时，可由 `--mineru-timeout` 或 `PAPER_SOURCE_MINERU_TIMEOUT` 覆盖。成功 parse 会调用 `asset_normalization.py` 规范化 MinerU raw 图片/公式截图，再调用 `evidence_index.py` 写 `_paper_source/raw/<slug>/evidence-index.json` 并刷新 `_paper_source/meta/evidence-index.json`。
