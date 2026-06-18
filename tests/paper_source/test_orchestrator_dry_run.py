@@ -885,6 +885,98 @@ def test_dry_run_records_agent_acronym_and_synonym_expansions(tmp_path):
     assert diagnostics["query_plan_contract"]["diagnostics"]["status"] == "ok"
 
 
+def test_dry_run_records_required_concept_group_filter_diagnostics(tmp_path):
+    plugin_root = tmp_path / "plugin"
+    _write_minimal_plugin_template(plugin_root)
+    agent_plan = tmp_path / "agent-required-groups.json"
+    agent_plan.write_text(
+        json.dumps(
+            {
+                "schema_version": "paper-source-agent-query-plan-v1",
+                "query_variants": [
+                    '"AUV" "attitude control" -review -survey',
+                    '"autonomous underwater vehicle" stabilization -review -survey',
+                ],
+                "hard_domain_anchors": ["AUV", "autonomous underwater vehicle"],
+                "required_concept_groups": [
+                    {
+                        "id": "target_object",
+                        "label": "target object",
+                        "terms": ["AUV", "autonomous underwater vehicle"],
+                    },
+                    {
+                        "id": "task_problem",
+                        "label": "task or problem",
+                        "terms": ["attitude control", "stabilization"],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(
+        json.dumps(
+            [
+                {
+                    "source": "fixture",
+                    "title": "Autonomous Underwater Vehicle Hydrodynamics",
+                    "authors": ["A. Researcher"],
+                    "year": 2025,
+                    "venue": "Ocean Engineering",
+                    "abstract": "AUV modeling and hydrodynamic analysis for autonomous underwater vehicles.",
+                    "doi": "10.1000/auv-hydro",
+                    "pdf_url": "https://example.org/auv-hydro.pdf",
+                    "citation_count": 4,
+                },
+                {
+                    "source": "fixture",
+                    "title": "AUV Attitude Control with Stabilization Experiments",
+                    "authors": ["B. Researcher"],
+                    "year": 2025,
+                    "venue": "Ocean Engineering",
+                    "abstract": "Autonomous underwater vehicle attitude control with stabilization experiments.",
+                    "doi": "10.1000/auv-attitude",
+                    "pdf_url": "https://example.org/auv-attitude.pdf",
+                    "citation_count": 8,
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="AUV attitude control papers not review",
+        max_results=5,
+        fixture_path=fixture,
+        agent_query_plan_json=agent_plan,
+        sources=["fixture"],
+    )
+
+    query_plan = json.loads((run_dir / "query-plan.json").read_text(encoding="utf-8"))
+    filter_report = json.loads((run_dir / "filter-report.json").read_text(encoding="utf-8"))
+    diagnostics = json.loads((run_dir / "discovery-diagnostics.json").read_text(encoding="utf-8"))
+    report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
+
+    assert query_plan["required_concept_groups"]["groups"][1]["id"] == "task_problem"
+    assert [candidate["title"] for candidate in filter_report["kept"]] == [
+        "AUV Attitude Control with Stabilization Experiments"
+    ]
+    rejected = filter_report["rejected"][0]
+    assert rejected["filter_reasons"] == ["required_concept_group_mismatch:task_problem"]
+    assert rejected["required_concept_groups"]["target_object"]["matched"] is True
+    assert rejected["required_concept_groups"]["task_problem"]["matched"] is False
+    assert diagnostics["required_concept_groups"]["failed_count"] == 1
+    assert diagnostics["query_plan_contract"]["required_concept_groups"][1]["id"] == "task_problem"
+    assert report["discovery_context"]["required_concept_groups"]["failed_count"] == 1
+    assert report["session_recommendations"]["rejected_summary"]["reason_counts"][0] == {
+        "reason": "required_concept_group_mismatch:task_problem",
+        "count": 1,
+    }
+
+
 def test_dry_run_source_coverage_reports_normalized_dedupe_total_for_query_plan(tmp_path):
     plugin_root = tmp_path / "plugin"
     _write_minimal_plugin_template(plugin_root)

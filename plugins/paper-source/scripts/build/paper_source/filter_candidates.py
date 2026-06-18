@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from paper_source.concept_groups import evaluate_required_concept_groups, normalize_required_concept_groups
 from paper_source.lexical_match import term_matches_text
 from paper_source.paper_library import existing_library_match
 
@@ -141,6 +142,7 @@ def filter_candidates_with_report(
     existing_library_index: dict | None = None,
     year_min: int | None = None,
     code_policy: str | None = None,
+    required_concept_groups: list[dict] | None = None,
 ) -> dict[str, list[dict]]:
     recommendable: list[dict] = []
     staging_ready: list[dict] = []
@@ -149,6 +151,10 @@ def filter_candidates_with_report(
     domain_terms = [term.lower() for term in domains]
     excluded = [term.lower() for term in (exclude_terms or [])]
     normalized_code_policy = _normalize_code_policy(code_policy)
+    concept_groups = normalize_required_concept_groups(required_concept_groups or [])
+    concept_group_failure_counts: dict[str, int] = {str(group["id"]): 0 for group in concept_groups}
+    concept_group_evaluated = 0
+    concept_group_failed = 0
     for candidate in candidates:
         haystack = " ".join(
             [
@@ -170,6 +176,15 @@ def filter_candidates_with_report(
             hard_reasons.append(library_reason)
         if domain_terms and not any(_term_matches_haystack(term, haystack) for term in domain_terms):
             hard_reasons.append("outside_domain")
+        concept_group_evaluation = None
+        if concept_groups:
+            concept_group_evaluated += 1
+            concept_group_evaluation = evaluate_required_concept_groups(concept_groups, haystack)
+            if not concept_group_evaluation["passed"]:
+                concept_group_failed += 1
+                for group_id in concept_group_evaluation.get("missing_required_groups") or []:
+                    concept_group_failure_counts[str(group_id)] = concept_group_failure_counts.get(str(group_id), 0) + 1
+                    hard_reasons.append(f"required_concept_group_mismatch:{group_id}")
         if year_min is not None:
             candidate_year = _candidate_year(candidate)
             if candidate_year is None:
@@ -183,6 +198,10 @@ def filter_candidates_with_report(
         filtered = dict(candidate)
         if library_match:
             filtered["existing_library_match"] = library_match
+        if concept_group_evaluation:
+            filtered["required_concept_groups"] = concept_group_evaluation["groups"]
+            filtered["required_concept_groups_passed"] = concept_group_evaluation["passed"]
+            filtered["required_concept_group_failures"] = concept_group_evaluation["missing_required_groups"]
         filtered["filter_reasons"] = hard_reasons
         filtered["readiness_reasons"] = readiness_reasons
         filtered["recommendation_filter_status"] = "rejected" if hard_reasons else "recommendable"
@@ -202,6 +221,19 @@ def filter_candidates_with_report(
         "staging_ready": staging_ready,
         "needs_pdf": needs_pdf,
         "rejected": rejected,
+        "required_concept_groups": {
+            "schema_version": "paper-source-required-concept-groups-v1",
+            "groups": concept_groups,
+            "evaluated_count": concept_group_evaluated,
+            "passed_count": concept_group_evaluated - concept_group_failed,
+            "failed_count": concept_group_failed,
+            "failure_counts": [
+                {"group_id": group_id, "count": count}
+                for group_id, count in sorted(concept_group_failure_counts.items())
+                if count
+            ],
+            "policy": "required groups are additive; absent groups preserve legacy filtering",
+        },
     }
 
 
@@ -213,6 +245,7 @@ def filter_candidates(
     existing_library_index: dict | None = None,
     year_min: int | None = None,
     code_policy: str | None = None,
+    required_concept_groups: list[dict] | None = None,
 ) -> list[dict]:
     return filter_candidates_with_report(
         candidates,
@@ -222,4 +255,5 @@ def filter_candidates(
         existing_library_index=existing_library_index,
         year_min=year_min,
         code_policy=code_policy,
+        required_concept_groups=required_concept_groups,
     )["kept"]

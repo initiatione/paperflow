@@ -475,6 +475,36 @@ def _existing_library_appendix(rejected: list[dict[str, Any]]) -> list[dict[str,
     return appendix
 
 
+def _required_concept_group_reject_items(rejected: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for candidate in rejected:
+        reasons = [_text(reason) for reason in candidate.get("filter_reasons") or []]
+        concept_reasons = [reason for reason in reasons if _blocking_reason_category(reason) == "required_concept_group_failure"]
+        if not concept_reasons:
+            continue
+        doi = _doi_payload(candidate)
+        doi_url = _doi_url(doi["value"])
+        items.append(
+            {
+                "slug": candidate.get("slug"),
+                "title": candidate.get("title"),
+                "venue": candidate.get("venue"),
+                "year": candidate.get("year"),
+                "doi": doi["display"],
+                "doi_value": doi["value"],
+                "doi_status": doi["status"],
+                "doi_url": doi_url,
+                "arxiv_id": candidate.get("arxiv_id"),
+                "primary_url": _primary_url(candidate, doi_url),
+                "reason": concept_reasons[0],
+                "reasons": concept_reasons,
+                "required_concept_groups": candidate.get("required_concept_groups") or {},
+                "required_concept_group_failures": candidate.get("required_concept_group_failures") or [],
+            }
+        )
+    return items
+
+
 def _doi_filtered_items(candidates: list[dict[str, Any]], *, surface: str) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for candidate in candidates:
@@ -560,6 +590,7 @@ def _top_blocked_candidates(
     *,
     review_appendix: list[dict[str, Any]],
     quality_reject_debug: dict[str, Any],
+    required_concept_group_rejects: list[dict[str, Any]],
     existing_library_appendix: list[dict[str, Any]],
     doi_filtered_items: list[dict[str, Any]],
     limit: int = 5,
@@ -578,6 +609,9 @@ def _top_blocked_candidates(
             continue
         reasons = [str(reason) for reason in item.get("blocking_reasons") or ["quality_gate_rejected"]]
         blocked.append(_top_blocked_card(item, surface="quality_reject_debug", blocking_reasons=reasons))
+    for item in required_concept_group_rejects:
+        reasons = [str(reason) for reason in item.get("reasons") or [item.get("reason") or "required_concept_group_failure"]]
+        blocked.append(_top_blocked_card(item, surface="filter_rejected", blocking_reasons=reasons))
     for item in review_appendix:
         reason = _text(item.get("appendix_reason")) or _text(item.get("quality_tier")) or "review_appendix"
         blocked.append(_top_blocked_card(item, surface="review_appendix", blocking_reasons=[reason]))
@@ -599,6 +633,7 @@ def _no_primary_recommendations_summary(
     primary_candidates_with_doi: list[dict[str, Any]],
     primary_recommendations: list[dict[str, Any]],
     review_appendix: list[dict[str, Any]],
+    required_concept_group_rejects: list[dict[str, Any]],
     existing_library_appendix: list[dict[str, Any]],
     quality_reject_debug: dict[str, Any],
     doi_filtered_items: list[dict[str, Any]],
@@ -609,7 +644,7 @@ def _no_primary_recommendations_summary(
     quality_reject_count = int(quality_reject_debug.get("total") or 0)
     existing_count = len(existing_library_appendix)
     review_count = len(review_appendix)
-    concept_group_count = 0
+    concept_group_count = len(required_concept_group_rejects)
     for item in quality_reject_debug.get("items") or []:
         if not isinstance(item, dict):
             continue
@@ -671,6 +706,7 @@ def _no_primary_recommendations_summary(
     top_blocked = _top_blocked_candidates(
         review_appendix=review_appendix,
         quality_reject_debug=quality_reject_debug,
+        required_concept_group_rejects=required_concept_group_rejects,
         existing_library_appendix=existing_library_appendix,
         doi_filtered_items=doi_filtered_items,
     )
@@ -758,6 +794,7 @@ def build_session_recommendations(
         for candidate in appendix_candidates
     ]
     existing_library_appendix = _existing_library_appendix(rejected)
+    required_concept_group_rejects = _required_concept_group_reject_items(rejected)
     quality_reject_debug = _quality_reject_debug(ranked)
     doi_filtered_items = [*primary_doi_filtered, *appendix_doi_filtered]
     no_primary_summary = _no_primary_recommendations_summary(
@@ -765,6 +802,7 @@ def build_session_recommendations(
         primary_candidates_with_doi=primary_candidates_with_doi,
         primary_recommendations=primary_recommendations,
         review_appendix=review_appendix,
+        required_concept_group_rejects=required_concept_group_rejects,
         existing_library_appendix=existing_library_appendix,
         quality_reject_debug=quality_reject_debug,
         doi_filtered_items=doi_filtered_items,
@@ -786,6 +824,7 @@ def build_session_recommendations(
         "primary_recommendations": primary_recommendations,
         "review_appendix": review_appendix,
         "existing_library_appendix": existing_library_appendix,
+        "required_concept_group_rejects": required_concept_group_rejects,
         "verification_summary": _verification_summary(primary_recommendations),
         "rejected_summary": _rejected_summary(rejected),
         "quality_reject_debug": quality_reject_debug,

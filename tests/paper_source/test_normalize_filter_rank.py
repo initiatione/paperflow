@@ -349,6 +349,58 @@ def test_filter_candidates_applies_request_year_and_code_requirements():
     assert rejected["Recent AUV Attitude Control without Code"] == ["missing_code"]
 
 
+def test_filter_candidates_enforces_required_concept_groups_field_agnostically():
+    candidates = [
+        {
+            "title": "Autonomous Underwater Vehicle Hydrodynamics Survey",
+            "abstract": "AUV dynamics, modeling, and underwater vehicle operations.",
+            "pdf_url": "https://example.org/auv-only.pdf",
+        },
+        {
+            "title": "Autonomous Underwater Vehicle Attitude Control",
+            "abstract": "AUV attitude control with stabilization experiments.",
+            "pdf_url": "https://example.org/auv-attitude.pdf",
+        },
+        {
+            "title": "Cancer Immunotherapy Resistance Mechanisms",
+            "abstract": "This study analyzes immunotherapy resistance biomarkers and clinical evidence.",
+            "pdf_url": "https://example.org/immunotherapy.pdf",
+        },
+    ]
+
+    auv_report = filter_candidates_with_report(
+        candidates[:2],
+        domains=["AUV", "autonomous underwater vehicle"],
+        require_pdf=True,
+        required_concept_groups=[
+            {"id": "target_object", "terms": ["AUV", "autonomous underwater vehicle"]},
+            {"id": "task_problem", "terms": ["attitude control", "stabilization"]},
+        ],
+    )
+
+    assert [candidate["title"] for candidate in auv_report["kept"]] == [
+        "Autonomous Underwater Vehicle Attitude Control"
+    ]
+    rejected = auv_report["rejected"][0]
+    assert rejected["filter_reasons"] == ["required_concept_group_mismatch:task_problem"]
+    assert rejected["required_concept_groups"]["target_object"]["matched"] is True
+    assert rejected["required_concept_groups"]["task_problem"]["matched"] is False
+    assert auv_report["required_concept_groups"]["failed_count"] == 1
+
+    medical_report = filter_candidates_with_report(
+        candidates[2:],
+        domains=[],
+        require_pdf=True,
+        required_concept_groups=[
+            {"id": "intervention", "terms": ["immunotherapy"]},
+            {"id": "problem", "terms": ["resistance"]},
+        ],
+    )
+
+    assert medical_report["kept"][0]["title"] == "Cancer Immunotherapy Resistance Mechanisms"
+    assert medical_report["rejected"] == []
+
+
 def test_filter_candidates_does_not_match_short_anchor_inside_words():
     candidates = [
         {

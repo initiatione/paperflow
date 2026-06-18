@@ -465,6 +465,8 @@ def test_paper_discovery_output_format_uses_session_recommendations_contract():
     assert "session_recommendations.review_appendix" in output_format
     assert "session_recommendations.existing_library_appendix" in output_format
     assert "session_recommendations.no_primary_recommendations_summary" in output_format
+    assert "session_recommendations.required_concept_group_rejects" in output_format
+    assert "required_concept_group_mismatch:*" in output_format
     assert "dominant_blocking_reason" in output_format
     assert "top_blocked_candidates" in output_format
     assert "top blocked candidates are diagnostics only" in output_format

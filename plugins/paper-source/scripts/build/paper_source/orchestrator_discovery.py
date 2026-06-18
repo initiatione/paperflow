@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from paper_source.artifacts import write_json_atomic
+from paper_source.concept_groups import required_concept_groups_from_query_plan
 from paper_source.filter_candidates import default_discovery_exclusion_terms
 from paper_source.paper_search_adapter import discover, paper_search_provider_readiness, paper_search_source_capabilities
 from paper_source.query_plan_build import exact_lookup_query
@@ -111,6 +112,10 @@ def filter_domains_from_profile(config, query_plan: dict | None) -> list[str]:
     if config.domains:
         return config.domains
     return []
+
+
+def filter_required_concept_groups_from_query_plan(query_plan: dict | None) -> list[dict]:
+    return required_concept_groups_from_query_plan(query_plan)
 
 
 def _annotate_query_records(records: list[dict], *, query_variant: str, query_variant_index: int) -> list[dict]:

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from paper_source.artifacts import read_json
+from paper_source.concept_groups import normalize_required_concept_groups, required_concept_group_contract
 from paper_source.filter_candidates import default_discovery_exclusion_terms
 from paper_source.query_planner import (
     add_term_provenance_detail,
@@ -94,6 +95,7 @@ def load_agent_query_plan_json(path: Path | None) -> dict | None:
         "must_have_domain_anchors",
         "hard_domain_anchors",
         "soft_recall_terms",
+        "required_concept_groups",
         "exclusions",
         "ambiguities",
     )
@@ -346,6 +348,26 @@ def apply_agent_supplied_query_inputs(
             soft_recall_terms + list(blocks.get("soft_recall_terms") or []),
             split_commas=True,
         )
+    explicit_required_groups = normalize_required_concept_groups(
+        agent_query_plan.get("required_concept_groups") if isinstance(agent_query_plan, dict) else None,
+        source="agent",
+    )
+    if isinstance(agent_query_plan, dict):
+        hard_constraints = agent_query_plan.get("hard_constraints")
+        if isinstance(hard_constraints, dict):
+            explicit_required_groups.extend(
+                normalize_required_concept_groups(hard_constraints.get("required_concept_groups"), source="agent")
+            )
+    if explicit_required_groups:
+        existing_required_groups = normalize_required_concept_groups(
+            plan.get("required_concept_groups") or blocks.get("required_concept_groups")
+        )
+        required_groups = [*existing_required_groups, *explicit_required_groups]
+        blocks["required_concept_groups"] = required_groups
+        plan["required_concept_groups"] = required_concept_group_contract(required_groups)
+    elif domain_focus_terms or agent_plan_hard_domain_anchors(agent_query_plan):
+        blocks.pop("required_concept_groups", None)
+        plan.pop("required_concept_groups", None)
     _merge_term_provenance(plan, domain_focus_terms, "cli_explicit_hard_anchor")
     _merge_term_provenance(plan, agent_plan_hard_domain_anchors(agent_query_plan), "agent_explicit_hard_anchor")
     _merge_term_provenance(plan, list(blocks.get("soft_recall_terms") or []), "agent_or_topic_soft_recall")
@@ -417,6 +439,8 @@ def apply_agent_supplied_query_inputs(
         "domain_anchors": hard_domain_anchors,
         "policy": "Only user/config/Research Brief/confirmed anchors should be passed here; inferred terms stay soft.",
     }
+    if explicit_required_groups:
+        plan["hard_constraints"]["required_concept_groups"] = blocks.get("required_concept_groups", [])
     plan["soft_recall_terms"] = list(blocks.get("soft_recall_terms") or [])
     if isinstance(agent_query_plan, dict):
         if isinstance(agent_query_plan.get("ambiguities"), list):
@@ -432,6 +456,7 @@ def apply_agent_supplied_query_inputs(
         "domain_focus_terms": domain_focus_terms,
         "hard_domain_anchors": hard_domain_anchors,
         "agent_hard_domain_anchors": agent_plan_hard_domain_anchors(agent_query_plan),
+        "required_concept_groups": blocks.get("required_concept_groups", []),
         "soft_recall_terms": list(blocks.get("soft_recall_terms") or []),
         "synonym_terms": agent_synonym_terms,
         "acronym_expansion_terms": agent_acronym_terms,

@@ -33,6 +33,7 @@ from paper_source.orchestrator_common import (
 )
 from paper_source.orchestrator_discovery import (
     filter_domains_from_profile as _filter_domains_from_profile,
+    filter_required_concept_groups_from_query_plan as _filter_required_concept_groups_from_query_plan,
     ranking_keywords_from_profile as _ranking_keywords_from_profile,
     ranking_priority_keywords_from_query_plan as _ranking_priority_keywords_from_query_plan,
     ranking_quality_evidence_terms_from_inputs as _ranking_quality_evidence_terms_from_inputs,
@@ -135,6 +136,7 @@ def _evaluate_paper_search_good_enough(
         existing_library_index=load_existing_paper_index(config.vault_path),
         year_min=request_year_min,
         code_policy=request_code_policy,
+        required_concept_groups=_filter_required_concept_groups_from_query_plan(query_plan),
     )
     ranked_pool = rank_candidates(
         filter_report["kept"],
@@ -835,6 +837,7 @@ def run_dry_run(
         existing_library_index=existing_library_index,
         year_min=request_year_min,
         code_policy=request_code_policy,
+        required_concept_groups=_filter_required_concept_groups_from_query_plan(query_plan),
     )
     if request_constraints:
         filter_report["request_constraints"] = request_constraints
@@ -872,6 +875,7 @@ def run_dry_run(
             existing_library_index=existing_library_index,
             year_min=request_year_min,
             code_policy=request_code_policy,
+            required_concept_groups=_filter_required_concept_groups_from_query_plan(query_plan),
         )
         filtered = _merge_candidates_by_canonical_key(filtered, recall_filter_report.get("kept", []))
         staging_ready = _merge_candidates_by_canonical_key(
@@ -1041,6 +1045,7 @@ def run_dry_run(
             "needs_pdf_count": len(needs_pdf),
             "policy": "missing PDF affects staging readiness, not recommendation eligibility when identity is stable",
         },
+        "required_concept_groups": filter_report.get("required_concept_groups", {}),
         "existing_library": filter_report.get("existing_library", {}),
         "query_records": search_record.get("query_records", []),
         "source_coverage": source_coverage,
@@ -1073,6 +1078,7 @@ def run_dry_run(
         "selection_policy": selection_policy,
         "query_plan_contract": {
             "hard_domain_anchors": (query_plan or {}).get("concept_blocks", {}).get("hard_domain_anchors", []),
+            "required_concept_groups": _filter_required_concept_groups_from_query_plan(query_plan),
             "soft_recall_terms": (query_plan or {}).get("soft_recall_terms")
             or (query_plan or {}).get("concept_blocks", {}).get("soft_recall_terms", []),
             "term_provenance": (query_plan or {}).get("term_provenance", {}),
@@ -1082,6 +1088,7 @@ def run_dry_run(
         },
         "candidate_pool": discovery_context["candidate_pool"],
         "recommendation_filter": discovery_context["recommendation_filter"],
+        "required_concept_groups": filter_report.get("required_concept_groups", {}),
         "existing_library": filter_report.get("existing_library", {}),
         "rejection_reason_counts": _reason_counts(rejected, "filter_reasons"),
         "readiness_reason_counts": _reason_counts(needs_pdf, "readiness_reasons"),

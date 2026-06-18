@@ -5,6 +5,7 @@ import json
 import re
 from typing import Any
 
+from paper_source.concept_groups import derive_required_concept_groups, required_concept_group_contract
 from paper_source.filter_candidates import default_discovery_exclusion_terms
 
 
@@ -564,6 +565,14 @@ def build_query_plan(
     )
     if exclude_reviews:
         blocks["exclusions"] = unique(blocks["exclusions"] + ["review", "survey"])
+    required_concept_groups = derive_required_concept_groups(
+        hard_domain_anchors=blocks["hard_domain_anchors"],
+        task_terms=_as_terms(positive_keywords),
+        topic=topic,
+        source="config_and_user_request",
+    )
+    if required_concept_groups:
+        blocks["required_concept_groups"] = required_concept_groups
 
     configured_venues = _as_terms(venue_prior)
     venue_families = unique(configured_venues)
@@ -662,6 +671,9 @@ def build_query_plan(
         },
         "term_provenance_detail": provenance_detail,
     }
+    if required_concept_groups:
+        plan["required_concept_groups"] = required_concept_group_contract(required_concept_groups)
+        plan["hard_constraints"]["required_concept_groups"] = required_concept_groups
     refresh_query_plan_diagnostics(plan, topic)
     return plan
 
@@ -705,6 +717,14 @@ def build_query_plan_from_research_brief(
     blocks["method_or_topic_terms"] = unique(keywords + blocks["method_or_topic_terms"])
     blocks["problem_terms"] = unique(questions + blocks["problem_terms"])
     blocks["exclusions"] = unique(exclusions + blocks["exclusions"])
+    required_concept_groups = derive_required_concept_groups(
+        hard_domain_anchors=blocks["hard_domain_anchors"],
+        task_terms=keywords + questions,
+        topic=topic,
+        source="research_brief",
+    )
+    if required_concept_groups:
+        blocks["required_concept_groups"] = required_concept_groups
     if non_review:
         blocks["exclusions"] = unique(blocks["exclusions"] + ["review", "survey"])
     plan["domain"] = "research-brief"
@@ -713,6 +733,9 @@ def build_query_plan_from_research_brief(
         "domain_anchors": blocks["hard_domain_anchors"],
         "policy": "Research Brief domain_scope is a confirmed hard anchor when present.",
     }
+    if required_concept_groups:
+        plan["required_concept_groups"] = required_concept_group_contract(required_concept_groups)
+        plan["hard_constraints"]["required_concept_groups"] = required_concept_groups
     plan["soft_recall_terms"] = blocks.get("soft_recall_terms", [])
     provenance = plan.get("term_provenance") if isinstance(plan.get("term_provenance"), dict) else {}
     if domain_scope:

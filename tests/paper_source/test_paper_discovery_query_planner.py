@@ -266,6 +266,39 @@ def test_query_planner_records_provenance_and_diagnostics_for_complex_request():
     assert any(entry["source"] == "config" and entry["field"] == "venue_prior" for entry in detail["Ocean Engineering"])
 
 
+def test_query_planner_derives_required_concept_groups_from_confirmed_anchor_and_task_terms():
+    plan = build_query_plan(
+        "latest high quality AUV attitude control papers not review",
+        domain="auto",
+        non_review=True,
+        max_queries=6,
+        profile="marine_robotics",
+        domains=["AUV", "autonomous underwater vehicle"],
+        positive_keywords=["attitude control", "trajectory tracking"],
+    )
+
+    groups = plan["required_concept_groups"]["groups"]
+    assert [group["id"] for group in groups] == ["target_object", "task_problem"]
+    assert groups[0]["terms"] == ["AUV"]
+    assert groups[1]["terms"] == ["attitude control"]
+    assert plan["concept_blocks"]["required_concept_groups"] == groups
+    assert plan["hard_constraints"]["required_concept_groups"] == groups
+
+
+def test_query_planner_does_not_create_required_groups_without_confirmed_anchor():
+    plan = build_query_plan(
+        "molecular property prediction graph neural network",
+        domain="auto",
+        non_review=True,
+        max_queries=4,
+        profile="general_academic_research",
+        domains=[],
+        positive_keywords=[],
+    )
+
+    assert "required_concept_groups" not in plan
+
+
 def test_query_planner_derives_generic_topic_anchors_from_narrow_request():
     plan = build_query_plan(
         "latest high quality graph neural network molecular property prediction papers not review",

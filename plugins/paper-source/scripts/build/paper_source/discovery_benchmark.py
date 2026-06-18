@@ -8,6 +8,7 @@ from paper_source.artifacts import read_json, utc_now, write_json_atomic
 from paper_source.filter_candidates import default_discovery_exclusion_terms, filter_candidates_with_report
 from paper_source.normalize_candidates import normalize_candidates
 from paper_source.orchestrator_discovery import (
+    filter_required_concept_groups_from_query_plan,
     filter_domains_from_profile,
     ranking_keywords_from_profile,
     ranking_priority_keywords_from_query_plan,
@@ -238,6 +239,7 @@ def _run_case(case: dict[str, Any]) -> dict[str, Any]:
         existing_library_index=None,
         year_min=case.get("year_min"),
         code_policy=case.get("code_policy"),
+        required_concept_groups=filter_required_concept_groups_from_query_plan(query_plan),
     )
     filtered = list(filter_report.get("kept") or [])
     rejected = list(filter_report.get("rejected") or [])
@@ -255,6 +257,7 @@ def _run_case(case: dict[str, Any]) -> dict[str, Any]:
             existing_library_index=None,
             year_min=case.get("year_min"),
             code_policy=case.get("code_policy"),
+            required_concept_groups=filter_required_concept_groups_from_query_plan(query_plan),
         )
         filtered = _merge_by_canonical_key(filtered, recall_filter_report.get("kept") or [])
         rejected.extend(recall_filter_report.get("rejected") or [])
