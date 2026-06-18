@@ -56,7 +56,7 @@ def test_query_planner_generates_profile_derived_non_review_plan():
     assert "recent cited-by" in plan["recall_gap_checks"]["citation_graph"]
 
 
-def test_query_planner_defaults_to_non_review_for_discovery_topics():
+def test_query_planner_keeps_review_candidates_by_default():
     result = subprocess.run(
         [
             sys.executable,
@@ -78,8 +78,18 @@ def test_query_planner_defaults_to_non_review_for_discovery_topics():
 
     plan = json.loads(result.stdout)
 
-    assert all("-review -survey" in query for query in plan["query_variants"])
+    assert all("-review -survey" not in query for query in plan["query_variants"])
     assert plan["research_mode"]["mode"] == "targeted-discovery"
+
+
+def test_query_planner_excludes_reviews_for_explicit_non_review_intent():
+    plan = build_query_plan(
+        "latest high quality molecular property prediction papers not review",
+        non_review=None,
+        max_queries=4,
+    )
+
+    assert all("-review -survey" in query for query in plan["query_variants"])
 
 
 def test_query_planner_can_keep_reviews_when_explicitly_requested():

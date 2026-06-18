@@ -1179,4 +1179,11 @@ def rank_candidates(
             signals=ranked_candidate["ranking_signals"],
         )
         ranked.append(ranked_candidate)
-    return sorted(ranked, key=lambda item: item["score"], reverse=True)
+    return sorted(
+        ranked,
+        key=lambda item: (
+            -float(item.get("score") or 0.0),
+            -(_int_or_none(item.get("year")) or 0),
+            str(item.get("title") or ""),
+        ),
+    )

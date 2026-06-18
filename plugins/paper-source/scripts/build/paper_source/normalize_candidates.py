@@ -304,9 +304,10 @@ def _fill_grok_supplemental_fields(current: dict, record: dict) -> None:
 def _promote_paper_search_fields(current: dict, record: dict) -> None:
     if _record_provider_name(record) != "paper_search":
         return
+    record_has_rich_metadata = bool(record.get("authors") or record.get("venue") or record.get("abstract"))
     for field in ("title", "authors", "year", "venue", "abstract", "doi", "arxiv_id"):
         value = record.get(field)
-        if value:
+        if value and (record_has_rich_metadata or not current.get(field)):
             current[field] = value
 
 

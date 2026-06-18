@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 from paper_source.concept_groups import evaluate_required_concept_groups, normalize_required_concept_groups
 from paper_source.lexical_match import term_matches_text
@@ -93,6 +94,8 @@ def _has_stable_paper_identity(candidate: dict) -> bool:
     return bool(
         candidate.get("doi")
         or candidate.get("arxiv_id")
+        or candidate.get("pdf_url")
+        or candidate.get("pdf_urls")
         or candidate.get("url")
         or candidate.get("publisher_url")
         or candidate.get("landing_page_url")
@@ -152,7 +155,7 @@ def filter_candidates_with_report(
     excluded = [term.lower() for term in (exclude_terms or [])]
     normalized_code_policy = _normalize_code_policy(code_policy)
     concept_groups = normalize_required_concept_groups(required_concept_groups or [])
-    concept_group_failure_counts: dict[str, int] = {str(group["id"]): 0 for group in concept_groups}
+    concept_group_failure_counts: Counter[str] = Counter()
     concept_group_evaluated = 0
     concept_group_failed = 0
     for candidate in candidates:
@@ -183,7 +186,7 @@ def filter_candidates_with_report(
             if not concept_group_evaluation["passed"]:
                 concept_group_failed += 1
                 for group_id in concept_group_evaluation.get("missing_required_groups") or []:
-                    concept_group_failure_counts[str(group_id)] = concept_group_failure_counts.get(str(group_id), 0) + 1
+                    concept_group_failure_counts[str(group_id)] += 1
                     hard_reasons.append(f"required_concept_group_mismatch:{group_id}")
         if year_min is not None:
             candidate_year = _candidate_year(candidate)
@@ -193,8 +196,11 @@ def filter_candidates_with_report(
                 hard_reasons.append(f"year_before:{int(year_min)}")
         if normalized_code_policy == "require" and not _has_code_identity(candidate):
             hard_reasons.append("missing_code")
-        if readiness_reasons and not _has_stable_paper_identity(candidate):
+        has_stable_identity = _has_stable_paper_identity(candidate)
+        if readiness_reasons and not has_stable_identity:
             hard_reasons.append("missing_pdf_and_stable_identity")
+        elif not has_stable_identity:
+            hard_reasons.append("no_stable_identity")
         filtered = dict(candidate)
         if library_match:
             filtered["existing_library_match"] = library_match

@@ -35,9 +35,11 @@ Use it when the user gives a compact request. The helper output is a starting po
 For complex natural-language topics, prefer explicit agent-supplied variants:
 
 ```powershell
-python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\" -review -survey" --query-variant "\"<domain object>\" \"<task>\" code -review -survey" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --selection-policy balanced_high_quality --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\"" --query-variant "\"<domain object>\" \"<task>\" code" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --selection-policy balanced_high_quality --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --vault <vault> --json
 ```
+
+When the request explicitly says non-review / no survey / original research only, add `-review -survey` to the executable variants and pass matching exclusions through the normal filter path.
 
 `--query` remains the intent label and resume signature input. `--query-variant` is what gets sent to `paper_search_mcp`. `--domain-focus-term` is a hard filter anchor when the requested object/domain must be present. In agent plan JSON, legacy `domain_focus_terms` are soft recall; use `hard_domain_anchors` or `hard_constraints` for hard filters. Field-specific synonyms, acronym expansions, and related recall terms belong in `synonyms`, `synonym_terms`, `acronym_expansions`, `acronyms`, `related_terms`, or `expanded_terms`; scripts record those as soft recall unless the same terms are also explicit hard anchors. `--year-min` rejects older or undated candidates when a recent window is explicit. `--code-policy prefer` ranks public-code candidates higher without dropping otherwise strong papers; `--code-policy require` rejects candidates without a metadata `code_url` / repository identity.
 
@@ -47,8 +49,8 @@ Structured agent plan files should be small, discipline-neutral JSON objects:
 {
   "schema_version": "paper-source-agent-query-plan-v1",
   "query_variants": [
-    "\"<domain object>\" \"<task>\" \"<method>\" -review -survey",
-    "\"<domain object>\" \"<task>\" code -review -survey"
+    "\"<domain object>\" \"<task>\" \"<method>\"",
+    "\"<domain object>\" \"<task>\" code"
   ],
   "hard_domain_anchors": ["<domain object>", "<domain synonym>"],
   "soft_recall_terms": ["<agent inferred expansion>"],
@@ -80,7 +82,7 @@ The script validates, records, filters, and ranks from these fields; it does not
 1. Start from `_paper_source\meta\paper-source-config.yaml`: profile, domains, positive_keywords, negative_keywords, and venue_prior.
 2. Generate both broad and narrow queries: broad queries catch recall, narrow queries catch precision.
 3. Include evidence terms appropriate to the user's field, such as benchmark, experiment, dataset, field study, code, replication, or domain-specific validation terms.
-4. Default discovery is non-review: append `-review -survey` to every query and still enforce review exclusion in filtering. Skip this only when the user explicitly asks for review or survey papers.
+4. Default discovery keeps review/survey/meta candidates for classification and ranking. Append `-review -survey` and enforce review/survey/meta filtering only when the user explicitly asks for non-review or non-survey papers.
 5. If the plan produces fewer than 5 strong variants, expand from the user's configured field vocabulary before broadening into generic AI/science terms.
 6. Do not ship executable discipline packs in the query planner. AUV, robotics, medicine, materials, chemistry, social science, or any other field vocabulary must come from user config, the current request, a Research Brief, or explicit agent-supplied `--query-variant` / `--domain-focus-term` / `--agent-query-plan-json` inputs.
 7. Do not encode topic-specific natural-language understanding in Python. If a request says, in Chinese or English, "AUV attitude control, modern control or RL, recent five years, code preferred", the agent should plan terms such as AUV/autonomous underwater vehicle, attitude/orientation control, MPC/sliding-mode/adaptive/robust/nonlinear control, reinforcement learning, code/GitHub, and `year_min` / `code_policy` constraints for this run; the script should record and execute those terms, not own that ontology.

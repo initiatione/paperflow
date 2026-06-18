@@ -46,7 +46,7 @@ python scripts\orchestrator.py wiki-repair --vault <vault> --restore-from <backu
 
 1. 第一步，先定论文库放哪里。推荐一个专用的本地论文库目录，例如 `<vault>`。
 2. 第二步，我需要知道你的研究画像：学科/应用对象/方法族/常看任务分别是什么。Paper Source 是通用插件，不默认任何学科；后续匹配词、同义词、venue prior、搜索 query 和阅读/wiki 侧重点都从这个画像和 config 衍生。
-3. 第三步，告诉我哪些词算有用，哪些词要避开，以及你所在领域的高质量期刊/会议/数据库线索。默认把 review / survey / systematic review / literature review / meta-analysis 作为避开词；只有用户明确要求综述时才加入综述偏好。
+3. 第三步，告诉我哪些词算有用，哪些词要避开，以及你所在领域的高质量期刊/会议/数据库线索。默认不把 review / survey / systematic review / literature review / meta-analysis 写成固定避开词；只有用户明确要求非综述/不要 survey 时，才把这些作为本次搜索的排除意图。
 4. 第四步，先定搜索从哪里来。推荐第一轮关键词检索使用 `paper-search` + arxiv / semantic / openalex / crossref；Unpaywall 只在已有 DOI 的精确查找或开放 PDF 补链阶段使用，需要 provider email 才能稳定补充开放 PDF 链接。
 5. 第五步，定每次先看多少篇。推荐 20。
 6. 第六步，MinerU 先怎么接。推荐 `MINERU_TOKEN` + 默认命令；初始化不调用 MinerU。

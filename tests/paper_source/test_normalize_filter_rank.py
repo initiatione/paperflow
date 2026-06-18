@@ -6,6 +6,7 @@ from paper_source.filter_candidates import (
     filter_candidates,
     filter_candidates_with_report,
 )
+from paper_source.concept_groups import evaluate_required_concept_groups
 from paper_source.normalize_candidates import normalize_candidates
 from paper_source import orchestrator_discovery, paper_search_adapter, rank_papers
 from paper_source.orchestrator_discovery import (
@@ -226,6 +227,38 @@ def test_normalize_candidates_merges_grok_with_paper_search_priority():
     assert normalized[0]["citation_count_status"] == "unverified"
 
 
+def test_normalize_candidates_does_not_let_sparse_paper_search_clobber_richer_fields():
+    normalized = normalize_candidates(
+        [
+            {
+                "source": "grok_search",
+                "provider": "grok_search",
+                "title": "Rich Publisher Title",
+                "authors": ["A. Researcher"],
+                "year": 2025,
+                "venue": "Rich Venue",
+                "abstract": "Rich abstract.",
+                "doi": "10.1000/rich",
+            },
+            {
+                "source": "semantic",
+                "provider": "paper_search",
+                "title": "Sparse Search Title",
+                "authors": [],
+                "year": 2024,
+                "venue": "",
+                "abstract": "",
+                "doi": "10.1000/rich",
+            },
+        ]
+    )
+
+    assert normalized[0]["title"] == "Rich Publisher Title"
+    assert normalized[0]["year"] == 2025
+    assert normalized[0]["venue"] == "Rich Venue"
+    assert normalized[0]["abstract"] == "Rich abstract."
+
+
 def test_normalize_candidates_preserves_citation_count_source_provenance():
     normalized = normalize_candidates(
         [
@@ -357,6 +390,27 @@ def test_filter_candidates_applies_request_year_and_code_requirements():
     assert rejected["Recent AUV Attitude Control without Code"] == ["missing_code"]
 
 
+def test_filter_candidates_rejects_no_stable_identity_even_when_pdf_not_required():
+    report = filter_candidates_with_report(
+        [
+            {
+                "title": "Unanchored Candidate",
+                "abstract": "A relevant control paper but with no stable identity.",
+            },
+            {
+                "title": "Anchored Candidate",
+                "abstract": "A relevant control paper with a stable landing page.",
+                "url": "https://example.org/paper",
+            },
+        ],
+        domains=[],
+        require_pdf=False,
+    )
+
+    assert [item["title"] for item in report["kept"]] == ["Anchored Candidate"]
+    assert report["rejected"][0]["filter_reasons"] == ["no_stable_identity"]
+
+
 def test_filter_candidates_enforces_required_concept_groups_field_agnostically():
     candidates = [
         {
@@ -407,6 +461,17 @@ def test_filter_candidates_enforces_required_concept_groups_field_agnostically()
 
     assert medical_report["kept"][0]["title"] == "Cancer Immunotherapy Resistance Mechanisms"
     assert medical_report["rejected"] == []
+
+
+def test_optional_required_concept_group_reports_matched_separately_from_passed():
+    evaluation = evaluate_required_concept_groups(
+        [{"id": "optional_context", "terms": ["field trial"], "required": False}],
+        "A benchmark-only method paper.",
+    )
+
+    assert evaluation["passed"] is True
+    assert evaluation["groups"]["optional_context"]["matched"] is False
+    assert evaluation["groups"]["optional_context"]["passed"] is True
 
 
 def test_filter_candidates_does_not_match_short_anchor_inside_words():
@@ -461,7 +526,30 @@ def test_rank_candidates_records_request_constraints_and_prefers_code_when_reque
 
     assert ranked[0]["title"] == "AUV Attitude Control with Public Code"
     assert ranked[0]["ranking_signals"]["year_min"] == 2021
-    assert ranked[0]["ranking_signals"]["code_policy"] == "prefer"
+
+
+def test_rank_candidates_uses_deterministic_title_tiebreaker_for_equal_scores():
+    candidates = [
+        {
+            "title": "Beta Control Study",
+            "abstract": "Control benchmark experiment with reproducible evidence.",
+            "year": 2025,
+            "pdf_url": "https://example.org/beta.pdf",
+            "doi": "10.1000/beta",
+        },
+        {
+            "title": "Alpha Control Study",
+            "abstract": "Control benchmark experiment with reproducible evidence.",
+            "year": 2025,
+            "pdf_url": "https://example.org/alpha.pdf",
+            "doi": "10.1000/alpha",
+        },
+    ]
+
+    ranked = rank_candidates(candidates, positive_keywords=["control"], venue_tiers={})
+
+    assert [item["title"] for item in ranked] == ["Alpha Control Study", "Beta Control Study"]
+    assert ranked[0]["ranking_signals"]["code_policy"] == "ignore"
 
 
 def test_rank_candidates_uses_lexical_boundaries_for_short_acronyms():

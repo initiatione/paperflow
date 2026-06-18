@@ -203,13 +203,15 @@ def evaluate_required_concept_groups(groups: list[dict[str, Any]], haystack: obj
         terms = [str(term) for term in group.get("terms") or []]
         hits = matched_terms(haystack, terms)
         required = bool(group.get("required", True))
-        matched = bool(hits) or not required
+        matched = bool(hits)
+        passed = matched or not required
         group_id = str(group.get("id") or group.get("label"))
         group_results[group_id] = {
             "label": group.get("label") or group_id,
             "required": required,
             "terms": terms,
             "matched": matched,
+            "passed": passed,
             "matched_terms": hits,
         }
         if group.get("source"):

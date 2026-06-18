@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from paper_source.concept_groups import derive_required_concept_groups, required_concept_group_contract
-from paper_source.filter_candidates import default_discovery_exclusion_terms
+from paper_source.filter_candidates import exclusion_terms_from_query
 
 
 GENERIC_QUALITY_SIGNALS = [
@@ -569,7 +569,7 @@ def build_query_plan(
 ) -> dict[str, Any]:
     profile_seed_terms = _profile_terms(profile, domains, positive_keywords)
     chosen = choose_domain(topic, domain, profile_terms=profile_seed_terms)
-    exclude_reviews = bool(default_discovery_exclusion_terms(topic)) if non_review is None else non_review
+    exclude_reviews = bool(exclusion_terms_from_query(topic)) if non_review is None else non_review
     blocks = _term_blocks(
         topic=topic,
         chosen_domain=chosen,

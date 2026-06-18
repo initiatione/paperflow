@@ -6,7 +6,7 @@
 
 Paper Source 当前聚焦“按用户画像/config 衍生的高质量论文收集和整理 -> Obsidian/LLM Wiki 知识沉淀 -> 轻阅读负担报告”。它是通用学术论文插件，不默认任何学科方向；AUV、机器人、AI、医学等词只能来自用户配置、当前请求、Research Brief 或 agent 显式传入的 query variants / domain focus terms / required concept groups。
 
-当前 `plugin.json` 中的版本：Paper Source `2.7.1`，Paper Wiki `1.0.4`。本轮是 discovery correctness patch（详见 CHANGELOG 2.7.1）：修复 Research Brief required task/problem terms 被 topic filter 静默丢弃、CJK topic terms 被 ASCII 分词丢弃、paper-search 年份字段解析抛错或产出垃圾年份、Grok fallback/retry timeout budget 放大、Grok kill 后未 reap 子进程，以及 bool 被 tolerant int helpers 当作 1/0 的问题。上一轮是 discovery runtime progress telemetry minor bump（详见 CHANGELOG 2.7.0）：`dry-run` 会写 `paper-source-progress-events-v1` 的 `progress-events.jsonl` / `progress-summary.json`，向 stderr 输出阶段 start/end/heartbeat，并把 `run-state.json.discovery_progress` 与 `report.json.discovery_context.discovery_progress` 作为长运行诊断入口；`dry-run --json` 继续只在 stdout 输出 JSON，同时 artifact map 暴露 progress paths。历史条目和完整变更链见 `docs/CHANGELOG.md`；runtime claims 必须继续区分 source checkout、installed cache 和当前 Codex session。
+当前 `plugin.json` 中的版本：Paper Source `2.7.2`，Paper Wiki `1.0.4`。本轮是 discovery doc/config hardening patch（详见 CHANGELOG 2.7.2）：query-planner helper 和 skill reference 默认保留 review/survey/meta，只有明确 non-review intent 才追加 `-review -survey`；配置初始化/更新返回 `unknown_keys` 诊断，YAML 单引号转义按规则解析；过滤、合并、词法匹配、optional concept group 报告和 rank tie-breaker 补齐回归保护。上一轮是 discovery correctness patch（详见 CHANGELOG 2.7.1）：修复 Research Brief required task/problem terms 被 topic filter 静默丢弃、CJK topic terms 被 ASCII 分词丢弃、paper-search 年份字段解析抛错或产出垃圾年份、Grok fallback/retry timeout budget 放大、Grok kill 后未 reap 子进程，以及 bool 被 tolerant int helpers 当作 1/0 的问题。历史条目和完整变更链见 `docs/CHANGELOG.md`；runtime claims 必须继续区分 source checkout、installed cache 和当前 Codex session。
 
 2026-06-17 follow-up：Unpaywall 现在从 broad no-DOI 第一轮关键词检索默认源中移除。`plan_source_routing` 对 `search=doi-lookup` source 给出 `doi_lookup_source` demotion，只在 DOI 精确查询和采集阶段 OA fallback 中使用 Unpaywall；当前 live vault 配置也已移除首轮 `google_scholar` / `unpaywall`，保留 runtime env file 中的 Unpaywall email 供 DOI-backed OA fallback 使用。同日确认 `grok-search-rs 0.1.17` 在仅加载 OpenAI-compatible URL/model/key、未设置 `GROK_SEARCH_API_KEY` 时可完成 MCP initialize；源码只把 `GROK_SEARCH_API_KEY` 作为可选 alias 加入 whitelist，不要求用户配置 Grok 专用密钥。
 
@@ -81,7 +81,7 @@ git diff --check
 
 1. 完成 S3b brief-first machine-contract 的剩余 metadata/full verification：`wiki-ingest-brief.json` 已是 canonical Paper Source-to-Paper Wiki handoff，默认 staging 不再要求 `wiki_deposition_task.json`。
 2. 继续 S3b metadata、manifest、stale wording grep、full verification 和 integration decision。
-3. 当前源码已进入 Paper Source `2.3.13`；当前机器历史上已把 `paperflow` marketplace source 切到本地 `<repo-root>`，并安装 Paper Source `1.1.0` 到 installed cache。`2.3.13` 仍需 marketplace refresh/reinstall/installed-cache verification 后才可声称运行态已更新；若要让 Git marketplace 用户获得同版本，还需要 commit/push 后再从 Git source upgrade。
+3. 当前源码已进入 Paper Source `2.7.2`；当前机器历史上已把 `paperflow` marketplace source 切到本地 `<repo-root>`，并安装过 Paper Source `1.1.0` 到 installed cache。`2.7.2` 仍需 marketplace refresh/reinstall/installed-cache verification 后才可声称运行态已更新；若要让 Git marketplace 用户获得同版本，还需要 commit/push 后再从 Git source upgrade。
 4. 从新 Codex thread 运行 `doctor --json`、`config-status --json`、dry-run fixture smoke 和 `research-queue` 验证安装体验；当前 thread 不会重新加载刚安装的 skill metadata。
 5. 对目标 vault 补齐 `AGENTS.md` 和 `_meta/*.md`，再让 Paper Wiki 消费 `wiki-ingest-brief.json` 和 reading report。
 
@@ -90,5 +90,5 @@ git diff --check
 - `docs/paper-source-linkage.md`、`docs/structure.md`、`docs/progress.md` 会增加 Plugin Eval deferred token 估算，但这些是当前维护材料，不应为了静态分数移出插件 docs。
 - `paper-search` CLI、MinerU、Zotero 都是外部能力。缺失时应 warning 和引导，不应让只读诊断失败。
 - `MINERU_TOKEN` 不得写入文档、日志、报告或配置预览，只能显示 set/missing。
-- 当前机器的 Paper Source installed cache 已刷新到 `1.1.0`；开发源已是 `<repo-root>/plugins/paper-source` 的 `2.3.13`，用户级 `runtime.json` 不随 cache 版本目录替换。`2.3.13` 仍需 marketplace refresh/reinstall/installed-cache verification；Git marketplace 仍需 commit/push 后再 upgrade 才能让其他安装源看到同一版本。
+- 当前机器历史上曾把 Paper Source installed cache 刷新到 `1.1.0`；开发源已是 `<repo-root>/plugins/paper-source` 的 `2.7.2`，用户级 `runtime.json` 不随 cache 版本目录替换。`2.7.2` 仍需 marketplace refresh/reinstall/installed-cache verification；Git marketplace 仍需 commit/push 后再 upgrade 才能让其他安装源看到同一版本。
 - 最终 Obsidian/LLM Wiki 写入依赖目标 vault contract。Paper Source 只能提供 handoff 和 suggested routes，不能把固定脚本当成最终沉淀机制。

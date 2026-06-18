@@ -145,6 +145,10 @@ _TOP_LEVEL_CONFIG_KEYS = {
     "human_gate",
 }
 
+_PAYLOAD_METADATA_KEYS = {
+    "configured_by",
+}
+
 _MISSING = object()
 
 
@@ -165,7 +169,7 @@ def _parse_yaml_scalar(raw: str) -> Any:
     if raw.startswith('"') and raw.endswith('"'):
         return json.loads(raw)
     if raw.startswith("'") and raw.endswith("'"):
-        return raw[1:-1]
+        return raw[1:-1].replace("''", "'")
     lowered = raw.lower()
     if lowered == "true":
         return True
@@ -425,6 +429,25 @@ def _normalize_payload_to_config(payload: dict[str, Any], *, base: dict[str, Any
     return config
 
 
+def _unknown_payload_keys(payload: dict[str, Any]) -> list[str]:
+    unknown: list[str] = []
+    for key in payload:
+        if key in _FLAT_FIELD_PATHS or key in _TOP_LEVEL_CONFIG_KEYS or key in _PAYLOAD_METADATA_KEYS:
+            continue
+        if "." in key:
+            continue
+        unknown.append(str(key))
+    return sorted(unknown)
+
+
+def _proposal_payload(proposal: dict[str, Any]) -> dict[str, Any]:
+    if proposal.get("mode") == "reset":
+        payload = proposal.get("config")
+    else:
+        payload = proposal.get("changes")
+    return payload if isinstance(payload, dict) else {}
+
+
 def _flatten(payload: dict[str, Any], *, prefix: str = "") -> dict[str, Any]:
     flattened: dict[str, Any] = {}
     for key, value in payload.items():
@@ -502,6 +525,7 @@ def config_status(vault_path: Path) -> dict[str, Any]:
 
 def init_config(vault_path: Path, answers: dict[str, Any]) -> dict[str, Any]:
     paths = config_paths(vault_path)
+    unknown_keys = _unknown_payload_keys(answers)
     config = _normalize_payload_to_config(answers)
     content = _dump_simple_yaml(config)
     paths.meta_dir.mkdir(parents=True, exist_ok=True)
@@ -522,6 +546,7 @@ def init_config(vault_path: Path, answers: dict[str, Any]) -> dict[str, Any]:
         "state_path": str(paths.state_path),
         "history_path": str(history_path),
         "config": config,
+        "unknown_keys": unknown_keys,
     }
 
 
@@ -541,6 +566,7 @@ def propose_config_update(vault_path: Path, proposal: dict[str, Any]) -> dict[st
     current = load_wiki_config(vault_path)
     if current is None:
         raise FileNotFoundError(f"missing Paper Source config: {config_paths(vault_path).config_path}")
+    unknown_keys = _unknown_payload_keys(_proposal_payload(proposal))
     target = _target_config_for_proposal(current, proposal)
     paths = config_paths(vault_path)
     return {
@@ -552,6 +578,7 @@ def propose_config_update(vault_path: Path, proposal: dict[str, Any]) -> dict[st
         "current": current,
         "proposed": target,
         "requires_confirmation": True,
+        "unknown_keys": unknown_keys,
     }
 
 
@@ -563,6 +590,7 @@ def apply_config_update(vault_path: Path, proposal: dict[str, Any], *, confirmed
         old_content = ""
     else:
         old_content = paths.config_path.read_text(encoding="utf-8")
+    unknown_keys = _unknown_payload_keys(_proposal_payload(proposal))
     target = _target_config_for_proposal(current, proposal)
     diff = _config_diff(current, target)
     history_path = None
@@ -590,6 +618,7 @@ def apply_config_update(vault_path: Path, proposal: dict[str, Any], *, confirmed
         "history_path": str(history_path),
         "diff": diff,
         "config": target,
+        "unknown_keys": unknown_keys,
     }
 
 

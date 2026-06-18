@@ -41,7 +41,7 @@ python scripts\orchestrator.py discover-papers --query "<your topic>" --grok-mod
 python scripts\orchestrator.py discover-papers --query "<your topic>" --no-grok-search --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py discover-papers --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py discover-papers --query "<your topic>" --max-results 20 --vault <vault> --no-auto-stage --json
-python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\" -review -survey" --query-variant "\"<domain object>\" \"<task>\" code -review -survey" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --max-results 20 --vault <vault> --json
+python scripts\orchestrator.py dry-run --query "<natural language topic>" --query-variant "\"<domain object>\" \"<task>\" \"<method>\"" --query-variant "\"<domain object>\" \"<task>\" code" --domain-focus-term "<domain object>" --year-min 2021 --code-policy prefer --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<natural language topic>" --agent-query-plan-json <agent-query-plan.json> --selection-policy balanced_high_quality --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --refresh

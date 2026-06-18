@@ -5,8 +5,6 @@ import re
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
 DERIVATIONAL_SUFFIXES = {
-    "al",
-    "ally",
     "ed",
     "er",
     "ers",
@@ -14,16 +12,10 @@ DERIVATIONAL_SUFFIXES = {
     "ing",
     "ion",
     "ions",
-    "ive",
     "led",
     "ler",
     "lers",
     "ling",
-    "ly",
-    "ment",
-    "ments",
-    "or",
-    "ors",
     "s",
     "tion",
     "tions",

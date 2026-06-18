@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from paper_source.config import load_config
+from paper_source import config as config_module
+from paper_source.config import apply_config_update, init_config, load_config, propose_config_update
 
 
 def test_load_config_uses_relative_defaults(tmp_path):
@@ -58,6 +59,49 @@ def test_load_config_uses_relative_defaults(tmp_path):
         "reproducibility_terms": ["shared protocol"],
         "paper_type_rules": {"field-study": ["field endpoint"]},
     }
+
+
+def test_simple_yaml_single_quotes_unescape_yaml_quote_pairs():
+    assert config_module._parse_yaml_scalar("'it''s'") == "it's"
+
+
+def test_config_init_and_update_surface_unknown_top_level_keys(tmp_path):
+    vault = tmp_path / "vault"
+
+    initialized = init_config(
+        vault,
+        {
+            "profile": "robotics",
+            "postive_keywords": ["typo"],
+            "configured_by": "tester",
+        },
+    )
+
+    assert initialized["unknown_keys"] == ["postive_keywords"]
+
+    proposal = propose_config_update(
+        vault,
+        {
+            "changes": {
+                "domains": ["robotics"],
+                "postive_keywords": ["still typo"],
+            }
+        },
+    )
+    assert proposal["unknown_keys"] == ["postive_keywords"]
+
+    applied = apply_config_update(
+        vault,
+        {
+            "changes": {
+                "positive_keywords": ["control"],
+                "postive_keywords": ["ignored typo"],
+            }
+        },
+        confirmed_by="tester",
+    )
+    assert applied["unknown_keys"] == ["postive_keywords"]
+    assert applied["config"]["positive_keywords"] == ["control"]
 
 
 def test_load_config_defaults_keep_doi_lookup_out_of_broad_sources(tmp_path):

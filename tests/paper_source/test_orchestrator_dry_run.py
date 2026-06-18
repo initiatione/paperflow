@@ -134,7 +134,7 @@ def test_dry_run_writes_phase_1_artifacts(tmp_path):
     assert query_plan["domain"] == "profile-derived"
     assert query_plan["profile"]["domains"] == ["robotics", "control"]
     assert "robotics" in query_plan["concept_blocks"]["domain_terms"]
-    assert all("-review -survey" in query for query in query_plan["query_variants"])
+    assert all("-review -survey" not in query for query in query_plan["query_variants"])
     assert report["discovery_context"]["query_plan"]["domain"] == "profile-derived"
     assert report["discovery_context"]["research_mode"]["mode"] == "targeted-discovery"
     assert report["discovery_context"]["candidate_pool"]["raw"] == 2
