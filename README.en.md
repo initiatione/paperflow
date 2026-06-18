@@ -12,8 +12,8 @@ The bundle currently ships two cooperating plugins:
 
 | Plugin | Machine name | Current source version | Role |
 | --- | --- | ---: | --- |
-| Paper Source | `paper-source` | `2.3.11` | Discover, rank, acquire, parse, audit, stage, approve, and record paper evidence. |
-| Paper Wiki | `paper-wiki` | `1.0.3` | Ask, deposit, check, update, relink, redo, and maintain formal paper wiki knowledge. |
+| Paper Source | `paper-source` | `2.5.3` | Discover, rank, acquire, parse, audit, stage, approve, and record paper evidence. |
+| Paper Wiki | `paper-wiki` | `1.0.4` | Ask, deposit, check, update, relink, redo, and maintain formal paper wiki knowledge. |
 
 `paperflow` is the marketplace bundle name. `paper-search` is retained only as
 the repository/history name and for external `paper-search-mcp` or
@@ -53,8 +53,9 @@ Paper Source provides the source/evidence layer:
 - `paper-gate`, `record-human-approval`, `wiki-ingest-trigger`, and
   `record-wiki-ingest` artifacts for auditable handoff and completion.
 - Vault bootstrap and repair through `wiki-setup`.
-- Optional integrations for Grok supplemental discovery, EasyScholar metrics,
-  Zotero sidecars, and provider-specific paper-search credentials.
+- Optional integrations for Grok supplemental discovery, a plugin-installed
+  `grok-search-rs` MCP entry, EasyScholar metrics, Zotero sidecars, and
+  provider-specific paper-search credentials.
 
 MinerU parsing is an internal Paper Source helper capability, not as a separate marketplace plugin.
 
@@ -124,6 +125,8 @@ Paper Source needs local runtime configuration before the full workflow can run:
 
 - A target Obsidian/LLM wiki vault.
 - `paper-search-mcp` or compatible paper-search CLI access.
+- Optional `grok-search-rs` MCP command/env file; the plugin installs the MCP
+  entry, while endpoint, key, and model stay in user-level runtime config.
 - MinerU credentials for PDF-to-Markdown parsing when source bundles are built.
 - Optional provider credentials for Unpaywall, Semantic Scholar, CORE, DOAJ,
   Zenodo, EasyScholar, Grok-compatible search, and Zotero.

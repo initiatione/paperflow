@@ -87,9 +87,12 @@ SETUP_GUIDES = {
 }
 
 MCP_SECTION_PATTERN = re.compile(
-    r"""^\s*\[\s*mcp_servers\s*\.\s*(?:"paper-search-mcp"|'paper-search-mcp'|paper-search-mcp)\s*\]\s*$"""
+    r"""^\s*\[\s*mcp_servers\s*\.\s*(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_-]+))\s*\]\s*$"""
 )
-MCP_LAUNCHER_NAMES = ("paper_search_mcp_launcher.py", "paper_search_mcp_launcher.cmd")
+MCP_SERVER_REGISTRATIONS = {
+    "paper-search-mcp": ("paper_search_mcp_launcher.py", "paper_search_mcp_launcher.cmd"),
+    "grok-search-rs": ("grok_search_mcp_launcher.py", "grok_search_mcp_launcher.cmd"),
+}
 
 
 def _check_path(plugin_root: Path, relative_path: str) -> dict:
@@ -326,6 +329,7 @@ def _check_codex_mcp_registration() -> dict:
             "path": str(config_path),
             "message": "Codex config.toml not present; plugin .mcp.json self-registration is not shadowed here",
             "shadowing_static_config": False,
+            "shadowed_servers": [],
         }
     try:
         lines = config_path.read_text(encoding="utf-8").splitlines()
@@ -334,28 +338,41 @@ def _check_codex_mcp_registration() -> dict:
             "name": "codex_mcp_registration",
             "status": "warning",
             "path": str(config_path),
-            "message": f"could not read Codex config.toml to check paper-search-mcp registration: {exc}",
+            "message": f"could not read Codex config.toml to check plugin MCP registrations: {exc}",
             "shadowing_static_config": None,
+            "shadowed_servers": [],
         }
+    shadowed_servers = []
     for line_number, line in enumerate(lines, start=1):
-        if MCP_SECTION_PATTERN.match(line):
-            return {
-                "name": "codex_mcp_registration",
-                "status": "warning",
-                "path": str(config_path),
-                "line": line_number,
-                "message": (
-                    "user-level [mcp_servers.paper-search-mcp] can shadow the Paper Source plugin .mcp.json "
-                    "self-registration; remove that static block unless intentionally overriding the plugin"
-                ),
-                "shadowing_static_config": True,
-            }
+        match = MCP_SECTION_PATTERN.match(line)
+        if not match:
+            continue
+        server_name = next((group for group in match.groups() if group), "")
+        if server_name in MCP_SERVER_REGISTRATIONS:
+            shadowed_servers.append({"server": server_name, "line": line_number})
+    if shadowed_servers:
+        first = shadowed_servers[0]
+        names = ", ".join(item["server"] for item in shadowed_servers)
+        return {
+            "name": "codex_mcp_registration",
+            "status": "warning",
+            "path": str(config_path),
+            "line": first["line"],
+            "server": first["server"],
+            "message": (
+                f"user-level mcp_servers entries can shadow Paper Source plugin .mcp.json self-registration "
+                f"for: {names}; remove those static blocks unless intentionally overriding the plugin"
+            ),
+            "shadowing_static_config": True,
+            "shadowed_servers": shadowed_servers,
+        }
     return {
         "name": "codex_mcp_registration",
         "status": "ok",
         "path": str(config_path),
-        "message": "no user-level paper-search-mcp static registration found",
+        "message": "no user-level plugin MCP static registration found",
         "shadowing_static_config": False,
+        "shadowed_servers": [],
     }
 
 
@@ -379,18 +396,18 @@ def _outer_command_available(plugin_root: Path, command: str) -> bool:
     return shutil.which(command) is not None
 
 
-def _launcher_script_from_args(plugin_root: Path, args: list[object]) -> Path | None:
+def _launcher_script_from_args(plugin_root: Path, args: list[object], launcher_names: tuple[str, ...]) -> Path | None:
     for arg in args:
         text = str(arg)
-        if any(name in text for name in MCP_LAUNCHER_NAMES):
+        if any(name in text for name in launcher_names):
             return _expand_plugin_path(plugin_root, text)
     return None
 
 
-def _launcher_arg_from_args(args: list[object]) -> str | None:
+def _launcher_arg_from_args(args: list[object], launcher_names: tuple[str, ...]) -> str | None:
     for arg in args:
         text = str(arg)
-        if any(name in text for name in MCP_LAUNCHER_NAMES):
+        if any(name in text for name in launcher_names):
             return text
     return None
 
@@ -403,38 +420,20 @@ def _is_relative_path_value(value: str) -> bool:
     return _looks_like_path(value) and not Path(value).expanduser().is_absolute()
 
 
-def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
-    mcp_path = plugin_root / ".mcp.json"
-    if not mcp_path.exists():
-        return {
-            "name": "mcp_outer_launcher",
-            "status": "warning",
-            "path": str(mcp_path),
-            "server": "paper-search-mcp",
-            "error": "plugin_mcp_json_missing",
-            "message": "plugin .mcp.json is missing; paper-search-mcp self-registration will not be installed",
-        }
-    try:
-        payload = read_json(mcp_path)
-    except (OSError, json.JSONDecodeError) as exc:
-        return {
-            "name": "mcp_outer_launcher",
-            "status": "warning",
-            "path": str(mcp_path),
-            "server": "paper-search-mcp",
-            "error": "plugin_mcp_json_unreadable",
-            "message": f"plugin .mcp.json could not be read: {exc}",
-        }
-    servers = payload.get("mcpServers") if isinstance(payload, dict) else None
-    server = servers.get("paper-search-mcp") if isinstance(servers, dict) else None
+def _check_mcp_outer_launcher_server(
+    plugin_root: Path,
+    mcp_path: Path,
+    server_name: str,
+    server: object,
+    launcher_names: tuple[str, ...],
+) -> dict:
     if not isinstance(server, dict):
         return {
-            "name": "mcp_outer_launcher",
-            "status": "warning",
             "path": str(mcp_path),
-            "server": "paper-search-mcp",
-            "error": "paper_search_mcp_registration_missing",
-            "message": "plugin .mcp.json does not register paper-search-mcp",
+            "server": server_name,
+            "status": "warning",
+            "error": "registration_missing",
+            "message": f"plugin .mcp.json does not register {server_name}",
         }
     command = str(server.get("command") or "")
     cwd = str(server.get("cwd") or "")
@@ -443,8 +442,8 @@ def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
     arg_texts = [str(arg) for arg in args]
     cwd_path = _expand_plugin_path(plugin_root, cwd) if cwd else None
     cwd_available = True if not cwd else cwd_path.exists()
-    launcher_arg = _launcher_arg_from_args(args)
-    launcher_script = _launcher_script_from_args(plugin_root, args)
+    launcher_arg = _launcher_arg_from_args(args, launcher_names)
+    launcher_script = _launcher_script_from_args(plugin_root, args, launcher_names)
     launcher_script_exists = bool(launcher_script and launcher_script.exists())
     command_available = _outer_command_available(plugin_root, command)
     error = None
@@ -460,10 +459,9 @@ def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
         error = "launcher_script_not_found"
     status = "warning" if error else "ok"
     return {
-        "name": "mcp_outer_launcher",
         "status": status,
         "path": str(mcp_path),
-        "server": "paper-search-mcp",
+        "server": server_name,
         "cwd": cwd or None,
         "cwd_path": str(cwd_path) if cwd_path else None,
         "cwd_available": cwd_available,
@@ -474,9 +472,58 @@ def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
         "launcher_script_exists": launcher_script_exists,
         "error": error,
         "message": (
-            "plugin .mcp.json outer launcher is available"
+            f"plugin .mcp.json outer launcher for {server_name} is available"
             if not error
-            else "plugin .mcp.json outer launcher config cannot be resolved by Codex before runtime.json is loaded"
+            else f"plugin .mcp.json outer launcher config for {server_name} cannot be resolved by Codex before runtime.json is loaded"
+        ),
+    }
+
+
+def _check_mcp_outer_launcher(plugin_root: Path) -> dict:
+    mcp_path = plugin_root / ".mcp.json"
+    if not mcp_path.exists():
+        return {
+            "name": "mcp_outer_launcher",
+            "status": "warning",
+            "path": str(mcp_path),
+            "server": "paper-search-mcp",
+            "error": "plugin_mcp_json_missing",
+            "message": "plugin .mcp.json is missing; plugin MCP self-registration will not be installed",
+        }
+    try:
+        payload = read_json(mcp_path)
+    except (OSError, json.JSONDecodeError) as exc:
+        return {
+            "name": "mcp_outer_launcher",
+            "status": "warning",
+            "path": str(mcp_path),
+            "server": "paper-search-mcp",
+            "error": "plugin_mcp_json_unreadable",
+            "message": f"plugin .mcp.json could not be read: {exc}",
+        }
+    servers = payload.get("mcpServers") if isinstance(payload, dict) else None
+    server_checks = {
+        server_name: _check_mcp_outer_launcher_server(
+            plugin_root,
+            mcp_path,
+            server_name,
+            servers.get(server_name) if isinstance(servers, dict) else None,
+            launcher_names,
+        )
+        for server_name, launcher_names in MCP_SERVER_REGISTRATIONS.items()
+    }
+    first_issue = next((check for check in server_checks.values() if check["status"] == "warning"), None)
+    primary = first_issue or server_checks["paper-search-mcp"]
+    status = "warning" if first_issue else "ok"
+    return {
+        **primary,
+        "name": "mcp_outer_launcher",
+        "status": status,
+        "servers": server_checks,
+        "message": (
+            "plugin .mcp.json outer launchers are available"
+            if not first_issue
+            else primary["message"]
         ),
     }
 

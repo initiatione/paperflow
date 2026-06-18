@@ -30,8 +30,8 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.5.2"
-    assert manifest["interface"]["shortDescription"].startswith("v2.5.2 | Paper Source:")
+    assert manifest["version"] == "2.5.3"
+    assert manifest["interface"]["shortDescription"].startswith("v2.5.3 | Paper Source:")
     assert "recommend" in manifest["interface"]["shortDescription"]
     assert "benchmark gates" in manifest["interface"]["shortDescription"]
     assert "Grok diagnostics" in manifest["interface"]["shortDescription"]
@@ -53,6 +53,7 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     assert "non-Reject session_recommendations" in manifest["interface"]["longDescription"]
     assert "discover-papers" in manifest["interface"]["longDescription"]
     assert "grok-search-rs MCP" in manifest["interface"]["longDescription"]
+    assert "plugin-installed grok-search-rs MCP self-registration" in manifest["interface"]["longDescription"]
     assert "high-quality supplemental recall" in manifest["interface"]["longDescription"]
     assert "retry outcomes" in manifest["interface"]["longDescription"]
     assert "filter/rank non-contribution counts" in manifest["interface"]["longDescription"]
@@ -60,6 +61,7 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.5.3",
             "Paper Source 2.5.2",
             "Paper Source 2.5.0",
             "Paper Source 2.4.0",

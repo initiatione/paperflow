@@ -27,7 +27,7 @@ After each `discover-papers` run, inspect the linked discovery run's `report.jso
 
 ## Optional Grok Supplemental Discovery
 
-`grok-search-rs` MCP can be configured as an optional supplemental discovery provider through runtime config (`grok_search_mcp.command`, `args`, and env files). Keep API keys in env files or process environment; do not write secrets into skill docs, vault config, runtime status, reports, or run artifacts.
+`grok-search-rs` MCP can be configured as an optional supplemental discovery provider through runtime config (`grok_search_mcp.command`, `args`, and env files). The installed Paper Source plugin also exposes a `grok-search-rs` MCP entry through `.mcp.json`; that direct MCP surface uses the same user-level runtime command, while Paper Source discovery still owns retry, quality gates, and artifacts through its adapter. Keep API keys in env files or process environment; do not write secrets into skill docs, vault config, runtime status, reports, or run artifacts.
 
 Default Grok mode is `targeted` when the runtime command is configured; otherwise discovery silently resolves to `off` and records sanitized `not_configured` diagnostics. In `targeted`, Paper Source runs `paper_search_mcp` first and skips Grok when paper-search returns at least 3 Tier A/B or `advance-candidate` results, at least 2 staging-ready or stable-identity results, and no required/recommended provider gap. When it does run, targeted Grok uses 3-10 supplemental queries, default 5, prioritized by provider/query gaps, academic publisher/digital-library gaps, candidate identity/PDF gaps, then broad recall gaps.
 

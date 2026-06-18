@@ -256,7 +256,42 @@ def test_doctor_warns_when_user_config_shadows_plugin_mcp_registration(tmp_path,
     assert registration["status"] == "warning"
     assert registration["shadowing_static_config"] is True
     assert registration["line"] == 1
+    assert registration["shadowed_servers"] == [{"server": "paper-search-mcp", "line": 1}]
     assert "shadow" in registration["message"]
+
+
+def test_doctor_warns_when_user_config_shadows_plugin_grok_mcp_registration(tmp_path, monkeypatch, capsys):
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    (codex_home / "config.toml").write_text(
+        "[mcp_servers.grok-search-rs]\n"
+        'command = "grok-search-rs"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+    plugin_root = _seed_plugin_root(tmp_path)
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "doctor",
+        "--plugin-root",
+        str(plugin_root),
+        "--vault",
+        str(tmp_path / "vault"),
+        "--json",
+        codex_home=codex_home,
+    )
+
+    payload = json.loads(output)
+    registration = {check["name"]: check for check in payload["checks"]}["codex_mcp_registration"]
+
+    assert exit_code == 0
+    assert registration["status"] == "warning"
+    assert registration["shadowing_static_config"] is True
+    assert registration["server"] == "grok-search-rs"
+    assert registration["shadowed_servers"] == [{"server": "grok-search-rs", "line": 1}]
+    assert "grok-search-rs" in registration["message"]
 
 
 def test_doctor_warns_when_plugin_mcp_outer_launcher_command_is_missing(tmp_path, monkeypatch, capsys):
@@ -313,6 +348,51 @@ def test_doctor_warns_when_plugin_mcp_outer_launcher_uses_unexpanded_plugin_root
     assert outer_launcher["status"] == "warning"
     assert outer_launcher["error"] == "unresolved_plugin_root_placeholder"
     assert "${CLAUDE_PLUGIN_ROOT}" in outer_launcher["args"][0]
+
+
+def test_doctor_reports_both_installed_mcp_outer_launchers(tmp_path, monkeypatch, capsys):
+    plugin_root = _seed_plugin_root(tmp_path)
+    (plugin_root / "scripts" / "paper_search_mcp_launcher.py").write_text("# launcher\n", encoding="utf-8")
+    (plugin_root / "scripts" / "grok_search_mcp_launcher.py").write_text("# launcher\n", encoding="utf-8")
+    _write_json(
+        plugin_root / ".mcp.json",
+        {
+            "mcpServers": {
+                "paper-search-mcp": {
+                    "cwd": ".",
+                    "command": "python",
+                    "args": ["./scripts/paper_search_mcp_launcher.py"],
+                },
+                "grok-search-rs": {
+                    "cwd": ".",
+                    "command": "python",
+                    "args": ["./scripts/grok_search_mcp_launcher.py"],
+                },
+            }
+        },
+    )
+
+    exit_code, output = _run_orchestrator_cli(
+        monkeypatch,
+        capsys,
+        "doctor",
+        "--plugin-root",
+        str(plugin_root),
+        "--vault",
+        str(tmp_path / "vault"),
+        "--json",
+    )
+
+    payload = json.loads(output)
+    outer_launcher = {check["name"]: check for check in payload["checks"]}["mcp_outer_launcher"]
+
+    assert exit_code == 0
+    assert outer_launcher["status"] == "ok"
+    assert set(outer_launcher["servers"]) == {"paper-search-mcp", "grok-search-rs"}
+    assert outer_launcher["servers"]["paper-search-mcp"]["status"] == "ok"
+    assert outer_launcher["servers"]["paper-search-mcp"]["launcher_script_exists"] is True
+    assert outer_launcher["servers"]["grok-search-rs"]["status"] == "ok"
+    assert outer_launcher["servers"]["grok-search-rs"]["launcher_script_exists"] is True
 
 
 def test_doctor_reports_skill_agent_and_workflow_discovery_contract(tmp_path, monkeypatch, capsys):

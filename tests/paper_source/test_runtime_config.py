@@ -42,17 +42,25 @@ def test_plugin_mcp_registration_uses_runtime_config_launcher():
     mcp_config = json.loads((plugin_root / ".mcp.json").read_text(encoding="utf-8"))
 
     server = mcp_config["mcpServers"]["paper-search-mcp"]
+    grok_server = mcp_config["mcpServers"]["grok-search-rs"]
 
     assert server["cwd"] == "."
     assert server["command"] == "cmd"
     assert server["args"] == ["/c", ".\\scripts\\paper_search_mcp_launcher.cmd"]
+    assert grok_server["cwd"] == "."
+    assert grok_server["command"] == "cmd"
+    assert grok_server["args"] == ["/c", ".\\scripts\\grok_search_mcp_launcher.cmd"]
     assert "${CLAUDE_PLUGIN_ROOT}" not in json.dumps(server)
+    assert "${CLAUDE_PLUGIN_ROOT}" not in json.dumps(grok_server)
     assert "paper_search_mcp.server" not in json.dumps(server)
     assert "miniconda" not in json.dumps(server).lower()
     assert "env" not in server
+    assert "env" not in grok_server
     assert "EPI_PAPER_SEARCH_MCP_LAUNCHER_DEBUG_LOG" not in json.dumps(server)
     assert (plugin_root / "scripts" / "paper_search_mcp_launcher.py").exists()
     assert (plugin_root / "scripts" / "paper_search_mcp_launcher.cmd").exists()
+    assert (plugin_root / "scripts" / "grok_search_mcp_launcher.py").exists()
+    assert (plugin_root / "scripts" / "grok_search_mcp_launcher.cmd").exists()
 
 
 def test_windows_cmd_launcher_uses_current_environment_names_only():
@@ -73,6 +81,25 @@ def test_windows_cmd_launcher_uses_current_environment_names_only():
         "EPI_PAPER_SEARCH_MCP_LAUNCHER_PYTHON",
         "EPI_PAPER_SEARCH_MCP_COMMAND",
         "EPI_PAPER_SEARCH_MCP_LAUNCHER_DEBUG_LOG",
+    ]:
+        assert old_name not in cmd_launcher
+
+
+def test_grok_windows_cmd_launcher_uses_current_environment_names_only():
+    plugin_root = Path(__file__).resolve().parents[2] / "plugins" / "paper-source"
+    cmd_launcher = (plugin_root / "scripts" / "grok_search_mcp_launcher.cmd").read_text(encoding="utf-8")
+
+    for current_name in [
+        "PAPER_SOURCE_RUNTIME_CONFIG",
+        "PAPER_SOURCE_GROK_SEARCH_MCP_LAUNCHER_PYTHON",
+        "PAPER_SOURCE_GROK_SEARCH_MCP_LAUNCHER_DEBUG_LOG",
+        "PAPER_SOURCE_PAPER_SEARCH_MCP_LAUNCHER_PYTHON",
+    ]:
+        assert current_name in cmd_launcher
+    for old_name in [
+        "EPI_RUNTIME_CONFIG",
+        "EPI_GROK_SEARCH_MCP_LAUNCHER_PYTHON",
+        "EPI_GROK_SEARCH_MCP_LAUNCHER_DEBUG_LOG",
     ]:
         assert old_name not in cmd_launcher
 
@@ -198,6 +225,64 @@ def test_paper_search_mcp_launcher_uses_runtime_config_command_and_provider_env(
 
     assert command == ["runtime-python", "-m", "paper_search_mcp.server"]
     assert os.environ["PAPER_SEARCH_MCP_UNPAYWALL_EMAIL"] == "researcher@example.org"
+
+
+def test_grok_search_mcp_launcher_uses_runtime_config_command_and_provider_env(tmp_path, monkeypatch):
+    runtime_path = tmp_path / "runtime.json"
+    grok_env = tmp_path / "grok-search.env"
+    grok_env.write_text(
+        "OPENAI_COMPATIBLE_API_KEY=grok-compatible-key\n"
+        "OPENAI_COMPATIBLE_MODEL=grok-model\n",
+        encoding="utf-8",
+    )
+    _write_json(
+        runtime_path,
+        {
+            "grok_search_mcp": {
+                "command": "grok-search-rs",
+                "args": ["--stdio"],
+                "env_file": str(grok_env),
+            }
+        },
+    )
+    monkeypatch.setenv("PAPER_SOURCE_RUNTIME_CONFIG", str(runtime_path))
+    monkeypatch.delenv("PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND", raising=False)
+    monkeypatch.delenv("PAPER_SOURCE_GROK_SEARCH_MCP_ARGS", raising=False)
+    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_COMPATIBLE_MODEL", raising=False)
+
+    import paper_source.grok_search_mcp_launcher as launcher
+
+    monkeypatch.setattr(
+        launcher,
+        "_resolve_command",
+        lambda command: str(tmp_path / "bin" / "grok-search-rs.exe") if command == "grok-search-rs" else None,
+        raising=False,
+    )
+
+    command = launcher.build_launch_command()
+
+    assert command == [str(tmp_path / "bin" / "grok-search-rs.exe"), "--stdio"]
+    assert os.environ["OPENAI_COMPATIBLE_API_KEY"] == "grok-compatible-key"
+    assert os.environ["OPENAI_COMPATIBLE_MODEL"] == "grok-model"
+
+
+def test_grok_search_mcp_launcher_fails_fast_when_command_is_missing(monkeypatch, capsys):
+    monkeypatch.setenv("PAPER_SOURCE_RUNTIME_CONFIG", str(Path("missing-runtime.json")))
+    monkeypatch.delenv("PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND", raising=False)
+    monkeypatch.delenv("PAPER_SOURCE_GROK_SEARCH_MCP_ARGS", raising=False)
+
+    import paper_source.grok_search_mcp_launcher as launcher
+
+    monkeypatch.setattr(launcher, "_resolve_command", lambda command: None, raising=False)
+
+    exit_code = launcher.main()
+
+    assert exit_code == 1
+    stderr = capsys.readouterr().err
+    assert "grok-search-rs" in stderr
+    assert "runtime.json" in stderr
+    assert "PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND" in stderr
 
 
 def test_apply_runtime_config_loads_plugin_level_commands_and_env_file(tmp_path, monkeypatch):
