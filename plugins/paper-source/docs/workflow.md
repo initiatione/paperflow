@@ -1,6 +1,6 @@
 # Paper Source Workflow
 
-Use `doctor --json` when install, dependency, or vault state is unclear.
+Use `health-doctor` / `doctor --json` when install, dependency, MCP, runtime, upstream gateway, Paper Wiki, or vault state is unclear.
 
 命名说明：Paper Source 是本插件的用户可见名，machine-facing name 是 `paper-source`。Paper Wiki 是 sibling wiki 插件的用户可见名，machine-facing name 是 `paper-wiki`。PS/PW 只是自然语言短称，不新增 dollar-prefixed plugin or skill entrypoint；旧别名不再作为用户入口或路由触发条件。
 
@@ -10,7 +10,7 @@ Use `doctor --json` when install, dependency, or vault state is unclear.
 
 日常使用优先走这条主线：
 
-1. `doctor --json` 检查安装、依赖和 vault 状态；配置缺失时先完成 `config-setup`。
+1. 用 `health-doctor` 或 `doctor --json` 检查安装、依赖、MCP、runtime、OpenAI-compatible/Grok upstream、Paper Wiki 和 vault 状态；配置缺失时先完成 `config-setup`。
 2. 方向模糊时先生成 Research Brief；方向明确时运行 `discover-papers --query "<your topic>" --max-results 20 --vault <vault> --json`。`discover-papers` 先跑 discovery evidence，再按 primary recommendations 自动准备最多 3 篇 PDF-available 论文到 source-staging；review/survey/meta-analysis 默认保留，只有明确 non-review intent 才排除。
 3. 用 `report --run-id <discovery-run-id> --vault <vault>` 查看底层 discovery report，或直接读取 `discover-papers` JSON 输出里的 `session_recommendations` / `auto_staging_plan`；持续追踪、net-new、coverage 和 backlog 以 wiki `_meta/reference-index.json` 为准，`topic-tracking` 只做增量视图。
 4. 选中的论文如果已经有足够 source evidence，交给 Paper Wiki `$paper-research-wiki` 做沉淀或更新。
@@ -27,6 +27,8 @@ Paper Source 依照 `skill-based-architecture` 维护轻量多 skill 插件：`p
 
 每个 skill 必须提供 `agents/openai.yaml`，且 `interface.default_prompt` 必须包含对应 `$skill-name`。步骤性流程放在各自 `workflows/*.md`，并必须从 `skills/routing.yaml` 的 `workflows` 字段可达。
 
+`health-doctor` 是跨层健康分诊入口；它先读只读诊断，再把配置、vault、discovery、source bundle、provenance、run cleanup、Zotero 或插件演化问题交回对应 owning skill。Cloudflare 403、OpenAI-compatible non-JSON、MCP stdio handshake 和 provider env 问题只记录为通用 runtime 诊断，不把本机私有 endpoint、token、代理规则或安装缓存路径写进插件默认。
+
 安装缓存验证必须跑 `doctor --json` 并检查 `skill_bundle_contract`：`status=ok`，`agent_metadata_count` 等于 `skill_count`，`workflow_count` 覆盖 routing 中声明的 workflow，且 missing/empty/orphan workflow 列表为空。还要检查 `mcp_outer_launcher` 与 `codex_mcp_registration`：前者确认插件 `.mcp.json` 外层 bootstrap command、`cwd: "."`、`cmd /c .\scripts\paper_search_mcp_launcher.cmd` 和 `cmd /c .\scripts\grok_search_mcp_launcher.cmd` 相对 launcher script 可被 Codex 解析，且没有残留 `${CLAUDE_PLUGIN_ROOT}` / `${PLUGIN_ROOT}`；后者确认用户级 `config.toml` 没有残留会遮蔽插件自注册的 `[mcp_servers.paper-search-mcp]` 或 `[mcp_servers.grok-search-rs]`。
 
 Task closure 只适用于代码、文档或 skill 行为变更。非平凡变更结束前要 restate original constraints、记录 verification commands and outcomes，并做 30-second AAR。Codex may use subagents only when the user explicitly authorizes delegation or parallel agent work.
@@ -34,6 +36,8 @@ Task closure 只适用于代码、文档或 skill 行为变更。非平凡变更
 ## Daily Commands
 
 ```powershell
+python scripts\orchestrator.py doctor --vault <vault> --json
+python scripts\orchestrator.py config-status --vault <vault> --json --include-values --include-runtime
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault>
 python scripts\orchestrator.py dry-run --query "<your topic>" --max-results 20 --vault <vault> --json
 python scripts\orchestrator.py discover-papers --query "<your topic>" --max-results 20 --vault <vault> --json

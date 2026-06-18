@@ -1,0 +1,4 @@
+interface:
+  display_name: "PaperFlow Health Doctor"
+  short_description: "Diagnose PaperFlow setup and MCP health"
+  default_prompt: "Use $health-doctor to diagnose Paper Source, Paper Wiki, MCP, and runtime health."

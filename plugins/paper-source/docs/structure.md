@@ -26,7 +26,7 @@ plugins/paper-source/
 - `docs/`：用户可读说明。`overview.zh.md` 是中文总览入口；`paper-source-linkage.md` 是主链路维护契约；`structure.md` 是本文件；`progress.md` 是开发进度说明；`config.md` 是首次配置和修改配置的话术来源。
 - `scripts/`：Codex 插件内的可执行 wrapper。用户和技能通常调用 `python scripts\orchestrator.py ...`。
 - `scripts/build/paper_source/`：实际 Python 实现模块。旧导入 shim 不作为用户入口。
-- `skills/`：Codex skills。每个 skill 的 `SKILL.md` 只保留触发条件、安全边界和核心命令，详细链路放在 docs。
+- `skills/`：Codex skills。每个 skill 的 `SKILL.md` 只保留触发条件、安全边界和核心命令，详细链路放在 docs。`health-doctor` 是跨 Paper Source / Paper Wiki / MCP / runtime 的总分诊入口，具体修复仍路由给对应 owning skill。
 - `templates/`：ranking、filter、interest、routing、critic checklist 示例。skill-aware evolution 只能在白名单和验证通过后提出或应用有限变更。
 - `coverage/`：本地 coverage artifact 位置。`coverage.xml` 通常被 git ignore，只在发布评估需要时刷新或强制加入。
 
@@ -168,6 +168,7 @@ scripts/build/paper_source/
 ```text
 skills/
   config-setup/
+  health-doctor/
   paper-source-paper-deposition/
   paper-discovery/
   paper-ingest/
@@ -181,6 +182,7 @@ skills/
 ```
 
 - `config-setup`：首次使用或修改配置时的唯一交互入口。入口保持短句和边界，完整聊天式引导与更新流见 `docs/config.md`；最终确认前不运行 `init-config` 或 `apply-config-update`。
+- `health-doctor`：PaperFlow 健康分诊入口。先运行只读 `doctor --json` / `config-status --json`，再按失败层加载 references，覆盖 Paper Source、Paper Wiki、MCP、runtime/env、OpenAI-compatible/Grok gateway、Cloudflare 403/non-JSON、MinerU、EasyScholar、Zotero 和 vault contract；写入修复必须回到 owning skill 并要求确认。
 - `paper-discovery`：自然语言 `discover-papers`、低层 dry-run、搜索、排序和推荐输出；默认 `discover-papers` 会先保留轻量候选排序和 wiki reference-index 去重，再按 auto-staging policy 选择最多 3 篇 PDF-available primary recommendations 写入 source-staging，不写 approval/final wiki。`dry-run` 是 evidence/debug 底层命令。`prepare-ranked` 是显式深入入口，写 raw 源材料、MinerU 解析产物和 source-staging 审批报告，不写最终 wiki。
   - `paper-discovery/scripts/query-planner.py` 与 `paper-discovery/references/` 保存可维护检索策略：mode routing、query planner、paper type taxonomy、ranking rubric、domain ontology、source tiers、dedup engine、venue prior、two-stage retrieval、citation graph、evaluation set、multi-source workflow、quality gate、anti-patterns 和对话输出格式。自然语言主题由 agent 实时拆解为 `--query-variant`，脚本不硬编码每个学科的语义词典；venue prior 从用户画像/config 衍生，社区榜单只进入对应领域的弱 prior，真实指标仍需单独核验。
 - `topic-tracking`：主题中心、纵向增量、backlog、coverage 和 broad-to-deep 阅读视图；它承接“这次之后有什么新东西”“我有没有漏掉关键分支”这类问题，`paper-discovery` 只保留检索/排序底层。

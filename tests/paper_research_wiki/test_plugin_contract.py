@@ -191,12 +191,14 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.7.2"
+    assert manifest["version"] == "2.8.0"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.7.2 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.8.0 | Paper Source:")
+    assert "health doctor" in manifest["interface"]["shortDescription"]
+    assert "MCP/runtime diagnostics" in manifest["interface"]["shortDescription"]
     assert "config diagnostics" in manifest["interface"]["shortDescription"]
     assert "CJK query planning" in manifest["interface"]["shortDescription"]
     assert "progress telemetry" in manifest["interface"]["shortDescription"]

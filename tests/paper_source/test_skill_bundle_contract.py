@@ -189,6 +189,7 @@ def _load_openai_metadata(metadata_path):
 def test_skill_bundle_has_the_expected_entrypoints():
     expected = [
         "config-setup",
+        "health-doctor",
         "mineru-paper-parser",
         "paper-discovery",
         "paper-ingest",

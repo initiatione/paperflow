@@ -7,6 +7,7 @@ external_references:
 session_discipline: {re_match_every_task: true, re_read_when: [route_changed, context_compacted, unsure]}
 always_read: [../AGENTS.md, routing.yaml]
 routes:
+  health_doctor: {category: primary, triggers: [检查 PaperFlow 健康, 配置/检查/修复 Paper Source, Paper Wiki 不能用, MCP 调不通, 插件不能调用, Grok 403, OpenAI-compatible 403, Cloudflare challenge, doctor, runtime health], skill: health-doctor/SKILL.md, notes: [read-only first, route repairs to owning skills, never print secrets, source checkout is not installed runtime]}
   config_setup: {category: primary, triggers: [配置 Paper Source, 初始化配置, 查看当前配置, 修改研究画像, missing config, update runtime config], skill: config-setup/SKILL.md, docs: [../docs/config.md]}
   paper_discovery: {category: primary, triggers: [用 PS 找论文, 找最新论文, 推荐优先阅读论文, Paper Source search, discover-papers, dry-run], skill: paper-discovery/SKILL.md, workflows: [paper-discovery/workflows/run-discovery.md, paper-discovery/workflows/multi-source-discovery.md], notes: [profile-driven, not fixed-domain, hard-soft-query-plan, natural-language-default-discover-papers]}
   research_grill_me:

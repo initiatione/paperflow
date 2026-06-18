@@ -55,9 +55,11 @@ page-family/frontmatter 的人读 canonical 是 Paper Wiki `plugins/paper-wiki/r
 
 ### 1. 初始诊断与配置
 
-入口：`doctor`、`config-status`、`config-setup` skill、`init-config`、`propose-config-update`、`apply-config-update`。
+入口：`health-doctor` skill、`doctor`、`config-status`、`config-setup` skill、`init-config`、`propose-config-update`、`apply-config-update`。
 
 职责：检查插件结构、模板、技能目录、默认 vault、`paper-search` CLI、MinerU 命令、`MINERU_TOKEN` 和 Paper Source vault 配置。外部依赖缺失只提示 warning，插件结构缺失才 error。用户初次使用或修改配置时必须走 `config-setup` skill：一次只问一个问题，每步说明影响、推荐值和参考方向，不把字段名直接丢给用户，不一次性输出完整默认配置；最终确认前不得运行 `init-config` 或 `apply-config-update`。skill-aware evolution 不直接改用户配置。
+
+`health-doctor` 是 PaperFlow 健康分诊入口，覆盖 Paper Source、Paper Wiki、MCP、runtime.json/env files、OpenAI-compatible/Grok gateway、Cloudflare 403/non-JSON upstream、MinerU、EasyScholar、Zotero 和 vault contract。它默认只读，先运行 `doctor --json` / `config-status --json`，再按失败层加载 references 或把修复交回 owning skill；它不得把本机私有 endpoint、token、代理规则、订阅名或 installed cache 路径写成插件默认。
 
 `init-config`、`propose-config-update` 和 `apply-config-update` 必须在返回结构中暴露输入 payload 里未识别的顶层配置键 `unknown_keys`，例如拼错的 `postive_keywords`；这些键不会写入有效配置，也不能静默消失。配置初始化和更新仍保持 tolerant，不因未知键直接失败。
 
