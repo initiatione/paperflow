@@ -294,10 +294,61 @@ def _append_grok_search_section(report: list[str], discovery_context: dict) -> N
         return
     report.append("")
     report.append("## Grok Supplemental Search")
-    for key in ("mode", "status", "reason", "record_count", "raw_response_path", "evidence_path"):
+    for key in (
+        "mode",
+        "status",
+        "reason",
+        "record_count",
+        "failure_stage",
+        "retryable",
+        "retry_outcome",
+        "contributed_count",
+        "raw_response_path",
+        "evidence_path",
+    ):
         value = grok_provider.get(key, grok.get(key))
         if value is not None:
             report.append(f"- {key}: {value}")
+    diagnostics = grok_provider.get("diagnostics")
+    diagnostics = diagnostics if isinstance(diagnostics, dict) else {}
+    if diagnostics:
+        diagnostic_keys = (
+            "returned_count",
+            "usable_count",
+            "evidence_only_count",
+            "quarantined_count",
+            "elapsed_ms",
+        )
+        for key in diagnostic_keys:
+            if diagnostics.get(key) is not None:
+                report.append(f"- {key}: {diagnostics[key]}")
+    contribution = grok_provider.get("contribution")
+    contribution = contribution if isinstance(contribution, dict) else {}
+    if contribution:
+        report.append("- contribution_counts:")
+        for key in (
+            "merged_count",
+            "normalized_count",
+            "filtered_kept_count",
+            "filtered_rejected_count",
+            "ranked_count",
+            "accepted_count",
+        ):
+            report.append(f"  - {key}: {contribution.get(key, 0)}")
+    retry_attempts = diagnostics.get("retry_attempts")
+    if isinstance(retry_attempts, list) and retry_attempts:
+        report.append("- retry_attempts:")
+        for item in retry_attempts:
+            if not isinstance(item, dict):
+                continue
+            report.append(
+                "  - "
+                + "; ".join(
+                    f"{key}={item.get(key)}"
+                    for key in ("attempt", "reason", "status", "usable_count", "elapsed_ms")
+                    if item.get(key) is not None
+                )
+            )
     warnings = grok_provider.get("warnings")
     if isinstance(warnings, list) and warnings:
         report.append("- warnings: " + "; ".join(str(item) for item in warnings))

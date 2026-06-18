@@ -40,6 +40,25 @@ PAPER_HOST_HINTS = {
     "openalex.org",
     "crossref.org",
 }
+PAGE_CHROME_PATTERNS = (
+    "search results",
+    "advanced search",
+    "enable javascript",
+    "cookie policy",
+    "access denied",
+    "just a moment",
+    "cloudflare",
+    "sign in",
+    "subscribe to",
+    "all results",
+)
+GROK_DIAGNOSTICS_SCHEMA_VERSION = "paper-source-grok-search-diagnostics-v1"
+RETRYABLE_FAILURE_STAGES = {
+    "provider_runtime_failure",
+    "timeout_or_budget_cutoff",
+    "source_fallback_or_low_confidence_provider_output",
+    "parser_or_normalization_failure",
+}
 
 
 class GrokSearchMCPError(RuntimeError):
@@ -289,30 +308,83 @@ def _source_url(source: dict[str, Any]) -> str:
     return ""
 
 
-def _looks_like_paper(source: dict[str, Any]) -> tuple[bool, str | None]:
+def _host_from_url(url: str) -> str:
+    if "://" not in url:
+        return ""
+    return url.split("://", 1)[1].split("/", 1)[0].lower()
+
+
+def _host_is_paperish(host: str) -> bool:
+    return host in PAPER_HOST_HINTS or any(host.endswith(f".{hint}") for hint in PAPER_HOST_HINTS)
+
+
+def _looks_like_page_chrome(source: dict[str, Any]) -> bool:
+    text = " ".join(
+        str(source.get(key) or "")
+        for key in ("title", "name", "content", "snippet", "summary")
+    ).lower()
+    return any(pattern in text for pattern in PAGE_CHROME_PATTERNS)
+
+
+def _explicit_doi(source: dict[str, Any], url: str) -> str | None:
+    doi_field = str(source.get("doi") or "").strip()
+    if doi_field:
+        return _first_match(DOI_PATTERN, doi_field)
+    host = _host_from_url(url)
+    if host in {"doi.org", "dx.doi.org"}:
+        return _first_match(DOI_PATTERN, url)
+    return None
+
+
+def _explicit_arxiv_id(source: dict[str, Any], url: str) -> str | None:
+    arxiv_field = str(source.get("arxiv_id") or "").strip()
+    if arxiv_field:
+        return _first_match(ARXIV_ID_PATTERN, arxiv_field)
+    host = _host_from_url(url)
+    if host == "arxiv.org" or host.endswith(".arxiv.org"):
+        return _first_match(ARXIV_ID_PATTERN, url)
+    return None
+
+
+def _classify_grok_source(source: dict[str, Any]) -> tuple[str, str | None]:
     title = str(source.get("title") or "").strip()
     url = _source_url(source)
     content = str(source.get("content") or source.get("snippet") or source.get("summary") or "")
-    doi = _first_match(DOI_PATTERN, source.get("doi"), url, title, content)
-    arxiv_id = _first_match(ARXIV_ID_PATTERN, source.get("arxiv_id"), url, title, content)
-    if doi or arxiv_id:
-        return True, None
-    host = ""
-    if "://" in url:
-        host = url.split("://", 1)[1].split("/", 1)[0].lower()
-    if host in PAPER_HOST_HINTS or any(host.endswith(f".{hint}") for hint in PAPER_HOST_HINTS):
-        return True, None
+    explicit_doi = _explicit_doi(source, url)
+    explicit_arxiv_id = _explicit_arxiv_id(source, url)
+    host = _host_from_url(url)
+    if _looks_like_page_chrome(source):
+        return "quarantined", "page_chrome_or_non_paper_extraction"
+    if explicit_doi:
+        return "candidate_usable", None
+    if explicit_arxiv_id and title:
+        return "candidate_usable", None
+    if explicit_arxiv_id:
+        return "evidence_only", "weak_identity_extraction"
+    regex_only_doi = _first_match(DOI_PATTERN, content, title)
+    regex_only_arxiv = _first_match(ARXIV_ID_PATTERN, content, title)
+    if regex_only_doi or regex_only_arxiv:
+        return "evidence_only", "regex_identifier_without_support"
+    if _host_is_paperish(host) and title:
+        return "candidate_usable", None
     if source.get("authors") and (source.get("year") or source.get("published_date")) and title:
-        return True, None
-    return False, "missing_stable_paper_identity"
+        return "candidate_usable", None
+    if url:
+        return "evidence_only", "missing_stable_paper_identity"
+    return "quarantined", "missing_stable_paper_identity"
+
+
+def _looks_like_paper(source: dict[str, Any]) -> tuple[bool, str | None]:
+    state, reason = _classify_grok_source(source)
+    return state == "candidate_usable", reason
 
 
 def _normalize_source(source: dict[str, Any], *, query: str, index: int) -> dict[str, Any]:
     title = str(source.get("title") or source.get("name") or "").strip()
     url = _source_url(source)
     content = str(source.get("content") or source.get("snippet") or source.get("summary") or "")
-    doi = source.get("doi") or _first_match(DOI_PATTERN, url, title, content)
-    arxiv_id = source.get("arxiv_id") or _first_match(ARXIV_ID_PATTERN, url, title, content)
+    doi = source.get("doi") or _explicit_doi(source, url)
+    arxiv_id = source.get("arxiv_id") or _explicit_arxiv_id(source, url)
     pdf_url = str(source.get("pdf_url") or "")
     lowered_url = url.lower()
     if not pdf_url and (lowered_url.endswith(".pdf") or "arxiv.org/pdf/" in lowered_url or "/pdf/" in lowered_url):
@@ -356,9 +428,11 @@ def normalize_grok_payload(payload: dict[str, Any], *, query: str, index: int) -
     for source in sources:
         if not isinstance(source, dict):
             continue
-        paper_like, reason = _looks_like_paper(source)
-        if paper_like:
-            accepted.append(_normalize_source(source, query=query, index=index))
+        quality_state, reason = _classify_grok_source(source)
+        if quality_state == "candidate_usable":
+            normalized = _normalize_source(source, query=query, index=index)
+            normalized["grok_quality_state"] = quality_state
+            accepted.append(normalized)
         else:
             evidence.append(
                 {
@@ -367,10 +441,69 @@ def normalize_grok_payload(payload: dict[str, Any], *, query: str, index: int) -
                     "title": source.get("title") or source.get("name"),
                     "url": _source_url(source),
                     "reason": reason or "rejected",
+                    "quality_state": quality_state,
                     "raw_record": source,
                 }
             )
     return accepted, evidence
+
+
+def _new_grok_diagnostics() -> dict[str, Any]:
+    return {
+        "schema_version": GROK_DIAGNOSTICS_SCHEMA_VERSION,
+        "returned_count": 0,
+        "usable_count": 0,
+        "evidence_only_count": 0,
+        "quarantined_count": 0,
+        "query_count": 0,
+        "retry_attempts": [],
+        "retryable": False,
+        "failure_stage": None,
+        "retry_outcome": "not_needed",
+        "elapsed_ms": 0,
+    }
+
+
+def _summarize_quality(records: list[dict[str, Any]], evidence: list[dict[str, Any]]) -> dict[str, int]:
+    evidence_only_count = 0
+    quarantined_count = 0
+    for item in evidence:
+        state = str(item.get("quality_state") or "")
+        if state == "evidence_only":
+            evidence_only_count += 1
+        elif state == "quarantined":
+            quarantined_count += 1
+    return {
+        "usable_count": len(records),
+        "evidence_only_count": evidence_only_count,
+        "quarantined_count": quarantined_count,
+    }
+
+
+def _failure_stage_from_payload(payload: dict[str, Any], *, accepted_count: int, evidence: list[dict[str, Any]]) -> str | None:
+    if _grok_provider_retryable(payload):
+        return "source_fallback_or_low_confidence_provider_output"
+    sources = payload.get("sources")
+    if not isinstance(sources, list):
+        return "parser_or_normalization_failure"
+    if accepted_count:
+        return None
+    reasons = [str(item.get("reason") or "") for item in evidence]
+    if any(reason == "page_chrome_or_non_paper_extraction" for reason in reasons):
+        return "page_chrome_or_non_paper_extraction"
+    if any(reason in {"missing_stable_paper_identity", "regex_identifier_without_support"} for reason in reasons):
+        return "weak_identity_extraction"
+    if sources:
+        return "parser_or_normalization_failure"
+    return None
+
+
+def _retryable_failure_stage(stage: str | None) -> bool:
+    return bool(stage in RETRYABLE_FAILURE_STAGES)
+
+
+def _retry_query(query: str) -> str:
+    return f"{query} scholarly article DOI arXiv publisher metadata"
 
 
 def _configured_model_fallbacks() -> list[str]:
@@ -437,8 +570,19 @@ def discover_grok(
     evidence_path: Path,
     timeout_seconds: int = SEARCH_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
+    started = time.monotonic()
+    diagnostics = _new_grok_diagnostics()
+    diagnostics["query_count"] = len(queries)
     command_args, probe = _mcp_command_args()
     if not command_args:
+        diagnostics.update(
+            {
+                "failure_stage": "not_configured_or_disabled",
+                "retryable": False,
+                "retry_outcome": "not_retryable",
+                "elapsed_ms": int((time.monotonic() - started) * 1000),
+            }
+        )
         record = {
             "provider": "grok_search",
             "source_mode": "grok_search_mcp",
@@ -447,6 +591,7 @@ def discover_grok(
             "evidence": [],
             "warnings": [probe.get("error", "not_configured")],
             "probe": probe,
+            "diagnostics": diagnostics,
         }
         write_json_atomic(raw_response_path, record)
         write_json_atomic(evidence_path, [])
@@ -457,6 +602,7 @@ def discover_grok(
     evidence: list[dict[str, Any]] = []
     warnings: list[str] = []
     for index, query in enumerate(queries, start=1):
+        query_started = time.monotonic()
         try:
             result, model_attempts = _call_web_search_with_model_fallbacks(
                 arguments={
@@ -469,21 +615,151 @@ def discover_grok(
             )
         except GrokSearchMCPError as exc:
             warnings.append(str(exc))
+            diagnostics["failure_stage"] = diagnostics.get("failure_stage") or "provider_runtime_failure"
+            diagnostics["retryable"] = True
             raw_responses.append({"query": query, "error": str(exc), "probe": exc.probe, "raw_response": exc.raw_response})
             continue
         payload = result["payload"]
+        accepted, rejected = normalize_grok_payload(payload, query=query, index=index)
+        diagnostics["returned_count"] += len(payload.get("sources") or []) if isinstance(payload.get("sources"), list) else 0
+        stage = _failure_stage_from_payload(payload, accepted_count=len(accepted), evidence=rejected)
+        if stage == "source_fallback_or_low_confidence_provider_output" and accepted:
+            for record in accepted:
+                rejected.append(
+                    {
+                        "provider": "grok_search",
+                        "query": query,
+                        "title": record.get("title"),
+                        "url": record.get("url"),
+                        "reason": stage,
+                        "quality_state": "evidence_only",
+                        "raw_record": record.get("raw_record", {}),
+                    }
+                )
+            accepted = []
+        retry_attempt: dict[str, Any] | None = None
+        if stage and _retryable_failure_stage(stage):
+            retry_query = _retry_query(query)
+            retry_started = time.monotonic()
+            retry_attempt = {
+                "attempt": 2,
+                "reason": stage,
+                "query": retry_query,
+                "include_domains": include_domains,
+                "status": "not_run",
+            }
+            try:
+                retry_result, retry_model_attempts = _call_web_search_with_model_fallbacks(
+                    arguments={
+                        "query": retry_query,
+                        "include_domains": include_domains,
+                        "include_content": False,
+                        "response_format": GROK_SEARCH_RESPONSE_FORMAT,
+                    },
+                    timeout_seconds=timeout_seconds,
+                )
+            except GrokSearchMCPError as exc:
+                retry_attempt.update(
+                    {
+                        "status": "error",
+                        "error": str(exc),
+                        "elapsed_ms": int((time.monotonic() - retry_started) * 1000),
+                    }
+                )
+                warnings.append(str(exc))
+            else:
+                retry_payload = retry_result["payload"]
+                retry_accepted, retry_rejected = normalize_grok_payload(retry_payload, query=query, index=index)
+                retry_stage = _failure_stage_from_payload(
+                    retry_payload,
+                    accepted_count=len(retry_accepted),
+                    evidence=retry_rejected,
+                )
+                retry_attempt.update(
+                    {
+                        "status": "recovered" if retry_accepted else "no_recovery",
+                        "failure_stage_after_retry": retry_stage,
+                        "returned_count": len(retry_payload.get("sources") or [])
+                        if isinstance(retry_payload.get("sources"), list)
+                        else 0,
+                        "usable_count": len(retry_accepted),
+                        "evidence_only_count": _summarize_quality(retry_accepted, retry_rejected)["evidence_only_count"],
+                        "quarantined_count": _summarize_quality(retry_accepted, retry_rejected)["quarantined_count"],
+                        "elapsed_ms": int((time.monotonic() - retry_started) * 1000),
+                        "model_attempts": retry_model_attempts,
+                    }
+                )
+                raw_responses.append(
+                    {
+                        "query": retry_query,
+                        "retry_of": query,
+                        "payload": retry_payload,
+                        "raw_response": retry_result["raw_response"],
+                        "model_attempts": retry_model_attempts,
+                    }
+                )
+                diagnostics["returned_count"] += (
+                    len(retry_payload.get("sources") or []) if isinstance(retry_payload.get("sources"), list) else 0
+                )
+                accepted.extend(retry_accepted)
+                rejected.extend(retry_rejected)
+                stage = retry_stage
+            diagnostics["retry_attempts"].append(retry_attempt)
+        if stage and not accepted and not diagnostics.get("failure_stage"):
+            diagnostics["failure_stage"] = stage
+            diagnostics["retryable"] = _retryable_failure_stage(stage)
         raw_responses.append(
             {
                 "query": query,
                 "payload": payload,
                 "raw_response": result["raw_response"],
                 "model_attempts": model_attempts,
+                "failure_stage": stage,
+                "elapsed_ms": int((time.monotonic() - query_started) * 1000),
             }
         )
-        accepted, rejected = normalize_grok_payload(payload, query=query, index=index)
         records.extend(accepted)
         evidence.extend(rejected)
-    write_json_atomic(raw_response_path, {"provider": "grok_search", "queries": queries, "responses": raw_responses})
+    quality_summary = _summarize_quality(records, evidence)
+    diagnostics.update(quality_summary)
+    if records and diagnostics.get("retry_attempts"):
+        diagnostics["failure_stage"] = None
+        diagnostics["retryable"] = False
+    else:
+        diagnostics["retryable"] = _retryable_failure_stage(str(diagnostics.get("failure_stage") or ""))
+    if diagnostics["retry_attempts"]:
+        if records:
+            diagnostics["retry_outcome"] = "recovered"
+        elif any(item.get("status") == "error" for item in diagnostics["retry_attempts"] if isinstance(item, dict)):
+            diagnostics["retry_outcome"] = "failed"
+        else:
+            diagnostics["retry_outcome"] = "no_recovery"
+    elif diagnostics.get("failure_stage") and not diagnostics.get("retryable"):
+        diagnostics["retry_outcome"] = "not_retryable"
+    if not diagnostics.get("failure_stage"):
+        if warnings:
+            diagnostics["failure_stage"] = "provider_runtime_failure"
+            diagnostics["retryable"] = True
+        elif not records and evidence:
+            reasons = [str(item.get("reason") or "") for item in evidence]
+            diagnostics["failure_stage"] = (
+                "page_chrome_or_non_paper_extraction"
+                if "page_chrome_or_non_paper_extraction" in reasons
+                else "weak_identity_extraction"
+            )
+        elif not records:
+            diagnostics["failure_stage"] = "parser_or_normalization_failure"
+            diagnostics["retryable"] = True
+    diagnostics["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+    write_json_atomic(
+        raw_response_path,
+        {
+            "provider": "grok_search",
+            "queries": queries,
+            "responses": raw_responses,
+            "diagnostics": diagnostics,
+        },
+    )
     write_json_atomic(evidence_path, evidence)
     return {
         "provider": "grok_search",
@@ -495,4 +771,5 @@ def discover_grok(
         "warnings": warnings,
         "raw_response_path": str(raw_response_path),
         "evidence_path": str(evidence_path),
+        "diagnostics": diagnostics,
     }

@@ -243,3 +243,67 @@ def test_targeted_doi_recovery_rejects_grok_warning_records(tmp_path, monkeypatc
     assert session["doi_recovery_summary"]["failed_count"] == 3
     assert session["primary_recommendations"] == []
     assert session["doi_filtered_summary"]["total"] == 3
+
+
+def test_parallel_grok_records_filter_rank_no_contribution_diagnostics(tmp_path, monkeypatch):
+    plugin_root = tmp_path / "plugin"
+    _write_template(plugin_root, "parallel")
+    monkeypatch.setenv("PAPER_SOURCE_GROK_SEARCH_MCP_COMMAND", "configured-grok")
+    monkeypatch.setattr(
+        "paper_source.orchestrator._run_query_plan_discovery",
+        lambda **kwargs: _paper_search_record([_paper_record(1)]),
+    )
+
+    def fake_grok(**kwargs):
+        return {
+            "provider": "grok_search",
+            "source_mode": "grok_search_mcp",
+            "status": "ok",
+            "queries": kwargs["queries"],
+            "records": [
+                {
+                    "source": "grok_search",
+                    "provider": "grok_search",
+                    "title": "Marine Biology Sensor Dataset",
+                    "abstract": "A marine biology dataset for coral reef surveys.",
+                    "doi": "10.1000/grok-marine",
+                    "landing_page_url": "https://doi.org/10.1000/grok-marine",
+                }
+            ],
+            "evidence": [],
+            "raw_response_path": str(kwargs["run_dir"] / "grok-search-raw.json"),
+            "evidence_path": str(kwargs["run_dir"] / "grok-search-evidence.json"),
+            "diagnostics": {
+                "schema_version": "paper-source-grok-search-diagnostics-v1",
+                "returned_count": 1,
+                "usable_count": 1,
+                "evidence_only_count": 0,
+                "quarantined_count": 0,
+                "retry_attempts": [],
+                "retryable": False,
+                "retry_outcome": "not_needed",
+            },
+        }
+
+    monkeypatch.setattr("paper_source.orchestrator._run_grok_queries", fake_grok)
+
+    run_dir = run_dry_run(
+        plugin_root=plugin_root,
+        vault_path=tmp_path / "vault",
+        query="robotics control",
+        max_results=None,
+        sources=["semantic"],
+        use_query_plan=False,
+        resume=False,
+    )
+
+    search_record = json.loads((run_dir / "search-record.json").read_text(encoding="utf-8"))
+    grok = search_record["provider_records"]["grok_search"]
+    assert grok["contribution"]["merged_count"] == 1
+    assert grok["contribution"]["filtered_rejected_count"] == 1
+    assert grok["contribution"]["accepted_count"] == 0
+    assert grok["failure_stage"] == "merged_but_filtered_or_rank_rejected"
+
+    report = (run_dir / "report.md").read_text(encoding="utf-8")
+    assert "failure_stage: merged_but_filtered_or_rank_rejected" in report
+    assert "filtered_rejected_count: 1" in report

@@ -174,6 +174,7 @@ def _merge_provider_search_records(
                 record["provenance_label"] = "grok_salvage_evidence"
     merged = dict(paper_search_record)
     merged["records"] = [*paper_records, *grok_records]
+    grok_diagnostics = (grok_record or {}).get("diagnostics", {}) if isinstance(grok_record, dict) else {}
     merged["provider_records"] = {
         "paper_search": {
             "status": "ok" if not paper_search_record.get("error") else "error",
@@ -188,6 +189,7 @@ def _merge_provider_search_records(
             "raw_response_path": (grok_record or {}).get("raw_response_path") if isinstance(grok_record, dict) else None,
             "evidence_path": (grok_record or {}).get("evidence_path") if isinstance(grok_record, dict) else None,
             "warnings": (grok_record or {}).get("warnings", []) if isinstance(grok_record, dict) else [],
+            "diagnostics": grok_diagnostics if isinstance(grok_diagnostics, dict) else {},
         },
     }
     merged["grok_search"] = merged["provider_records"]["grok_search"]
@@ -195,6 +197,95 @@ def _merge_provider_search_records(
     if grok_record and isinstance(grok_record.get("evidence"), list):
         merged["grok_evidence_count"] = len(grok_record["evidence"])
     return merged
+
+
+def _candidate_has_provider(candidate: dict, provider: str) -> bool:
+    provenance = candidate.get("provider_provenance")
+    if isinstance(provenance, list) and provider in provenance:
+        return True
+    for record in candidate.get("raw_records") or []:
+        if isinstance(record, dict) and (record.get("provider") == provider or record.get("source") == provider):
+            return True
+    return False
+
+
+def _grok_failure_stage_from_contribution(grok_provider: dict, counts: dict[str, int]) -> str | None:
+    status = str(grok_provider.get("status") or "")
+    reason = str(grok_provider.get("reason") or "")
+    diagnostics = grok_provider.get("diagnostics") if isinstance(grok_provider.get("diagnostics"), dict) else {}
+    if status in {"off", "skipped_good_enough"} or reason in {"disabled", "disabled_by_cli"}:
+        return None
+    if status == "not_configured" or reason == "not_configured":
+        return "not_configured_or_disabled"
+    if status == "timeout_after_paper_search":
+        return "timeout_or_budget_cutoff"
+    if diagnostics.get("failure_stage"):
+        return str(diagnostics["failure_stage"])
+    if status == "warning" and grok_provider.get("warnings"):
+        warnings = " ".join(str(item) for item in grok_provider.get("warnings") or [])
+        return "source_fallback_or_low_confidence_provider_output" if "source_fallback" in warnings else "provider_runtime_failure"
+    if counts["merged_count"] and not counts["filtered_kept_count"]:
+        return "merged_but_filtered_or_rank_rejected"
+    if counts["filtered_kept_count"] and not counts["ranked_count"]:
+        return "merged_but_filtered_or_rank_rejected"
+    if not counts["returned_count"] and status not in {"off", "skipped_good_enough"}:
+        return "parser_or_normalization_failure"
+    return None
+
+
+def _update_grok_contribution_diagnostics(
+    search_record: dict,
+    *,
+    normalized: list[dict],
+    filter_report: dict,
+    ranked_pool: list[dict],
+    ranked: list[dict],
+) -> None:
+    provider_records = search_record.get("provider_records") if isinstance(search_record.get("provider_records"), dict) else {}
+    grok_provider = provider_records.get("grok_search") if isinstance(provider_records.get("grok_search"), dict) else None
+    if not grok_provider:
+        return
+    diagnostics = grok_provider.get("diagnostics") if isinstance(grok_provider.get("diagnostics"), dict) else {}
+    normalized_grok = [candidate for candidate in normalized if _candidate_has_provider(candidate, "grok_search")]
+    filtered_kept = [
+        candidate
+        for candidate in filter_report.get("kept", [])
+        if isinstance(candidate, dict) and _candidate_has_provider(candidate, "grok_search")
+    ]
+    filtered_rejected = [
+        candidate
+        for candidate in filter_report.get("rejected", [])
+        if isinstance(candidate, dict) and _candidate_has_provider(candidate, "grok_search")
+    ]
+    ranked_grok = [candidate for candidate in ranked_pool if _candidate_has_provider(candidate, "grok_search")]
+    accepted_grok = [candidate for candidate in ranked if _candidate_has_provider(candidate, "grok_search")]
+    counts = {
+        "returned_count": int(diagnostics.get("returned_count") or grok_provider.get("record_count") or 0),
+        "usable_count": int(diagnostics.get("usable_count") or grok_provider.get("record_count") or 0),
+        "evidence_only_count": int(diagnostics.get("evidence_only_count") or 0),
+        "quarantined_count": int(diagnostics.get("quarantined_count") or 0),
+        "merged_count": int(grok_provider.get("record_count") or 0),
+        "normalized_count": len(normalized_grok),
+        "filtered_kept_count": len(filtered_kept),
+        "filtered_rejected_count": len(filtered_rejected),
+        "ranked_count": len(ranked_grok),
+        "accepted_count": len(accepted_grok),
+    }
+    contribution = {
+        "schema_version": "paper-source-grok-contribution-v1",
+        **counts,
+        "contributed": bool(accepted_grok),
+        "failure_stage": _grok_failure_stage_from_contribution(grok_provider, counts),
+        "retryable": bool(diagnostics.get("retryable")),
+        "retry_outcome": diagnostics.get("retry_outcome"),
+        "retry_attempts": diagnostics.get("retry_attempts", []),
+    }
+    grok_provider["contribution"] = contribution
+    grok_provider["failure_stage"] = contribution["failure_stage"]
+    grok_provider["retryable"] = contribution["retryable"]
+    grok_provider["retry_outcome"] = contribution["retry_outcome"]
+    grok_provider["contributed_count"] = contribution["accepted_count"]
+    search_record["grok_search"] = grok_provider
 
 
 def _write_provider_records(run_dir: Path, paper_search_record: dict, grok_record: dict | None) -> None:
@@ -855,6 +946,16 @@ def run_dry_run(
     )
     ranked = ranked_pool[: config.max_results]
     write_json_atomic(run_dir / "rank.json", ranked)
+    _update_grok_contribution_diagnostics(
+        search_record,
+        normalized=normalized,
+        filter_report=filter_report,
+        ranked_pool=ranked_pool,
+        ranked=ranked,
+    )
+    write_json_atomic(run_dir / "search-record.json", search_record)
+    if search_record.get("provider_records"):
+        write_json_atomic(run_dir / "provider-records.json", search_record["provider_records"])
     state["state"] = "ranked"
     write_json_atomic(run_dir / "run-state.json", state)
 

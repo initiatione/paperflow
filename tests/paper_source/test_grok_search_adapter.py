@@ -1,5 +1,6 @@
 import json
 
+from paper_source import grok_search_adapter as adapter
 from paper_source.grok_search_adapter import _configured_model_fallbacks, discover_grok, normalize_grok_payload
 
 
@@ -34,6 +35,7 @@ def test_normalize_grok_payload_accepts_stable_paper_identity():
             "title": "Project page",
             "url": "https://example.org/project",
             "reason": "missing_stable_paper_identity",
+            "quality_state": "evidence_only",
             "raw_record": payload["sources"][1],
         }
     ]
@@ -229,3 +231,127 @@ def test_discover_grok_retries_source_fallback_without_fallback_flag(tmp_path, m
 
     assert attempts == ["primary-model", "backup-model"]
     assert record["status"] == "ok"
+
+
+def test_normalize_grok_payload_quarantines_empty_title_regex_only_doi():
+    accepted, evidence = adapter.normalize_grok_payload(
+        {
+            "sources": [
+                {
+                    "title": "",
+                    "content": "Search results mention 10.1145/1234567 but no paper metadata.",
+                    "url": "https://example.org/search?q=paper",
+                }
+            ]
+        },
+        query="robotics control",
+        index=1,
+    )
+
+    assert accepted == []
+    assert evidence[0]["quality_state"] == "quarantined"
+    assert evidence[0]["reason"] == "page_chrome_or_non_paper_extraction"
+
+
+def test_normalize_grok_payload_treats_regex_only_arxiv_as_evidence():
+    accepted, evidence = adapter.normalize_grok_payload(
+        {
+            "sources": [
+                {
+                    "title": "Generic profile page",
+                    "content": "This page links arXiv:2401.12345 among many unrelated entries.",
+                    "url": "https://example.org/profile",
+                }
+            ]
+        },
+        query="robotics control",
+        index=1,
+    )
+
+    assert accepted == []
+    assert evidence[0]["quality_state"] == "evidence_only"
+    assert evidence[0]["reason"] == "regex_identifier_without_support"
+
+
+def test_normalize_grok_payload_accepts_strong_doi_identity():
+    accepted, evidence = adapter.normalize_grok_payload(
+        {
+            "sources": [
+                {
+                    "title": "Learning Robust Robot Control",
+                    "doi": "10.1000/robot-control",
+                    "url": "https://doi.org/10.1000/robot-control",
+                    "snippet": "A peer-reviewed control paper.",
+                }
+            ]
+        },
+        query="robotics control",
+        index=1,
+    )
+
+    assert evidence == []
+    assert accepted[0]["title"] == "Learning Robust Robot Control"
+    assert accepted[0]["doi"] == "10.1000/robot-control"
+    assert accepted[0]["grok_quality_state"] == "candidate_usable"
+
+
+def test_discover_grok_retries_source_fallback_and_records_recovery(tmp_path, monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(adapter, "_mcp_command_args", lambda: (["configured-grok"], {"available": True}))
+
+    def fake_call(*, arguments, timeout_seconds):
+        calls.append(arguments["query"])
+        if len(calls) == 1:
+            return (
+                {
+                    "payload": {
+                        "search_provider": "source_fallback",
+                        "fallback_used": True,
+                        "fallback_reason": "grok_provider_error",
+                        "sources": [
+                            {
+                                "title": "Fallback Robot Paper",
+                                "doi": "10.1000/fallback",
+                                "url": "https://doi.org/10.1000/fallback",
+                            }
+                        ],
+                    },
+                    "raw_response": {"id": 1},
+                },
+                [{"model": "safe-model", "status": "retryable_fallback"}],
+            )
+        return (
+            {
+                "payload": {
+                    "search_provider": "grok",
+                    "fallback_used": False,
+                    "sources": [
+                        {
+                            "title": "Recovered Robot Control Paper",
+                            "doi": "10.1000/recovered",
+                            "url": "https://doi.org/10.1000/recovered",
+                        }
+                    ],
+                },
+                "raw_response": {"id": 2},
+            },
+            [{"model": "safe-model", "status": "ok"}],
+        )
+
+    monkeypatch.setattr(adapter, "_call_web_search_with_model_fallbacks", fake_call)
+
+    record = adapter.discover_grok(
+        queries=["robotics control"],
+        include_domains=["doi.org"],
+        raw_response_path=tmp_path / "raw.json",
+        evidence_path=tmp_path / "evidence.json",
+        timeout_seconds=5,
+    )
+
+    assert calls[1].endswith("scholarly article DOI arXiv publisher metadata")
+    assert [item["title"] for item in record["records"]] == ["Recovered Robot Control Paper"]
+    assert record["diagnostics"]["retry_outcome"] == "recovered"
+    assert record["diagnostics"]["retry_attempts"][0]["reason"] == "source_fallback_or_low_confidence_provider_output"
+    assert record["diagnostics"]["retry_attempts"][0]["status"] == "recovered"
+    assert record["diagnostics"]["evidence_only_count"] == 1
