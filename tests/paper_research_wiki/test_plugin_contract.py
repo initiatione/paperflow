@@ -170,7 +170,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "1.3.0"
+    assert manifest["version"] == "1.3.1"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -190,7 +190,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "selected-target checks" in manifest["interface"]["longDescription"]
     assert "references.bib refresh" in manifest["interface"]["longDescription"]
     assert "summary-plus-top-20 Zotero-only" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v1.3.0 | Paper Wiki:")
+    assert manifest["interface"]["shortDescription"].startswith("v1.3.1 | Paper Wiki:")
     for phrase in ["Paper Wiki", "ask", "deposit", "check", "Zotero status/dry-run/apply", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
@@ -201,12 +201,12 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.9.0"
+    assert manifest["version"] == "2.9.1"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.9.0 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.9.1 | Paper Source:")
     assert "health doctor" in manifest["interface"]["shortDescription"]
     assert "MCP/runtime diagnostics" in manifest["interface"]["shortDescription"]
     assert "graph visibility" in manifest["interface"]["shortDescription"]

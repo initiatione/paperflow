@@ -1,6 +1,6 @@
 {
   "name": "paper-wiki",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Paper Wiki asks, deposits, checks, updates, relinks, and redoes source-map-grounded academic paper knowledge.",
   "author": {
     "name": "liuchf"
@@ -20,7 +20,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Wiki",
-    "shortDescription": "v1.3.0 | Paper Wiki: ask, deposit, check, Zotero status/dry-run/apply, update, relink, redo.",
+    "shortDescription": "v1.3.1 | Paper Wiki: ask, deposit, check, Zotero status/dry-run/apply, update, relink, redo.",
     "longDescription": "Paper Wiki is one assistant for Paper Source handoffs: ask the formal graph, deposit ready papers, redo source-map extraction, check and repair Obsidian graph visibility drift, update/relink pages, maintain formal page relationships and stale claims, enforce provenance and language gates, refresh _meta/reference-index.json for Paper Source dedupe after wiki writes, keep formula reasoning chains and evidence figure cards source-grounded, run link repair, preserve QMD-compatible indexing, use the official Zotero helper through a thin audited adapter for Paper Wiki Zotero read/write paths, provide Paper Wiki-local Zotero frontmatter, reference-index, paper-wiki-zotero-sync-report-v1 sync-report, and wiki-scoped BibTeX data contracts, run read-only Zotero status/dry-run planning with summary-plus-top-20 Zotero-only reporting without default writes, apply approved Zotero synchronization plans with one-run plan-hash approval, fixed Paper Wiki selected-target checks, formal page metadata updates, single-page snapshots, wiki-scoped references.bib refresh, sync reports, and finish with a post-task check.",
     "developerName": "liuchf",
     "category": "Productivity",

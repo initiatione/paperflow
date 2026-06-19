@@ -30,8 +30,8 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.9.0"
-    assert manifest["interface"]["shortDescription"].startswith("v2.9.0 | Paper Source:")
+    assert manifest["version"] == "2.9.1"
+    assert manifest["interface"]["shortDescription"].startswith("v2.9.1 | Paper Source:")
     assert "health doctor" in manifest["interface"]["shortDescription"]
     assert "MCP/runtime diagnostics" in manifest["interface"]["shortDescription"]
     assert "graph visibility" in manifest["interface"]["shortDescription"]
@@ -80,6 +80,9 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
         docs,
         [
             "Paper Source 2.9.0",
+            "Paper Source 2.9.1",
+            "Paper Wiki 1.3.1",
+            "final ownership split",
             "zotero-dedupe-record.json",
             "session_recommendations.zotero_dedupe",
             "already_in_zotero_not_wiki",
