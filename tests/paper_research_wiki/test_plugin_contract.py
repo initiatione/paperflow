@@ -15,6 +15,7 @@ WORKFLOWS = {
     "ask-wiki.md",
     "extract-papers.md",
     "check-wiki.md",
+    "zotero-status.md",
     "update-wiki.md",
     "redo-extraction.md",
     "maintain-figures.md",
@@ -168,7 +169,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "1.1.0"
+    assert manifest["version"] == "1.2.0"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -183,11 +184,13 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "_meta/reference-index.json" in manifest["interface"]["longDescription"]
     assert "paper-wiki-zotero-sync-report-v1" in manifest["interface"]["longDescription"]
     assert "wiki-scoped BibTeX" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v1.1.0 | Paper Wiki:")
-    for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "graph visibility", "relink", "redo"]:
+    assert "read-only Zotero status/dry-run" in manifest["interface"]["longDescription"]
+    assert "summary-plus-top-20 Zotero-only" in manifest["interface"]["longDescription"]
+    assert manifest["interface"]["shortDescription"].startswith("v1.2.0 | Paper Wiki:")
+    for phrase in ["Paper Wiki", "ask", "deposit", "check", "Zotero status/dry-run", "update", "graph visibility", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
-    for phrase in ["Paper Wiki", "PW", "Paper Source", "提取", "提问", "检测", "关系图谱", "更新", "沉淀", "link", "QMD"]:
+    for phrase in ["Paper Wiki", "PW", "Paper Source", "提取", "提问", "检测", "关系图谱", "Zotero", "dry-run", "更新", "沉淀", "link", "QMD"]:
         assert phrase in prompt_text
 
 
@@ -379,6 +382,7 @@ def test_paper_wiki_skill_routing_manifest_matches_public_workflows():
     assert set(routes) == {
         "extract_papers",
         "check_wiki",
+        "zotero_status",
         "ask_wiki",
         "redo_extraction",
         "update_wiki",
@@ -419,6 +423,12 @@ def test_paper_wiki_skill_routing_manifest_matches_public_workflows():
     check_triggers = set(routes["check_wiki"]["triggers"])
     for phrase in ["检查关系图谱", "图谱健康检查", "graph health check"]:
         assert phrase in check_triggers
+
+    zotero_triggers = set(routes["zotero_status"]["triggers"])
+    for phrase in ["Paper Wiki Zotero status", "Paper Wiki Zotero dry-run", "Zotero-only 文献", "zotero sync status"]:
+        assert phrase in zotero_triggers
+    assert routes["zotero_status"]["workflows"] == ["paper-research-wiki/workflows/zotero-status.md"]
+    assert any("read-only by default" in note for note in routes["zotero_status"].get("notes", []))
 
     update_triggers = set(routes["update_wiki"]["triggers"])
     for phrase in ["关系图谱出错", "图谱只剩 index", "修复关系图谱", "graph only index", "repair Obsidian graph visibility"]:
@@ -802,6 +812,31 @@ def test_check_wiki_supports_layered_checks_and_completion_reports():
         "next Paper Source/Paper Wiki action",
     ]:
         assert phrase in check
+
+
+def test_zotero_status_workflow_is_read_only_and_human_readable():
+    workflow = _read(PUBLIC_SKILL / "workflows" / "zotero-status.md")
+    skill = _read(PUBLIC_SKILL / "SKILL.md")
+    workflow_doc = _read(PLUGIN / "docs" / "workflow.md")
+    structure = _read(PLUGIN / "docs" / "structure.md")
+    metadata = _read(PUBLIC_SKILL / "agents" / "openai.yaml")
+
+    for phrase in [
+        "read-only by default",
+        "does not write formal pages",
+        "_meta/reference-index.json",
+        "references.bib",
+        "Zotero-only",
+        "top 20",
+        "paper-wiki-zotero-dry-run-v1",
+        "writes_performed=false",
+        "selected target mismatch",
+    ]:
+        assert phrase in workflow
+    assert "zotero-status.md" in skill
+    assert "Zotero 状态/dry-run" in metadata
+    assert "read-only Zotero status/dry-run" in workflow_doc
+    assert "zotero_status.py" in structure
 
 
 def test_update_wiki_has_controlled_link_repair_mechanism():
@@ -1334,7 +1369,7 @@ def test_skill_ui_metadata_uses_single_public_skill():
 
     assert "display_name: \"Paper Wiki\"" in metadata
     assert "$paper-research-wiki" in metadata
-    for phrase in ["提取", "检测", "更新", "沉淀", "重做", "重link"]:
+    for phrase in ["提取", "检测", "更新", "沉淀", "重做", "重link", "Zotero"]:
         assert phrase in metadata
 
 

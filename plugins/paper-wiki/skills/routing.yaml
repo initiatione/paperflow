@@ -25,6 +25,12 @@ routes:
     triggers: [用 PW 检测 wiki, Paper Wiki check, PW check wiki, 检测 wiki 库, 检查论文 wiki, wiki 状态, 检查关系图谱, 图谱健康检查, graph health check, check wiki, post-task check]
     skill: paper-research-wiki/SKILL.md
     workflows: [paper-research-wiki/workflows/check-wiki.md]
+  zotero_status:
+    category: primary
+    triggers: [Paper Wiki Zotero status, Paper Wiki Zotero dry-run, PW Zotero 状态, PW Zotero dry-run, Zotero 同步预览, Zotero 状态检查, Zotero-only 文献, zotero sync status, zotero sync dry-run]
+    skill: paper-research-wiki/SKILL.md
+    workflows: [paper-research-wiki/workflows/zotero-status.md]
+    notes: [read-only by default, no formal page/reference-index/references.bib/Zotero writes, persisted diagnostics require explicit output request]
   ask_wiki:
     category: primary
     triggers: [用 PW 问 wiki, Paper Wiki ask, PW ask wiki, 提问, 问 wiki, 问论文 wiki, 根据 wiki 回答, 查询论文 wiki, ask wiki, ask paper wiki, what does the wiki say, research question]

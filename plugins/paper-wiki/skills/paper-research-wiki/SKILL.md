@@ -39,6 +39,7 @@ For formal drafts, rewrites, repairs, or material updates, also read `../paper-w
 | 直接沉淀 Paper Source 抓下来的论文 / 提取这些论文 / 沉淀论文进 wiki / extract Paper Source papers | `workflows/extract-papers.md` |
 | 检测 wiki 库 / 检查论文 wiki / wiki 状态 / 检查关系图谱 / check wiki / graph health check | `workflows/check-wiki.md` |
 | 提问 / 问 wiki / 问论文 wiki / 根据 wiki 回答 / 查询论文 wiki / ask wiki / ask paper wiki / what does the wiki say | `workflows/ask-wiki.md` |
+| Paper Wiki Zotero status / Paper Wiki Zotero dry-run / PW Zotero 状态 / Zotero 同步预览 / Zotero-only 文献 | `workflows/zotero-status.md` |
 | 重做 / 重新提取 / 更详细提取 / 批量重提取 / 公式推理链 / 图片证据 / 图文证据卡 / source map / source-map-first / redo / deep extraction | `workflows/redo-extraction.md` |
 | 更新 wiki 库 / 继续上次的论文沉淀 / 重link / 关系图谱出错 / 图谱只剩 index / 修复关系图谱 / 重写某页 / 重写页面 / relink / repair Obsidian graph visibility / rewrite formal page / rewrite page / update wiki | `workflows/update-wiki.md` |
 | 证据图维护 / 图谱命名 / 修复图片路径 / 修复证据图 / 公式截图 / repair figure evidence / repair image paths / formula screenshot cleanup | `workflows/maintain-figures.md` |
