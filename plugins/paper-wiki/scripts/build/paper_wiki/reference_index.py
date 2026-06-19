@@ -8,9 +8,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from paper_wiki.frontmatter import parse_frontmatter
+from paper_wiki.zotero_contract import normalize_zotero_metadata
+
 
 SCHEMA_VERSION = "paper-research-reference-index-v1"
-FRONTMATTER = re.compile(r"\A---\r?\n(?P<frontmatter>.*?)\r?\n---\r?\n?", re.DOTALL)
 SOURCE_PDF = re.compile(r"_paper_source%2Fraw%2F(?P<slug>[^%/]+)%2Fpaper\.pdf", re.IGNORECASE)
 DOI_URL = re.compile(r"https?://(?:dx\.)?doi\.org/(?P<doi>10\.\S+)", re.IGNORECASE)
 ARXIV_URL = re.compile(r"arxiv\.org/(?:abs|pdf)/(?P<arxiv>\d{4}\.\d{4,5})(?:v\d+)?", re.IGNORECASE)
@@ -65,46 +67,6 @@ def _normalize_arxiv_base_id(value: object) -> str | None:
     return text or None
 
 
-def _parse_scalar(value: str) -> Any:
-    value = value.strip()
-    if value in {"", "null", "Null", "NULL", "~"}:
-        return None
-    if value in {"true", "True"}:
-        return True
-    if value in {"false", "False"}:
-        return False
-    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
-        return value[1:-1]
-    if re.fullmatch(r"-?\d+", value):
-        return int(value)
-    return value
-
-
-def _parse_frontmatter(text: str) -> dict[str, Any]:
-    match = FRONTMATTER.match(text)
-    if not match:
-        return {}
-    result: dict[str, Any] = {}
-    current_key: str | None = None
-    for raw_line in match.group("frontmatter").splitlines():
-        line = raw_line.rstrip()
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        item_match = re.match(r"^\s*-\s+(.*)$", line)
-        if item_match and current_key:
-            result.setdefault(current_key, []).append(_parse_scalar(item_match.group(1)))
-            continue
-        key_match = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
-        if key_match:
-            key, value = key_match.groups()
-            current_key = key
-            if value == "":
-                result[key] = []
-            else:
-                result[key] = _parse_scalar(value)
-    return result
-
-
 def _as_list(value: Any) -> list[Any]:
     if isinstance(value, list):
         return [item for item in value if item not in {None, ""}]
@@ -156,7 +118,8 @@ def _dedupe_keys(entry: dict[str, Any]) -> list[str]:
 
 def _entry_from_reference_page(vault: Path, page: Path) -> dict[str, Any]:
     text = page.read_text(encoding="utf-8")
-    frontmatter = _parse_frontmatter(text)
+    document = parse_frontmatter(text)
+    frontmatter = document.frontmatter
     title = str(frontmatter.get("title") or page.stem.replace("-", " ")).strip()
     normalized_title = _normalize_title(frontmatter.get("normalized_title") or title)
     source_slug = _extract_source_slug(frontmatter, text)
@@ -196,6 +159,9 @@ def _entry_from_reference_page(vault: Path, page: Path) -> dict[str, Any]:
         "page_sha256": _sha256(page),
         "page_size_bytes": page.stat().st_size,
     }
+    zotero, _issues = normalize_zotero_metadata(frontmatter.get("zotero"))
+    if zotero:
+        entry["zotero"] = zotero
     entry["dedupe_keys"] = _dedupe_keys(entry)
     return entry
 

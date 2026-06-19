@@ -1,6 +1,6 @@
 {
   "name": "paper-wiki",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Paper Wiki asks, deposits, checks, updates, relinks, and redoes source-map-grounded academic paper knowledge.",
   "author": {
     "name": "liuchf"
@@ -20,8 +20,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Paper Wiki",
-    "shortDescription": "v1.0.6 | Paper Wiki: ask, deposit, check, update, graph visibility, relink, redo, refresh reference index, Zotero helper adapter.",
-    "longDescription": "Paper Wiki is one assistant for Paper Source handoffs: ask the formal graph, deposit ready papers, redo source-map extraction, check and repair Obsidian graph visibility drift, update/relink pages, maintain formal page relationships and stale claims, enforce provenance and language gates, refresh _meta/reference-index.json for Paper Source dedupe after wiki writes, keep formula reasoning chains and evidence figure cards source-grounded, run link repair, preserve QMD-compatible indexing, use the official Zotero helper through a thin audited adapter for future Paper Wiki Zotero sync surfaces, and finish with a post-task check.",
+    "shortDescription": "v1.1.0 | Paper Wiki: ask, deposit, check, update, graph visibility, relink, redo, refresh reference index, Zotero foundation.",
+    "longDescription": "Paper Wiki is one assistant for Paper Source handoffs: ask the formal graph, deposit ready papers, redo source-map extraction, check and repair Obsidian graph visibility drift, update/relink pages, maintain formal page relationships and stale claims, enforce provenance and language gates, refresh _meta/reference-index.json for Paper Source dedupe after wiki writes, keep formula reasoning chains and evidence figure cards source-grounded, run link repair, preserve QMD-compatible indexing, use the official Zotero helper through a thin audited adapter for future Paper Wiki Zotero sync surfaces, provide Paper Wiki-local Zotero frontmatter, reference-index, paper-wiki-zotero-sync-report-v1 sync-report, and wiki-scoped BibTeX data contracts without calling Zotero Desktop, and finish with a post-task check.",
     "developerName": "liuchf",
     "category": "Productivity",
     "capabilities": [

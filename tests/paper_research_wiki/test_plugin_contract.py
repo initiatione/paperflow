@@ -168,7 +168,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "1.0.6"
+    assert manifest["version"] == "1.1.0"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -181,7 +181,9 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "QMD-compatible" in manifest["interface"]["longDescription"]
     assert "post-task check" in manifest["interface"]["longDescription"]
     assert "_meta/reference-index.json" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v1.0.6 | Paper Wiki:")
+    assert "paper-wiki-zotero-sync-report-v1" in manifest["interface"]["longDescription"]
+    assert "wiki-scoped BibTeX" in manifest["interface"]["longDescription"]
+    assert manifest["interface"]["shortDescription"].startswith("v1.1.0 | Paper Wiki:")
     for phrase in ["Paper Wiki", "ask", "deposit", "check", "update", "graph visibility", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])

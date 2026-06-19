@@ -77,6 +77,8 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
         docs,
         [
             "Paper Source 2.8.2",
+            "Paper Wiki 1.1.0",
+            "paper-wiki-zotero-sync-report-v1",
             "Paper Wiki 1.0.6",
             "official Zotero helper adapters",
             "Paper Source 2.8.1",
