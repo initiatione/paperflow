@@ -40,6 +40,7 @@ For formal drafts, rewrites, repairs, or material updates, also read `../paper-w
 | 检测 wiki 库 / 检查论文 wiki / wiki 状态 / 检查关系图谱 / check wiki / graph health check | `workflows/check-wiki.md` |
 | 提问 / 问 wiki / 问论文 wiki / 根据 wiki 回答 / 查询论文 wiki / ask wiki / ask paper wiki / what does the wiki say | `workflows/ask-wiki.md` |
 | Paper Wiki Zotero status / Paper Wiki Zotero dry-run / PW Zotero 状态 / Zotero 同步预览 / Zotero-only 文献 | `workflows/zotero-status.md` |
+| Paper Wiki Zotero apply / PW Zotero apply / Zotero 同步应用 / 执行 Zotero 同步 / link Zotero items / import wiki-only papers to Zotero | `workflows/zotero-apply.md` |
 | 重做 / 重新提取 / 更详细提取 / 批量重提取 / 公式推理链 / 图片证据 / 图文证据卡 / source map / source-map-first / redo / deep extraction | `workflows/redo-extraction.md` |
 | 更新 wiki 库 / 继续上次的论文沉淀 / 重link / 关系图谱出错 / 图谱只剩 index / 修复关系图谱 / 重写某页 / 重写页面 / relink / repair Obsidian graph visibility / rewrite formal page / rewrite page / update wiki | `workflows/update-wiki.md` |
 | 证据图维护 / 图谱命名 / 修复图片路径 / 修复证据图 / 公式截图 / repair figure evidence / repair image paths / formula screenshot cleanup | `workflows/maintain-figures.md` |
@@ -60,6 +61,7 @@ For vague Paper Source plus wiki requests, default to 沉淀: run `workflows/che
 - Ar9av/obsidian-wiki patterns are internalized locally; do not fetch upstream repositories during normal runs.
 - QMD is optional; Markdown, manifest, index, log, hot pages, and direct file search are source of truth.
 - Read-only ask workflows answer from the formal graph and correction candidates; ask before repair and do not write `log.md`, formal pages, QMD, or Paper Source artifacts.
-- After writes, repairs, relinks, redo, or staged deposition, refresh `_meta/reference-index.json` when `references/` pages changed, then run the post-task check `workflows/check-wiki.md` before claiming completion. Default to Quick + Targeted; Full check only for explicit comprehensive audit or systemic link/tag chaos.
+- Zotero apply writes require one-run approval bound to the current plan; imports require Zotero selected target `Paper Wiki`; Paper Wiki writes sync reports, wiki-scoped `references.bib`, formal `zotero:` metadata, and reference-index refresh, but never Paper Source approval/trigger/record sidecars.
+- After writes, repairs, relinks, redo, Zotero apply, or staged deposition, refresh `_meta/reference-index.json` when `references/` pages changed, then run the post-task check `workflows/check-wiki.md` before claiming completion. Default to Quick + Targeted; Full check only for explicit comprehensive audit or systemic link/tag chaos.
 
 Internal references: `references/paper-source-artifact-contract.md`, `references/page-provenance.md`, `references/page-family-contract.md`, `references/references-page-anatomy.md`, `references/survey-page-anatomy.md`, `references/upstream-obsidian-wiki-map.md`.

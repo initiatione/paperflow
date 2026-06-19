@@ -77,6 +77,9 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
         docs,
         [
             "Paper Source 2.8.2",
+            "Paper Wiki 1.3.0",
+            "one-run plan-hash approval",
+            "references.bib",
             "Paper Wiki 1.2.0",
             "Zotero status/dry-run",
             "Paper Wiki 1.1.0",

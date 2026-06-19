@@ -16,6 +16,7 @@ WORKFLOWS = {
     "extract-papers.md",
     "check-wiki.md",
     "zotero-status.md",
+    "zotero-apply.md",
     "update-wiki.md",
     "redo-extraction.md",
     "maintain-figures.md",
@@ -169,7 +170,7 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     manifest = _read_json(PLUGIN / ".codex-plugin" / "plugin.json")
 
     assert manifest["name"] == "paper-wiki"
-    assert manifest["version"] == "1.2.0"
+    assert manifest["version"] == "1.3.0"
     assert manifest["skills"] == "./skills/"
     assert manifest["interface"]["displayName"] == "Paper Wiki"
     assert "Paper Wiki" in manifest["description"]
@@ -185,12 +186,15 @@ def test_plugin_manifest_exposes_simple_user_prompts():
     assert "paper-wiki-zotero-sync-report-v1" in manifest["interface"]["longDescription"]
     assert "wiki-scoped BibTeX" in manifest["interface"]["longDescription"]
     assert "read-only Zotero status/dry-run" in manifest["interface"]["longDescription"]
+    assert "one-run plan-hash approval" in manifest["interface"]["longDescription"]
+    assert "selected-target checks" in manifest["interface"]["longDescription"]
+    assert "references.bib refresh" in manifest["interface"]["longDescription"]
     assert "summary-plus-top-20 Zotero-only" in manifest["interface"]["longDescription"]
-    assert manifest["interface"]["shortDescription"].startswith("v1.2.0 | Paper Wiki:")
-    for phrase in ["Paper Wiki", "ask", "deposit", "check", "Zotero status/dry-run", "update", "graph visibility", "relink", "redo"]:
+    assert manifest["interface"]["shortDescription"].startswith("v1.3.0 | Paper Wiki:")
+    for phrase in ["Paper Wiki", "ask", "deposit", "check", "Zotero status/dry-run/apply", "update", "relink", "redo"]:
         assert phrase in manifest["interface"]["shortDescription"]
     prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
-    for phrase in ["Paper Wiki", "PW", "Paper Source", "提取", "提问", "检测", "关系图谱", "Zotero", "dry-run", "更新", "沉淀", "link", "QMD"]:
+    for phrase in ["Paper Wiki", "PW", "Paper Source", "提取", "提问", "检测", "关系图谱", "Zotero", "dry-run", "apply", "更新", "沉淀", "link", "QMD"]:
         assert phrase in prompt_text
 
 
@@ -383,6 +387,7 @@ def test_paper_wiki_skill_routing_manifest_matches_public_workflows():
         "extract_papers",
         "check_wiki",
         "zotero_status",
+        "zotero_apply",
         "ask_wiki",
         "redo_extraction",
         "update_wiki",
@@ -429,6 +434,15 @@ def test_paper_wiki_skill_routing_manifest_matches_public_workflows():
         assert phrase in zotero_triggers
     assert routes["zotero_status"]["workflows"] == ["paper-research-wiki/workflows/zotero-status.md"]
     assert any("read-only by default" in note for note in routes["zotero_status"].get("notes", []))
+
+    apply_triggers = set(routes["zotero_apply"]["triggers"])
+    for phrase in ["Paper Wiki Zotero apply", "Zotero 同步应用", "link Zotero items", "refresh references.bib"]:
+        assert phrase in apply_triggers
+    assert routes["zotero_apply"]["workflows"] == ["paper-research-wiki/workflows/zotero-apply.md"]
+    assert any("one-run approval" in note for note in routes["zotero_apply"].get("notes", []))
+    apply_workflow = _read(PUBLIC_SKILL / "workflows" / "zotero-apply.md")
+    for phrase in ["one-run approval", "plan hash", "selected target", "references.bib", "sync report"]:
+        assert phrase in apply_workflow
 
     update_triggers = set(routes["update_wiki"]["triggers"])
     for phrase in ["关系图谱出错", "图谱只剩 index", "修复关系图谱", "graph only index", "repair Obsidian graph visibility"]:

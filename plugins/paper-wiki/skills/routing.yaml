@@ -31,6 +31,12 @@ routes:
     skill: paper-research-wiki/SKILL.md
     workflows: [paper-research-wiki/workflows/zotero-status.md]
     notes: [read-only by default, no formal page/reference-index/references.bib/Zotero writes, persisted diagnostics require explicit output request]
+  zotero_apply:
+    category: primary
+    triggers: [Paper Wiki Zotero apply, PW Zotero apply, Zotero 同步应用, 应用 Zotero dry-run, 执行 Zotero 同步, import wiki-only papers to Zotero, link Zotero items, refresh references.bib]
+    skill: paper-research-wiki/SKILL.md
+    workflows: [paper-research-wiki/workflows/zotero-apply.md]
+    notes: [requires one-run approval bound to current plan, imports require selected Zotero target Paper Wiki, writes sync report/reference-index/references.bib after approval]
   ask_wiki:
     category: primary
     triggers: [用 PW 问 wiki, Paper Wiki ask, PW ask wiki, 提问, 问 wiki, 问论文 wiki, 根据 wiki 回答, 查询论文 wiki, ask wiki, ask paper wiki, what does the wiki say, research question]
