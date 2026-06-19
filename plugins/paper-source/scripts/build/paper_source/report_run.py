@@ -411,6 +411,77 @@ def _existing_library_doi(item: dict) -> str:
     return str(doi or "-")
 
 
+def _append_zotero_dedupe_session_section(report: list[str], session_recommendations: dict) -> None:
+    zotero = session_recommendations.get("zotero_dedupe")
+    zotero = zotero if isinstance(zotero, dict) else {}
+    if not zotero:
+        return
+    summary = zotero.get("summary") if isinstance(zotero.get("summary"), dict) else {}
+    report.append("### Zotero Discovery Dedupe")
+    report.append(f"- schema: {zotero.get('schema_version')}")
+    report.append(
+        "- summary: "
+        f"already_in_zotero_not_wiki={summary.get('already_in_zotero_not_wiki', 0)}, "
+        f"possible_zotero_duplicate={summary.get('possible_zotero_duplicate', 0)}, "
+        f"new_candidate={summary.get('new_candidate', 0)}, "
+        f"zotero_unavailable={summary.get('zotero_unavailable', 0)}, "
+        f"not_checked={summary.get('not_checked', 0)}"
+    )
+    warnings = zotero.get("warnings") if isinstance(zotero.get("warnings"), list) else []
+    if warnings:
+        report.append("- warnings:")
+        for item in warnings:
+            if isinstance(item, dict):
+                report.append(f"  - {item.get('gate')}: {item.get('count')}")
+
+    already = zotero.get("already_in_zotero_not_wiki") or []
+    report.append("#### Collected In Zotero But Not Deposited To Paper Wiki")
+    if not already:
+        report.append("- None.")
+    else:
+        report.append("| Paper | Year | Zotero item | Basis | DOI/arXiv | Action |")
+        report.append("|---|---:|---|---|---|---|")
+        for item in already[:20]:
+            identity = item.get("doi_url") or item.get("doi_value") or item.get("arxiv_id") or "-"
+            report.append(
+                "| "
+                + " | ".join(
+                    [
+                        _markdown_cell(item.get("title") or item.get("slug")),
+                        _markdown_cell(item.get("year")),
+                        _markdown_cell(item.get("zotero_item_key")),
+                        _markdown_cell(item.get("identity_basis")),
+                        _markdown_cell(identity),
+                        _markdown_cell(item.get("recommended_action")),
+                    ]
+                )
+                + " |"
+            )
+
+    possible = zotero.get("possible_zotero_duplicates") or []
+    report.append("#### Possible Zotero Duplicates Needing Review")
+    if not possible:
+        report.append("- None.")
+    else:
+        report.append("| Paper | Year | Zotero item | Basis | Matched title | Action |")
+        report.append("|---|---:|---|---|---|---|")
+        for item in possible[:20]:
+            report.append(
+                "| "
+                + " | ".join(
+                    [
+                        _markdown_cell(item.get("title") or item.get("slug")),
+                        _markdown_cell(item.get("year")),
+                        _markdown_cell(item.get("zotero_item_key")),
+                        _markdown_cell(item.get("identity_basis")),
+                        _markdown_cell(item.get("matched_title")),
+                        _markdown_cell(item.get("recommended_action")),
+                    ]
+                )
+                + " |"
+            )
+
+
 def _append_session_recommendations_section(report: list[str], session_recommendations: dict) -> None:
     report.append("")
     report.append("## Session Recommendations")
@@ -573,6 +644,8 @@ def _append_session_recommendations_section(report: list[str], session_recommend
                 )
                 + " |"
             )
+
+    _append_zotero_dedupe_session_section(report, session_recommendations)
 
     appendix = session_recommendations.get("review_appendix") or []
     report.append("### Review Appendix")

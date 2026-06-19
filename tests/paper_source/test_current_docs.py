@@ -30,8 +30,8 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     manifest = json.loads(_read(SOURCE_ROOT / ".codex-plugin" / "plugin.json"))
     docs = "\n".join(_source_doc(name) for name in ["CHANGELOG.md", "paper-source-linkage.md", "structure.md"])
 
-    assert manifest["version"] == "2.8.2"
-    assert manifest["interface"]["shortDescription"].startswith("v2.8.2 | Paper Source:")
+    assert manifest["version"] == "2.9.0"
+    assert manifest["interface"]["shortDescription"].startswith("v2.9.0 | Paper Source:")
     assert "health doctor" in manifest["interface"]["shortDescription"]
     assert "MCP/runtime diagnostics" in manifest["interface"]["shortDescription"]
     assert "graph visibility" in manifest["interface"]["shortDescription"]
@@ -72,10 +72,18 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
     assert "high-quality supplemental recall" in manifest["interface"]["longDescription"]
     assert "retry outcomes" in manifest["interface"]["longDescription"]
     assert "filter/rank non-contribution counts" in manifest["interface"]["longDescription"]
+    assert "zotero-dedupe-record.json" in manifest["interface"]["longDescription"]
+    assert "already_in_zotero_not_wiki" in manifest["interface"]["longDescription"]
+    assert "possible_zotero_duplicate" in manifest["interface"]["longDescription"]
     assert "Codex automation approval" in manifest["interface"]["longDescription"]
     _assert_contains_all(
         docs,
         [
+            "Paper Source 2.9.0",
+            "zotero-dedupe-record.json",
+            "session_recommendations.zotero_dedupe",
+            "already_in_zotero_not_wiki",
+            "possible_zotero_duplicate",
             "Paper Source 2.8.2",
             "Paper Wiki 1.3.0",
             "one-run plan-hash approval",
@@ -177,6 +185,7 @@ def test_paper_source_manifest_version_and_public_description_are_synced():
             "wiki-ingest-trigger",
             "record-wiki-ingest",
             "session_recommendations",
+            "paper-source-zotero-dedupe-v1",
             "paper-source-session-recommendations-v1",
             "paper-source-auto-staging-plan-v1",
             "marketplace refresh / reinstall / installed-cache verification remain",
@@ -271,6 +280,8 @@ def test_workflow_and_linkage_docs_cover_kept_runtime_pipeline():
             "wiki-ingest-trigger",
             "record-wiki-ingest",
             "zotero-sync",
+            "zotero-dedupe-record.json",
+            "session_recommendations.zotero_dedupe",
             "report.json",
             "run-state.json",
             "默认 fast-ingest",

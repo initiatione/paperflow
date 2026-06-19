@@ -12,7 +12,7 @@ The bundle currently ships two cooperating plugins:
 
 | Plugin | Machine name | Current source version | Role |
 | --- | --- | ---: | --- |
-| Paper Source | `paper-source` | `2.8.2` | Discover, rank, acquire, parse, audit, stage, approve, initialize vault graph visibility, expose a Zotero helper adapter, and record paper evidence. |
+| Paper Source | `paper-source` | `2.9.0` | Discover, rank, acquire, parse, audit, stage, approve, initialize vault graph visibility, expose a Zotero helper adapter, run discovery-time Zotero dedupe, and record paper evidence. |
 | Paper Wiki | `paper-wiki` | `1.3.0` | Ask, deposit, check, repair graph visibility, update, relink, redo, expose a Zotero helper adapter, provide Zotero data-contract foundations, run read-only Zotero status/dry-run previews, apply approved Zotero sync plans, and maintain formal paper wiki knowledge. |
 
 `paperflow` is the marketplace bundle name. `paper-search` is retained only as

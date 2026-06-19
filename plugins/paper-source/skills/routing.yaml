@@ -27,7 +27,7 @@ routes:
   wiki_provenance: {category: support, triggers: [claim 能否回溯, 证据地址, provenance, final-source-review, record-wiki-ingest], skill: wiki-provenance/SKILL.md}
   run_lifecycle: {category: maintenance, triggers: [清理 runs, run index audit, dashboard pruning], skill: run-lifecycle/SKILL.md, notes: [index.json and research-queue.json use atomic writes]}
   wiki_setup: {category: primary, triggers: [PS 初始化 vault, 初始化 vault, 修复 vault, 重置 vault, graph visibility], skill: wiki-setup/SKILL.md, workflows: [wiki-setup/workflows/reset-repair.md], notes: [Paper Source owns bootstrap; Paper Wiki reports gaps here]}
-  zotero_sync: {category: support, triggers: [同步 Zotero, 记录 Zotero 文献, Zotero, zotero-sync], skill: zotero-sync/SKILL.md, notes: [optional record-only integration unless configured]}
+  zotero_sync: {category: support, triggers: [记录 Zotero 文献, Zotero record, zotero-sync sidecar, zotero-sync], skill: zotero-sync/SKILL.md, notes: [record-only sidecar compatibility, discovery-time Zotero dedupe belongs to paper-discovery dry-run, formal Zotero sync/apply belongs to Paper Wiki]}
   skill_aware_evolve: {category: maintenance, triggers: [优化 Paper Source 插件, plugin eval, quality gates, propose-evolution], skill: skill-aware-evolve/SKILL.md, notes: [configuration changes stay record-only and route to config proposals]}
 task_closure:
   applies_to: [code changes, docs changes, skill behavior changes]

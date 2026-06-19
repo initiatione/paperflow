@@ -71,7 +71,7 @@ python scripts\orchestrator.py record-wiki-ingest --slug <slug> --page <final-pa
 | `wiki-provenance` | 最终页 claim support 和 evidence route | 不替代源论文重读 |
 | `wiki-setup` | 初始化、检查、修复、重置 paper wiki vault | 不检索论文、不写最终知识页 |
 | `run-lifecycle` | 清理 `_paper_source/runs` 过渡态 | 不删 raw/staging/final wiki |
-| `zotero-sync` | 写本地 Zotero sidecar 或按配置记录文献 | 默认不调外部 Zotero API |
+| `zotero-sync` | 写本地 record-only Zotero sidecar；发现阶段 Zotero dedupe 由 dry-run/discover-papers 只读完成 | Paper Source 不执行外部 Zotero 写入，正式 sync/apply 属于 Paper Wiki |
 | `skill-aware-evolve` | 基于证据提出受控优化 | 不直接改用户配置 |
 | `paper-source-paper-deposition` | 清理或转接历史 `wiki_deposition_task.json` 残留 | 新任务不要用它启动正式写入 |
 

@@ -72,12 +72,17 @@ def create_fake_zotero_plugin(
                 }}
                 dump(payload)
             elif command == "inventory":
-                dump([{{"key": "ITEM1", "title": "Inventory Paper"}}])
+                raw = os.environ.get("FAKE_ZOTERO_INVENTORY_JSON")
+                dump(json.loads(raw) if raw else [{{"key": "ITEM1", "title": "Inventory Paper"}}])
             elif command == "search":
-                row = {{"key": "ITEM1", "title": sys.argv[2], "year": "2026"}}
-                if "--with-bibtex-keys" in sys.argv:
-                    row["bibtexKey"] = "paper_2026"
-                dump([row])
+                raw = os.environ.get("FAKE_ZOTERO_SEARCH_JSON")
+                if raw:
+                    dump(json.loads(raw))
+                else:
+                    row = {{"key": "ITEM1", "title": sys.argv[2], "year": "2026"}}
+                    if "--with-bibtex-keys" in sys.argv:
+                        row["bibtexKey"] = "paper_2026"
+                    dump([row])
             elif command == "export-bibtex":
                 text = "@article{{paper_2026, title={{Paper}}}}\\n"
                 if "--out" in sys.argv:
@@ -101,4 +106,3 @@ def create_fake_zotero_plugin(
         encoding="utf-8",
     )
     return plugin
-

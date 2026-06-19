@@ -78,6 +78,7 @@ from paper_source.review_sessions import (
     review_artifact_paths,
 )
 from paper_source.schemas import canonical_key
+from paper_source.zotero_dedupe import apply_zotero_dedupe_to_filter_report, zotero_dedupe_enabled
 
 DOI_RECOVERY_MAX_CANDIDATES = 5
 DOI_RECOVERY_DOMAINS = ["doi.org", "openalex.org", "crossref.org", "arxiv.org"]
@@ -1001,10 +1002,20 @@ def run_dry_run(
     filter_report["staging_ready"] = staging_ready
     filter_report["needs_pdf"] = needs_pdf
     filter_report["rejected"] = rejected
+    filter_report = apply_zotero_dedupe_to_filter_report(
+        filter_report,
+        enabled=zotero_dedupe_enabled(config.zotero_enabled),
+    )
+    filtered = filter_report["kept"]
+    staging_ready = filter_report.get("staging_ready", [])
+    needs_pdf = filter_report.get("needs_pdf", [])
+    rejected = filter_report["rejected"]
     recall_record_path = run_dir / "recall-gap-record.json"
     quality_risk_record_path = run_dir / "quality-risk-record.json"
+    zotero_dedupe_record_path = run_dir / "zotero-dedupe-record.json"
     recall_record["record_path"] = str(recall_record_path)
     quality_risk_record["record_path"] = str(quality_risk_record_path)
+    filter_report["zotero_dedupe"]["record_path"] = str(zotero_dedupe_record_path)
     filter_report["recall_gap"] = {
         "summary": recall_record.get("summary", {}),
         "filter_summary": recall_record.get("filter_summary", {}),
@@ -1016,6 +1027,7 @@ def run_dry_run(
     }
     write_json_atomic(recall_record_path, recall_record)
     write_json_atomic(quality_risk_record_path, quality_risk_record)
+    write_json_atomic(zotero_dedupe_record_path, filter_report["zotero_dedupe"])
     write_json_atomic(run_dir / "filter-report.json", filter_report)
     progress.end_phase(
         "filtering",
@@ -1026,17 +1038,30 @@ def run_dry_run(
             "needs_pdf": len(needs_pdf),
             "rejected": len(rejected),
             "recall_recovered": (recall_record.get("summary") or {}).get("recovered", 0),
+            "already_in_zotero": (filter_report.get("zotero_dedupe", {}).get("summary") or {}).get(
+                "already_in_zotero_not_wiki", 0
+            ),
+            "possible_zotero_duplicate": (filter_report.get("zotero_dedupe", {}).get("summary") or {}).get(
+                "possible_zotero_duplicate", 0
+            ),
         },
         artifacts={
             **progress.artifacts(),
             "filter_report": str(run_dir / "filter-report.json"),
             "recall_gap_record": str(recall_record_path),
             "quality_risk_record": str(quality_risk_record_path),
+            "zotero_dedupe_record": str(zotero_dedupe_record_path),
         },
     )
     state["state"] = "filtered"
     state["recall_gap"] = filter_report["recall_gap"]
     state["quality_risk"] = filter_report["quality_risk"]
+    state["zotero_dedupe"] = {
+        "summary": filter_report.get("zotero_dedupe", {}).get("summary", {}),
+        "record_path": str(zotero_dedupe_record_path),
+        "status": filter_report.get("zotero_dedupe", {}).get("status"),
+        "enabled": filter_report.get("zotero_dedupe", {}).get("enabled"),
+    }
     state["discovery_progress"] = progress.summary()
     write_json_atomic(run_dir / "run-state.json", state)
 
@@ -1185,6 +1210,17 @@ def run_dry_run(
         },
         "required_concept_groups": filter_report.get("required_concept_groups", {}),
         "existing_library": filter_report.get("existing_library", {}),
+        "zotero_dedupe": {
+            "summary": filter_report.get("zotero_dedupe", {}).get("summary", {}),
+            "status": filter_report.get("zotero_dedupe", {}).get("status"),
+            "enabled": filter_report.get("zotero_dedupe", {}).get("enabled"),
+            "warnings": filter_report.get("zotero_dedupe", {}).get("warnings", []),
+            "record_path": str(zotero_dedupe_record_path),
+            "policy": (
+                "Paper Source checks wiki _meta/reference-index.json before Zotero; "
+                "Zotero dedupe is read-only and never writes Zotero or Paper Wiki state"
+            ),
+        },
         "query_records": search_record.get("query_records", []),
         "source_coverage": source_coverage,
         "provider_records": search_record.get("provider_records", {}),
@@ -1228,6 +1264,7 @@ def run_dry_run(
         "recommendation_filter": discovery_context["recommendation_filter"],
         "required_concept_groups": filter_report.get("required_concept_groups", {}),
         "existing_library": filter_report.get("existing_library", {}),
+        "zotero_dedupe": discovery_context["zotero_dedupe"],
         "rejection_reason_counts": _reason_counts(rejected, "filter_reasons"),
         "readiness_reason_counts": _reason_counts(needs_pdf, "readiness_reasons"),
         "needs_pdf": [
@@ -1339,6 +1376,7 @@ def run_dry_run(
             "filter-report.json": run_dir / "filter-report.json",
             "recall-gap-record.json": run_dir / "recall-gap-record.json",
             "quality-risk-record.json": run_dir / "quality-risk-record.json",
+            "zotero-dedupe-record.json": run_dir / "zotero-dedupe-record.json",
             "easyscholar-record.json": run_dir / "easyscholar-record.json",
             "discovery-diagnostics.json": run_dir / "discovery-diagnostics.json",
             "rank.json": run_dir / "rank.json",

@@ -71,6 +71,8 @@ python scripts\orchestrator.py zotero-sync --paper-root <vault>\_paper_source\\r
 
 Full command semantics, artifact paths, and safety gates live in `docs/paper-source-linkage.md`.
 
+`zotero-sync` is record-only compatibility for `_paper_source/raw/<slug>/zotero-record.json`; it does not call external Zotero APIs. Discovery-time Zotero dedupe runs inside `dry-run` / `discover-papers` after wiki `_meta/reference-index.json` checks when Zotero is enabled/configured. It writes `zotero-dedupe-record.json`, exposes `session_recommendations.zotero_dedupe`, and separates `already_in_zotero_not_wiki` plus `possible_zotero_duplicate` from primary recommendations. Paper Wiki owns formal Zotero sync/status/apply writes.
+
 ## Discovery And Source Intake
 
 Paper Source 是通用论文插件，不默认任何学科方向。`dry-run` derives `query-plan.json` from profile, domains, positive/negative keywords, venue prior, and the current request; AUV、机器人、医学等只能来自用户配置、当前请求、Research Brief 或 agent 显式传入的 query variants / hard domain anchors / required concept groups。

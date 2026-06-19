@@ -1,4 +1,4 @@
 interface:
-  display_name: "Zotero Sync"
+  display_name: "Zotero Record Sidecar"
   short_description: "Record or run optional Zotero sync for Paper Source"
-  default_prompt: "Use $zotero-sync to record or run optional Zotero sync for Paper Source."
+  default_prompt: "Use $zotero-sync only to record Paper Source's local Zotero sidecar; route formal Zotero sync/apply to Paper Wiki."

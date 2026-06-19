@@ -63,6 +63,8 @@ class PipelineConfig:
     easyscholar_timeout_seconds: int
     easyscholar_cache_ttl_days: int
     easyscholar_max_candidates_per_run: int
+    zotero_enabled: bool
+    zotero_collection: str
     grok_search: GrokSearchConfig
     quality_evidence_terms: object
 
@@ -758,6 +760,9 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
     if not isinstance(easyscholar, dict):
         easyscholar = {}
     grok_search = _parse_grok_search_config(interests)
+    zotero = interests.get("zotero")
+    if not isinstance(zotero, dict):
+        zotero = {}
     ranking = interests.get("ranking") if isinstance(interests.get("ranking"), dict) else {}
     quality_evidence_terms = ranking.get("quality_evidence_terms")
     if quality_evidence_terms is None:
@@ -778,6 +783,8 @@ def load_config(plugin_root: Path, vault_path: Path, max_results: int | None) ->
         easyscholar_timeout_seconds=int(easyscholar.get("timeout_seconds", 15)),
         easyscholar_cache_ttl_days=int(easyscholar.get("cache_ttl_days", 30)),
         easyscholar_max_candidates_per_run=int(easyscholar.get("max_candidates_per_run", 50)),
+        zotero_enabled=_as_bool(zotero.get("enabled", False)),
+        zotero_collection=str(zotero.get("collection") or "Paper Source"),
         grok_search=grok_search,
         quality_evidence_terms=quality_evidence_terms if isinstance(quality_evidence_terms, (dict, list)) else {},
     )

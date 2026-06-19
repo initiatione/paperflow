@@ -201,12 +201,12 @@ def test_plugin_manifest_exposes_simple_user_prompts():
 def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     manifest = _read_json(PAPER_SOURCE_PLUGIN / ".codex-plugin" / "plugin.json")
 
-    assert manifest["version"] == "2.8.2"
+    assert manifest["version"] == "2.9.0"
     assert manifest["name"] == "paper-source"
     assert manifest["interface"]["displayName"] == "Paper Source"
     assert "Paper Source" in manifest["description"]
     assert "Paper Wiki-compatible" in manifest["description"]
-    assert manifest["interface"]["shortDescription"].startswith("v2.8.2 | Paper Source:")
+    assert manifest["interface"]["shortDescription"].startswith("v2.9.0 | Paper Source:")
     assert "health doctor" in manifest["interface"]["shortDescription"]
     assert "MCP/runtime diagnostics" in manifest["interface"]["shortDescription"]
     assert "graph visibility" in manifest["interface"]["shortDescription"]
@@ -223,6 +223,9 @@ def test_paper_source_manifest_describes_brief_first_paper_wiki_boundary():
     assert "Paper Wiki" in manifest["interface"]["longDescription"]
     assert "empty graph.json search plus app.json userIgnoreFilters" in manifest["interface"]["longDescription"]
     assert "session_recommendations" in manifest["interface"]["longDescription"]
+    assert "zotero-dedupe-record.json" in manifest["interface"]["longDescription"]
+    assert "already_in_zotero_not_wiki" in manifest["interface"]["longDescription"]
+    assert "possible_zotero_duplicate" in manifest["interface"]["longDescription"]
     assert "progress-events.jsonl" in manifest["interface"]["longDescription"]
     assert "report.json.discovery_context.discovery_progress" in manifest["interface"]["longDescription"]
     assert "required concept groups" in manifest["interface"]["longDescription"]

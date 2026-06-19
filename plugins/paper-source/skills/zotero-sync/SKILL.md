@@ -1,14 +1,18 @@
 ---
 name: zotero-sync
 description: >
-  Use when recording optional Zotero data: "同步 Zotero", "记录 Zotero 文献", zotero-sync sidecars.
+  Use when recording optional local Zotero sidecar data: "记录 Zotero 文献", zotero-sync sidecars.
 ---
 
-# Zotero Sync
+# Zotero Record Sidecar
 
-Zotero integration is optional. Default to local record-only behavior unless the user config enables Zotero sync or the user asks to run it.
+This Paper Source route is record-only compatibility for `_paper_source\raw\<paper-slug>\zotero-record.json`.
+It does not call external Zotero APIs, import Zotero items, or synchronize formal Paper Wiki pages.
 
-If config is missing, stop sync and use `config-setup`. See `docs\config.md`.
+Discovery-time Zotero dedupe runs through `paper-discovery` / `dry-run` and writes `zotero-dedupe-record.json`.
+Formal Zotero sync/status/apply writes belong to Paper Wiki `$paper-research-wiki`.
+
+If config is missing, stop and use `config-setup`. See `docs\config.md`.
 
 ```powershell
 python scripts\orchestrator.py zotero-sync --paper-root <vault>\_paper_source\\raw\\<paper-slug> --collection Paper Source --enabled --item-key <zotero-item-key>

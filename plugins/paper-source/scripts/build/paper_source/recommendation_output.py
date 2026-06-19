@@ -7,6 +7,7 @@ from paper_source.grok_search_policy import grok_only_quota, usable_paper_search
 
 SCHEMA_VERSION = "paper-source-session-recommendations-v1"
 DEFAULT_PRIMARY_LIMIT = 10
+ZOTERO_DEDUPE_SCHEMA_VERSION = "paper-source-zotero-dedupe-v1"
 
 
 def _text(value: object) -> str:
@@ -270,6 +271,7 @@ def _recommendation_item(
         "provider_provenance": candidate.get("provider_provenance") or [],
         "pdf_status": _pdf_status(candidate),
         "pdf_url": candidate.get("pdf_url") or None,
+        "zotero_dedupe": candidate.get("zotero_dedupe") if isinstance(candidate.get("zotero_dedupe"), dict) else {},
         "manual_download": {
             "status": "available" if manual_card else ("needed" if _pdf_status(candidate) == "needs_pdf" else "not_needed"),
             "links": _manual_links(candidate, manual_card),
@@ -302,6 +304,11 @@ def _verification_warnings(item: dict[str, Any]) -> list[str]:
         warnings.append("quality_risk_suspected")
     elif risk_status != "verified_clear":
         warnings.append("quality_risk_unverified")
+    dedupe = item.get("zotero_dedupe") if isinstance(item.get("zotero_dedupe"), dict) else {}
+    if dedupe.get("candidate_status") == "zotero_unavailable":
+        warnings.append("zotero_unavailable")
+    elif dedupe.get("candidate_status") == "not_checked":
+        warnings.append("zotero_not_checked")
     return warnings
 
 
@@ -473,6 +480,73 @@ def _existing_library_appendix(rejected: list[dict[str, Any]]) -> list[dict[str,
             }
         )
     return appendix
+
+
+def _zotero_card(candidate: dict[str, Any]) -> dict[str, Any]:
+    dedupe = candidate.get("zotero_dedupe")
+    dedupe = dedupe if isinstance(dedupe, dict) else {}
+    doi = _doi_payload(candidate)
+    return {
+        "slug": candidate.get("slug"),
+        "title": candidate.get("title"),
+        "venue": candidate.get("venue"),
+        "year": candidate.get("year"),
+        "doi": doi["display"],
+        "doi_value": doi["value"],
+        "doi_status": doi["status"],
+        "doi_url": _doi_url(doi["value"]),
+        "arxiv_id": candidate.get("arxiv_id"),
+        "zotero_item_key": dedupe.get("zotero_item_key"),
+        "zotero_status": dedupe.get("zotero_status"),
+        "candidate_status": dedupe.get("candidate_status"),
+        "identity_basis": dedupe.get("identity_basis"),
+        "match_confidence": dedupe.get("zotero_match_confidence"),
+        "matched_title": dedupe.get("matched_title"),
+        "matched_year": dedupe.get("matched_year"),
+        "dedupe_warning": dedupe.get("dedupe_warning"),
+        "recommended_action": dedupe.get("recommended_action"),
+    }
+
+
+def _zotero_dedupe_projection(ranked: list[dict[str, Any]], rejected: list[dict[str, Any]]) -> dict[str, Any]:
+    groups = {
+        "already_in_zotero_not_wiki": [],
+        "possible_zotero_duplicates": [],
+        "zotero_unavailable": [],
+        "not_checked": [],
+    }
+    counts: Counter[str] = Counter()
+    warnings: Counter[str] = Counter()
+    for candidate in [*ranked, *rejected]:
+        dedupe = candidate.get("zotero_dedupe")
+        if not isinstance(dedupe, dict):
+            continue
+        status = _text(dedupe.get("candidate_status")) or "unknown"
+        counts[status] += 1
+        warning = _text(dedupe.get("dedupe_warning"))
+        if warning and status == "zotero_unavailable":
+            warnings[warning] += 1
+        if status == "already_in_zotero_not_wiki":
+            groups["already_in_zotero_not_wiki"].append(_zotero_card(candidate))
+        elif status == "possible_zotero_duplicate":
+            groups["possible_zotero_duplicates"].append(_zotero_card(candidate))
+        elif status == "zotero_unavailable":
+            groups["zotero_unavailable"].append(_zotero_card(candidate))
+        elif status == "not_checked":
+            groups["not_checked"].append(_zotero_card(candidate))
+    return {
+        "schema_version": ZOTERO_DEDUPE_SCHEMA_VERSION,
+        "summary": {
+            "counts": dict(sorted(counts.items())),
+            "already_in_zotero_not_wiki": counts.get("already_in_zotero_not_wiki", 0),
+            "possible_zotero_duplicate": counts.get("possible_zotero_duplicate", 0),
+            "new_candidate": counts.get("new_candidate", 0),
+            "zotero_unavailable": counts.get("zotero_unavailable", 0),
+            "not_checked": counts.get("not_checked", 0),
+        },
+        "warnings": [{"gate": gate, "count": count} for gate, count in sorted(warnings.items())],
+        **groups,
+    }
 
 
 def _required_concept_group_reject_items(rejected: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -794,6 +868,7 @@ def build_session_recommendations(
         for candidate in appendix_candidates
     ]
     existing_library_appendix = _existing_library_appendix(rejected)
+    zotero_dedupe = _zotero_dedupe_projection(ranked, rejected)
     required_concept_group_rejects = _required_concept_group_reject_items(rejected)
     quality_reject_debug = _quality_reject_debug(ranked)
     doi_filtered_items = [*primary_doi_filtered, *appendix_doi_filtered]
@@ -824,6 +899,7 @@ def build_session_recommendations(
         "primary_recommendations": primary_recommendations,
         "review_appendix": review_appendix,
         "existing_library_appendix": existing_library_appendix,
+        "zotero_dedupe": zotero_dedupe,
         "required_concept_group_rejects": required_concept_group_rejects,
         "verification_summary": _verification_summary(primary_recommendations),
         "rejected_summary": _rejected_summary(rejected),

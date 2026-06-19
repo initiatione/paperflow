@@ -18,7 +18,7 @@ python scripts\orchestrator.py record-wiki-ingest --slug <paper-slug> --page <fi
 python scripts\orchestrator.py zotero-sync --paper-root <vault>\_paper_source\\raw\\<paper-slug> --collection Paper Source --enabled
 ```
 
-Runtime artifacts stay under the single `_paper_source` internal repository and the optional Zotero sidecar. The main artifacts are `_paper_source/runs/<run-id>/search-record.json`, `rank.json`, `report.md`, `report.json`, and `run-state.json`, plus paper-scoped `parse-record.json`, `critic-report.json`, `_paper_source/staging/papers/<slug>/human-approval.json`, `_paper_source/staging/papers/<slug>/wiki-agent-trigger.json`, `wiki-ingest-record.json`, and `zotero-record.json` files.
+Runtime artifacts stay under the single `_paper_source` internal repository, the optional Zotero record-only sidecar, and run-level read-only Zotero dedupe evidence. The main artifacts are `_paper_source/runs/<run-id>/search-record.json`, `rank.json`, `report.md`, `report.json`, `run-state.json`, and `zotero-dedupe-record.json`, plus paper-scoped `parse-record.json`, `critic-report.json`, `_paper_source/staging/papers/<slug>/human-approval.json`, `_paper_source/staging/papers/<slug>/wiki-agent-trigger.json`, `wiki-ingest-record.json`, and `zotero-record.json` files. `session_recommendations.zotero_dedupe` is report output, not a Paper Source Zotero sync/apply write.
 
 `report --run-id` reads existing `_paper_source/runs/<run-id>/report.md`, `report.json`, and `run-state.json`; it does not rerun discovery, ingest, MinerU, staging, or wiki writes.
 
